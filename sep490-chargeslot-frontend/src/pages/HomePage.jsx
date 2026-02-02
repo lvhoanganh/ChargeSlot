@@ -1,0 +1,24 @@
+import Nav from "@/components/Nav";
+import { Button } from "@/components/ui/button";
+import homeBg from "../assets/images/home.jpg";
+export default function HomePage() {
+  return (
+    <div className="pt-20">
+      <div className="min-h-60 flex flex-col items-center justify-center gap-5">
+        <h1 className="text-3xl font-bold">Đặt lịch sạc xe điện dễ dàng</h1>
+        <p>
+          Dễ dàng đặt trước lịch sạc cho xe điện của bạn với ChargeSlot. Trải
+          nghiệm sự tiện lợi và tiết kiệm thời gian
+        </p>
+        <Button className="w-40 bg-orange-500 rounded-full text-md hover:bg-green-500 cursor-pointer">
+          Tìm trạm sạc
+        </Button>
+      </div>
+      <img
+        src={homeBg}
+        alt="home bg"
+        className="w-full h-[800px] object-cover"
+      />
+    </div>
+  );
+}
