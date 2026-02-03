@@ -24,7 +24,7 @@ export default function Login() {
               placeholder="Nhập mật khẩu..."
             />
           </div>
-          <Link className="hover:underline block text-blue-500 mb-5 ">
+          <Link to="/forgotPassword" className="hover:underline block text-blue-500 mb-5 ">
             Quên mật khẩu ?
           </Link>
           <Button className="w-full h-12 bg-orange-500 hover:bg-green-500 cursor-pointer mb-5">

@@ -6,6 +6,10 @@ import News from "./pages/News";
 import About from "./pages/About";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import Register from "./pages/Register";
+import VerifyOtp from "./pages/VerifyOtp";
+import SetPassword from "./pages/SetPassword";
+import ForgotPassword from "./pages/ForgotPassword";
 export default function App() {
   return (
     <div>
@@ -16,6 +20,10 @@ export default function App() {
           <Route path="news" element={<News />} />
           <Route path="about" element={<About />} />
           <Route path="login" element={<Login />} />
+          <Route path="register" element={<Register />} />
+          <Route path="verifyOtp" element={<VerifyOtp />} />
+          <Route path="setPassword" element={<SetPassword />} />
+          <Route path="forgotPassword" element={<ForgotPassword />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
