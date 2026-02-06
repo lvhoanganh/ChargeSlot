@@ -13,6 +13,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
 import ChangePassword from "./pages/ChangePassword";
+import ChangePhone from "./pages/ChangePhone";
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/edit-profile" element={<EditProfile />} />
           <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="/change-phone" element={<ChangePhone />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
