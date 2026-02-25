@@ -14,19 +14,17 @@ const ROLE_LABEL = {
 };
 
 export default function Profile() {
-  // Giả lập user
   const user = {
     name: "",
     phone: "0123456789",
-    role: "DRIVER", // DRIVER | OWNER | ADMIN
+    role: "DRIVER",
     email: "",
     gender: "",
     dob: "",
     address: "",
   };
 
-  const vehicles = []; // chỉ DRIVER mới dùng
-
+  const vehicles = []; 
   const isDriver = user.role === "DRIVER";
 
   return (
@@ -34,7 +32,6 @@ export default function Profile() {
       <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 p-10">
 
-          {/* LEFT */}
           <div className="flex flex-col items-center">
             <img
               src={DEFAULT_AVATAR}
@@ -45,11 +42,7 @@ export default function Profile() {
               {user.name || "Chưa cập nhật tên"}
             </p>
           </div>
-
-          {/* RIGHT */}
           <div className="md:col-span-2 space-y-10">
-
-            {/* THÔNG TIN CÁ NHÂN */}
             <section>
               <h1 className="text-2xl font-bold mb-6">
                 Thông tin cá nhân
@@ -76,7 +69,6 @@ export default function Profile() {
               )}
             </section>
 
-            {/* PHƯƠNG TIỆN – CHỈ DRIVER */}
             {isDriver && (
               <section className="pt-6 border-t border-gray-200">
                 <div className="flex items-center justify-between mb-4">
@@ -97,8 +89,6 @@ export default function Profile() {
                 )}
               </section>
             )}
-
-            {/* ACTION */}
             <section className="flex gap-4 pt-4">
               <Link to="/edit-profile" className="w-1/2">
                 <Button className="w-full h-12 bg-orange-500 hover:bg-orange-600">

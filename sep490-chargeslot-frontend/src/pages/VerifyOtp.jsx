@@ -14,14 +14,6 @@ export default function VerifyOtp() {
 
     let timer;
 
-    if (purpose === "change-phone") {
-      // đổi SĐT → logout
-      timer = setTimeout(() => {
-        // TODO: clear auth token sau này
-        navigate("/login", { replace: true });
-      }, 2500);
-    }
-
     if (purpose === "register") {
       timer = setTimeout(() => {
         navigate("/setPassword", { replace: true });
@@ -39,8 +31,6 @@ export default function VerifyOtp() {
 
   const getTitle = () => {
     switch (purpose) {
-      case "change-phone":
-        return "Xác thực OTP – Đổi số điện thoại";
       case "forgot":
         return "Xác thực OTP – Quên mật khẩu";
       default:
@@ -50,17 +40,6 @@ export default function VerifyOtp() {
 
   const getSuccessContent = () => {
     switch (purpose) {
-      case "change-phone":
-        return (
-          <>
-            <p className="text-lg font-semibold mb-2">
-              Đổi số điện thoại thành công
-            </p>
-            <p className="text-sm text-gray-600">
-              Bạn sẽ được đăng xuất và cần đăng nhập lại bằng số mới
-            </p>
-          </>
-        );
       case "forgot":
         return (
           <>
