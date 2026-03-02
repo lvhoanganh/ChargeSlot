@@ -1,25 +1,35 @@
-﻿using ChargeSlot.Api.Models.Identity;
+using ChargeSlot.Api.Enums;
+using ChargeSlot.Api.Models.Identity;
 
 namespace ChargeSlot.Api.Models
 {
+    /// <summary>SRS 1.5 ChargingStation - owner, location, approval, operational status.</summary>
     public class ChargingStation
     {
-        public Guid Id { get; set; }
+        public int Id { get; set; }
+        public int OwnerUserId { get; set; }
+        public Owner Owner { get; set; } = null!;
 
         public string Name { get; set; } = null!;
         public string Address { get; set; } = null!;
+        public string? Description { get; set; }
+        public decimal? Latitude { get; set; }
+        public decimal? Longitude { get; set; }
 
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
+        public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Draft;
+        public OperationalStatus OperationalStatus { get; set; } = OperationalStatus.Inactive;
+        public DateTime? SubmittedAt { get; set; }
+        public DateTime? ReviewedAt { get; set; }
+        public int? ReviewedByUserId { get; set; }
+        public ApplicationUser? ReviewedByUser { get; set; }
+        public string? AdminNote { get; set; }
 
-        // Identity User (Owner)
-        public int OwnerId { get; set; }
-        public ApplicationUser Owner { get; set; } = null!;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
 
-        public bool IsApproved { get; set; }
-        public DateTime CreatedAt { get; set; }
-
-        public ICollection<ChargingSlot> ChargingSlots { get; set; }
-            = new List<ChargingSlot>();
+        public ICollection<StationImage> Images { get; set; } = new List<StationImage>();
+        public ICollection<StationOperatingHours> OperatingHours { get; set; } = new List<StationOperatingHours>();
+        public ICollection<ExtraService> ExtraServices { get; set; } = new List<ExtraService>();
+        public ICollection<ChargingSlot> ChargingSlots { get; set; } = new List<ChargingSlot>();
     }
 }

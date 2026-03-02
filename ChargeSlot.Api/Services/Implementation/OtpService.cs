@@ -1,4 +1,4 @@
-﻿using ChargeSlot.Api.Enums;
+using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
@@ -38,7 +38,6 @@ namespace ChargeSlot.Api.Services.Implementation
             // 3️⃣ Tạo entity
             var entity = new UserOtp
             {
-                Id = Guid.NewGuid(),
                 PhoneNumber = phoneNumber,
                 OtpHash = otpHash,
                 Purpose = purpose,

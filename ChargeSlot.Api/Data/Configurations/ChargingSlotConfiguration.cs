@@ -1,4 +1,4 @@
-﻿using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,18 +8,19 @@ namespace ChargeSlot.Api.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<ChargingSlot> builder)
         {
+            builder.ToTable("ChargingSlot");
             builder.HasKey(x => x.Id);
-
-            builder.Property(x => x.SlotName)
-                   .IsRequired()
-                   .HasMaxLength(100);
-
-            builder.Property(x => x.PricePerHour)
-                   .HasPrecision(18, 2);
+            builder.Property(x => x.SlotName).HasMaxLength(100).IsRequired();
+            builder.Property(x => x.ConnectorType).HasMaxLength(100).IsRequired();
+            builder.Property(x => x.PowerKw).HasPrecision(10, 2);
+            builder.Property(x => x.BasePricePerHour).HasPrecision(18, 2);
+            builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
 
             builder.HasOne(x => x.ChargingStation)
-                   .WithMany(s => s.ChargingSlots)
-                   .HasForeignKey(x => x.ChargingStationId);
+                .WithMany(s => s.ChargingSlots)
+                .HasForeignKey(x => x.StationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasIndex(x => new { x.StationId, x.Status });
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using ChargeSlot.Api.DTOs.Auth;
+using ChargeSlot.Api.DTOs.Auth;
 
 namespace ChargeSlot.Api.Services.Interfaces
 {
@@ -7,6 +7,6 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task RegisterAsync(RegisterDto dto);
         Task<AuthResponseDto> LoginAsync(LoginDto dto);
         Task ResetPasswordAsync(string phoneNumber, string newPassword);
-
+        Task<AuthResponseDto> LoginAdminAsync(AdminLoginDto dto);
     }
 }

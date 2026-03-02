@@ -1,4 +1,4 @@
-﻿using ChargeSlot.Api.DTOs.Auth;
+using ChargeSlot.Api.DTOs.Auth;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -42,6 +42,20 @@ namespace ChargeSlot.Api.Controllers
             try
             {
                 var result = await _authService.LoginAsync(dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("admin/login")]
+        public async Task<IActionResult> AdminLogin([FromBody] AdminLoginDto dto)
+        {
+            try
+            {
+                var result = await _authService.LoginAdminAsync(dto);
                 return Ok(result);
             }
             catch (Exception ex)

@@ -1,24 +1,23 @@
-﻿using ChargeSlot.Api.Enums;
+using ChargeSlot.Api.Enums;
+using ChargeSlot.Api.Models.Identity;
 
 namespace ChargeSlot.Api.Models
 {
+    /// <summary>SRS 1.5 PasswordResetToken/OTP - BR-12 to BR-19, CleanOTP job.</summary>
     public class UserOtp
     {
-        public Guid Id { get; set; }
-
+        public int Id { get; set; }
+        /// <summary>Optional; required for register flow we only have phone.</summary>
+        public int? UserId { get; set; }
+        public ApplicationUser? User { get; set; }
+        /// <summary>Required for lookup when user does not exist yet (e.g. register).</summary>
         public string PhoneNumber { get; set; } = null!;
 
         public string OtpHash { get; set; } = null!;
-
-        public DateTime ExpiredAt { get; set; }
-
-        public bool IsUsed { get; set; }
-
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        // OTP dùng cho việc gì
         public OtpPurpose Purpose { get; set; }
-
-        // Thời điểm OTP được verify thành công
+        public DateTime ExpiredAt { get; set; }
+        public bool IsUsed { get; set; }
         public DateTime? VerifiedAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

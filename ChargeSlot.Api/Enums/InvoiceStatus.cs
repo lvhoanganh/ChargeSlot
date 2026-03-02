@@ -1,9 +1,10 @@
-﻿namespace ChargeSlot.Api.Enums
+namespace ChargeSlot.Api.Enums
 {
+    /// <summary>SRS 1.5 Invoice status, UC-21, UC-22.</summary>
     public enum InvoiceStatus
     {
-        Pending,
-        Confirmed,
-        Disputed
+        PendingConfirm = 0,
+        Confirmed = 1,
+        UnderDispute = 2
     }
 }

@@ -87,6 +87,10 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserOtpRepository, UserOtpRepository>();
 builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<IDriverRepository, DriverRepository>();
+builder.Services.AddScoped<IOwnerRepository, OwnerRepository>();
+builder.Services.AddScoped<IDriverProfileService, DriverProfileService>();
+builder.Services.AddScoped<IOwnerProfileService, OwnerProfileService>();
 
 
 // (Sau này thêm)
