@@ -10,6 +10,10 @@ import Register from "./pages/Register";
 import VerifyOtp from "./pages/VerifyOtp";
 import SetPassword from "./pages/SetPassword";
 import ForgotPassword from "./pages/ForgotPassword";
+import Profile from "./pages/Profile";
+import EditProfile from "./pages/EditProfile";
+import ChangePassword from "./pages/ChangePassword";
+
 export default function App() {
   return (
     <div>
@@ -24,6 +28,9 @@ export default function App() {
           <Route path="verifyOtp" element={<VerifyOtp />} />
           <Route path="setPassword" element={<SetPassword />} />
           <Route path="forgotPassword" element={<ForgotPassword />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/edit-profile" element={<EditProfile />} />
+          <Route path="/change-password" element={<ChangePassword />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
