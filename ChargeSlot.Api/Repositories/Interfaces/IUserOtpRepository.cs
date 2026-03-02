@@ -1,4 +1,4 @@
-﻿using ChargeSlot.Api.Enums;
+using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 
 namespace ChargeSlot.Api.Repositories.Interfaces
@@ -7,7 +7,7 @@ namespace ChargeSlot.Api.Repositories.Interfaces
     {
         Task AddAsync(UserOtp otp);
 
-        Task<UserOtp?> GetLatestValidOtpAsync(string phoneNumber);
+        Task<UserOtp?> GetLatestValidOtpAsync(string phoneNumber, OtpPurpose purpose);
         Task<bool> HasVerifiedOtpAsync(string phoneNumber);
         Task InvalidateAllOtpsAsync(string phoneNumber);
         Task<bool> CanSendOtpAsync(string phoneNumber, TimeSpan cooldown);

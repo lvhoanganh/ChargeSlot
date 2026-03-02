@@ -2,6 +2,7 @@ using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
+using ChargeSlot.Api.Helpers;
 
 namespace ChargeSlot.Api.Services.Implementation
 {
@@ -17,10 +18,12 @@ namespace ChargeSlot.Api.Services.Implementation
         public async Task SendOtpAsync(string phoneNumber, OtpPurpose purpose)
 
         {
+            var phone = PhoneNumberHelper.NormalizeAndValidate(phoneNumber);
+
             // ⏱️ CHẶN SPAM OTP (30s)
             var remainingSeconds =
                 await _otpRepository.GetRemainingCooldownSecondsAsync(
-                    phoneNumber,
+                    phone,
                     TimeSpan.FromSeconds(30)
                 );
 
@@ -38,7 +41,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // 3️⃣ Tạo entity
             var entity = new UserOtp
             {
-                PhoneNumber = phoneNumber,
+                PhoneNumber = phone,
                 OtpHash = otpHash,
                 Purpose = purpose,
                 ExpiredAt = DateTime.UtcNow.AddMinutes(5),
@@ -51,16 +54,15 @@ namespace ChargeSlot.Api.Services.Implementation
             await _otpRepository.SaveChangesAsync();
 
             // 5️⃣ MOCK GỬI OTP (BÂY GIỜ)
-            Console.WriteLine($"[OTP MOCK] Phone: {phoneNumber} | OTP: {otp}");
+            Console.WriteLine($"[OTP MOCK] Phone: {phone} | OTP: {otp}");
         }
 
         public async Task VerifyOtpAsync(string phoneNumber, string otp, OtpPurpose purpose)
         {
-            // 1️⃣ Lấy OTP còn hiệu lực
-            var record = await _otpRepository.GetLatestValidOtpAsync(phoneNumber);
+            var phone = PhoneNumberHelper.NormalizeAndValidate(phoneNumber);
 
-            if (record == null || record.Purpose != purpose)
-                throw new InvalidOperationException("OTP is invalid or expired.");
+            // 1️⃣ Lấy OTP còn hiệu lực
+            var record = await _otpRepository.GetLatestValidOtpAsync(phone, purpose);
 
             if (record == null)
                 throw new InvalidOperationException("OTP is invalid or expired.");
@@ -91,9 +93,7 @@ namespace ChargeSlot.Api.Services.Implementation
             return BCrypt.Net.BCrypt.HashPassword(otp);
         }
 
-        private static bool VerifyOtp(string otp, string hash)
-        {
-            return BCrypt.Net.BCrypt.Verify(otp, hash);
-        }
+        private static bool VerifyOtp(string otp, string hash) =>
+            BCrypt.Net.BCrypt.Verify(otp, hash);
     }
 }

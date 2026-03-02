@@ -1,4 +1,4 @@
-﻿using ChargeSlot.Api.Data;
+using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
@@ -20,11 +20,12 @@ namespace ChargeSlot.Api.Repositories.Implementation
             await _context.UserOtps.AddAsync(otp);
         }
 
-        public async Task<UserOtp?> GetLatestValidOtpAsync(string phoneNumber)
+        public async Task<UserOtp?> GetLatestValidOtpAsync(string phoneNumber, OtpPurpose purpose)
         {
             return await _context.UserOtps
                 .Where(x =>
                     x.PhoneNumber == phoneNumber &&
+                    x.Purpose == purpose &&
                     !x.IsUsed &&
                     x.ExpiredAt > DateTime.UtcNow)
                 .OrderByDescending(x => x.CreatedAt)
