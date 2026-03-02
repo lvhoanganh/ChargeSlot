@@ -109,6 +109,9 @@ builder.Services.AddSwaggerGen();
 // =======================
 var app = builder.Build();
 
+// Seed demo data for local testing
+await DataSeeder.SeedAsync(app.Services);
+
 // =======================
 // MIDDLEWARE PIPELINE
 // =======================

@@ -207,10 +207,8 @@ namespace ChargeSlot.Api.Services.Implementation
             return (tokenString, expiresAtUtc);
         }
 
-        private static string NormalizePhone(string phone)
-        {
-            return phone.Trim().Replace(" ", "");
-        }
+        private static string NormalizePhone(string phone) =>
+            PhoneNumberHelper.NormalizeAndValidate(phone);
         public async Task ResetPasswordAsync(string phoneNumber, string newPassword)
         {
             var phone = NormalizePhone(phoneNumber);
