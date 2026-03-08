@@ -1,4 +1,4 @@
-using ChargeSlot.Api.Helpers;
+using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Models.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -21,7 +21,7 @@ namespace ChargeSlot.Api.Data
             var userManager = provider.GetRequiredService<UserManager<ApplicationUser>>();
             var roleManager = provider.GetRequiredService<RoleManager<IdentityRole<int>>>();
 
-            // Ensure roles exist (in case migrations not applied yet)
+            // Ensure roles exist
             foreach (var role in RoleConstants.DbRoles)
             {
                 if (!await roleManager.Roles.AnyAsync(r => r.Name == role))
@@ -36,77 +36,88 @@ namespace ChargeSlot.Api.Data
 
             const string defaultPassword = "Password1!";
 
-            // Demo driver user
-            var driverPhone = "0900000001";
-            var driverUser = await userManager.FindByNameAsync(driverPhone);
-            if (driverUser == null)
-            {
-                driverUser = new ApplicationUser
-                {
-                    UserName = driverPhone,
-                    PhoneNumber = driverPhone,
-                    FullName = "Demo Driver",
-                    IsPhoneVerified = true,
-                    Status = "ACTIVE",
-                    CreatedAt = DateTime.UtcNow
-                };
+            // ============================
+            // SEED DRIVERS
+            // ============================
 
-                var createResult = await userManager.CreateAsync(driverUser, defaultPassword);
-                if (createResult.Succeeded)
+            for (int i = 1; i <= 5; i++)
+            {
+                var phone = $"09000000{i:00}";
+                var user = await userManager.FindByNameAsync(phone);
+
+                if (user == null)
                 {
-                    await userManager.AddToRoleAsync(driverUser, RoleConstants.Driver);
+                    user = new ApplicationUser
+                    {
+                        UserName = phone,
+                        PhoneNumber = phone,
+                        FullName = $"Demo Driver {i}",
+                        IsPhoneVerified = true,
+                        Status = "ACTIVE",
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    var createResult = await userManager.CreateAsync(user, defaultPassword);
+                    if (createResult.Succeeded)
+                    {
+                        await userManager.AddToRoleAsync(user, RoleConstants.Driver);
+                    }
+                }
+
+                if (!await context.Driver.AnyAsync(d => d.UserId == user.Id))
+                {
+                    context.Driver.Add(new Driver
+                    {
+                        UserId = user.Id,
+                        VehicleType = "EV Car",
+                        LicensePlate = $"DRIVER-{i:00}",
+                        LicenseNumber = $"DRV-LIC-{i:00}",
+                        CreatedAt = DateTime.UtcNow
+                    });
                 }
             }
 
-            // Ensure driver profile exists
-            if (!await context.Drivers.AnyAsync(d => d.UserId == driverUser.Id))
-            {
-                context.Drivers.Add(new Driver
-                {
-                    UserId = driverUser.Id,
-                    VehicleType = "EV Car",
-                    LicensePlate = "TEST-DRIVER-01",
-                    LicenseNumber = "DRV-TEST-01",
-                    CreatedAt = DateTime.UtcNow
-                });
-            }
+            // ============================
+            // SEED OWNERS
+            // ============================
 
-            // Demo owner user
-            var ownerPhone = "0900000002";
-            var ownerUser = await userManager.FindByNameAsync(ownerPhone);
-            if (ownerUser == null)
+            for (int i = 1; i <= 5; i++)
             {
-                ownerUser = new ApplicationUser
-                {
-                    UserName = ownerPhone,
-                    PhoneNumber = ownerPhone,
-                    FullName = "Demo Owner",
-                    IsPhoneVerified = true,
-                    Status = "ACTIVE",
-                    CreatedAt = DateTime.UtcNow
-                };
+                var phone = $"09100000{i:00}";
+                var user = await userManager.FindByNameAsync(phone);
 
-                var createResult = await userManager.CreateAsync(ownerUser, defaultPassword);
-                if (createResult.Succeeded)
+                if (user == null)
                 {
-                    await userManager.AddToRoleAsync(ownerUser, RoleConstants.Owner);
+                    user = new ApplicationUser
+                    {
+                        UserName = phone,
+                        PhoneNumber = phone,
+                        FullName = $"Demo Owner {i}",
+                        IsPhoneVerified = true,
+                        Status = "ACTIVE",
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    var createResult = await userManager.CreateAsync(user, defaultPassword);
+                    if (createResult.Succeeded)
+                    {
+                        await userManager.AddToRoleAsync(user, RoleConstants.Owner);
+                    }
                 }
-            }
 
-            // Ensure owner profile exists
-            if (!await context.Owners.AnyAsync(o => o.UserId == ownerUser.Id))
-            {
-                context.Owners.Add(new Owner
+                if (!await context.Owner.AnyAsync(o => o.UserId == user.Id))
                 {
-                    UserId = ownerUser.Id,
-                    BusinessName = "Demo Charging Co.",
-                    TaxCode = "TAX-DEMO-001",
-                    CreatedAt = DateTime.UtcNow
-                });
+                    context.Owner.Add(new Owner
+                    {
+                        UserId = user.Id,
+                        BusinessName = $"Charging Company {i}",
+                        TaxCode = $"TAX-00{i}",
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
             }
 
             await context.SaveChangesAsync();
         }
     }
 }
-

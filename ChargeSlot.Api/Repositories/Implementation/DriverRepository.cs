@@ -16,21 +16,20 @@ namespace ChargeSlot.Api.Repositories.Implementation
 
         public async Task<Driver?> GetByUserIdAsync(int userId, bool tracking = false)
         {
-            var query = _context.Drivers.AsQueryable();
-            if (!tracking)
-                query = query.AsNoTracking();
+            var query = _context.Driver.AsQueryable();
+            if (!tracking) query = query.AsNoTracking();
 
             return await query.FirstOrDefaultAsync(x => x.UserId == userId);
         }
 
         public async Task AddAsync(Driver driver)
         {
-            await _context.Drivers.AddAsync(driver);
+            await _context.Driver.AddAsync(driver);
         }
 
         public void Remove(Driver driver)
         {
-            _context.Drivers.Remove(driver);
+            _context.Driver.Remove(driver);
         }
 
         public async Task SaveChangesAsync()

@@ -1,5 +1,4 @@
 using ChargeSlot.Api.Models;
-using ChargeSlot.Api.Models.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -23,10 +22,10 @@ namespace ChargeSlot.Api.Data.Configurations
                 .WithMany(b => b.PayoutRequests)
                 .HasForeignKey(x => x.BankAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
-            builder.HasOne(x => x.ProcessedByUser)
-                .WithMany()
-                .HasForeignKey(x => x.ProcessedByUserId)
-                .OnDelete(DeleteBehavior.Restrict);
+
+            // ProcessedByUserId: Admin Id=0, không FK vì Admin không lưu DB
+            builder.Property(x => x.ProcessedByUserId);
+
             builder.HasIndex(x => new { x.OwnerUserId, x.RequestedAt });
         }
     }

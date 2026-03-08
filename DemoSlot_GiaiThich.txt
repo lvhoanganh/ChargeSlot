@@ -1,0 +1,494 @@
+================================================================================
+           GIẢI THÍCH CHI TIẾT DATABASE - CHARGESLOT (DemoSlot_Complete.sql)
+================================================================================
+Tổng cộng: 25 bảng + 16 indexes + Seed data (3 Role + 3 System Wallet)
+
+================================================================================
+NHÓM 1: QUẢN LÝ NGƯỜI DÙNG (4 bảng)
+================================================================================
+
+1. ROLE
+   - Lưu vai trò: Admin, Owner, Driver
+   - Mỗi User thuộc 1 Role
+   - Cột:
+     + role_id   : Khóa chính, tự tăng
+     + name      : Tên vai trò (UNIQUE, không trùng)
+
+2. USER
+   - Bảng trung tâm lưu thông tin tất cả người dùng
+   - Đăng nhập bằng số điện thoại + mật khẩu
+   - Cột:
+     + id                : Khóa chính, tự tăng
+     + role_id           : FK → Role (user thuộc role nào)
+     + fullname          : Họ tên đầy đủ
+     + phone_number      : Số điện thoại (UNIQUE, dùng để đăng nhập)
+     + email             : Email (UNIQUE, tùy chọn)
+     + avatar_url        : URL ảnh đại diện
+     + password_hash     : Mật khẩu đã mã hóa (KHÔNG lưu plain text)
+     + is_phone_verified : Đã xác thực SĐT qua OTP chưa (0/1)
+     + status            : Trạng thái tài khoản (ACTIVE / BANNED / SUSPENDED)
+     + created_at        : Ngày tạo tài khoản
+     + updated_at        : Ngày cập nhật gần nhất
+
+3. OWNER (1-1 với User)
+   - Mở rộng User cho chủ trạm sạc
+   - Ai đăng ký làm chủ trạm thì có thêm bản ghi ở đây
+   - Cột:
+     + owner_id      : Khóa chính riêng, tự tăng
+     + user_id       : FK → User (UNIQUE, quan hệ 1-1)
+     + business_name : Tên doanh nghiệp / tên kinh doanh
+     + tax_code      : Mã số thuế
+
+4. DRIVER (1-1 với User)
+   - Mở rộng User cho tài xế
+   - Ai đăng ký làm tài xế thì có thêm bản ghi ở đây
+   - Cột:
+     + user_id        : Khóa chính = user_id (shared PK, quan hệ 1-1)
+     + vehicle_type   : Loại xe (VD: Xe máy điện, Ô tô điện)
+     + license_plate  : Biển số xe
+     + license_number : Số bằng lái xe
+     + created_at     : Ngày tạo hồ sơ tài xế
+
+
+================================================================================
+NHÓM 2: TRẠM SẠC & TRỤ SẠC (5 bảng)
+================================================================================
+
+5. CHARGING STATION
+   - Trạm sạc do Owner tạo và quản lý
+   - Cột:
+     + station_id         : Khóa chính, tự tăng
+     + owner_id           : FK → Owner (trạm thuộc chủ nào)
+     + name               : Tên trạm sạc
+     + address            : Địa chỉ
+     + description        : Mô tả chi tiết
+     + latitude, longitude: Tọa độ GPS (hiển thị trên bản đồ)
+     + layout_image_url   : [MỚI] URL ảnh nền sơ đồ mặt bằng trạm
+     + layout_width       : [MỚI] Chiều rộng canvas sơ đồ (%)
+     + layout_height      : [MỚI] Chiều cao canvas sơ đồ (%)
+     + approval_status    : Trạng thái duyệt (PENDING → APPROVED / REJECTED)
+     + operational_status : Trạng thái hoạt động (ACTIVE / INACTIVE)
+     + created_at         : Ngày tạo
+
+   Luồng trạng thái:
+   Owner tạo trạm (PENDING) → Admin duyệt (APPROVED) → Owner bật (ACTIVE)
+                              → Admin từ chối (REJECTED) → Owner sửa → Gửi lại
+
+6. STATION IMAGE
+   - Ảnh chụp trạm sạc (1 trạm có nhiều ảnh)
+   - Cột:
+     + image_id   : Khóa chính
+     + station_id : FK → ChargingStation
+     + image_url  : URL ảnh
+
+7. STATION OPERATING HOURS
+   - Giờ mở/đóng cửa theo từng ngày trong tuần
+   - Composite PK: (station_id, day_of_week)
+   - Cột:
+     + station_id  : FK → ChargingStation
+     + day_of_week : 1=Thứ 2, 2=Thứ 3, ..., 7=Chủ nhật
+     + is_closed   : Ngày đó có nghỉ không (0/1)
+     + open_time   : Giờ mở cửa (VD: 06:00)
+     + close_time  : Giờ đóng cửa (VD: 22:00)
+
+8. SERVICES
+   - Dịch vụ đi kèm tại trạm (rửa xe, wifi, cà phê, đỗ xe...)
+   - Mỗi trạm có thể cung cấp nhiều dịch vụ khác nhau
+   - Cột:
+     + service_id   : Khóa chính
+     + station_id   : FK → ChargingStation
+     + service_name : Tên dịch vụ
+     + description  : Mô tả
+     + price        : Giá dịch vụ
+     + is_active    : Đang cung cấp hay không (0/1)
+
+9. CHARGING SLOT
+   - Trụ sạc (mỗi trạm có nhiều trụ)
+   - Cột:
+     + slot_id        : Khóa chính
+     + station_id     : FK → ChargingStation
+     + slot_name      : Tên/mã trụ (VD: Trụ A1, Trụ B2)
+     + connector_type : Loại đầu cắm (Type 2, CCS2, CHAdeMO...)
+     + price_per_hour : Giá mặc định mỗi giờ (dùng khi không có SlotPricing match)
+     + position_x     : [MỚI] Tọa độ X trên sơ đồ (% từ trái qua)
+     + position_y     : [MỚI] Tọa độ Y trên sơ đồ (% từ trên xuống)
+     + is_active      : Trụ có hoạt động không (0/1)
+     + status         : Trạng thái (AVAILABLE / IN_USE / MAINTENANCE)
+
+   Về position_x, position_y:
+   - Dùng tọa độ tương đối (%) để responsive trên mọi màn hình
+   - VD: position_x = 30.5 nghĩa là trụ nằm ở 30.5% từ trái qua
+   - Owner kéo thả trụ trên sơ đồ → hệ thống lưu tọa độ
+   - Driver mở app → thấy sơ đồ trạm với trụ sạc đúng vị trí thực tế
+
+
+================================================================================
+NHÓM 3: GIÁ THEO GIỜ CAO/THẤP ĐIỂM (1 bảng)
+================================================================================
+
+10. SLOT PRICING
+    - Bảng giá theo khung giờ cho từng trụ sạc
+    - Cho phép giá khác nhau theo giờ trong ngày và theo ngày trong tuần
+    - Cột:
+      + pricing_id     : Khóa chính
+      + slot_id        : FK → ChargingSlot
+      + price_per_hour : Giá mỗi giờ cho khung này
+      + start_time     : [MỚI] Bắt đầu khung giờ (TIME, VD: 06:00)
+      + end_time       : [MỚI] Kết thúc khung giờ (TIME, VD: 17:00)
+      + day_of_week    : [MỚI] NULL = mọi ngày, 1-7 = ngày cụ thể
+      + priority       : [MỚI] Ưu tiên (số cao hơn thắng khi chồng nhau)
+      + effective_from : Giá có hiệu lực từ ngày nào
+      + effective_to   : Giá hết hiệu lực ngày nào (NULL = vô thời hạn)
+      + created_at     : Ngày tạo
+
+    VÍ DỤ DỮ LIỆU:
+    ┌─────────┬────────────────┬────────────┬──────────┬─────────────┬──────────┐
+    │ slot_id │ price_per_hour │ start_time │ end_time │ day_of_week │ priority │
+    ├─────────┼────────────────┼────────────┼──────────┼─────────────┼──────────┤
+    │ 1       │ 20,000         │ 06:00      │ 17:00    │ NULL        │ 0        │
+    │ 1       │ 35,000         │ 17:00      │ 21:00    │ NULL        │ 0        │
+    │ 1       │ 15,000         │ 21:00      │ 06:00    │ NULL        │ 0        │
+    │ 1       │ 40,000         │ 06:00      │ 17:00    │ 7 (CN)      │ 1        │
+    └─────────┴────────────────┴────────────┴──────────┴─────────────┴──────────┘
+
+    → Ngày thường: 6h-17h = 20k, 17h-21h = 35k (cao điểm), 21h-6h = 15k
+    → Riêng Chủ nhật: 6h-17h = 40k (priority=1 > priority=0 nên override)
+
+    CÁCH TÍNH TIỀN KHI BOOKING TỪ 16:00 → 19:00:
+      16:00 → 17:00 : 1h × 20,000đ  =  20,000đ  (giờ thường)
+      17:00 → 19:00 : 2h × 35,000đ  =  70,000đ  (giờ cao điểm)
+      TỔNG: 90,000đ
+
+    Quan hệ với ChargingSlot.price_per_hour:
+      - SlotPricing = giá chi tiết theo khung giờ
+      - ChargingSlot.price_per_hour = giá mặc định khi KHÔNG CÓ SlotPricing nào match
+
+
+================================================================================
+NHÓM 4: ĐẶT LỊCH & PHIÊN SẠC (3 bảng)
+================================================================================
+
+11. BOOKING
+    - Đơn đặt lịch sạc của Driver
+    - Cột:
+      + booking_id     : Khóa chính
+      + driver_id      : FK → Driver (tài xế nào đặt)
+      + slot_id        : FK → ChargingSlot (đặt trụ nào)
+      + start_time     : Giờ bắt đầu sạc
+      + end_time       : Giờ kết thúc sạc
+      + duration_hours : Thời lượng (giờ)
+      + status         : Trạng thái (xem luồng bên dưới)
+      + created_at     : Ngày tạo booking
+
+    Luồng trạng thái Booking:
+    DRAFT → PENDING_PAYMENT → PAID → CHECKED_IN → IN_PROGRESS → COMPLETED
+                                              ↘ NO_SHOW (quá giờ check-in)
+                  ↘ CANCELLED (hủy bởi Driver)
+                  ↘ REJECTED (từ chối bởi Owner)
+
+12. BOOKING SERVICES
+    - Dịch vụ đi kèm mà Driver chọn khi đặt lịch
+    - Bảng trung gian N-N giữa Booking và Services
+    - Snapshot giá tại thời điểm đặt (giá có thể thay đổi sau)
+    - Cột:
+      + bookingservices_id : Khóa chính
+      + booking_id         : FK → Booking
+      + service_id         : FK → Services
+      + quantity           : Số lượng (mặc định 1)
+      + unit_price         : Đơn giá tại thời điểm đặt
+      + total_price        : Thành tiền = quantity × unit_price
+
+13. CHARGING SESSION
+    - Phiên sạc thực tế (1-1 với Booking)
+    - Tạo sau khi Driver check-in
+    - Cột:
+      + session_id        : Khóa chính
+      + booking_id        : FK → Booking (UNIQUE, 1 booking = 1 session)
+      + actual_start_time : Owner bấm "Bắt đầu sạc" → ghi thời điểm
+      + actual_end_time   : Owner bấm "Kết thúc sạc" → ghi thời điểm
+      + actual_duration   : Thời lượng sạc thực tế (giờ)
+
+    Lưu ý: actual_duration có thể KHÁC duration_hours trong Booking
+    VD: Driver đặt 3 tiếng nhưng sạc thực tế chỉ 2.5 tiếng
+    → Hóa đơn tính theo actual_duration (thời gian thực tế)
+
+
+================================================================================
+NHÓM 5: HÓA ĐƠN & THANH TOÁN (2 bảng)
+================================================================================
+
+14. INVOICE
+    - Hóa đơn (1-1 với Booking)
+    - Tạo sau khi phiên sạc kết thúc + Owner ghi kết quả
+    - Cột:
+      + invoice_id      : Khóa chính
+      + booking_id      : FK → Booking (UNIQUE)
+      + charging_amount : Tiền sạc (tính từ SlotPricing × thời gian thực tế)
+      + service_amount  : Tiền dịch vụ đi kèm (tổng BookingServices)
+      + vat_amount      : Thuế VAT
+      + platform_fee    : Phí nền tảng ChargeSlot thu
+      + total_amount    : Tổng cộng = charging + service + vat + platform_fee
+      + status          : PENDING_CONFIRMATION / CONFIRMED / DISPUTED
+      + created_at      : Ngày tạo hóa đơn
+
+    VD phân tách hóa đơn:
+      Tiền sạc:       90,000đ  (2.5h × giá theo SlotPricing)
+      Dịch vụ rửa xe: 30,000đ
+      VAT (10%):      12,000đ
+      Phí nền tảng:    9,000đ
+      TỔNG:          141,000đ
+
+15. PAYMENT
+    - Ghi nhận giao dịch thanh toán
+    - 1 Booking có thể có nhiều Payment (VD: thanh toán lần 1 thất bại, lần 2 thành công)
+    - Cột:
+      + payment_id      : Khóa chính
+      + booking_id      : FK → Booking
+      + amount          : Số tiền thanh toán
+      + payment_method  : Phương thức (E-WALLET / BANK_TRANSFER)
+      + gateway_txn_ref : Mã giao dịch từ cổng thanh toán (VNPay, MoMo...)
+      + status          : Trạng thái (PENDING / SUCCESS / FAILED / REFUNDED)
+      + paid_at         : Thời điểm thanh toán thành công
+
+
+================================================================================
+NHÓM 6: ĐÁNH GIÁ & KHIẾU NẠI (3 bảng)
+================================================================================
+
+16. RATING
+    - Đánh giá chất lượng sạc (1-1 với Booking)
+    - Driver đánh giá sau khi sạc xong
+    - Cột:
+      + rating_id    : Khóa chính
+      + booking_id   : FK → Booking (UNIQUE, chỉ rate 1 lần)
+      + driver_id    : FK → Driver
+      + station_id   : FK → ChargingStation
+      + score        : Điểm 1-5 sao
+      + comment      : Bình luận (tùy chọn)
+      + is_anonymous : Đánh giá ẩn danh hay không (0/1)
+      + created_at   : Ngày đánh giá
+
+17. DISPUTE
+    - Khiếu nại của Driver về hóa đơn
+    - VD: sai thời gian, sai giá, trụ hỏng, sạc không đầy...
+    - Cột:
+      + dispute_id     : Khóa chính
+      + invoice_id     : FK → Invoice (khiếu nại về hóa đơn nào)
+      + driver_id      : FK → Driver (ai khiếu nại)
+      + reason         : Lý do (INCORRECT_DURATION / INCORRECT_PRICE / DEFECTIVE / OTHER)
+      + description    : Mô tả chi tiết vấn đề
+      + status         : PENDING → IN_REVIEW → RESOLVED / REJECTED
+      + admin_note     : Ghi chú của Admin sau khi xem xét
+      + owner_response : Phản hồi của Owner
+      + resolved_by    : FK → User (Admin nào xử lý)
+      + resolved_at    : Thời điểm giải quyết
+      + created_at     : Ngày tạo khiếu nại
+
+18. DISPUTE EVIDENCE
+    - Bằng chứng đính kèm khiếu nại (1 dispute có nhiều file)
+    - Cột:
+      + evidence_id : Khóa chính
+      + dispute_id  : FK → Dispute
+      + file_url    : URL file (ảnh/video/tài liệu)
+      + file_type   : Loại file (IMAGE / VIDEO / DOCUMENT)
+      + created_at  : Ngày upload
+
+
+================================================================================
+NHÓM 7: VÍ TIỀN & TÀI CHÍNH (5 bảng)
+================================================================================
+
+19. USER WALLET
+    - Ví tiền điện tử trong hệ thống
+    - 2 loại:
+      + USER ví: mỗi Owner/Driver có 1 cái (user_id NOT NULL)
+      + SYSTEM ví: ví hệ thống (user_id NULL)
+    - Cột:
+      + wallet_id         : Khóa chính
+      + user_id           : FK → User (NULL cho ví hệ thống)
+      + wallet_type       : [MỚI] USER hoặc SYSTEM
+      + system_code       : [MỚI] Mã ví hệ thống (ESCROW / PLATFORM_REVENUE / CLEARING)
+      + available_balance : Số dư khả dụng (rút được)
+      + frozen_balance    : Số dư đóng băng (đang chờ xử lý/khiếu nại)
+      + created_at        : Ngày tạo ví
+
+    3 VÍ HỆ THỐNG (seed sẵn):
+    ┌──────────────────┬─────────────────────────────────────────────────┐
+    │ system_code      │ Mục đích                                       │
+    ├──────────────────┼─────────────────────────────────────────────────┤
+    │ ESCROW           │ Ký quỹ: giữ tiền Driver sau khi thanh toán,    │
+    │                  │ chờ phiên sạc kết thúc mới giải phóng          │
+    ├──────────────────┼─────────────────────────────────────────────────┤
+    │ PLATFORM_REVENUE │ Doanh thu nền tảng: phí % ChargeSlot thu       │
+    │                  │ từ mỗi giao dịch                               │
+    ├──────────────────┼─────────────────────────────────────────────────┤
+    │ CLEARING         │ Thanh toán bù trừ: ví trung gian khi chuyển    │
+    │                  │ tiền giữa các ví                                │
+    └──────────────────┴─────────────────────────────────────────────────┘
+
+20. BANK ACCOUNT
+    - Tài khoản ngân hàng của User (để rút tiền)
+    - 1 User có thể có nhiều tài khoản ngân hàng
+    - Cột:
+      + bank_id             : Khóa chính
+      + user_id             : FK → User
+      + bank_name           : Tên ngân hàng (VD: Vietcombank, BIDV)
+      + bank_account_number : Số tài khoản
+      + bank_account_holder : Tên chủ tài khoản
+      + is_default          : Tài khoản mặc định hay không (0/1)
+
+21. PAYOUT REQUEST
+    - Yêu cầu rút tiền của Owner
+    - Cột:
+      + payout_id            : Khóa chính
+      + user_id              : FK → User (Owner nào yêu cầu)
+      + bank_id              : FK → BankAccount (rút về tài khoản nào)
+      + amount               : Số tiền muốn rút
+      + status               : PENDING → APPROVED → PROCESSED / REJECTED
+      + requested_at         : Thời điểm yêu cầu
+      + processed_at         : Thời điểm Admin xử lý
+      + processed_by_user_id : FK → User (Admin nào duyệt)
+      + note                 : Ghi chú (lý do từ chối...)
+
+    Luồng rút tiền:
+    Owner tạo yêu cầu → Trừ available_balance, cộng frozen_balance
+    → Admin duyệt → Chuyển khoản ngân hàng → Trừ frozen_balance
+    → Admin từ chối → Hoàn lại available_balance
+
+22. LEDGER TRANSACTION
+    - Giao dịch sổ cái (header)
+    - Mỗi thay đổi số dư ví = 1 LedgerTransaction
+    - Cột:
+      + txn_id         : Khóa chính
+      + payout_id      : FK → PayoutRequest (nếu giao dịch liên quan rút tiền)
+      + reference_type : Loại nguồn gốc (BOOKING / PAYMENT / PAYOUT / REFUND / SETTLEMENT)
+      + reference_id   : ID của nguồn gốc (booking_id hoặc payout_id...)
+      + description    : Mô tả giao dịch
+      + created_at     : Ngày tạo
+
+23. LEDGER ENTRY
+    - Bút toán sổ cái (detail - kế toán kép)
+    - Mỗi LedgerTransaction có ÍT NHẤT 2 LedgerEntry (1 DEBIT + 1 CREDIT)
+    - TỔNG DEBIT = TỔNG CREDIT (luôn luôn cân)
+    - Cột:
+      + entry_id   : Khóa chính
+      + txn_id     : FK → LedgerTransaction
+      + wallet_id  : FK → UserWallet (ví nào bị ảnh hưởng)
+      + direction  : DEBIT (trừ) hoặc CREDIT (cộng)
+      + amount     : Số tiền
+      + created_at : Ngày tạo
+
+    VÍ DỤ LUỒNG TIỀN KHI DRIVER THANH TOÁN 100,000đ:
+
+    Bước 1 - Driver thanh toán booking:
+    ┌─────────────────┬───────────┬───────────┬────────────┐
+    │ Ví              │ Direction │ Amount    │ Ý nghĩa    │
+    ├─────────────────┼───────────┼───────────┼────────────┤
+    │ Driver Wallet   │ DEBIT     │ 100,000   │ Trừ tiền   │
+    │ ESCROW          │ CREDIT    │ 100,000   │ Giữ ký quỹ │
+    └─────────────────┴───────────┴───────────┴────────────┘
+
+    Bước 2 - Sau khi sạc xong + Driver confirm invoice:
+    ┌─────────────────┬───────────┬───────────┬────────────────┐
+    │ Ví              │ Direction │ Amount    │ Ý nghĩa        │
+    ├─────────────────┼───────────┼───────────┼────────────────┤
+    │ ESCROW          │ DEBIT     │ 100,000   │ Giải phóng     │
+    │ Owner Wallet    │ CREDIT    │  90,000   │ Owner nhận 90% │
+    │ PLATFORM_REVENUE│ CREDIT    │  10,000   │ Platform thu   │
+    └─────────────────┴───────────┴───────────┴────────────────┘
+
+    → Tổng DEBIT = 100,000 = Tổng CREDIT = 90,000 + 10,000 ✓
+
+
+================================================================================
+NHÓM 8: OTP & THÔNG BÁO (2 bảng)
+================================================================================
+
+24. USER OTP
+    - Mã OTP gửi qua SMS để xác thực
+    - Dùng cho: đăng ký, quên mật khẩu
+    - Cột:
+      + otp_id       : Khóa chính
+      + user_id      : FK → User (NULL khi chưa đăng ký - register flow)
+      + phone_number : [MỚI] Số điện thoại (bắt buộc, dùng để lookup)
+      + otp_hash     : OTP đã mã hóa (KHÔNG lưu plain text)
+      + expired_at   : Thời điểm hết hạn (VD: 5 phút sau khi tạo)
+      + is_used      : Đã sử dụng chưa (0/1, dùng xong = 1)
+      + verified_at  : [MỚI] Thời điểm xác thực thành công
+      + created_at   : Ngày tạo
+      + purpose      : Mục đích (REGISTER / RESET_PASSWORD)
+
+    Tại sao user_id nullable?
+    → Khi đăng ký, user chưa tồn tại trong DB (chưa có user_id)
+    → Hệ thống gửi OTP theo phone_number trước
+    → Sau khi verify OTP xong mới tạo User
+
+    Tại sao có verified_at?
+    → Để kiểm tra "OTP đã được verify gần đây chưa" (trong vòng 5 phút)
+    → Nếu đã verify → cho phép đăng ký / đổi mật khẩu
+    → Nếu chưa verify hoặc quá 5 phút → bắt verify lại
+
+25. NOTIFICATION
+    - Thông báo hệ thống gửi cho User
+    - VD: "Booking được duyệt", "Thanh toán thành công", "Phiên sạc bắt đầu"...
+    - Cột:
+      + notification_id : Khóa chính
+      + user_id         : FK → User (gửi cho ai)
+      + title           : Tiêu đề thông báo
+      + content         : Nội dung chi tiết
+      + is_read         : Đã đọc chưa (0/1)
+      + created_at      : Ngày tạo (sắp xếp mới nhất trước)
+
+
+================================================================================
+INDEXES (16 indexes - tối ưu hiệu suất truy vấn)
+================================================================================
+
+  IX_ChargingStation_OwnerId   → Tìm trạm theo chủ sở hữu
+  IX_ChargingSlot_StationId    → Tìm trụ theo trạm
+  IX_Booking_DriverId          → Tìm booking theo tài xế
+  IX_Booking_SlotId            → Tìm booking theo trụ sạc
+  IX_Booking_Status            → Lọc booking theo trạng thái
+  IX_SlotPricing_SlotId        → Tìm bảng giá theo trụ
+  IX_Payment_BookingId         → Tìm thanh toán theo booking
+  IX_Notification_UserId       → Tìm thông báo (ưu tiên chưa đọc)
+  IX_LedgerEntry_WalletId      → Tìm bút toán theo ví
+  IX_UserOtp_PhoneNumber       → Tìm OTP theo số điện thoại
+  IX_Rating_StationId          → Tìm đánh giá theo trạm
+  IX_Services_StationId        → Tìm dịch vụ theo trạm
+  IX_StationImage_StationId    → Tìm ảnh theo trạm
+  IX_BankAccount_UserId        → Tìm tài khoản NH theo user
+  IX_PayoutRequest_UserId      → Tìm yêu cầu rút tiền theo user
+  IX_Dispute_InvoiceId         → Tìm khiếu nại theo hóa đơn
+
+
+================================================================================
+SEED DATA (dữ liệu khởi tạo)
+================================================================================
+
+  3 Role     : Admin, Owner, Driver
+  3 Ví hệ thống : ESCROW, PLATFORM_REVENUE, CLEARING
+
+
+================================================================================
+TỔNG KẾT LUỒNG NGHIỆP VỤ CHÍNH
+================================================================================
+
+  1. Guest đăng ký (OTP verify) → chọn Role (Driver/Owner)
+  2. Owner tạo trạm sạc → Upload sơ đồ → Kéo thả trụ sạc lên sơ đồ
+  3. Owner gửi duyệt → Admin duyệt → Trạm ACTIVE
+  4. Owner cấu hình giá theo khung giờ (SlotPricing)
+  5. Driver tìm trạm trên bản đồ → Xem sơ đồ trạm
+  6. Driver chọn trụ → Xem giờ trống + giá → Đặt lịch
+  7. Driver thanh toán → Tiền vào ESCROW
+  8. Driver check-in tại trạm
+  9. Owner bắt đầu sạc → Ghi session
+  10. Owner kết thúc sạc → Ghi kết quả thực tế
+  11. Owner tạo hóa đơn (tính theo actual_duration + SlotPricing)
+  12. Driver xem + confirm hóa đơn
+      → OK: ESCROW giải phóng → Owner nhận tiền + Platform thu phí
+      → Không OK: Driver khiếu nại → Admin xử lý
+  13. Driver đánh giá 1-5 sao
+  14. Owner xem doanh thu → Yêu cầu rút tiền → Admin duyệt → Chuyển khoản
+
+================================================================================

@@ -1,6 +1,6 @@
 using System.Security.Claims;
+using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.DTOs.Profile;
-using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -32,7 +32,6 @@ namespace ChargeSlot.Api.Controllers
             var userId = GetUserId();
             var profile = await _driverProfileService.GetByUserIdAsync(userId);
             if (profile == null) return NotFound();
-
             return profile;
         }
 

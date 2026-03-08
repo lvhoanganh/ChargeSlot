@@ -11,6 +11,7 @@ namespace ChargeSlot.Api.Data.Configurations
             builder.ToTable("SlotPricing");
             builder.HasKey(x => x.Id);
             builder.Property(x => x.PricePerHour).HasPrecision(18, 2);
+            builder.Property(x => x.Priority).HasDefaultValue(0);
             builder.HasOne(x => x.ChargingSlot)
                 .WithMany(s => s.SlotPricings)
                 .HasForeignKey(x => x.SlotId)

@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using ChargeSlot.Api.DTOs.Profile;
-using ChargeSlot.Api.Helpers;
+using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

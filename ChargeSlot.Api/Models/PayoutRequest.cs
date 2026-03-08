@@ -17,8 +17,8 @@ namespace ChargeSlot.Api.Models
         public PayoutStatus Status { get; set; } = PayoutStatus.Pending;
         public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ProcessedAt { get; set; }
+        /// <summary>Admin Id (0) — không FK vì Admin config trong appsettings, không lưu DB.</summary>
         public int? ProcessedByUserId { get; set; }
-        public ApplicationUser? ProcessedByUser { get; set; }
         public string? Note { get; set; }
     }
 }

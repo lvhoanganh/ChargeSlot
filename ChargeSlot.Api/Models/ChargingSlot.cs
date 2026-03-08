@@ -13,6 +13,11 @@ namespace ChargeSlot.Api.Models
         public string ConnectorType { get; set; } = null!;
         public decimal? PowerKw { get; set; }
         public decimal BasePricePerHour { get; set; }
+
+        // Vị trí trụ sạc trên sơ đồ (tọa độ tương đối %, responsive)
+        public decimal? PositionX { get; set; }
+        public decimal? PositionY { get; set; }
+
         public SlotStatus Status { get; set; } = SlotStatus.Inactive;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

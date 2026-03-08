@@ -16,7 +16,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
 
         public async Task<Owner?> GetByUserIdAsync(int userId, bool tracking = false)
         {
-            var query = _context.Owners.AsQueryable();
+            var query = _context.Owner.AsQueryable();
             if (!tracking)
                 query = query.AsNoTracking();
 
@@ -25,12 +25,12 @@ namespace ChargeSlot.Api.Repositories.Implementation
 
         public async Task AddAsync(Owner owner)
         {
-            await _context.Owners.AddAsync(owner);
+            await _context.Owner.AddAsync(owner);
         }
 
         public void Remove(Owner owner)
         {
-            _context.Owners.Remove(owner);
+            _context.Owner.Remove(owner);
         }
 
         public async Task SaveChangesAsync()

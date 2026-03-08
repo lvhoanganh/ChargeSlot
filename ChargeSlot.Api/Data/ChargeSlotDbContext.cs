@@ -14,10 +14,9 @@ namespace ChargeSlot.Api.Data
         {
         }
 
-        public DbSet<Permission> Permissions => Set<Permission>();
-        public DbSet<IdentityRolePermission> RolePermissions => Set<IdentityRolePermission>();
-        public DbSet<Driver> Drivers => Set<Driver>();
-        public DbSet<Owner> Owners => Set<Owner>();
+
+        public DbSet<Driver> Driver => Set<Driver>();
+        public DbSet<Owner> Owner => Set<Owner>();
         public DbSet<UserOtp> UserOtps => Set<UserOtp>();
         public DbSet<Notification> Notifications => Set<Notification>();
         public DbSet<ChargingStation> ChargingStations => Set<ChargingStation>();
@@ -50,8 +49,9 @@ namespace ChargeSlot.Api.Data
 
         private static void SeedRoles(ModelBuilder modelBuilder)
         {
+            // Admin config trong appsettings.json → không seed vào DB
+            // Giữ nguyên Id=2 (Owner), Id=3 (Driver) theo DB hiện tại
             modelBuilder.Entity<IdentityRole<int>>().HasData(
-                new IdentityRole<int> { Id = 1, Name = "Admin", NormalizedName = "ADMIN", ConcurrencyStamp = "a1" },
                 new IdentityRole<int> { Id = 2, Name = "Owner", NormalizedName = "OWNER", ConcurrencyStamp = "a2" },
                 new IdentityRole<int> { Id = 3, Name = "Driver", NormalizedName = "DRIVER", ConcurrencyStamp = "a3" }
             );

@@ -1,4 +1,4 @@
-namespace ChargeSlot.Api.Helpers
+namespace ChargeSlot.Api.Constants
 {
     public static class RoleConstants
     {
@@ -6,13 +6,14 @@ namespace ChargeSlot.Api.Helpers
         public const string Owner = "Owner";
         public const string Admin = "Admin";
 
+        // Chỉ seed Driver, Owner vào DB — Admin config trong appsettings.json
         public static readonly HashSet<string> DbRoles = new()
         {
             Driver,
-            Owner,
-            Admin
+            Owner
         };
 
+        // Chỉ cho phép đăng ký Driver hoặc Owner
         public static readonly HashSet<string> Allowed = DbRoles;
     }
 }

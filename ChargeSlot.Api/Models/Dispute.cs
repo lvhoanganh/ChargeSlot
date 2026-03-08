@@ -21,8 +21,8 @@ namespace ChargeSlot.Api.Models
         public DisputeStatus Status { get; set; } = DisputeStatus.Open;
         public string? OwnerResponse { get; set; }
         public string? AdminNote { get; set; }
+        /// <summary>Admin Id (0) — không FK vì Admin config trong appsettings, không lưu DB.</summary>
         public int? ResolvedByUserId { get; set; }
-        public ApplicationUser? ResolvedByUser { get; set; }
         public DateTime? ResolvedAt { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

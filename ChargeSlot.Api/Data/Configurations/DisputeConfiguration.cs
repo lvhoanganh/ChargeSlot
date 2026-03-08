@@ -1,5 +1,4 @@
 using ChargeSlot.Api.Models;
-using ChargeSlot.Api.Models.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -29,10 +28,9 @@ namespace ChargeSlot.Api.Data.Configurations
                 .WithMany()
                 .HasForeignKey(x => x.CreatedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
-            builder.HasOne(x => x.ResolvedByUser)
-                .WithMany()
-                .HasForeignKey(x => x.ResolvedByUserId)
-                .OnDelete(DeleteBehavior.Restrict);
+
+            // ResolvedByUserId: Admin Id=0, không FK vì Admin không lưu DB
+            builder.Property(x => x.ResolvedByUserId);
         }
     }
 }

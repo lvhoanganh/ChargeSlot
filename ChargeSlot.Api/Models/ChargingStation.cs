@@ -1,5 +1,4 @@
 using ChargeSlot.Api.Enums;
-using ChargeSlot.Api.Models.Identity;
 
 namespace ChargeSlot.Api.Models
 {
@@ -16,12 +15,17 @@ namespace ChargeSlot.Api.Models
         public decimal? Latitude { get; set; }
         public decimal? Longitude { get; set; }
 
+        // Sơ đồ mặt bằng trạm sạc
+        public string? LayoutImageUrl { get; set; }
+        public decimal? LayoutWidth { get; set; }
+        public decimal? LayoutHeight { get; set; }
+
         public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Draft;
         public OperationalStatus OperationalStatus { get; set; } = OperationalStatus.Inactive;
         public DateTime? SubmittedAt { get; set; }
         public DateTime? ReviewedAt { get; set; }
+        /// <summary>Admin Id (0) — không FK vì Admin config trong appsettings, không lưu DB.</summary>
         public int? ReviewedByUserId { get; set; }
-        public ApplicationUser? ReviewedByUser { get; set; }
         public string? AdminNote { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

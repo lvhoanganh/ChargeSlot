@@ -1,5 +1,6 @@
 using ChargeSlot.Api.DTOs.Auth;
 using ChargeSlot.Api.Enums;
+using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
@@ -119,48 +120,77 @@ namespace ChargeSlot.Api.Services.Implementation
             };
         }
 
+        //public async Task<AuthResponseDto> LoginAdminAsync(AdminLoginDto dto)
+        //{
+        //    var adminSection = _config.GetSection("Admin");
+        //    var adminUsername = adminSection["Username"] ?? "Administrator";
+        //    var defaultPassword = adminSection["Password"] ?? throw new InvalidOperationException("Admin:Password is not configured");
+
+        //    if (!string.Equals(dto.Username, adminUsername, StringComparison.Ordinal))
+        //        throw new InvalidOperationException("Invalid admin credentials.");
+
+        //    // Đảm bảo admin user tồn tại trong DB (tạo lần đầu nếu chưa có)
+        //    var adminUser = await _userManager.FindByNameAsync(adminUsername);
+        //    if (adminUser == null)
+        //    {
+        //        adminUser = new ApplicationUser
+        //        {
+        //            UserName = adminUsername,
+        //            FullName = "System Administrator",
+        //            Status = "ACTIVE",
+        //            IsPhoneVerified = false,
+        //            CreatedAt = DateTime.UtcNow
+        //        };
+
+        //        var createResult = await _userManager.CreateAsync(adminUser, defaultPassword);
+        //        if (!createResult.Succeeded)
+        //            throw new InvalidOperationException(string.Join("; ", createResult.Errors.Select(e => e.Description)));
+
+        //        await EnsureRolesExistAsync();
+        //        await _userManager.AddToRoleAsync(adminUser, RoleConstants.Admin);
+        //    }
+
+        //    var signIn = await _signInManager.CheckPasswordSignInAsync(adminUser, dto.Password, lockoutOnFailure: true);
+        //    if (!signIn.Succeeded)
+        //        throw new InvalidOperationException("Invalid admin credentials.");
+
+        //    var (token, expiresAtUtc) = GenerateUserJwt(adminUser, RoleConstants.Admin);
+
+        //    return new AuthResponseDto
+        //    {
+        //        AccessToken = token,
+        //        ExpiresAtUtc = expiresAtUtc,
+        //        UserId = adminUser.Id,
+        //        PhoneNumber = adminUser.PhoneNumber ?? string.Empty,
+        //        Role = RoleConstants.Admin
+        //    };
+        //}
         public async Task<AuthResponseDto> LoginAdminAsync(AdminLoginDto dto)
         {
             var adminSection = _config.GetSection("Admin");
-            var adminUsername = adminSection["Username"] ?? "Administrator";
-            var defaultPassword = adminSection["Password"] ?? throw new InvalidOperationException("Admin:Password is not configured");
+            var adminUsername = adminSection["Username"];
+            var adminPassword = adminSection["Password"];
 
-            if (!string.Equals(dto.Username, adminUsername, StringComparison.Ordinal))
+            if (dto.Username != adminUsername || dto.Password != adminPassword)
                 throw new InvalidOperationException("Invalid admin credentials.");
 
-            // Đảm bảo admin user tồn tại trong DB (tạo lần đầu nếu chưa có)
-            var adminUser = await _userManager.FindByNameAsync(adminUsername);
-            if (adminUser == null)
+            // Không tạo user trong DB nữa
+            // Không dùng UserManager nữa
+
+            var fakeAdmin = new ApplicationUser
             {
-                adminUser = new ApplicationUser
-                {
-                    UserName = adminUsername,
-                    FullName = "System Administrator",
-                    Status = "ACTIVE",
-                    IsPhoneVerified = false,
-                    CreatedAt = DateTime.UtcNow
-                };
+                Id = 0, // hoặc -1
+                UserName = adminUsername
+            };
 
-                var createResult = await _userManager.CreateAsync(adminUser, defaultPassword);
-                if (!createResult.Succeeded)
-                    throw new InvalidOperationException(string.Join("; ", createResult.Errors.Select(e => e.Description)));
-
-                await EnsureRolesExistAsync();
-                await _userManager.AddToRoleAsync(adminUser, RoleConstants.Admin);
-            }
-
-            var signIn = await _signInManager.CheckPasswordSignInAsync(adminUser, dto.Password, lockoutOnFailure: true);
-            if (!signIn.Succeeded)
-                throw new InvalidOperationException("Invalid admin credentials.");
-
-            var (token, expiresAtUtc) = GenerateUserJwt(adminUser, RoleConstants.Admin);
+            var (token, expiresAtUtc) = GenerateUserJwt(fakeAdmin, RoleConstants.Admin);
 
             return new AuthResponseDto
             {
                 AccessToken = token,
                 ExpiresAtUtc = expiresAtUtc,
-                UserId = adminUser.Id,
-                PhoneNumber = adminUser.PhoneNumber ?? string.Empty,
+                UserId = 0,
+                PhoneNumber = "",
                 Role = RoleConstants.Admin
             };
         }
