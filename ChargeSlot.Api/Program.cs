@@ -122,7 +122,7 @@ builder.Services.AddScoped<IDriverRepository, DriverRepository>();
 builder.Services.AddScoped<IOwnerRepository, OwnerRepository>();
 builder.Services.AddScoped<IDriverProfileService, DriverProfileService>();
 builder.Services.AddScoped<IOwnerProfileService, OwnerProfileService>();
-
+builder.Services.AddScoped<IAdminAccountService, AdminAccountService>();
 // ChargingStation & ChargingSlot
 builder.Services.AddScoped<IChargingStationRepository, ChargingStationRepository>();
 builder.Services.AddScoped<IChargingStationService, ChargingStationService>();
