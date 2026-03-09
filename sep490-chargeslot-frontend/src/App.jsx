@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import MainLayout from "./layouts/MainLayout";
+import AdminLayout from "./layouts/AdminLayout";
 import Service from "./pages/Service";
 import News from "./pages/News";
 import About from "./pages/About";
@@ -13,6 +14,8 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
 import ChangePassword from "./pages/ChangePassword";
+import ManageUser from "./pages/admin/ManageUser";
+import ApproveStation from "./pages/admin/ApproveStation";
 
 export default function App() {
   return (
@@ -31,6 +34,10 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/edit-profile" element={<EditProfile />} />
           <Route path="/change-password" element={<ChangePassword />} />
+        </Route>
+        <Route path="admin" element={<AdminLayout />}>
+          <Route path="manage-users" element={<ManageUser />} />
+          <Route path="approve-station" element={<ApproveStation />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
