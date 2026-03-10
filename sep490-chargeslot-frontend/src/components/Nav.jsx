@@ -1,6 +1,10 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/stores/authStore";
 export default function Nav() {
+  const { logout } = useAuthStore();
+  const token = localStorage.getItem("accessToken");
+  const role = localStorage.getItem("role");
   const navigate = useNavigate();
   const navLinkClass = ({ isActive }) =>
     isActive
@@ -26,20 +30,66 @@ export default function Nav() {
             Về ChargeSlot
           </NavLink>
         </div>
-        <div className="flex gap-2">
-          <Button
-            className="bg-blue-500 cursor-pointer hover:bg-green-500"
-            onClick={() => navigate("/login")}
-          >
-            Đăng nhập
-          </Button>
-          <Button
-            className="bg-blue-500 cursor-pointer hover:bg-green-500"
-            onClick={() => navigate("/register")}
-          >
-            Đăng kí
-          </Button>
-        </div>
+
+        {/* nếu chưa đăng nhập thì hiện 2 btn này */}
+        {!token && (
+          <div className="flex gap-2">
+            <Button
+              className="bg-blue-500 cursor-pointer hover:bg-green-500"
+              onClick={() => navigate("/login")}
+            >
+              Đăng nhập
+            </Button>
+            <Button
+              className="bg-blue-500 cursor-pointer hover:bg-green-500"
+              onClick={() => navigate("/register")}
+            >
+              Đăng kí
+            </Button>
+          </div>
+        )}
+
+        {/* nếu đã đăng nhập và có role là Owner thì hiện 2 btn này */}
+        {token && role === "Owner" && (
+          <div className="flex gap-2">
+            <Button
+              className="bg-blue-500 cursor-pointer hover:bg-green-500"
+              onClick={() => navigate("/stations")}
+            >
+              Quản lý trạm sạc
+            </Button>
+            <Button
+              className="bg-blue-500 cursor-pointer hover:bg-green-500"
+              onClick={() => {
+                logout();
+                navigate("/login");
+              }}
+            >
+              Đăng xuất
+            </Button>
+          </div>
+        )}
+
+        {/* nếu đã đăng nhập và có role là Owner thì hiện 2 btn này */}
+        {token && role === "Driver" && (
+          <div className="flex gap-2">
+            {/* <Button
+              className="bg-blue-500 cursor-pointer hover:bg-green-500"
+              onClick={() => navigate("/stations")}
+            >
+              Quản lý trạm sạc
+            </Button> */}
+            <Button
+              className="bg-blue-500 cursor-pointer hover:bg-green-500"
+              onClick={() => {
+                logout();
+                navigate("/login");
+              }}
+            >
+              Đăng xuất
+            </Button>
+          </div>
+        )}
       </div>
     </nav>
   );

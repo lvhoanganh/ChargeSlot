@@ -6,6 +6,8 @@ export const useAuthStore = create((set) => ({
   refreshToken: localStorage.getItem("refreshToken"),
   userId: null,
   role: null,
+  phoneNumber: null,
+  setPhoneNumber: (phone) => set({ phoneNumber: phone }),
   login: async (phoneNumber, password) => {
     try {
       const res = await instance.post(

@@ -21,6 +21,9 @@ import OwnerPage from "./pages/owner/OwnerPage";
 import OwnerLayout from "./layouts/OwnerLayout";
 import CreateChargingStation from "./pages/owner/CreateChargingStation";
 import PublicMiddleware from "./middlewares/PublicMiddleware";
+import AuthOwnerMiddleware from "./middlewares/AuthOwnerMiddleware";
+import RegisterVerifyOtp from "./pages/common/RegisterVerifyOtp";
+import RegisterCreateAccount from "./pages/common/RegisterCreateAccount";
 
 export default function App() {
   return (
@@ -31,7 +34,6 @@ export default function App() {
           <Route path="service" element={<Service />} />
           <Route path="news" element={<News />} />
           <Route path="about" element={<About />} />
-          <Route path="verifyOtp" element={<VerifyOtp />} />
           <Route path="setPassword" element={<SetPassword />} />
           <Route path="forgotPassword" element={<ForgotPassword />} />
           <Route path="/profile" element={<Profile />} />
@@ -40,11 +42,18 @@ export default function App() {
           <Route element={<PublicMiddleware />}>
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
+            <Route path="register/verify-otp" element={<RegisterVerifyOtp />} />
+            <Route
+              path="register/create-account"
+              element={<RegisterCreateAccount />}
+            />
           </Route>
         </Route>
-        <Route element={<OwnerLayout />}>
-          <Route path="stations" element={<OwnerPage />} />
-          <Route path="stations/add" element={<CreateChargingStation />} />
+        <Route element={<AuthOwnerMiddleware />}>
+          <Route element={<OwnerLayout />}>
+            <Route path="stations" element={<OwnerPage />} />
+            <Route path="stations/add" element={<CreateChargingStation />} />
+          </Route>
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
