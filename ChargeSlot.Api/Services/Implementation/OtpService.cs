@@ -1,23 +1,27 @@
 using ChargeSlot.Api.Enums;
+using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using ChargeSlot.Api.Helpers;
+using Microsoft.AspNetCore.Identity;
 
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class OtpService : IOtpService
     {
         private readonly IUserOtpRepository _otpRepository;
-
-        public OtpService(IUserOtpRepository otpRepository)
+        private readonly UserManager<ApplicationUser> _userManager;
+        public OtpService(IUserOtpRepository otpRepository, UserManager<ApplicationUser> userManager)
         {
             _otpRepository = otpRepository;
+            _userManager = userManager;
         }
 
         public async Task SendOtpAsync(string phoneNumber, OtpPurpose purpose)
 
         {
+
             var phone = PhoneNumberHelper.NormalizeAndValidate(phoneNumber);
 
             // ⏱️ CHẶN SPAM OTP (30s)
@@ -56,7 +60,50 @@ namespace ChargeSlot.Api.Services.Implementation
             // 5️⃣ MOCK GỬI OTP (BÂY GIỜ)
             Console.WriteLine($"[OTP MOCK] Phone: {phone} | OTP: {otp}");
         }
+        public async Task SendOtpRegister(string phoneNumber, OtpPurpose purpose)
 
+        {
+            var existing = await _userManager.FindByNameAsync(phoneNumber);
+            if (existing != null)
+                throw new InvalidOperationException("Phone number already registered.");
+            var phone = PhoneNumberHelper.NormalizeAndValidate(phoneNumber);
+
+            // ⏱️ CHẶN SPAM OTP (30s)
+            var remainingSeconds =
+                await _otpRepository.GetRemainingCooldownSecondsAsync(
+                    phone,
+                    TimeSpan.FromSeconds(30)
+                );
+
+            if (remainingSeconds > 0)
+                throw new InvalidOperationException(
+                    $"Please wait {remainingSeconds} seconds before requesting another OTP."
+                );
+
+            // 1️⃣ Sinh OTP (6 số)
+            var otp = GenerateOtp();
+
+            // 2️⃣ Hash OTP (KHÔNG lưu plain text)
+            var otpHash = HashOtp(otp);
+
+            // 3️⃣ Tạo entity
+            var entity = new UserOtp
+            {
+                PhoneNumber = phone,
+                OtpHash = otpHash,
+                Purpose = purpose,
+                ExpiredAt = DateTime.UtcNow.AddMinutes(5),
+                IsUsed = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // 4️⃣ Lưu DB
+            await _otpRepository.AddAsync(entity);
+            await _otpRepository.SaveChangesAsync();
+
+            // 5️⃣ MOCK GỬI OTP (BÂY GIỜ)
+            Console.WriteLine($"[OTP MOCK] Phone: {phone} | OTP: {otp}");
+        }
         public async Task VerifyOtpAsync(string phoneNumber, string otp, OtpPurpose purpose)
         {
             var phone = PhoneNumberHelper.NormalizeAndValidate(phoneNumber);

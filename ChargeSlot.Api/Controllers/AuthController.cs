@@ -49,20 +49,6 @@ namespace ChargeSlot.Api.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
-
-        [HttpPost("admin/login")]
-        public async Task<IActionResult> AdminLogin([FromBody] AdminLoginDto dto)
-        {
-            try
-            {
-                var result = await _authService.LoginAdminAsync(dto);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
         {

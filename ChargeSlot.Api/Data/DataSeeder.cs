@@ -37,6 +37,36 @@ namespace ChargeSlot.Api.Data
             const string defaultPassword = "Password1!";
 
             // ============================
+            // SEED ADMIN
+            // ============================
+            var adminPhone = "0899839102";
+            var adminPassword = "Admin123!";
+            var adminUser = await userManager.FindByNameAsync(adminPhone);
+
+            if (adminUser == null)
+            {
+                adminUser = new ApplicationUser
+                {
+                    UserName = adminPhone,
+                    PhoneNumber = adminPhone,
+                    FullName = "System Administrator",
+                    IsPhoneVerified = true,
+                    Status = "ACTIVE",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                var adminResult = await userManager.CreateAsync(adminUser, adminPassword);
+                if (adminResult.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(adminUser, RoleConstants.Admin);
+                }
+            }
+            else if (!await userManager.IsInRoleAsync(adminUser, RoleConstants.Admin))
+            {
+                await userManager.AddToRoleAsync(adminUser, RoleConstants.Admin);
+            }
+
+            // ============================
             // SEED DRIVERS
             // ============================
 

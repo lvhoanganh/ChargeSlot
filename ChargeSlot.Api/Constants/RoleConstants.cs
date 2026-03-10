@@ -6,11 +6,12 @@ namespace ChargeSlot.Api.Constants
         public const string Owner = "Owner";
         public const string Admin = "Admin";
 
-        // Chỉ seed Driver, Owner vào DB — Admin config trong appsettings.json
+        // Seed Driver, Owner, Admin vào DB
         public static readonly HashSet<string> DbRoles = new()
         {
             Driver,
-            Owner
+            Owner,
+            Admin
         };
 
         // Chỉ cho phép đăng ký Driver hoặc Owner
