@@ -5,6 +5,7 @@ using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace ChargeSlot.Api.Services.Implementation
 {
@@ -40,6 +41,25 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<ChargingStationDto> CreateAsync(int ownerUserId, CreateChargingStationDto dto)
         {
+            // Ensure Owner profile record exists (FK: ChargingStation.OwnerUserId → Owner.UserId)
+            var ownerExists = await _context.Owner.AnyAsync(o => o.UserId == ownerUserId);
+            if (!ownerExists)
+            {
+                // Auto-create Owner profile from ApplicationUser data
+                var user = await _context.Users.FindAsync(ownerUserId);
+                if (user == null)
+                    throw new InvalidOperationException("User not found.");
+
+                _context.Owner.Add(new Owner
+                {
+                    UserId = ownerUserId,
+                    BusinessName = user.FullName,
+                    TaxCode = "N/A",
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _context.SaveChangesAsync();
+            }
+
             var station = new ChargingStation
             {
                 OwnerUserId = ownerUserId,

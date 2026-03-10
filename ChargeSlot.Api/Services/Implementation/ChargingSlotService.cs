@@ -40,7 +40,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<ChargingSlotDto> CreateAsync(int stationId, int ownerUserId, CreateChargingSlotDto dto)
         {
-            await ValidateStationOwnershipAsync(stationId, ownerUserId);
+            await ValidateStationEditableAsync(stationId, ownerUserId);
 
             var slot = new ChargingSlot
             {
@@ -63,7 +63,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task UpdateAsync(int stationId, int slotId, int ownerUserId, UpdateChargingSlotDto dto)
         {
-            await ValidateStationOwnershipAsync(stationId, ownerUserId);
+            await ValidateStationEditableAsync(stationId, ownerUserId);
 
             var slot = await _slotRepo.GetByIdAsync(slotId, tracking: true);
             if (slot == null || slot.StationId != stationId)
@@ -82,7 +82,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task DeleteAsync(int stationId, int slotId, int ownerUserId)
         {
-            await ValidateStationOwnershipAsync(stationId, ownerUserId);
+            await ValidateStationEditableAsync(stationId, ownerUserId);
 
             var slot = await _slotRepo.GetByIdAsync(slotId, tracking: true);
             if (slot == null || slot.StationId != stationId)
@@ -94,6 +94,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
         // ─────────────── HELPERS ───────────────
 
+        /// <summary>Check ownership only (for read operations).</summary>
         private async Task ValidateStationOwnershipAsync(int stationId, int ownerUserId)
         {
             var station = await _stationRepo.GetByIdAsync(stationId, includeDetails: false);
@@ -101,6 +102,22 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new KeyNotFoundException($"Station {stationId} not found.");
             if (station.OwnerUserId != ownerUserId)
                 throw new UnauthorizedAccessException("You do not own this station.");
+        }
+
+        /// <summary>Check ownership + station must be Draft or Rejected (for write operations).</summary>
+        private async Task ValidateStationEditableAsync(int stationId, int ownerUserId)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId, includeDetails: false);
+            if (station == null)
+                throw new KeyNotFoundException($"Station {stationId} not found.");
+            if (station.OwnerUserId != ownerUserId)
+                throw new UnauthorizedAccessException("You do not own this station.");
+            if (station.ApprovalStatus != ApprovalStatus.Draft &&
+                station.ApprovalStatus != ApprovalStatus.Rejected)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot modify slots when station is in '{station.ApprovalStatus}' status. Only Draft or Rejected stations can be edited.");
+            }
         }
 
         private static ChargingSlotDto MapToDto(ChargingSlot slot)

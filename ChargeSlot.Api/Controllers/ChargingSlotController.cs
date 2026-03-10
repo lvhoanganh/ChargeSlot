@@ -67,6 +67,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }
 
         /// <summary>Update a slot.</summary>
@@ -81,6 +82,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }
 
         /// <summary>Delete a slot.</summary>
@@ -95,6 +97,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }
     }
 }

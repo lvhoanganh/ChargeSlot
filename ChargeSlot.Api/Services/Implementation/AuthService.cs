@@ -1,7 +1,9 @@
+using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Auth;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.Helpers;
+using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
@@ -20,21 +22,23 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly RoleManager<IdentityRole<int>> _roleManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IConfiguration _config;
-
         private readonly IUserOtpRepository _otpRepository;
+        private readonly ChargeSlotDbContext _context;
 
         public AuthService(
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole<int>> roleManager,
             SignInManager<ApplicationUser> signInManager,
             IConfiguration config,
-            IUserOtpRepository otpRepository)
+            IUserOtpRepository otpRepository,
+            ChargeSlotDbContext context)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _signInManager = signInManager;
             _config = config;
             _otpRepository = otpRepository;
+            _context = context;
         }
 
 
@@ -81,9 +85,30 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _userManager.RemoveFromRolesAsync(user, currentRoles);
 
             await _userManager.AddToRoleAsync(user, role);
+
+            // Create the corresponding profile record
+            if (role == RoleConstants.Owner)
+            {
+                _context.Owner.Add(new Owner
+                {
+                    UserId = user.Id,
+                    BusinessName = dto.FullName,
+                    TaxCode = "N/A",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            else if (role == RoleConstants.Driver)
+            {
+                _context.Driver.Add(new Driver
+                {
+                    UserId = user.Id,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
             await _otpRepository.InvalidateAllOtpsAsync(phone);
             await _otpRepository.SaveChangesAsync();
-
+            await _context.SaveChangesAsync();
         }
 
         public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
