@@ -4,6 +4,7 @@ namespace ChargeSlot.Api.Enums
     public enum PaymentMethod
     {
         EWallet = 0,
-        BankTransfer = 1
+        BankTransfer = 1,
+        Wallet = 2
     }
 }
