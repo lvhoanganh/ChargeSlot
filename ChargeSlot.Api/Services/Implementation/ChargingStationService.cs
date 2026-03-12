@@ -1,10 +1,13 @@
+using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Slot;
 using ChargeSlot.Api.DTOs.Station;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace ChargeSlot.Api.Services.Implementation
@@ -13,13 +16,16 @@ namespace ChargeSlot.Api.Services.Implementation
     {
         private readonly IChargingStationRepository _stationRepo;
         private readonly ChargeSlotDbContext _context;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public ChargingStationService(
             IChargingStationRepository stationRepo,
-            ChargeSlotDbContext context)
+            ChargeSlotDbContext context,
+            UserManager<ApplicationUser> userManager)
         {
             _stationRepo = stationRepo;
             _context = context;
+            _userManager = userManager;
         }
 
         // ─────────────── CRUD ───────────────
@@ -99,6 +105,25 @@ namespace ChargeSlot.Api.Services.Implementation
                     station.Images.Add(new StationImage
                     {
                         ImageUrl = url,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+
+            // Add slots
+            if (dto.Slots?.Count > 0)
+            {
+                foreach (var s in dto.Slots)
+                {
+                    station.ChargingSlots.Add(new ChargingSlot
+                    {
+                        SlotName = s.SlotName,
+                        ConnectorType = s.ConnectorType,
+                        PowerKw = s.PowerKw,
+                        BasePricePerHour = s.BasePricePerHour,
+                        PositionX = s.PositionX,
+                        PositionY = s.PositionY,
+                        Status = SlotStatus.Inactive,
                         CreatedAt = DateTime.UtcNow
                     });
                 }
@@ -232,9 +257,20 @@ namespace ChargeSlot.Api.Services.Implementation
             station.AdminNote = null; // clear previous rejection note
             station.UpdatedAt = DateTime.UtcNow;
 
-            // NOTE: Admin is config-based (appsettings.json, Id=0) and does NOT exist in the User table.
-            // Admin notifications should be handled via a separate channel (e.g., email, dashboard polling)
-            // rather than the Notification table which has FK to User.
+            // Notify all Admin users
+            var adminUsers = await _userManager.GetUsersInRoleAsync(RoleConstants.Admin);
+            foreach (var admin in adminUsers)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = admin.Id,
+                    Title = "Trạm sạc mới chờ duyệt",
+                    Content = $"Trạm sạc \"{station.Name}\" đã được gửi yêu cầu phê duyệt.",
+                    Type = NotificationType.StationApproval,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
 
             await _stationRepo.SaveChangesAsync();
         }
@@ -274,12 +310,23 @@ namespace ChargeSlot.Api.Services.Implementation
                 station.ApprovalStatus = ApprovalStatus.Approved;
                 station.OperationalStatus = OperationalStatus.Active; // Publish
 
+                // Activate all slots in this station
+                var slots = await _context.ChargingSlots
+                    .Where(s => s.StationId == station.Id)
+                    .ToListAsync();
+                foreach (var slot in slots)
+                {
+                    slot.Status = SlotStatus.Active;
+                    slot.UpdatedAt = DateTime.UtcNow;
+                }
+
                 // Notify Owner
                 _context.Notifications.Add(new Notification
                 {
                     UserId = station.OwnerUserId,
                     Title = "Trạm sạc đã được phê duyệt",
                     Content = $"Trạm sạc \"{station.Name}\" đã được phê duyệt và công bố trên hệ thống.",
+                    Type = NotificationType.StationApproval,
                     IsRead = false,
                     CreatedAt = DateTime.UtcNow
                 });
@@ -298,6 +345,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     UserId = station.OwnerUserId,
                     Title = "Trạm sạc bị từ chối",
                     Content = $"Trạm sạc \"{station.Name}\" đã bị từ chối. Lý do: {dto.AdminNote}",
+                    Type = NotificationType.StationApproval,
                     IsRead = false,
                     CreatedAt = DateTime.UtcNow
                 });

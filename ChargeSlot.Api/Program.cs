@@ -1,3 +1,4 @@
+using ChargeSlot.Api.BackgroundJobs;
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Implementation;
@@ -128,6 +129,20 @@ builder.Services.AddScoped<IChargingStationRepository, ChargingStationRepository
 builder.Services.AddScoped<IChargingStationService, ChargingStationService>();
 builder.Services.AddScoped<IChargingSlotRepository, ChargingSlotRepository>();
 builder.Services.AddScoped<IChargingSlotService, ChargingSlotService>();
+
+// Booking & Notification
+builder.Services.AddScoped<IBookingRepository, BookingRepository>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+
+// Payment & VNPay
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<IVnPayService, VnPayService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+
+// Background Jobs
+builder.Services.AddHostedService<PaymentExpiryJob>();
 
 // =======================
 // CONTROLLERS & SWAGGER

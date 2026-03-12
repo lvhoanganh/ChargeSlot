@@ -14,6 +14,8 @@ namespace ChargeSlot.Api.Data.Configurations
             builder.Property(x => x.Note).HasMaxLength(1000);
             builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(40);
             builder.Property(x => x.CancelReason).HasMaxLength(500);
+            builder.Property(x => x.RejectionReason).HasMaxLength(500);
+            builder.Property(x => x.TotalAmount).HasPrecision(18, 2);
 
             builder.HasOne(x => x.Driver)
                 .WithMany(d => d.Bookings)

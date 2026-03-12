@@ -23,6 +23,8 @@ namespace ChargeSlot.Api.Models
         public DateTime? CheckinDeadlineAt { get; set; }
         public DateTime? CancelledAt { get; set; }
         public string? CancelReason { get; set; }
+        public string? RejectionReason { get; set; }
+        public decimal TotalAmount { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }

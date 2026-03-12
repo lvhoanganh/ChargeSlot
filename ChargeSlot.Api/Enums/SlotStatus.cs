@@ -5,6 +5,7 @@ namespace ChargeSlot.Api.Enums
     {
         Active = 0,
         Inactive = 1,
-        Maintenance = 2
+        Maintenance = 2,
+        Booked = 3
     }
 }

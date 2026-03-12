@@ -6,6 +6,7 @@ namespace ChargeSlot.Api.Enums
         Booking = 1,
         Payment = 2,
         Charging = 3,
-        Dispute = 4
+        Dispute = 4,
+        StationApproval = 5
     }
 }

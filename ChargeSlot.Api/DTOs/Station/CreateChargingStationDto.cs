@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ChargeSlot.Api.DTOs.Slot;
 
 namespace ChargeSlot.Api.DTOs.Station
 {
@@ -25,5 +26,6 @@ namespace ChargeSlot.Api.DTOs.Station
 
         public List<OperatingHoursDto>? OperatingHours { get; set; }
         public List<string>? ImageUrls { get; set; }
+        public List<CreateChargingSlotDto>? Slots { get; set; }
     }
 }

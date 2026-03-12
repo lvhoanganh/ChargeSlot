@@ -4,16 +4,18 @@ namespace ChargeSlot.Api.Enums
     public enum BookingStatus
     {
         Draft = 0,
-        PendingPayment = 1,
-        Paid = 2,
-        CheckedIn = 3,
-        InProgress = 4,
-        CompletedPendingResult = 5,
-        CompletedPendingInvoice = 6,
-        Completed = 7,
-        Cancelled = 8,
-        NoShow = 9,
-        Rejected = 10,
-        Disputed = 11
+        WaitingOwner = 1,
+        PendingPayment = 2,
+        Expired = 3,
+        Paid = 4,
+        CheckedIn = 5,
+        InProgress = 6,
+        CompletedPendingResult = 7,
+        CompletedPendingInvoice = 8,
+        Completed = 9,
+        Cancelled = 10,
+        NoShow = 11,
+        Rejected = 12,
+        Disputed = 13
     }
 }
