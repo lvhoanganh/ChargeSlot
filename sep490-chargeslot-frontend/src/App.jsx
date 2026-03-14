@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import HomePage from "./pages/common/HomePage";
 import MainLayout from "./layouts/MainLayout";
+import AdminLayout from "./layouts/AdminLayout";
 import Service from "./pages/common/Service";
 import News from "./pages/common/News";
 import About from "./pages/common/About";
@@ -13,6 +14,8 @@ import ForgotPassword from "./pages/common/ForgotPassword";
 import Profile from "./pages/common/Profile";
 import EditProfile from "./pages/common/EditProfile";
 import ChangePassword from "./pages/common/ChangePassword";
+import ManageUser from "./pages/admin/ManageUser";
+import ApproveStation from "./pages/admin/ApproveStation";
 import ChargingStations from "./pages/ChargingStations";
 import CreateStation from "./pages/CreateStation";
 import EditStation from "./pages/EditStation";
@@ -54,6 +57,10 @@ export default function App() {
             <Route path="stations" element={<OwnerPage />} />
             <Route path="stations/add" element={<CreateChargingStation />} />
           </Route>
+        </Route>
+        <Route path="admin" element={<AdminLayout />}>
+          <Route path="manage-users" element={<ManageUser />} />
+          <Route path="approve-station" element={<ApproveStation />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
