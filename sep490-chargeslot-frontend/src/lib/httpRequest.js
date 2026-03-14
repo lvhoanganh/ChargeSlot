@@ -1,6 +1,6 @@
 import axios from "axios";
 export const instance = axios.create({
-  baseURL: "https://instagram.f8team.dev/api",
+  baseURL: "http://localhost:5162/api",
 });
 
 instance.interceptors.request.use((config) => {
