@@ -4,21 +4,17 @@ using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using ChargeSlot.Api.Services.Implementation;
 using Microsoft.EntityFrameworkCore;
-using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Constants;
+using ChargeSlot.Api.Repositories.Interfaces;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class AdminAccountService : IAdminAccountService
     {
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly RoleManager<IdentityRole<int>> _roleManager;
+        private readonly IAdminAccountRepository _adminAccountRepository;
 
-        public AdminAccountService(
-            UserManager<ApplicationUser> userManager,
-            RoleManager<IdentityRole<int>> roleManager)
+        public AdminAccountService(IAdminAccountRepository adminAccountRepository)
         {
-            _userManager = userManager;
-            _roleManager = roleManager;
+            _adminAccountRepository = adminAccountRepository;
         }
 
         public async Task<PagedResultDto<AccountListItemDto>> GetAccountsAsync(
@@ -39,7 +35,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 var roleName = role.Trim();
 
-                if (!await _roleManager.RoleExistsAsync(roleName))
+                if (!await _adminAccountRepository.RoleExistsAsync(roleName))
                 {
                     return new PagedResultDto<AccountListItemDto>
                     {
@@ -50,14 +46,11 @@ namespace ChargeSlot.Api.Services.Implementation
                     };
                 }
 
-                users = (await _userManager.GetUsersInRoleAsync(roleName)).ToList();
+                users = await _adminAccountRepository.GetUsersByRoleAsync(roleName);
             }
             else
             {
-                users = await _userManager.Users
-                    .AsNoTracking()
-                    .OrderByDescending(x => x.CreatedAt)
-                    .ToListAsync();
+                users = await _adminAccountRepository.GetAllUsersAsync();
             }
 
             // 2. Filter status
@@ -70,9 +63,9 @@ namespace ChargeSlot.Api.Services.Implementation
             // 3. Search fullName / phone
             if (!string.IsNullOrWhiteSpace(search))
             {
-                var s = search.Trim().ToLower();
+                var s = search.Trim();
                 users = users.Where(x =>
-                    (!string.IsNullOrEmpty(x.FullName) && x.FullName.ToLower().Contains(s)) ||
+                    (!string.IsNullOrEmpty(x.FullName) && x.FullName.Contains(s)) ||
                     (!string.IsNullOrEmpty(x.PhoneNumber) && x.PhoneNumber.Contains(s))
                 ).ToList();
             }
@@ -90,7 +83,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var items = new List<AccountListItemDto>();
             foreach (var u in pageUsers)
             {
-                var roles = await _userManager.GetRolesAsync(u);
+                var roles = await _adminAccountRepository.GetRolesAsync(u);
 
                 items.Add(new AccountListItemDto
                 {
@@ -118,11 +111,11 @@ namespace ChargeSlot.Api.Services.Implementation
             if (targetUserId == actingAdminUserId)
                 throw new InvalidOperationException("You cannot ban/unban yourself.");
 
-            var user = await _userManager.FindByIdAsync(targetUserId.ToString());
+            var user = await _adminAccountRepository.FindByIdAsync(targetUserId);
             if (user == null)
                 throw new InvalidOperationException("User not found.");
 
-            var roles = await _userManager.GetRolesAsync(user);
+            var roles = await _adminAccountRepository.GetRolesAsync(user);
 
             // Không cho ban Admin
             if (roles.Contains(RoleConstants.Admin))
@@ -142,68 +135,24 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Only ACTIVE or BANNED accounts can be toggled.");
             }
 
-            var result = await _userManager.UpdateAsync(user);
-            if (!result.Succeeded)
-            {
-                var msg = string.Join("; ", result.Errors.Select(e => e.Description));
-                throw new InvalidOperationException(msg);
-            }
+            var updated = await _adminAccountRepository.UpdateAsync(user);
+            if (!updated)
+                throw new InvalidOperationException("Failed to update user status.");
 
             return user.Status;
         }
+
+        public async Task<AccountStatisticsDto> GetAccountStatisticsAsync()
+        {
+            var users = await _adminAccountRepository.GetAllUsersForStatisticsAsync();
+
+            return new AccountStatisticsDto
+            {
+                TotalAccounts = users.Count,
+                ActiveAccounts = users.Count(x => x.Status == UserStatusConstants.Active),
+                BannedAccounts = users.Count(x => x.Status == UserStatusConstants.Banned),
+                //SuspendedAccounts = users.Count(x => x.Status == UserStatusConstants.Suspended)
+            };
+        }
     }
 }
-
-
-
-//    public async Task<PagedResultDto<AccountListItemDto>> GetAccountsAsync(
-//string? search, string? role, bool? isActive, int page, int pageSize)
-//    {
-//        // Fix các thông số paging cơ bản
-//        page = page <= 0 ? 1 : page;
-//        pageSize = pageSize <= 0 ? 20 : pageSize;
-
-//        // TẠO DỮ LIỆU GIẢ TẠI ĐÂY
-//        var items = new List<AccountListItemDto>
-//{
-//    new AccountListItemDto {
-//        Id = 1,
-//        FullName = "Nguyễn Văn Admin",
-//        PhoneNumber = "0901234567",
-//        Role = "Admin",
-//        IsActive = true,
-//        CreatedAt = DateTime.Now
-//    },
-//    new AccountListItemDto {
-//        Id = 2,
-//        FullName = "Trần Thị Staff",
-//        PhoneNumber = "0988888888",
-//        Role = "Driver",
-//        IsActive = false,
-//        CreatedAt = DateTime.Now.AddDays(-1)
-//    }
-//};
-//        if (!string.IsNullOrWhiteSpace(search))
-//        {
-//            var s = search.Trim().ToLower(); // Viết thường để search không phân biệt hoa thường
-//            items = items.Where(x =>
-//                x.FullName.ToLower().Contains(s) ||
-//                x.PhoneNumber != null && x.PhoneNumber.Contains(s)
-//            ).ToList();
-//        }
-
-//        // 3. CHÈN THÊM LOGIC FILTER ROLE (Nếu muốn test nút lọc Role)
-//        if (!string.IsNullOrWhiteSpace(role))
-//        {
-//            items = items.Where(x => x.Role == role).ToList();
-//        }
-
-//        // Trả về kết quả luôn, không gọi tới _userManager hay _context
-//        return new PagedResultDto<AccountListItemDto>
-//        {
-//            Page = page,
-//            PageSize = pageSize,
-//            TotalItems = items.Count,
-//            Items = items
-//        };
-//    }

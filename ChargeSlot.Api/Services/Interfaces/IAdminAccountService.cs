@@ -12,5 +12,7 @@ namespace ChargeSlot.Api.Services.Interfaces
             int pageSize);
 
         Task<string> ToggleBanStatusAsync(int targetUserId, int actingAdminUserId);
+
+        Task<AccountStatisticsDto> GetAccountStatisticsAsync();
     }
 }

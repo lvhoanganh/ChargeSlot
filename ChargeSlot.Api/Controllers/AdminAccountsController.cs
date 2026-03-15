@@ -11,11 +11,11 @@ namespace ChargeSlot.Api.Controllers
     [Authorize(Roles = RoleConstants.Admin)]
     public class AdminAccountsController : ControllerBase
     {
-        private readonly IAdminAccountService _service;
+        private readonly IAdminAccountService _adminAccountService;
 
-        public AdminAccountsController(IAdminAccountService service)
+        public AdminAccountsController(IAdminAccountService adminAccountService)
         {
-            _service = service;
+            _adminAccountService = adminAccountService;
         }
 
         // GET: api/AdminAccounts?search=&role=&status=&page=1&pageSize=20
@@ -29,7 +29,9 @@ namespace ChargeSlot.Api.Controllers
         {
             try
             {
-                var result = await _service.GetAccountsAsync(search, role, status, page, pageSize);
+                var result = await _adminAccountService.GetAccountsAsync(
+                    search, role, status, page, pageSize);
+
                 return Ok(result);
             }
             catch (Exception ex)
@@ -48,7 +50,7 @@ namespace ChargeSlot.Api.Controllers
                 if (!int.TryParse(adminIdStr, out var adminId))
                     return BadRequest(new { message = "Invalid token." });
 
-                var newStatus = await _service.ToggleBanStatusAsync(id, adminId);
+                var newStatus = await _adminAccountService.ToggleBanStatusAsync(id, adminId);
 
                 return Ok(new
                 {
@@ -62,6 +64,20 @@ namespace ChargeSlot.Api.Controllers
             }
         }
 
+        // GET: api/AdminAccounts/statistics
+        [HttpGet("statistics")]
+        public async Task<IActionResult> GetStatistics()
+        {
+            try
+            {
+                var result = await _adminAccountService.GetAccountStatisticsAsync();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
 
     }
 }

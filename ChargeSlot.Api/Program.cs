@@ -1,6 +1,7 @@
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Implementation;
+using ChargeSlot.Api.Repositories.Implementations;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Implementation;
 using ChargeSlot.Api.Services.Interfaces;
@@ -123,6 +124,7 @@ builder.Services.AddScoped<IOwnerRepository, OwnerRepository>();
 builder.Services.AddScoped<IDriverProfileService, DriverProfileService>();
 builder.Services.AddScoped<IOwnerProfileService, OwnerProfileService>();
 builder.Services.AddScoped<IAdminAccountService, AdminAccountService>();
+builder.Services.AddScoped<IAdminAccountRepository, AdminAccountRepository>();
 // ChargingStation & ChargingSlot
 builder.Services.AddScoped<IChargingStationRepository, ChargingStationRepository>();
 builder.Services.AddScoped<IChargingStationService, ChargingStationService>();
