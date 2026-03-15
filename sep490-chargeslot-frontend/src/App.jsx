@@ -11,8 +11,6 @@ import Register from "./pages/common/Register";
 import VerifyOtp from "./pages/common/VerifyOtp";
 import SetPassword from "./pages/common/SetPassword";
 import ForgotPassword from "./pages/common/ForgotPassword";
-import Profile from "./pages/common/Profile";
-import EditProfile from "./pages/common/EditProfile";
 import ChangePassword from "./pages/common/ChangePassword";
 import ManageUser from "./pages/admin/ManageUser";
 import ApproveStation from "./pages/admin/ApproveStation";
@@ -27,6 +25,10 @@ import PublicMiddleware from "./middlewares/PublicMiddleware";
 import AuthOwnerMiddleware from "./middlewares/AuthOwnerMiddleware";
 import RegisterVerifyOtp from "./pages/common/RegisterVerifyOtp";
 import RegisterCreateAccount from "./pages/common/RegisterCreateAccount";
+import DriverProfile from "./pages/driver/DriverProfile";
+import DriverEditProfile from "./pages/driver/EditDriverProfile";
+import OwnerProfile from "./pages/owner/OwnerProfile";
+import OwnerEditProfile from "./pages/owner/EditOwnerProfile";
 
 export default function App() {
   return (
@@ -39,8 +41,6 @@ export default function App() {
           <Route path="about" element={<About />} />
           <Route path="setPassword" element={<SetPassword />} />
           <Route path="forgotPassword" element={<ForgotPassword />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/edit-profile" element={<EditProfile />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route element={<PublicMiddleware />}>
             <Route path="login" element={<Login />} />
@@ -61,6 +61,14 @@ export default function App() {
         <Route path="admin" element={<AdminLayout />}>
           <Route path="manage-users" element={<ManageUser />} />
           <Route path="approve-station" element={<ApproveStation />} />
+        </Route>
+        <Route path="driver" element={<MainLayout />}>
+          <Route path="driver-profile" element={<DriverProfile />} />
+          <Route path="update-driver-profile" element={<DriverEditProfile />} />
+        </Route>
+        <Route path="owner" element={<OwnerLayout />}>
+          <Route path="owner-profile" element={<OwnerProfile />} />
+          <Route path="update-owner-profile" element={<OwnerEditProfile />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

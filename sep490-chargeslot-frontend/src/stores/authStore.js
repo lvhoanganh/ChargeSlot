@@ -21,18 +21,36 @@ export const useAuthStore = create((set) => ({
         throw new Error("Login failed");
       }
       const data = res.data;
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
       set({
         token: data.accessToken,
         refreshToken: data.refreshToken,
         userId: data.userId,
         role: data.role,
+        phoneNumber: data.phoneNumber || phoneNumber,
       });
+
       localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
       localStorage.setItem("userId", data.userId);
       localStorage.setItem("role", data.role);
+      localStorage.setItem("phoneNumber", data.phoneNumber || phoneNumber || "");
+      if (data.refreshToken) {
+        localStorage.setItem("refreshToken", data.refreshToken);
+      } else {
+        localStorage.removeItem("refreshToken");
+      }
+
+      // Restore fullName for this phone if we have it from registration.
+      try {
+        const key = "userInfoByPhone";
+        const phone = data.phoneNumber || phoneNumber || "";
+        const map = JSON.parse(localStorage.getItem(key) || "{}");
+        const known = map?.[phone];
+        if (known?.fullName) {
+          localStorage.setItem("fullName", known.fullName);
+        }
+      } catch {
+        // ignore localStorage/JSON errors
+      }
     } catch (error) {
       console.error("Login failed:", error);
       throw error;
@@ -43,6 +61,14 @@ export const useAuthStore = create((set) => ({
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("userId");
     localStorage.removeItem("role");
-    set({ token: null, refreshToken: null, userId: null, role: null });
+    localStorage.removeItem("phoneNumber");
+    localStorage.removeItem("fullName");
+    set({
+      token: null,
+      refreshToken: null,
+      userId: null,
+      role: null,
+      phoneNumber: null,
+    });
   },
 }));
