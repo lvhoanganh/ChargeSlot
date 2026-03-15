@@ -1,6 +1,7 @@
 import Nav from "@/components/Nav";
 import { Button } from "@/components/ui/button";
-import homeBg from "../assets/images/home.jpg";
+// import homeBg from "../assets/images/home.jpg";
+// import homeBg from "../assets/images/home.jpg";
 export default function HomePage() {
   return (
     <div className="pt-20">
@@ -15,7 +16,7 @@ export default function HomePage() {
         </Button>
       </div>
       <img
-        src={homeBg}
+        src="/home.jpg"
         alt="home bg"
         className="w-full h-[800px] object-cover"
       />

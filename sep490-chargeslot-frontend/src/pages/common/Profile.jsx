@@ -24,14 +24,13 @@ export default function Profile() {
     address: "",
   };
 
-  const vehicles = []; 
+  const vehicles = [];
   const isDriver = user.role === "DRIVER";
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-[#f3f4f5] px-4 py-10 pt-24">
       <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 p-10">
-
           <div className="flex flex-col items-center">
             <img
               src={DEFAULT_AVATAR}
@@ -44,9 +43,7 @@ export default function Profile() {
           </div>
           <div className="md:col-span-2 space-y-10">
             <section>
-              <h1 className="text-2xl font-bold mb-6">
-                Thông tin cá nhân
-              </h1>
+              <h1 className="text-2xl font-bold mb-6">Thông tin cá nhân</h1>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-6">
                 <Info label="Vai trò" value={ROLE_LABEL[user.role]} />
@@ -63,7 +60,8 @@ export default function Profile() {
               {!user.name && (
                 <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
                   <p className="text-sm text-orange-700">
-                    💡 Hồ sơ của bạn chưa hoàn thiện. Vui lòng cập nhật thông tin cá nhân.
+                    💡 Hồ sơ của bạn chưa hoàn thiện. Vui lòng cập nhật thông
+                    tin cá nhân.
                   </p>
                 </div>
               )}
@@ -76,7 +74,10 @@ export default function Profile() {
                     Phương tiện của bạn ({vehicles.length})
                   </h2>
                   <Link to="/manage-vehicles">
-                    <Button size="sm" className="bg-orange-500 hover:bg-orange-600">
+                    <Button
+                      size="sm"
+                      className="bg-orange-500 hover:bg-orange-600"
+                    >
                       Quản lý
                     </Button>
                   </Link>
@@ -105,7 +106,6 @@ export default function Profile() {
                 </Button>
               </Link>
             </section>
-
           </div>
         </div>
       </div>
