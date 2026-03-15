@@ -186,32 +186,32 @@ export default function ManageUser() {
 
   return (
     <div className="max-w-[95%] w-full mx-auto pt-28 pb-10">
-        <div className="mb-6">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold">Quản lý người dùng</h1>
         <p className="text-sm text-gray-500 mt-1">
           Quản trị viên có thể kích hoạt hoặc vô hiệu hóa tài khoản của người dùng
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-  <div className="bg-white border rounded-xl p-4 text-center">
-    <p className="text-xs text-gray-500">Tổng số tài khoản</p>
-    <p className="text-2xl font-bold">{summary.total}</p>
-  </div>
+        <div className="bg-white border rounded-xl p-4 text-center">
+          <p className="text-xs text-gray-500">Tổng số tài khoản</p>
+          <p className="text-2xl font-bold">{summary.total}</p>
+        </div>
 
-  <div className="bg-white border rounded-xl p-4 text-center">
-    <p className="text-xs text-gray-500">Hoạt động</p>
-    <p className="text-2xl font-bold text-green-600">
-      {summary.active}
-    </p>
-  </div>
+        <div className="bg-white border rounded-xl p-4 text-center">
+          <p className="text-xs text-gray-500">Hoạt động</p>
+          <p className="text-2xl font-bold text-green-600">
+            {summary.active}
+          </p>
+        </div>
 
-  <div className="bg-white border rounded-xl p-4 text-center">
-    <p className="text-xs text-gray-500">Vô hiệu hóa</p>
-    <p className="text-2xl font-bold text-red-600">
-      {summary.banned}
-    </p>
-  </div>
-</div>
+        <div className="bg-white border rounded-xl p-4 text-center">
+          <p className="text-xs text-gray-500">Vô hiệu hóa</p>
+          <p className="text-2xl font-bold text-red-600">
+            {summary.banned}
+          </p>
+        </div>
+      </div>
       <div className="bg-white border rounded-xl p-4 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <input
@@ -315,11 +315,10 @@ export default function ManageUser() {
                       <button
                         disabled={disabled}
                         onClick={() => askToggle(u)}
-                        className={`h-8 px-3 rounded-md text-white text-xs font-semibold
-                          ${
-                            disabled
-                              ? "bg-gray-400 cursor-not-allowed"
-                              : u.status === "ACTIVE"
+                        className={`h-8 w-28 ml-auto rounded-md text-white text-xs font-semibold flex items-center justify-center 
+                          ${disabled
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : u.status === "ACTIVE"
                               ? "bg-red-500 hover:bg-red-600"
                               : "bg-green-500 hover:bg-green-600"
                           }`}
@@ -327,8 +326,8 @@ export default function ManageUser() {
                         {disabled
                           ? "Không khả dụng"
                           : u.status === "ACTIVE"
-                          ? "Vô hiệu hóa"
-                          : "Kích hoạt"}
+                            ? "Vô hiệu hóa"
+                            : "Kích hoạt"}
                       </button>
                     </td>
                   </tr>
@@ -388,11 +387,10 @@ export default function ManageUser() {
               </button>
               <button
                 onClick={confirmToggle}
-                className={`h-9 px-4 rounded-md text-white ${
-                  confirmTarget.status === "ACTIVE"
+                className={`h-9 px-4 rounded-md text-white ${confirmTarget.status === "ACTIVE"
                     ? "bg-red-500 hover:bg-red-600"
                     : "bg-green-500 hover:bg-green-600"
-                }`}
+                  }`}
               >
                 Xác nhận
               </button>
