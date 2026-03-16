@@ -11,7 +11,7 @@ import Register from "./pages/common/Register";
 import VerifyOtp from "./pages/common/VerifyOtp";
 import SetPassword from "./pages/common/SetPassword";
 import ForgotPassword from "./pages/common/ForgotPassword";
-import ChangePassword from "./pages/common/ChangePassword";
+import ResetPassword from "./pages/common/ResetPassword";
 import ManageUser from "./pages/admin/ManageUser";
 import ApproveStation from "./pages/admin/ApproveStation";
 import ChargingStations from "./pages/ChargingStations";
@@ -41,7 +41,8 @@ export default function App() {
           <Route path="about" element={<About />} />
           <Route path="setPassword" element={<SetPassword />} />
           <Route path="forgotPassword" element={<ForgotPassword />} />
-          <Route path="change-password" element={<ChangePassword />} />
+          <Route path="verifyOtp" element={<VerifyOtp />} />
+          <Route path="reset-password" element={<ResetPassword />} />
           <Route element={<PublicMiddleware />}>
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
