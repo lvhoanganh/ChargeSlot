@@ -38,6 +38,7 @@ namespace ChargeSlot.Api.Data
         public DbSet<Wallet> Wallets => Set<Wallet>();
         public DbSet<LedgerTransaction> LedgerTransactions => Set<LedgerTransaction>();
         public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

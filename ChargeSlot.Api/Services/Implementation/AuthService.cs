@@ -8,10 +8,12 @@ using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace ChargeSlot.Api.Services.Implementation
@@ -122,27 +124,64 @@ namespace ChargeSlot.Api.Services.Implementation
             if (user.Status != "ACTIVE")
                 throw new InvalidOperationException("Account is inactive/banned.");
 
-            // Nếu bạn muốn chặn login khi chưa OTP:
-            // if (!user.PhoneNumberConfirmed)
-            //     throw new InvalidOperationException("Phone number not verified.");
-
             var signIn = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
             if (!signIn.Succeeded)
                 throw new InvalidOperationException("Invalid phone number or password.");
 
             var roles = await _userManager.GetRolesAsync(user);
-            var role = roles.SingleOrDefault() ?? RoleConstants.Driver; // bạn đang hướng 1 role/user, chỉ cho Driver/Owner
+            var role = roles.SingleOrDefault() ?? RoleConstants.Driver;
 
-            var (token, expiresAtUtc) = GenerateUserJwt(user, role);
+            return await GenerateAuthResponseAsync(user, role);
+        }
 
-            return new AuthResponseDto
-            {
-                AccessToken = token,
-                ExpiresAtUtc = expiresAtUtc,
-                UserId = user.Id,
-                PhoneNumber = user.PhoneNumber ?? phone,
-                Role = role
-            };
+        public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken)
+        {
+            var storedToken = await _context.RefreshTokens
+                .Include(rt => rt.User)
+                .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
+
+            if (storedToken == null)
+                throw new InvalidOperationException("Invalid refresh token.");
+
+            if (storedToken.IsRevoked)
+                throw new InvalidOperationException("Refresh token has been revoked.");
+
+            if (storedToken.IsExpired)
+                throw new InvalidOperationException("Refresh token has expired.");
+
+            // Revoke old token (rotation)
+            storedToken.RevokedAt = DateTime.UtcNow;
+
+            var user = storedToken.User;
+            if (user.Status != "ACTIVE")
+                throw new InvalidOperationException("Account is inactive/banned.");
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var role = roles.SingleOrDefault() ?? RoleConstants.Driver;
+
+            // Generate new tokens
+            var response = await GenerateAuthResponseAsync(user, role);
+
+            // Link old → new for audit trail
+            storedToken.ReplacedByToken = response.RefreshToken;
+
+            await _context.SaveChangesAsync();
+            return response;
+        }
+
+        public async Task RevokeTokenAsync(string refreshToken, int userId)
+        {
+            var storedToken = await _context.RefreshTokens
+                .FirstOrDefaultAsync(rt => rt.Token == refreshToken && rt.UserId == userId);
+
+            if (storedToken == null)
+                throw new InvalidOperationException("Invalid refresh token.");
+
+            if (storedToken.IsRevoked)
+                throw new InvalidOperationException("Token already revoked.");
+
+            storedToken.RevokedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
         }
 
         private async Task EnsureRolesExistAsync()
@@ -152,6 +191,44 @@ namespace ChargeSlot.Api.Services.Implementation
                 if (!await _roleManager.RoleExistsAsync(role))
                     await _roleManager.CreateAsync(new IdentityRole<int>(role));
             }
+        }
+
+        // ─────────────── TOKEN GENERATION ───────────────
+
+        private async Task<AuthResponseDto> GenerateAuthResponseAsync(ApplicationUser user, string role)
+        {
+            var (accessToken, accessExpiresAtUtc) = GenerateUserJwt(user, role);
+            var refreshToken = await CreateRefreshTokenAsync(user.Id);
+
+            return new AuthResponseDto
+            {
+                AccessToken = accessToken,
+                ExpiresAtUtc = accessExpiresAtUtc,
+                RefreshToken = refreshToken.Token,
+                RefreshTokenExpiresAtUtc = refreshToken.ExpiresAt,
+                UserId = user.Id,
+                PhoneNumber = user.PhoneNumber ?? user.UserName ?? "",
+                Role = role
+            };
+        }
+
+        private async Task<RefreshToken> CreateRefreshTokenAsync(int userId)
+        {
+            var jwtSection = _config.GetSection("Jwt");
+            var refreshDays = int.TryParse(jwtSection["RefreshTokenExpiresInDays"], out var d) ? d : 7;
+
+            var refreshToken = new RefreshToken
+            {
+                Token = GenerateRefreshTokenString(),
+                UserId = userId,
+                ExpiresAt = DateTime.UtcNow.AddDays(refreshDays),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync();
+
+            return refreshToken;
         }
 
         private (string token, DateTime expiresAtUtc) GenerateUserJwt(ApplicationUser user, string role)
@@ -187,8 +264,17 @@ namespace ChargeSlot.Api.Services.Implementation
             return (tokenString, expiresAtUtc);
         }
 
+        private static string GenerateRefreshTokenString()
+        {
+            var randomBytes = RandomNumberGenerator.GetBytes(64);
+            return Convert.ToBase64String(randomBytes);
+        }
+
+        // ─────────────── HELPERS ───────────────
+
         private static string NormalizePhone(string phone) =>
             PhoneNumberHelper.NormalizeAndValidate(phone);
+
         public async Task ResetPasswordAsync(string phoneNumber, string newPassword)
         {
             var phone = NormalizePhone(phoneNumber);

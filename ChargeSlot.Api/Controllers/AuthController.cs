@@ -1,7 +1,9 @@
 using ChargeSlot.Api.DTOs.Auth;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ChargeSlot.Api.Controllers
 {
@@ -49,6 +51,39 @@ namespace ChargeSlot.Api.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        /// <summary>Get new access token using a valid refresh token.</summary>
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto dto)
+        {
+            try
+            {
+                var result = await _authService.RefreshTokenAsync(dto.RefreshToken);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>Revoke a refresh token (logout).</summary>
+        [Authorize]
+        [HttpPost("revoke-token")]
+        public async Task<IActionResult> RevokeToken([FromBody] RefreshTokenDto dto)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                await _authService.RevokeTokenAsync(dto.RefreshToken, userId);
+                return Ok(new { message = "Token revoked." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
         {
@@ -142,3 +177,4 @@ namespace ChargeSlot.Api.Controllers
 
     }
 }
+
