@@ -4,9 +4,12 @@ import { create } from "zustand";
 export const useAuthStore = create((set) => ({
   token: localStorage.getItem("accessToken"),
   refreshToken: localStorage.getItem("refreshToken"),
-  userId: null,
-  role: null,
-  phoneNumber: null,
+  userId: (() => {
+    const v = Number(localStorage.getItem("userId"));
+    return Number.isFinite(v) && v > 0 ? v : null;
+  })(),
+  role: localStorage.getItem("role"),
+  phoneNumber: localStorage.getItem("phoneNumber"),
   setPhoneNumber: (phone) => set({ phoneNumber: phone }),
   login: async (phoneNumber, password) => {
     try {

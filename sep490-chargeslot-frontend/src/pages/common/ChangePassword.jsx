@@ -1,7 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function ChangePassword() {
+  const navigate = useNavigate();
+  const role = localStorage.getItem("role") || "";
+  const backPath = getBackPathByRole(role);
+
   return (
     <div className="min-h-screen bg-[#f3f4f5] flex justify-center items-center">
       <form className="max-w-[500px] w-full bg-white rounded-md shadow-md">
@@ -38,14 +42,15 @@ export default function ChangePassword() {
           </div>
 
           <div className="flex gap-3">
-            <Link to="/profile" className="w-1/2">
+            <div className="w-1/2">
               <Button
                 type="button"
                 className="w-full h-12 bg-gray-300 hover:bg-gray-400 text-black"
+                onClick={() => navigate(backPath)}
               >
                 Huỷ
               </Button>
-            </Link>
+            </div>
 
             <Button className="w-1/2 h-12 bg-red-500 hover:bg-red-600">
               Cập nhật
@@ -55,4 +60,11 @@ export default function ChangePassword() {
       </form>
     </div>
   );
+}
+
+function getBackPathByRole(role) {
+  const r = String(role || "").trim().toLowerCase();
+  if (r === "driver") return "/driver/driver-profile";
+  if (r === "owner") return "/owner/owner-profile";
+  return "/";
 }

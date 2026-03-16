@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { instance } from "@/lib/httpRequest";
+import { useAuthStore } from "@/stores/authStore";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const DEFAULT_AVATAR =
   "https://avatarngau.sbs/wp-content/uploads/2025/07/avatar-vo-danh-va-sach.jpg";
@@ -10,8 +11,11 @@ const maskPhone = (phone) =>
   phone ? `${phone.slice(0, 4)} **** ${phone.slice(-3)}` : "";
 
 export default function OwnerProfile() {
+  const navigate = useNavigate();
   const fullName = localStorage.getItem("fullName") || "";
-  const phoneNumber = localStorage.getItem("phoneNumber") || "";
+  const { phoneNumber: storedPhoneNumber } = useAuthStore();
+  const phoneNumber =
+    storedPhoneNumber || localStorage.getItem("phoneNumber") || "";
   const avatarSrc = getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR;
 
   const [profile, setProfile] = useState(null);
@@ -93,20 +97,24 @@ export default function OwnerProfile() {
             </section>
 
             <section className="flex gap-4 pt-4">
-              <Link to="/owner/update-owner-profile" className="w-1/2">
-                <Button className="w-full h-12 bg-orange-500 hover:bg-orange-600">
+              <div className="w-1/2">
+                <Button
+                  className="w-full h-12 bg-orange-500 hover:bg-orange-600"
+                  onClick={() => navigate("/owner/update-owner-profile")}
+                >
                   Chỉnh sửa hồ sơ
                 </Button>
-              </Link>
+              </div>
 
-              <Link to="/change-password" className="w-1/2">
+              <div className="w-1/2">
                 <Button
                   variant="outline"
                   className="w-full h-12 border-red-500 text-red-500 hover:bg-red-50"
+                  onClick={() => navigate("/change-password")}
                 >
                   Thay đổi mật khẩu
                 </Button>
-              </Link>
+              </div>
             </section>
           </div>
         </div>
@@ -156,9 +164,16 @@ function getStoredAvatarDataUrl(phoneNumber) {
   if (!phoneNumber) return "";
   try {
     const map = JSON.parse(localStorage.getItem("userInfoByPhone") || "{}");
-    return map?.[phoneNumber]?.avatarDataUrl || "";
+    const normalized = normalizePhoneForKey(phoneNumber);
+    return map?.[normalized]?.avatarDataUrl || map?.[phoneNumber]?.avatarDataUrl || "";
   } catch {
     return "";
   }
 }
 
+function normalizePhoneForKey(rawPhone) {
+  const phone = String(rawPhone || "").trim().replaceAll(" ", "");
+  if (!phone) return "";
+  if (phone.startsWith("+84")) return `0${phone.slice(3)}`;
+  return phone;
+}

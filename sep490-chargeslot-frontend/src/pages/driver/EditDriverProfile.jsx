@@ -1,7 +1,11 @@
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { driverEditProfileSchema } from "@/schemas/driverEditProfileSchema";
+import { useAuthStore } from "@/stores/authStore";
 import { instance } from "@/lib/httpRequest";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 
 const DEFAULT_AVATAR =
   "https://avatarngau.sbs/wp-content/uploads/2025/07/avatar-vo-danh-va-sach.jpg";
@@ -9,16 +13,28 @@ const DEFAULT_AVATAR =
 export default function EditDriverProfile() {
   const navigate = useNavigate();
 
-  const phoneNumber = localStorage.getItem("phoneNumber") || "";
+  const { phoneNumber: storedPhoneNumber } = useAuthStore();
+  const phoneNumber =
+    storedPhoneNumber || localStorage.getItem("phoneNumber") || "";
 
-  const [fullName, setFullName] = useState(() => getStoredFullName(phoneNumber));
   const [avatar, setAvatar] = useState(
     () => getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR,
   );
 
-  const [vehicleType, setVehicleType] = useState("");
-  const [licensePlate, setLicensePlate] = useState("");
-  const [licenseNumber, setLicenseNumber] = useState("");
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(driverEditProfileSchema),
+    defaultValues: {
+      fullName: getStoredFullName(phoneNumber),
+      vehicleType: "",
+      licensePlate: "",
+      licenseNumber: "",
+    },
+  });
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,9 +49,12 @@ export default function EditDriverProfile() {
       try {
         const p = await getDriverProfile();
         if (cancelled) return;
-        setVehicleType(p?.vehicleType || "");
-        setLicensePlate(p?.licensePlate || "");
-        setLicenseNumber(p?.licenseNumber || "");
+        reset({
+          fullName: getStoredFullName(phoneNumber),
+          vehicleType: p?.vehicleType || "",
+          licensePlate: p?.licensePlate || "",
+          licenseNumber: p?.licenseNumber || "",
+        });
       } catch (e) {
         if (!cancelled) setError(getApiErrorMessage(e, "Khong the tai thong tin ho so"));
       } finally {
@@ -56,31 +75,32 @@ export default function EditDriverProfile() {
     try {
       const dataUrl = await readFileAsDataUrl(file);
       setAvatar(dataUrl);
-      saveUserInfoByPhone(phoneNumber, { avatarDataUrl: dataUrl });
     } catch {
       // ignore
     }
   };
 
-  const onSave = async () => {
+  const onSubmit = async (values) => {
     setSaving(true);
     setError("");
     try {
-      const fn = normalizeOptionalText(fullName);
+      const fn = normalizeOptionalText(values?.fullName);
       if (!fn) throw new Error("Vui long nhap ho va ten");
 
       // Persist name locally so Profile keeps showing it after edit.
       localStorage.setItem("fullName", fn);
       saveUserInfoByPhone(phoneNumber, { fullName: fn });
 
-      const ln = normalizeOptionalText(licenseNumber);
-      if (ln && !/^\d{12}$/.test(ln)) {
-        throw new Error("So giay phep phai dung 12 chu so");
+      // Persist avatar locally only when user hits Save.
+      if (avatar && avatar !== DEFAULT_AVATAR) {
+        saveUserInfoByPhone(phoneNumber, { avatarDataUrl: avatar });
       }
 
+      const ln = normalizeOptionalText(values?.licenseNumber);
+
       await upsertDriverProfile({
-        vehicleType: normalizeOptionalText(vehicleType) || null,
-        licensePlate: normalizeOptionalText(licensePlate) || null,
+        vehicleType: normalizeOptionalText(values?.vehicleType) || null,
+        licensePlate: normalizeOptionalText(values?.licensePlate) || null,
         licenseNumber: ln || null,
       });
 
@@ -116,36 +136,37 @@ export default function EditDriverProfile() {
           <div className="md:col-span-2 space-y-10">
             <h1 className="text-2xl font-bold">Chỉnh sửa hồ sơ</h1>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-6">
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-6">
               <ReadOnly label="Vai trò" value="Tài xế" />
               <ReadOnly label="Số điện thoại" value={phoneNumber || ""} />
 
               <Input
                 label="Họ và tên"
                 placeholder="Nhập họ và tên"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                error={errors.fullName?.message}
                 fullWidth
+                {...register("fullName")}
               />
 
               <Input
                 label="Loại xe"
                 placeholder="Ví dụ: Xe máy, Ô tô..."
-                value={vehicleType}
-                onChange={(e) => setVehicleType(e.target.value)}
+                error={errors.vehicleType?.message}
+                {...register("vehicleType")}
               />
               <Input
                 label="Biển số"
                 placeholder="Nhập biển số"
-                value={licensePlate}
-                onChange={(e) => setLicensePlate(e.target.value)}
+                error={errors.licensePlate?.message}
+                {...register("licensePlate")}
               />
               <Input
                 label="Số giấy phép (12 số)"
                 placeholder="Nhập số giấy phép"
-                value={licenseNumber}
-                onChange={(e) => setLicenseNumber(e.target.value)}
                 inputMode="numeric"
+                error={errors.licenseNumber?.message}
+                {...register("licenseNumber")}
               />
             </div>
 
@@ -162,19 +183,25 @@ export default function EditDriverProfile() {
             )}
 
             <div className="flex gap-4 pt-6">
-              <Link to="/driver/driver-profile" className="w-1/2">
-                <Button variant="outline" className="w-full h-12">
+              <div className="w-1/2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-12"
+                  onClick={() => navigate("/driver/driver-profile")}
+                >
                   Hủy thay đổi
                 </Button>
-              </Link>
+              </div>
               <Button
                 className="w-1/2 h-12 bg-green-500 hover:bg-green-600"
-                onClick={onSave}
+                type="submit"
                 disabled={saving || loading}
               >
                 {saving ? "Đang lưu..." : "Lưu thay đổi"}
               </Button>
             </div>
+            </form>
           </div>
         </div>
       </div>
@@ -182,7 +209,7 @@ export default function EditDriverProfile() {
   );
 }
 
-function Input({ label, fullWidth = false, ...props }) {
+function Input({ label, error, fullWidth = false, ...props }) {
   return (
     <div className={fullWidth ? "sm:col-span-2" : ""}>
       <label className="text-gray-500 text-sm mb-1 block">{label}</label>
@@ -190,6 +217,7 @@ function Input({ label, fullWidth = false, ...props }) {
         {...props}
         className="w-full h-11 px-4 border rounded-md outline-none"
       />
+      {!!error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </div>
   );
 }
@@ -255,7 +283,8 @@ function getStoredAvatarDataUrl(phoneNumber) {
   if (!phoneNumber) return "";
   try {
     const map = JSON.parse(localStorage.getItem("userInfoByPhone") || "{}");
-    return map?.[phoneNumber]?.avatarDataUrl || "";
+    const normalized = normalizePhoneForKey(phoneNumber);
+    return map?.[normalized]?.avatarDataUrl || map?.[phoneNumber]?.avatarDataUrl || "";
   } catch {
     return "";
   }
@@ -266,11 +295,22 @@ function saveUserInfoByPhone(phoneNumber, patch) {
   try {
     const key = "userInfoByPhone";
     const prev = JSON.parse(localStorage.getItem(key) || "{}");
+    const normalized = normalizePhoneForKey(phoneNumber);
     prev[phoneNumber] = { ...(prev[phoneNumber] || {}), ...(patch || {}) };
+    if (normalized && normalized !== phoneNumber) {
+      prev[normalized] = { ...(prev[normalized] || {}), ...(patch || {}) };
+    }
     localStorage.setItem(key, JSON.stringify(prev));
   } catch {
     // ignore
   }
+}
+
+function normalizePhoneForKey(rawPhone) {
+  const phone = String(rawPhone || "").trim().replaceAll(" ", "");
+  if (!phone) return "";
+  if (phone.startsWith("+84")) return `0${phone.slice(3)}`;
+  return phone;
 }
 
 function readFileAsDataUrl(file) {
@@ -281,4 +321,3 @@ function readFileAsDataUrl(file) {
     reader.readAsDataURL(file);
   });
 }
-

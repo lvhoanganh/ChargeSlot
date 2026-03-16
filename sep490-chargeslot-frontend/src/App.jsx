@@ -41,7 +41,7 @@ export default function App() {
           <Route path="about" element={<About />} />
           <Route path="setPassword" element={<SetPassword />} />
           <Route path="forgotPassword" element={<ForgotPassword />} />
-          <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="change-password" element={<ChangePassword />} />
           <Route element={<PublicMiddleware />}>
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />

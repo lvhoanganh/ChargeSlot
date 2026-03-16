@@ -1,7 +1,11 @@
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ownerEditProfileSchema } from "@/schemas/ownerEditProfileSchema";
+import { useAuthStore } from "@/stores/authStore";
 import { instance } from "@/lib/httpRequest";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 
 const DEFAULT_AVATAR =
   "https://avatarngau.sbs/wp-content/uploads/2025/07/avatar-vo-danh-va-sach.jpg";
@@ -9,15 +13,27 @@ const DEFAULT_AVATAR =
 export default function EditOwnerProfile() {
   const navigate = useNavigate();
 
-  const phoneNumber = localStorage.getItem("phoneNumber") || "";
+  const { phoneNumber: storedPhoneNumber } = useAuthStore();
+  const phoneNumber =
+    storedPhoneNumber || localStorage.getItem("phoneNumber") || "";
 
-  const [fullName, setFullName] = useState(() => getStoredFullName(phoneNumber));
   const [avatar, setAvatar] = useState(
     () => getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR,
   );
 
-  const [businessName, setBusinessName] = useState("");
-  const [taxCode, setTaxCode] = useState("");
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(ownerEditProfileSchema),
+    defaultValues: {
+      fullName: getStoredFullName(phoneNumber),
+      businessName: "",
+      taxCode: "",
+    },
+  });
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,8 +48,11 @@ export default function EditOwnerProfile() {
       try {
         const p = await getOwnerProfile();
         if (cancelled) return;
-        setBusinessName(p?.businessName || "");
-        setTaxCode(normalizeOptionalText(p?.taxCode));
+        reset({
+          fullName: getStoredFullName(phoneNumber),
+          businessName: p?.businessName || "",
+          taxCode: normalizeOptionalText(p?.taxCode),
+        });
       } catch (e) {
         if (!cancelled) setError(getApiErrorMessage(e, "Không thể tải thông tin hồ sơ"));
       } finally {
@@ -54,28 +73,32 @@ export default function EditOwnerProfile() {
     try {
       const dataUrl = await readFileAsDataUrl(file);
       setAvatar(dataUrl);
-      saveUserInfoByPhone(phoneNumber, { avatarDataUrl: dataUrl });
     } catch {
       // ignore
     }
   };
 
-  const onSave = async () => {
+  const onSubmit = async (values) => {
     setSaving(true);
     setError("");
     try {
-      const fn = normalizeOptionalText(fullName);
+      const fn = normalizeOptionalText(values?.fullName);
       if (!fn) throw new Error("Vui lòng nhập họ và tên");
 
-      const bn = normalizeOptionalText(businessName);
+      const bn = normalizeOptionalText(values?.businessName);
       if (!bn) throw new Error("Vui lòng nhập tên doanh nghiệp");
 
-      const tc = normalizeOptionalText(taxCode);
+      const tc = normalizeOptionalText(values?.taxCode);
       if (!/^\d{10}$/.test(tc)) {
         throw new Error("Mã số thuế phải đúng 10 chữ số");
       }
       localStorage.setItem("fullName", fn);
       saveUserInfoByPhone(phoneNumber, { fullName: fn });
+
+      // Persist avatar locally only when user hits Save.
+      if (avatar && avatar !== DEFAULT_AVATAR) {
+        saveUserInfoByPhone(phoneNumber, { avatarDataUrl: avatar });
+      }
 
       await upsertOwnerProfile({
         businessName: bn,
@@ -114,30 +137,31 @@ export default function EditOwnerProfile() {
           <div className="md:col-span-2 space-y-10">
             <h1 className="text-2xl font-bold">Chỉnh sửa hồ sơ</h1>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-6">
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-6">
               <ReadOnly label="Vai trò" value="Chủ trạm" />
               <ReadOnly label="Số điện thoại" value={phoneNumber || ""} />
 
               <Input
                 label="Họ và tên"
                 placeholder="Nhập họ và tên"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                error={errors.fullName?.message}
                 fullWidth
+                {...register("fullName")}
               />
 
               <Input
                 label="Tên doanh nghiệp"
                 placeholder="Nhập tên doanh nghiệp"
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
+                error={errors.businessName?.message}
+                {...register("businessName")}
               />
               <Input
                 label="Mã số thuế (10 chữ số)"
                 placeholder="Nhập mã số thuế"
-                value={taxCode}
-                onChange={(e) => setTaxCode(e.target.value)}
                 inputMode="numeric"
+                error={errors.taxCode?.message}
+                {...register("taxCode")}
               />
             </div>
 
@@ -154,19 +178,25 @@ export default function EditOwnerProfile() {
             )}
 
             <div className="flex gap-4 pt-6">
-              <Link to="/owner/owner-profile" className="w-1/2">
-                <Button variant="outline" className="w-full h-12">
+              <div className="w-1/2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-12"
+                  onClick={() => navigate("/owner/owner-profile")}
+                >
                   Hủy thay đổi
                 </Button>
-              </Link>
+              </div>
               <Button
                 className="w-1/2 h-12 bg-green-500 hover:bg-green-600"
-                onClick={onSave}
+                type="submit"
                 disabled={saving || loading}
               >
                 {saving ? "Đang lưu..." : "Lưu thay đổi"}
               </Button>
             </div>
+            </form>
           </div>
         </div>
       </div>
@@ -174,7 +204,7 @@ export default function EditOwnerProfile() {
   );
 }
 
-function Input({ label, fullWidth = false, ...props }) {
+function Input({ label, error, fullWidth = false, ...props }) {
   return (
     <div className={fullWidth ? "sm:col-span-2" : ""}>
       <label className="text-gray-500 text-sm mb-1 block">{label}</label>
@@ -182,6 +212,7 @@ function Input({ label, fullWidth = false, ...props }) {
         {...props}
         className="w-full h-11 px-4 border rounded-md outline-none"
       />
+      {!!error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </div>
   );
 }
@@ -247,7 +278,8 @@ function getStoredAvatarDataUrl(phoneNumber) {
   if (!phoneNumber) return "";
   try {
     const map = JSON.parse(localStorage.getItem("userInfoByPhone") || "{}");
-    return map?.[phoneNumber]?.avatarDataUrl || "";
+    const normalized = normalizePhoneForKey(phoneNumber);
+    return map?.[normalized]?.avatarDataUrl || map?.[phoneNumber]?.avatarDataUrl || "";
   } catch {
     return "";
   }
@@ -258,11 +290,22 @@ function saveUserInfoByPhone(phoneNumber, patch) {
   try {
     const key = "userInfoByPhone";
     const prev = JSON.parse(localStorage.getItem(key) || "{}");
+    const normalized = normalizePhoneForKey(phoneNumber);
     prev[phoneNumber] = { ...(prev[phoneNumber] || {}), ...(patch || {}) };
+    if (normalized && normalized !== phoneNumber) {
+      prev[normalized] = { ...(prev[normalized] || {}), ...(patch || {}) };
+    }
     localStorage.setItem(key, JSON.stringify(prev));
   } catch {
     // ignore
   }
+}
+
+function normalizePhoneForKey(rawPhone) {
+  const phone = String(rawPhone || "").trim().replaceAll(" ", "");
+  if (!phone) return "";
+  if (phone.startsWith("+84")) return `0${phone.slice(3)}`;
+  return phone;
 }
 
 function readFileAsDataUrl(file) {
@@ -273,4 +316,3 @@ function readFileAsDataUrl(file) {
     reader.readAsDataURL(file);
   });
 }
-
