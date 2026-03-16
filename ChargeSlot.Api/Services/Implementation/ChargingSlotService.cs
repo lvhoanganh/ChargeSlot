@@ -92,6 +92,46 @@ namespace ChargeSlot.Api.Services.Implementation
             await _slotRepo.SaveChangesAsync();
         }
 
+        public async Task UpdateStatusAsync(int stationId, int slotId, int ownerUserId, UpdateSlotStatusDto dto)
+        {
+            // Validate ownership
+            var station = await _stationRepo.GetByIdAsync(stationId, includeDetails: false);
+            if (station == null)
+                throw new KeyNotFoundException($"Station {stationId} not found.");
+            if (station.OwnerUserId != ownerUserId)
+                throw new UnauthorizedAccessException("You do not own this station.");
+
+            // Station must be Approved for status changes
+            if (station.ApprovalStatus != ApprovalStatus.Approved)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot change slot status when station is in '{station.ApprovalStatus}' status. Station must be Approved.");
+            }
+
+            // Owner can only set Active, Inactive, or Maintenance (Booked is system-managed)
+            if (dto.Status == SlotStatus.Booked)
+            {
+                throw new InvalidOperationException(
+                    "Cannot manually set slot to Booked. This status is managed by the booking system.");
+            }
+
+            var slot = await _slotRepo.GetByIdAsync(slotId, tracking: true);
+            if (slot == null || slot.StationId != stationId)
+                throw new KeyNotFoundException($"Slot {slotId} not found in station {stationId}.");
+
+            // Cannot change status of a currently Booked slot
+            if (slot.Status == SlotStatus.Booked)
+            {
+                throw new InvalidOperationException(
+                    "Cannot change status of a slot that is currently Booked. Wait for the booking to complete or expire.");
+            }
+
+            slot.Status = dto.Status;
+            slot.UpdatedAt = DateTime.UtcNow;
+
+            await _slotRepo.SaveChangesAsync();
+        }
+
         // ─────────────── HELPERS ───────────────
 
         /// <summary>Check ownership only (for read operations).</summary>

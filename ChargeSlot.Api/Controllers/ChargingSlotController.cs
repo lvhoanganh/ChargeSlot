@@ -85,6 +85,21 @@ namespace ChargeSlot.Api.Controllers
             catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }
 
+        /// <summary>Change slot status (Active, Inactive, Maintenance).</summary>
+        [HttpPatch("{id:int}/status")]
+        public async Task<IActionResult> UpdateStatus(int stationId, int id, [FromBody] UpdateSlotStatusDto dto)
+        {
+            var userId = GetUserId();
+            try
+            {
+                await _slotService.UpdateStatusAsync(stationId, id, userId, dto);
+                return NoContent();
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
         /// <summary>Delete a slot.</summary>
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int stationId, int id)
