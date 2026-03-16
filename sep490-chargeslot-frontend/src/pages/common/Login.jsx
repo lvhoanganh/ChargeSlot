@@ -4,8 +4,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema } from "@/schemas/loginSchema";
 import { useAuthStore } from "@/stores/authStore";
+import { useState } from "react";
 export default function Login() {
   const navigate = useNavigate();
+  const [serverError, setServerError] = useState("");
 
   const { login } = useAuthStore();
 
@@ -17,10 +19,16 @@ export default function Login() {
     resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit = (data) => {
-    console.log(data);
-    login(data.phoneNumber, data.password);
-    navigate("/");
+  const onSubmit = async (data) => {
+    setServerError("");
+    try {
+      await login(data.phoneNumber, data.password);
+      navigate("/");
+    } catch (err) {
+      setServerError(
+        typeof err === "string" ? err : "Đăng nhập thất bại. Vui lòng thử lại.",
+      );
+    }
   };
   return (
     <div className="min-h-screen bg-[#f3f4f5] flex justify-center items-center">
@@ -60,6 +68,11 @@ export default function Login() {
               </p>
             )}
           </div>
+          {serverError && (
+            <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {serverError}
+            </p>
+          )}
           <Link
             to="/forgotPassword"
             className="hover:underline block text-blue-500 mb-5 "

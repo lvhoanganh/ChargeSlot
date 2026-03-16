@@ -4,38 +4,46 @@ import { create } from "zustand";
 export const useAuthStore = create((set) => ({
   token: localStorage.getItem("accessToken"),
   refreshToken: localStorage.getItem("refreshToken"),
-  userId: null,
-  role: null,
+  userId: localStorage.getItem("userId"),
+  role: localStorage.getItem("role"),
   phoneNumber: null,
   setPhoneNumber: (phone) => set({ phoneNumber: phone }),
   login: async (phoneNumber, password) => {
     try {
-      const res = await instance.post(
-        `${import.meta.env.VITE_BASE_URL}/Auth/login`,
-        {
-          phoneNumber: phoneNumber,
-          password: password,
-        },
-      );
+      const res = await instance.post("/auth/login", {
+        phoneNumber,
+        password,
+      });
       if (res.status !== 200) {
         throw new Error("Login failed");
       }
       const data = res.data;
       localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
+      localStorage.setItem("refreshToken", data.refreshToken || "");
       set({
         token: data.accessToken,
-        refreshToken: data.refreshToken,
+        refreshToken: data.refreshToken || null,
         userId: data.userId,
         role: data.role,
       });
       localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
+      localStorage.setItem("refreshToken", data.refreshToken || "");
       localStorage.setItem("userId", data.userId);
       localStorage.setItem("role", data.role);
+
+      return data;
     } catch (error) {
       console.error("Login failed:", error);
-      throw error;
+      const rawMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        "Đăng nhập thất bại. Vui lòng kiểm tra số điện thoại và mật khẩu.";
+
+      if (rawMessage === "Invalid phone number or password.") {
+        throw "Số điện thoại hoặc mật khẩu không đúng.";
+      }
+
+      throw rawMessage;
     }
   },
   logout: () => {

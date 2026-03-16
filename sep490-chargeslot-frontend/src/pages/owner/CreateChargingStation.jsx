@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { createChargingStationSchema } from "@/schemas/createChargingStationSchema";
 import { instance } from "@/lib/httpRequest";
+import { QUERY_KEYS } from "@/cache/queryKeys";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -35,18 +36,23 @@ const defaultSlot = {
 };
 
 const createChargingStation = async (payload) => {
-  const response = await instance.post(
-    `${process.env.VITE_API_BASE_URL}/stations`,
-    payload,
-  );
+  const response = await instance.post("/stations", payload);
   return response.data;
 };
 
 const getErrorMessage = (error) => {
   const data = error?.response?.data;
 
+  if (error?.message === "process is not defined") {
+    return "Cấu hình frontend đang sai biến môi trường khi gọi API.";
+  }
+
   if (typeof data === "string") {
     return data;
+  }
+
+  if (data?.message) {
+    return data.message;
   }
 
   if (data?.error) {
@@ -62,6 +68,10 @@ const getErrorMessage = (error) => {
     if (Array.isArray(firstEntry) && firstEntry.length > 0) {
       return firstEntry[0];
     }
+  }
+
+  if (error?.message) {
+    return error.message;
   }
 
   return "Tạo trạm sạc thất bại. Vui lòng kiểm tra lại dữ liệu.";
@@ -113,7 +123,7 @@ export default function CreateChargingStation() {
   const createStationMutation = useMutation({
     mutationFn: createChargingStation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["owner-stations"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ownerStations });
       alert("Tạo trạm sạc thành công.");
       reset({
         name: "",
