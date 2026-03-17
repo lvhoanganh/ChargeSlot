@@ -23,6 +23,7 @@ import StationDetail from "./pages/StationDetail";
 import OwnerPage from "./pages/owner/OwnerPage";
 import OwnerLayout from "./layouts/OwnerLayout";
 import CreateChargingStation from "./pages/owner/CreateChargingStation";
+import OwnerStationDetail from "./pages/owner/OwnerStationDetail";
 import PublicMiddleware from "./middlewares/PublicMiddleware";
 import AuthOwnerMiddleware from "./middlewares/AuthOwnerMiddleware";
 import RegisterVerifyOtp from "./pages/common/RegisterVerifyOtp";
@@ -56,6 +57,7 @@ export default function App() {
           <Route element={<OwnerLayout />}>
             <Route path="stations" element={<OwnerPage />} />
             <Route path="stations/add" element={<CreateChargingStation />} />
+            <Route path="stations/:id" element={<OwnerStationDetail />} />
           </Route>
         </Route>
         <Route path="admin" element={<AdminLayout />}>

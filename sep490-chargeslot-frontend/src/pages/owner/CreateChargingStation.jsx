@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { createChargingStationSchema } from "@/schemas/createChargingStationSchema";
 import { instance } from "@/lib/httpRequest";
 import { QUERY_KEYS } from "@/cache/queryKeys";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
-
-// const STATIONS_API_URL = "http://localhost:5162/api/stations";
+import StationLayoutDesigner from "@/components/owner/StationLayoutDesigner";
 
 const dayOptions = [
   { value: 0, label: "Chủ nhật" },
@@ -25,15 +24,6 @@ const defaultOperatingHours = dayOptions.map((day) => ({
   openTime: "06:00:00",
   closeTime: "23:00:00",
 }));
-
-const defaultSlot = {
-  slotName: "",
-  connectorType: "CCS2",
-  powerKw: 50,
-  basePricePerHour: 45000,
-  positionX: 1,
-  positionY: 1,
-};
 
 const createChargingStation = async (payload) => {
   const response = await instance.post("/stations", payload);
@@ -90,12 +80,12 @@ export default function CreateChargingStation() {
   const queryClient = useQueryClient();
 
   const {
-    control,
     handleSubmit,
     register,
     reset,
     setError,
     watch,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(createChargingStationSchema),
@@ -109,16 +99,18 @@ export default function CreateChargingStation() {
       layoutWidth: 10,
       layoutHeight: 8,
       operatingHours: defaultOperatingHours,
-      slots: [defaultSlot],
+      slots: [],
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "slots",
-  });
-
   const operatingHours = watch("operatingHours");
+  const layoutWidth = watch("layoutWidth");
+  const layoutHeight = watch("layoutHeight");
+  const slots = watch("slots");
+
+  // Ensure layoutWidth and layoutHeight are numbers for the grid
+  const gridCols = Number(layoutWidth) || 10;
+  const gridRows = Number(layoutHeight) || 8;
 
   const createStationMutation = useMutation({
     mutationFn: createChargingStation,
@@ -135,7 +127,7 @@ export default function CreateChargingStation() {
         layoutWidth: 10,
         layoutHeight: 8,
         operatingHours: defaultOperatingHours,
-        slots: [defaultSlot],
+        slots: [],
       });
       navigate("/stations");
     },
@@ -285,7 +277,7 @@ export default function CreateChargingStation() {
                 <div className="grid gap-5 md:grid-cols-2">
                   <div>
                     <label className="mb-2 block text-sm font-medium text-slate-700">
-                      Chiều rộng layout
+                      Số cột (chiều rộng)
                     </label>
                     <input
                       type="number"
@@ -297,7 +289,7 @@ export default function CreateChargingStation() {
 
                   <div>
                     <label className="mb-2 block text-sm font-medium text-slate-700">
-                      Chiều cao layout
+                      Số hàng (chiều cao)
                     </label>
                     <input
                       type="number"
@@ -308,15 +300,44 @@ export default function CreateChargingStation() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                  Hệ thống backend đang nhận tọa độ trụ sạc theo `positionX` và
-                  `positionY` trên layout. Bạn có thể dùng kích thước layout này
-                  để quy ước vị trí các trụ khi cấu hình.
+                <div className="rounded-2xl border border-dashed border-orange-300 bg-orange-50 p-4 text-sm text-orange-700">
+                  <strong>Hướng dẫn:</strong> Số cột và số hàng xác định kích
+                  thước lưới sơ đồ trạm sạc bên dưới. Click vào ô trống để đặt
+                  trụ sạc, click trụ đã đặt để chỉnh sửa.
                 </div>
               </div>
             </section>
           </div>
 
+          {/* ── Station Layout Grid (Sơ đồ trạm sạc) ── */}
+          <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold">
+                Sơ đồ trạm sạc
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Click vào ô trống để thêm trụ sạc. Click vào trụ đã đặt để
+                chỉnh sửa thông tin hoặc xóa.
+              </p>
+            </div>
+
+            <FieldError message={errors.slots?.message} />
+
+            <StationLayoutDesigner
+              rows={gridRows}
+              cols={gridCols}
+              slots={slots || []}
+              onSlotsChange={(newSlots) => setValue("slots", newSlots, { shouldValidate: true })}
+              onRowsChange={(newRows) => {
+                setValue("layoutHeight", newRows, { shouldValidate: true });
+              }}
+              onColsChange={(newCols) => {
+                setValue("layoutWidth", newCols, { shouldValidate: true });
+              }}
+            />
+          </section>
+
+          {/* ── Giờ hoạt động ── */}
           <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -387,139 +408,7 @@ export default function CreateChargingStation() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-semibold">Danh sách trụ sạc</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  Thêm từng trụ, loại đầu sạc, công suất và vị trí trên layout.
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                className="bg-slate-900 text-white hover:bg-slate-800"
-                onClick={() => append({ ...defaultSlot })}
-              >
-                Thêm trụ sạc
-              </Button>
-            </div>
-
-            <FieldError message={errors.slots?.message} />
-
-            <div className="mt-5 space-y-5">
-              {fields.map((field, index) => {
-                const slotErrors = errors.slots?.[index];
-
-                return (
-                  <div
-                    key={field.id}
-                    className="rounded-2xl border border-slate-200 p-5"
-                  >
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                      <h3 className="text-lg font-semibold text-slate-800">
-                        Trụ sạc {index + 1}
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => remove(index)}
-                        disabled={fields.length === 1}
-                        className="text-sm font-medium text-red-600 transition hover:text-red-700 disabled:cursor-not-allowed disabled:text-slate-300"
-                      >
-                        Xóa
-                      </button>
-                    </div>
-
-                    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
-                          Tên trụ sạc
-                        </label>
-                        <input
-                          {...register(`slots.${index}.slotName`)}
-                          className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none transition focus:border-orange-400"
-                          placeholder="Ví dụ: Trụ B1"
-                        />
-                        <FieldError message={slotErrors?.slotName?.message} />
-                      </div>
-
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
-                          Loại đầu sạc
-                        </label>
-                        <select
-                          {...register(`slots.${index}.connectorType`)}
-                          className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none transition focus:border-orange-400"
-                        >
-                          <option value="CCS2">CCS2</option>
-                          <option value="CHAdeMO">CHAdeMO</option>
-                          <option value="Type2">Type 2</option>
-                          <option value="GB/T">GB/T</option>
-                        </select>
-                        <FieldError
-                          message={slotErrors?.connectorType?.message}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
-                          Công suất (kW)
-                        </label>
-                        <input
-                          type="number"
-                          step="any"
-                          {...register(`slots.${index}.powerKw`)}
-                          className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none transition focus:border-orange-400"
-                        />
-                        <FieldError message={slotErrors?.powerKw?.message} />
-                      </div>
-
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
-                          Giá theo giờ (VND)
-                        </label>
-                        <input
-                          type="number"
-                          {...register(`slots.${index}.basePricePerHour`)}
-                          className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none transition focus:border-orange-400"
-                        />
-                        <FieldError
-                          message={slotErrors?.basePricePerHour?.message}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
-                          Vị trí X
-                        </label>
-                        <input
-                          type="number"
-                          step="any"
-                          {...register(`slots.${index}.positionX`)}
-                          className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none transition focus:border-orange-400"
-                        />
-                        <FieldError message={slotErrors?.positionX?.message} />
-                      </div>
-
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
-                          Vị trí Y
-                        </label>
-                        <input
-                          type="number"
-                          step="any"
-                          {...register(`slots.${index}.positionY`)}
-                          className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none transition focus:border-orange-400"
-                        />
-                        <FieldError message={slotErrors?.positionY?.message} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
+          {/* ── Submit ── */}
           <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
             {errors.root?.serverError?.message && (
               <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

@@ -375,6 +375,10 @@ export default function OwnerPage() {
                     )}
 
                   <div className="mt-5 flex flex-wrap gap-2">
+                    <Button asChild variant="outline">
+                      <Link to={`/stations/${station.id}`}>Xem chi tiết</Link>
+                    </Button>
+
                     {canEditOrDelete && (
                       <Button
                         type="button"
