@@ -4,59 +4,50 @@ import { create } from "zustand";
 export const useAuthStore = create((set) => ({
   token: localStorage.getItem("accessToken"),
   refreshToken: localStorage.getItem("refreshToken"),
-  userId: (() => {
-    const v = Number(localStorage.getItem("userId"));
-    return Number.isFinite(v) && v > 0 ? v : null;
-  })(),
+  userId: localStorage.getItem("userId"),
   role: localStorage.getItem("role"),
   phoneNumber: localStorage.getItem("phoneNumber"),
-  setPhoneNumber: (phone) => set({ phoneNumber: phone }),
+  setPhoneNumber: (phone) => {
+    localStorage.setItem("phoneNumber", phone || "");
+    set({ phoneNumber: phone });
+  },
   login: async (phoneNumber, password) => {
     try {
-      const res = await instance.post(
-        `${import.meta.env.VITE_BASE_URL}/Auth/login`,
-        {
-          phoneNumber: phoneNumber,
-          password: password,
-        },
-      );
+      const res = await instance.post("/auth/login", {
+        phoneNumber,
+        password,
+      });
       if (res.status !== 200) {
         throw new Error("Login failed");
       }
       const data = res.data;
-      set({
-        token: data.accessToken,
-        refreshToken: data.refreshToken,
-        userId: data.userId,
-        role: data.role,
-        phoneNumber: data.phoneNumber || phoneNumber,
-      });
 
       localStorage.setItem("accessToken", data.accessToken);
+      localStorage.setItem("refreshToken", data.refreshToken || "");
       localStorage.setItem("userId", data.userId);
       localStorage.setItem("role", data.role);
       localStorage.setItem("phoneNumber", data.phoneNumber || phoneNumber || "");
-      if (data.refreshToken) {
-        localStorage.setItem("refreshToken", data.refreshToken);
-      } else {
-        localStorage.removeItem("refreshToken");
-      }
+      set({
+        token: data.accessToken,
+        refreshToken: data.refreshToken || null,
+        userId: data.userId,
+        role: data.role,
+        phoneNumber: data.phoneNumber || phoneNumber || null,
+      });
 
-      // Restore fullName for this phone if we have it from registration.
-      try {
-        const key = "userInfoByPhone";
-        const phone = data.phoneNumber || phoneNumber || "";
-        const map = JSON.parse(localStorage.getItem(key) || "{}");
-        const known = map?.[phone];
-        if (known?.fullName) {
-          localStorage.setItem("fullName", known.fullName);
-        }
-      } catch {
-        // ignore localStorage/JSON errors
-      }
+      return data;
     } catch (error) {
       console.error("Login failed:", error);
-      throw error;
+      const rawMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        "Đăng nhập thất bại. Vui lòng kiểm tra số điện thoại và mật khẩu.";
+
+      if (rawMessage === "Invalid phone number or password.") {
+        throw "Số điện thoại hoặc mật khẩu không đúng.";
+      }
+
+      throw rawMessage;
     }
   },
   logout: () => {
@@ -65,13 +56,6 @@ export const useAuthStore = create((set) => ({
     localStorage.removeItem("userId");
     localStorage.removeItem("role");
     localStorage.removeItem("phoneNumber");
-    localStorage.removeItem("fullName");
-    set({
-      token: null,
-      refreshToken: null,
-      userId: null,
-      role: null,
-      phoneNumber: null,
-    });
+    set({ token: null, refreshToken: null, userId: null, role: null, phoneNumber: null });
   },
 }));

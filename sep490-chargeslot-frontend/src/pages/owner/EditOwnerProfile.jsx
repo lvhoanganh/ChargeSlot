@@ -82,9 +82,6 @@ export default function EditOwnerProfile() {
     setSaving(true);
     setError("");
     try {
-      const fn = normalizeOptionalText(values?.fullName);
-      if (!fn) throw new Error("Vui lòng nhập họ và tên");
-
       const bn = normalizeOptionalText(values?.businessName);
       if (!bn) throw new Error("Vui lòng nhập tên doanh nghiệp");
 
@@ -92,8 +89,9 @@ export default function EditOwnerProfile() {
       if (!/^\d{10}$/.test(tc)) {
         throw new Error("Mã số thuế phải đúng 10 chữ số");
       }
-      localStorage.setItem("fullName", fn);
-      saveUserInfoByPhone(phoneNumber, { fullName: fn });
+      // XÓA các dòng liên quan đến fn (fullName)
+      // localStorage.setItem("fullName", fn);
+      // saveUserInfoByPhone(phoneNumber, { fullName: fn });
 
       // Persist avatar locally only when user hits Save.
       if (avatar && avatar !== DEFAULT_AVATAR) {
@@ -142,13 +140,13 @@ export default function EditOwnerProfile() {
               <ReadOnly label="Vai trò" value="Chủ trạm" />
               <ReadOnly label="Số điện thoại" value={phoneNumber || ""} />
 
-              <Input
+              {/* <Input
                 label="Họ và tên"
                 placeholder="Nhập họ và tên"
                 error={errors.fullName?.message}
                 fullWidth
                 {...register("fullName")}
-              />
+              /> */}
 
               <Input
                 label="Tên doanh nghiệp"

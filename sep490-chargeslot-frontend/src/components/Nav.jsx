@@ -2,14 +2,20 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/authStore";
 export default function Nav() {
-  const { logout } = useAuthStore();
-  const token = localStorage.getItem("accessToken");
-  const role = localStorage.getItem("role");
+  const { logout, phoneNumber, role, token } = useAuthStore();
   const navigate = useNavigate();
   const navLinkClass = ({ isActive }) =>
     isActive
       ? "text-orange-500 font-bold"
       : "text-black hover:bg-green-500 hover:text-white px-3 py-2 rounded-md";
+  const normalizedRole = (role || "").toLowerCase();
+
+const profilePath =
+  normalizedRole === "owner"
+    ? "/owner/owner-profile"
+    : normalizedRole === "driver"
+      ? "/driver/driver-profile"
+      : "/";
   return (
     <nav className="min-h-20 w-full bg-white border-b flex items-center fixed top-0 left-0 z-30">
       <div className="max-w-[95%] w-full mx-auto flex items-center justify-between">
@@ -30,8 +36,6 @@ export default function Nav() {
             Về ChargeSlot
           </NavLink>
         </div>
-
-        {/* nếu chưa đăng nhập thì hiện 2 btn này */}
         {!token && (
           <div className="flex gap-2">
             <Button
@@ -44,41 +48,19 @@ export default function Nav() {
               className="bg-blue-500 cursor-pointer hover:bg-green-500"
               onClick={() => navigate("/register")}
             >
-              Đăng kí
+              Đăng ký
             </Button>
           </div>
         )}
-
-        {/* nếu đã đăng nhập và có role là Owner thì hiện 2 btn này */}
-        {token && role === "Owner" && (
+        {token && (
           <div className="flex gap-2">
             <Button
+              type="button"
               className="bg-blue-500 cursor-pointer hover:bg-green-500"
-              onClick={() => navigate("/stations")}
+              onClick={() => navigate(profilePath)}
             >
-              Quản lý trạm sạc
+              {phoneNumber || "Profile"}
             </Button>
-            <Button
-              className="bg-blue-500 cursor-pointer hover:bg-green-500"
-              onClick={() => {
-                logout();
-                navigate("/login");
-              }}
-            >
-              Đăng xuất
-            </Button>
-          </div>
-        )}
-
-        {/* nếu đã đăng nhập và có role là Owner thì hiện 2 btn này */}
-        {token && role === "Driver" && (
-          <div className="flex gap-2">
-            {/* <Button
-              className="bg-blue-500 cursor-pointer hover:bg-green-500"
-              onClick={() => navigate("/stations")}
-            >
-              Quản lý trạm sạc
-            </Button> */}
             <Button
               className="bg-blue-500 cursor-pointer hover:bg-green-500"
               onClick={() => {

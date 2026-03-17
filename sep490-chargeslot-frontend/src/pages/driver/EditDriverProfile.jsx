@@ -29,7 +29,7 @@ export default function EditDriverProfile() {
   } = useForm({
     resolver: zodResolver(driverEditProfileSchema),
     defaultValues: {
-      fullName: getStoredFullName(phoneNumber),
+      fullName: "",
       vehicleType: "",
       licensePlate: "",
       licenseNumber: "",
@@ -50,7 +50,7 @@ export default function EditDriverProfile() {
         const p = await getDriverProfile();
         if (cancelled) return;
         reset({
-          fullName: getStoredFullName(phoneNumber),
+          fullName: p?.fullName || "",
           vehicleType: p?.vehicleType || "",
           licensePlate: p?.licensePlate || "",
           licenseNumber: p?.licenseNumber || "",
@@ -84,14 +84,6 @@ export default function EditDriverProfile() {
     setSaving(true);
     setError("");
     try {
-      const fn = normalizeOptionalText(values?.fullName);
-      if (!fn) throw new Error("Vui long nhap ho va ten");
-
-      // Persist name locally so Profile keeps showing it after edit.
-      localStorage.setItem("fullName", fn);
-      saveUserInfoByPhone(phoneNumber, { fullName: fn });
-
-      // Persist avatar locally only when user hits Save.
       if (avatar && avatar !== DEFAULT_AVATAR) {
         saveUserInfoByPhone(phoneNumber, { avatarDataUrl: avatar });
       }
@@ -141,13 +133,13 @@ export default function EditDriverProfile() {
               <ReadOnly label="Vai trò" value="Tài xế" />
               <ReadOnly label="Số điện thoại" value={phoneNumber || ""} />
 
-              <Input
+              {/* <Input
                 label="Họ và tên"
                 placeholder="Nhập họ và tên"
                 error={errors.fullName?.message}
                 fullWidth
                 {...register("fullName")}
-              />
+              /> */}
 
               <Input
                 label="Loại xe"

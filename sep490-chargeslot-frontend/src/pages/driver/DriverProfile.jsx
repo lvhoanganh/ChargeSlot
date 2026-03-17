@@ -8,11 +8,12 @@ const DEFAULT_AVATAR =
   "https://avatarngau.sbs/wp-content/uploads/2025/07/avatar-vo-danh-va-sach.jpg";
 
 const maskPhone = (phone) =>
-  phone ? `${phone.slice(0, 4)} **** ${phone.slice(-3)}` : "";
+  phone ? `**** **** ${phone.slice(-2)}` : "";
+const maskLicense = (license) =>
+  license ? `**** **** ${license.slice(-4)}` : "";
 
 export default function DriverProfile() {
   const navigate = useNavigate();
-  const fullName = localStorage.getItem("fullName") || "";
   const { phoneNumber: storedPhoneNumber } = useAuthStore();
   const phoneNumber =
     storedPhoneNumber || localStorage.getItem("phoneNumber") || "";
@@ -54,9 +55,9 @@ export default function DriverProfile() {
               alt="Avatar"
               className="w-40 h-40 rounded-full object-cover border-4 border-gray-100"
             />
-            <p className="mt-6 text-xl font-bold text-center">
-              {fullName || "Chưa cập nhật tên"}
-            </p>
+            {/* <p className="mt-6 text-xl font-bold text-center">
+              {profile?.fullName || "Chưa cập nhật tên"}
+            </p> */}
           </div>
 
           <div className="md:col-span-2 space-y-10">
@@ -71,7 +72,9 @@ export default function DriverProfile() {
                 />
                 <Info label="Loại xe" value={profile?.vehicleType || "-"} />
                 <Info label="Biển số" value={profile?.licensePlate || "-"} />
-                <Info label="Số giấy phép" value={profile?.licenseNumber || "-"} />
+                <Info 
+                label="Số giấy phép" 
+                value={maskLicense(profile?.licenseNumber) || "-"} />
               </div>
 
               {loading && (
