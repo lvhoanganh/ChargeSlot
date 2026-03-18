@@ -23,6 +23,7 @@ import OwnerLayout from "./layouts/OwnerLayout";
 import CreateChargingStation from "./pages/owner/CreateChargingStation";
 import PublicMiddleware from "./middlewares/PublicMiddleware";
 import AuthOwnerMiddleware from "./middlewares/AuthOwnerMiddleware";
+import AuthDriverMiddleware from "./middlewares/AuthDriverMiddleware";
 import RegisterVerifyOtp from "./pages/common/RegisterVerifyOtp";
 import RegisterCreateAccount from "./pages/common/RegisterCreateAccount";
 import DriverProfile from "./pages/driver/DriverProfile";
@@ -63,9 +64,11 @@ export default function App() {
           <Route path="manage-users" element={<ManageUser />} />
           <Route path="approve-station" element={<ApproveStation />} />
         </Route>
-        <Route path="driver" element={<MainLayout />}>
-          <Route path="driver-profile" element={<DriverProfile />} />
-          <Route path="update-driver-profile" element={<DriverEditProfile />} />
+        <Route element={<AuthDriverMiddleware />}>
+          <Route path="driver" element={<MainLayout />}>
+            <Route path="driver-profile" element={<DriverProfile />} />
+            <Route path="update-driver-profile" element={<DriverEditProfile />} />
+          </Route>
         </Route>
         <Route path="owner" element={<OwnerLayout />}>
           <Route path="owner-profile" element={<OwnerProfile />} />
