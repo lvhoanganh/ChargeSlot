@@ -124,16 +124,14 @@ export default function Nav() {
               <img
                 src={avatarSrc}
                 alt="Avatar"
-                className={`w-10 h-10 rounded-full object-cover border-2 transition-all duration-300 ${
-                  dropdownOpen
+                className={`w-10 h-10 rounded-full object-cover border-2 transition-all duration-300 ${dropdownOpen
                     ? "border-orange-500 shadow-lg shadow-orange-200"
                     : "border-gray-200 group-hover:border-orange-400"
-                }`}
+                  }`}
               />
               <svg
-                className={`w-4 h-4 text-gray-500 transition-transform duration-300 ${
-                  dropdownOpen ? "rotate-180" : ""
-                }`}
+                className={`w-4 h-4 text-gray-500 transition-transform duration-300 ${dropdownOpen ? "rotate-180" : ""
+                  }`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -144,11 +142,10 @@ export default function Nav() {
 
             {/* Dropdown */}
             <div
-              className={`absolute right-0 top-full mt-3 w-72 transition-all duration-300 origin-top-right ${
-                dropdownOpen
+              className={`absolute right-0 top-full mt-3 w-72 transition-all duration-300 origin-top-right ${dropdownOpen
                   ? "opacity-100 scale-100 translate-y-0"
                   : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
-              }`}
+                }`}
             >
               <div
                 className="rounded-xl shadow-2xl border border-gray-100 overflow-hidden"
@@ -195,8 +192,6 @@ export default function Nav() {
                     <span className="text-gray-600">{roleLabels[normalizedRole] || normalizedRole}</span>
                   </div>
                 </div>
-
-                {/* Menu items */}
                 <div className="py-1">
                   <button
                     onClick={() => {
@@ -210,21 +205,7 @@ export default function Nav() {
                     </svg>
                     Xem hồ sơ
                   </button>
-                  <button
-                    onClick={() => {
-                      setDropdownOpen(false);
-                      navigate(editProfilePath);
-                    }}
-                    className="w-full px-5 py-2.5 text-left text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors flex items-center gap-3 cursor-pointer"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Chỉnh sửa hồ sơ
-                  </button>
                 </div>
-
-                {/* Logout */}
                 <div className="border-t border-gray-100 py-1">
                   <button
                     onClick={() => {

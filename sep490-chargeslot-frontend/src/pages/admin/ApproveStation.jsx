@@ -12,7 +12,6 @@ const MOCK_STATIONS = [
     stationName: "Trạm sạc Vinhomes Grand Park",
     ownerName: "Nguyễn Văn A",
     address: "Thủ Đức, TP.HCM",
-    totalSlots: 12,
     submittedAt: "2026-03-01T09:00:00Z",
     status: STATUS.PENDING,
   },
@@ -21,7 +20,6 @@ const MOCK_STATIONS = [
     stationName: "Trạm sạc Riverside",
     ownerName: "Trần Thị B",
     address: "Ninh Kiều, Cần Thơ",
-    totalSlots: 8,
     submittedAt: "2026-03-02T10:30:00Z",
     status: STATUS.PENDING,
   },
@@ -30,7 +28,6 @@ const MOCK_STATIONS = [
     stationName: "Trạm sạc Đà Nẵng Center",
     ownerName: "Lê Văn C",
     address: "Hải Châu, Đà Nẵng",
-    totalSlots: 15,
     submittedAt: "2026-03-03T14:20:00Z",
     status: STATUS.PENDING,
   },
@@ -39,7 +36,6 @@ const MOCK_STATIONS = [
     stationName: "Trạm sạc Biên Hòa Hub",
     ownerName: "Phạm Thị D",
     address: "Biên Hòa, Đồng Nai",
-    totalSlots: 10,
     submittedAt: "2026-03-04T08:15:00Z",
     status: STATUS.PENDING,
   },
@@ -48,7 +44,6 @@ const MOCK_STATIONS = [
     stationName: "Trạm sạc Hà Nội West",
     ownerName: "Hoàng Văn E",
     address: "Nam Từ Liêm, Hà Nội",
-    totalSlots: 20,
     submittedAt: "2026-03-05T13:00:00Z",
     status: STATUS.PENDING,
   },
@@ -148,8 +143,6 @@ export default function ApproveStation() {
           Quản trị viên có thể phê duyệt hoặc từ chối các yêu cầu đăng ký trạm sạc
         </p>
       </div>
-
-      {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
 
         <div className="bg-white border rounded-xl p-4">
@@ -179,8 +172,6 @@ export default function ApproveStation() {
         </div>
 
       </div>
-
-      {/* Filter */}
       <div className="bg-white border rounded-xl p-4 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 
@@ -226,7 +217,6 @@ export default function ApproveStation() {
               <th className="px-4 py-3">Tên trạm</th>
               <th className="px-4 py-3">Chủ trạm</th>
               <th className="px-4 py-3">Địa chỉ</th>
-              <th className="px-4 py-3">Số cổng sạc</th>
               <th className="px-4 py-3">Ngày gửi</th>
               <th className="px-4 py-3">Trạng thái</th>
               <th className="px-4 py-3 text-right">Hành động</th>
@@ -251,7 +241,6 @@ export default function ApproveStation() {
                     <td className="px-4 py-3 font-medium">{s.stationName}</td>
                     <td className="px-4 py-3">{s.ownerName}</td>
                     <td className="px-4 py-3">{s.address}</td>
-                    <td className="px-4 py-3">{s.totalSlots}</td>
                     <td className="px-4 py-3">{formatDate(s.submittedAt)}</td>
 
                     <td className="px-4 py-3">
@@ -266,11 +255,10 @@ export default function ApproveStation() {
                         <button
                           disabled={!pending}
                           onClick={() => askUpdateStatus(s, STATUS.APPROVED)}
-                          className={`h-8 px-3 rounded-md text-white text-xs font-semibold ${
-                            pending
+                          className={`h-8 px-3 rounded-md text-white text-xs font-semibold ${pending
                               ? "bg-green-500 hover:bg-green-600"
                               : "bg-gray-400 cursor-not-allowed"
-                          }`}
+                            }`}
                         >
                           Phê duyệt
                         </button>
@@ -278,11 +266,10 @@ export default function ApproveStation() {
                         <button
                           disabled={!pending}
                           onClick={() => askUpdateStatus(s, STATUS.REJECTED)}
-                          className={`h-8 px-3 rounded-md text-white text-xs font-semibold ${
-                            pending
+                          className={`h-8 px-3 rounded-md text-white text-xs font-semibold ${pending
                               ? "bg-red-500 hover:bg-red-600"
                               : "bg-gray-400 cursor-not-allowed"
-                          }`}
+                            }`}
                         >
                           Từ chối
                         </button>
@@ -325,11 +312,10 @@ export default function ApproveStation() {
 
               <button
                 onClick={confirmUpdateStatus}
-                className={`px-4 py-2 rounded-md text-white ${
-                  confirmAction.newStatus === STATUS.APPROVED
+                className={`px-4 py-2 rounded-md text-white ${confirmAction.newStatus === STATUS.APPROVED
                     ? "bg-green-500 hover:bg-green-600"
                     : "bg-red-500 hover:bg-red-600"
-                }`}
+                  }`}
               >
                 Xác nhận
               </button>

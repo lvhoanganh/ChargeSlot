@@ -17,10 +17,22 @@ export default function Login() {
     resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit = (data) => {
-    console.log(data);
-    login(data.phoneNumber, data.password);
-    navigate("/");
+  const onSubmit = async (data) => {
+    try {
+      const result = await login(data.phoneNumber, data.password);
+      const role = result?.role;
+
+      if (role === "Admin") {
+        navigate("/admin/manage-users");
+      } else if (role === "Owner") {
+        navigate("/stations");
+      } else {
+        navigate("/");
+      }
+    } catch (err) {
+      // err is already a user-friendly string from authStore
+      alert(typeof err === "string" ? err : "Đăng nhập thất bại.");
+    }
   };
   return (
     <div className="min-h-screen bg-[#f3f4f5] flex justify-center items-center">

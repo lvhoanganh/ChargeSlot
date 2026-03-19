@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import HomePage from "./pages/common/HomePage";
 import MainLayout from "./layouts/MainLayout";
 import AdminLayout from "./layouts/AdminLayout";
+import AuthAdminMiddleware from "./middlewares/AuthAdminMiddleware";
 import Service from "./pages/common/Service";
 import News from "./pages/common/News";
 import About from "./pages/common/About";
@@ -14,6 +15,8 @@ import ForgotPassword from "./pages/common/ForgotPassword";
 import ResetPassword from "./pages/common/ResetPassword";
 import ManageUser from "./pages/admin/ManageUser";
 import ApproveStation from "./pages/admin/ApproveStation";
+import AdminProfile from "./pages/admin/AdminProfile";
+import EditAdminProfile from "./pages/admin/EditAdminProfile";
 import ChargingStations from "./pages/ChargingStations";
 import CreateStation from "./pages/CreateStation";
 import EditStation from "./pages/EditStation";
@@ -60,9 +63,13 @@ export default function App() {
             <Route path="stations/add" element={<CreateChargingStation />} />
           </Route>
         </Route>
-        <Route path="admin" element={<AdminLayout />}>
-          <Route path="manage-users" element={<ManageUser />} />
-          <Route path="approve-station" element={<ApproveStation />} />
+        <Route element={<AuthAdminMiddleware />}>
+          <Route path="admin" element={<AdminLayout />}>
+            <Route path="manage-users" element={<ManageUser />} />
+            <Route path="approve-station" element={<ApproveStation />} />
+            <Route path="admin-profile" element={<AdminProfile />} />
+            <Route path="edit-admin-profile" element={<EditAdminProfile />} />
+          </Route>
         </Route>
         <Route element={<AuthDriverMiddleware />}>
           <Route path="driver" element={<MainLayout />}>
