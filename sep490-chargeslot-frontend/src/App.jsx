@@ -31,6 +31,10 @@ import RegisterVerifyOtp from "./pages/common/RegisterVerifyOtp";
 import RegisterCreateAccount from "./pages/common/RegisterCreateAccount";
 import DriverProfile from "./pages/driver/DriverProfile";
 import DriverEditProfile from "./pages/driver/EditDriverProfile";
+import ScanQR from "./pages/driver/ScanQR";
+import CheckInResult from "./pages/driver/CheckInResult";
+import ChargingActive from "./pages/driver/ChargingActive";
+import ChargingComplete from "./pages/driver/ChargingComplete";
 import OwnerProfile from "./pages/owner/OwnerProfile";
 import OwnerEditProfile from "./pages/owner/EditOwnerProfile";
 
@@ -75,6 +79,10 @@ export default function App() {
           <Route path="driver" element={<MainLayout />}>
             <Route path="driver-profile" element={<DriverProfile />} />
             <Route path="update-driver-profile" element={<DriverEditProfile />} />
+            <Route path="scan-qr" element={<ScanQR />} />
+            <Route path="check-in-result" element={<CheckInResult />} />
+            <Route path="charging" element={<ChargingActive />} />
+            <Route path="charging-complete" element={<ChargingComplete />} />
           </Route>
         </Route>
         <Route path="owner" element={<OwnerLayout />}>

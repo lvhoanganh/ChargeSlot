@@ -1,11 +1,11 @@
-import Nav from "@/components/Nav";
+import OwnerNav from "@/components/OwnerNav";
 import React from "react";
 import { Outlet } from "react-router-dom";
 
 export default function OwnerLayout() {
   return (
     <div>
-      <Nav />
+      <OwnerNav />
       <Outlet />
     </div>
   );

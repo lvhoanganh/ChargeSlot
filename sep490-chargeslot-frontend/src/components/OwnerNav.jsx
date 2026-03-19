@@ -1,4 +1,5 @@
-import { useNavigate, NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/authStore";
 import { useState, useRef, useEffect } from "react";
 
@@ -26,19 +27,22 @@ function normalizePhoneForKey(rawPhone) {
 const maskPhone = (phone) =>
   phone ? `**** **** ${phone.slice(-2)}` : "";
 
+const roleLabels = {
+  driver: "Tài xế",
+  owner: "Chủ trạm",
+  admin: "Quản trị viên",
+};
+
 export default function OwnerNav() {
+  const { logout, phoneNumber, role, token } = useAuthStore();
   const navigate = useNavigate();
-  const { logout, phoneNumber, token } = useAuthStore();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  const normalizedRole = (role || "").toLowerCase();
   const avatarSrc = getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR;
+  const profilePath = "/owner/owner-profile";
 
-  const navLinkClass = ({ isActive }) =>
-    isActive
-      ? "text-orange-500 font-bold"
-      : "text-black hover:bg-green-500 hover:text-white px-3 py-2 rounded-md";
-
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(e) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -51,19 +55,49 @@ export default function OwnerNav() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownOpen]);
 
+  const navLinkClass = ({ isActive }) =>
+    isActive
+      ? "text-orange-500 font-bold"
+      : "text-black hover:bg-green-500 hover:text-white px-3 py-2 rounded-md";
+
   return (
     <nav className="min-h-20 w-full bg-white border-b flex items-center fixed top-0 left-0 z-30">
       <div className="max-w-[95%] w-full mx-auto flex items-center justify-between">
         <NavLink to="/" className="text-xl font-bold hover:text-pink-500">
-          Trạm sạc của tôi
+          CHARGE SLOT
         </NavLink>
         <div className="flex items-center gap-10">
           <NavLink to="/" className={navLinkClass}>
             Trang chủ
           </NavLink>
+          <NavLink to="/service" className={navLinkClass}>
+            Sản phẩm dịch vụ
+          </NavLink>
+          <NavLink to="/news" className={navLinkClass}>
+            Tin tức
+          </NavLink>
+          <NavLink to="/about" className={navLinkClass}>
+            Về ChargeSlot
+          </NavLink>
         </div>
 
-        {/* Avatar dropdown */}
+        {!token && (
+          <div className="flex gap-2">
+            <Button
+              className="bg-blue-500 cursor-pointer hover:bg-green-500"
+              onClick={() => navigate("/login")}
+            >
+              Đăng nhập
+            </Button>
+            <Button
+              className="bg-blue-500 cursor-pointer hover:bg-green-500"
+              onClick={() => navigate("/register")}
+            >
+              Đăng ký
+            </Button>
+          </div>
+        )}
+
         {token && (
           <div className="relative" ref={dropdownRef}>
             <button
@@ -75,8 +109,8 @@ export default function OwnerNav() {
                 src={avatarSrc}
                 alt="Avatar"
                 className={`w-10 h-10 rounded-full object-cover border-2 transition-all duration-300 ${dropdownOpen
-                    ? "border-orange-500 shadow-lg shadow-orange-200"
-                    : "border-gray-200 group-hover:border-orange-400"
+                  ? "border-orange-500 shadow-lg shadow-orange-200"
+                  : "border-gray-200 group-hover:border-orange-400"
                   }`}
               />
               <svg
@@ -90,11 +124,10 @@ export default function OwnerNav() {
               </svg>
             </button>
 
-            {/* Dropdown */}
             <div
               className={`absolute right-0 top-full mt-3 w-72 transition-all duration-300 origin-top-right ${dropdownOpen
-                  ? "opacity-100 scale-100 translate-y-0"
-                  : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
+                ? "opacity-100 scale-100 translate-y-0"
+                : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
                 }`}
             >
               <div
@@ -105,7 +138,6 @@ export default function OwnerNav() {
                   WebkitBackdropFilter: "blur(20px)",
                 }}
               >
-                {/* Header */}
                 <div
                   className="px-5 py-4 flex items-center gap-3"
                   style={{
@@ -122,12 +154,11 @@ export default function OwnerNav() {
                       {maskPhone(phoneNumber) || "Người dùng"}
                     </p>
                     <span className="inline-block mt-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-white/20 text-white">
-                      Chủ trạm
+                      {roleLabels[normalizedRole] || normalizedRole}
                     </span>
                   </div>
                 </div>
 
-                {/* Info */}
                 <div className="px-5 py-3 space-y-2 border-b border-gray-100">
                   <div className="flex items-center gap-2 text-sm">
                     <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,16 +170,14 @@ export default function OwnerNav() {
                     <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    <span className="text-gray-600">Chủ trạm</span>
+                    <span className="text-gray-600">{roleLabels[normalizedRole] || normalizedRole}</span>
                   </div>
                 </div>
-
-                {/* Menu items */}
                 <div className="py-1">
                   <button
                     onClick={() => {
                       setDropdownOpen(false);
-                      navigate("/owner/owner-profile");
+                      navigate(profilePath);
                     }}
                     className="w-full px-5 py-2.5 text-left text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors flex items-center gap-3 cursor-pointer"
                   >
@@ -175,16 +204,6 @@ export default function OwnerNav() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
-        {!token && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => navigate("/login")}
-              className="bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-green-500 text-sm"
-            >
-              Đăng nhập
-            </button>
           </div>
         )}
       </div>
