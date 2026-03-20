@@ -11,8 +11,6 @@ namespace ChargeSlot.Api.Data.Configurations
             builder.ToTable("ChargingSlot");
             builder.HasKey(x => x.Id);
             builder.Property(x => x.SlotName).HasMaxLength(100).IsRequired();
-            builder.Property(x => x.ConnectorType).HasMaxLength(100).IsRequired();
-            builder.Property(x => x.PowerKw).HasPrecision(10, 2);
             builder.Property(x => x.BasePricePerHour).HasPrecision(18, 2);
             builder.Property(x => x.PositionX).HasPrecision(10, 2);
             builder.Property(x => x.PositionY).HasPrecision(10, 2);

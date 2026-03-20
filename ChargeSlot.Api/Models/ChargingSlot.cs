@@ -2,7 +2,7 @@ using ChargeSlot.Api.Enums;
 
 namespace ChargeSlot.Api.Models
 {
-    /// <summary>SRS 1.5 ChargingSlot - connector type, price per hour, status.</summary>
+    /// <summary>SRS 1.5 ChargingSlot - power outlet, price per hour, status.</summary>
     public class ChargingSlot
     {
         public int Id { get; set; }
@@ -10,8 +10,6 @@ namespace ChargeSlot.Api.Models
         public ChargingStation ChargingStation { get; set; } = null!;
 
         public string SlotName { get; set; } = null!;
-        public string ConnectorType { get; set; } = null!;
-        public decimal? PowerKw { get; set; }
         public decimal BasePricePerHour { get; set; }
 
         // Vị trí trụ sạc trên sơ đồ (tọa độ tương đối %, responsive)

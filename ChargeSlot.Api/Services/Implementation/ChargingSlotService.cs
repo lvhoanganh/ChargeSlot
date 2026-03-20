@@ -46,8 +46,6 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 StationId = stationId,
                 SlotName = dto.SlotName,
-                ConnectorType = dto.ConnectorType,
-                PowerKw = dto.PowerKw,
                 BasePricePerHour = dto.BasePricePerHour,
                 PositionX = dto.PositionX,
                 PositionY = dto.PositionY,
@@ -70,8 +68,6 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new KeyNotFoundException($"Slot {slotId} not found in station {stationId}.");
 
             slot.SlotName = dto.SlotName;
-            slot.ConnectorType = dto.ConnectorType;
-            slot.PowerKw = dto.PowerKw;
             slot.BasePricePerHour = dto.BasePricePerHour;
             slot.PositionX = dto.PositionX;
             slot.PositionY = dto.PositionY;
@@ -167,8 +163,6 @@ namespace ChargeSlot.Api.Services.Implementation
                 Id = slot.Id,
                 StationId = slot.StationId,
                 SlotName = slot.SlotName,
-                ConnectorType = slot.ConnectorType,
-                PowerKw = slot.PowerKw,
                 BasePricePerHour = slot.BasePricePerHour,
                 PositionX = slot.PositionX,
                 PositionY = slot.PositionY,

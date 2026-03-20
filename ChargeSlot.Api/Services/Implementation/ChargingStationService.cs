@@ -118,8 +118,6 @@ namespace ChargeSlot.Api.Services.Implementation
                     station.ChargingSlots.Add(new ChargingSlot
                     {
                         SlotName = s.SlotName,
-                        ConnectorType = s.ConnectorType,
-                        PowerKw = s.PowerKw,
                         BasePricePerHour = s.BasePricePerHour,
                         PositionX = s.PositionX,
                         PositionY = s.PositionY,
@@ -413,8 +411,6 @@ namespace ChargeSlot.Api.Services.Implementation
                     Id = s.Id,
                     StationId = s.StationId,
                     SlotName = s.SlotName,
-                    ConnectorType = s.ConnectorType,
-                    PowerKw = s.PowerKw,
                     BasePricePerHour = s.BasePricePerHour,
                     PositionX = s.PositionX,
                     PositionY = s.PositionY,

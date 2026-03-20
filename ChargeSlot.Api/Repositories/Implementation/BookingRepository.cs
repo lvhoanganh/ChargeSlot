@@ -32,6 +32,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
         public async Task<List<Booking>> GetByDriverAsync(int driverUserId)
         {
             return await _db.Bookings
+                .Include(b => b.Driver).ThenInclude(d => d.User)
                 .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
                 .Where(b => b.DriverUserId == driverUserId)
                 .OrderByDescending(b => b.CreatedAt)
