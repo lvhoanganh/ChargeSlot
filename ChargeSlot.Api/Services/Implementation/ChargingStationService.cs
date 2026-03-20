@@ -118,7 +118,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     station.ChargingSlots.Add(new ChargingSlot
                     {
                         SlotName = s.SlotName,
-                        BasePricePerHour = s.BasePricePerHour,
+                        BasePricePerHour = 0, // Will be set by pricing tiers later
                         PositionX = s.PositionX,
                         PositionY = s.PositionY,
                         Status = SlotStatus.Inactive,
@@ -193,8 +193,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     {
                         SlotName = s.SlotName,
                         BasePricePerHour = s.BasePricePerHour,
-                        PositionX = s.PositionX ?? 0,
-                        PositionY = s.PositionY ?? 0,
+                        PositionX = (decimal?)(s.PositionX ?? 0),
+                        PositionY = (decimal?)(s.PositionY ?? 0),
                         Status = SlotStatus.Inactive,
                         CreatedAt = DateTime.UtcNow
                     });

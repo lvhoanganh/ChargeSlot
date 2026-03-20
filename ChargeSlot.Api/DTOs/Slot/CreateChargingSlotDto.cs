@@ -8,11 +8,10 @@ namespace ChargeSlot.Api.DTOs.Slot
         [MaxLength(100)]
         public string SlotName { get; set; } = null!;
 
-        [Required]
-        [Range(0, double.MaxValue)]
-        public decimal BasePricePerHour { get; set; }
-
         public decimal? PositionX { get; set; }
         public decimal? PositionY { get; set; }
+
+        /// <summary>Giá theo khung giờ (bắt buộc ít nhất 1 khung).</summary>
+        public List<PricingTierItem>? PricingTiers { get; set; }
     }
 }
