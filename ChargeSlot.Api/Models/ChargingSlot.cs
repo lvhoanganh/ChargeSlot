@@ -16,6 +16,9 @@ namespace ChargeSlot.Api.Models
         public decimal? PositionX { get; set; }
         public decimal? PositionY { get; set; }
 
+        /// <summary>Unique QR token for check-in. Generated when station is approved or slot is added to approved station.</summary>
+        public string? QrCodeToken { get; set; }
+
         public SlotStatus Status { get; set; } = SlotStatus.Inactive;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

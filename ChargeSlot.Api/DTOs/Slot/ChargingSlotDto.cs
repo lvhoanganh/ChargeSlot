@@ -8,6 +8,7 @@ namespace ChargeSlot.Api.DTOs.Slot
         public decimal BasePricePerHour { get; set; }
         public decimal? PositionX { get; set; }
         public decimal? PositionY { get; set; }
+        public string? QrCodeToken { get; set; }
         public string Status { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }

@@ -148,6 +148,15 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IWalletRepository, WalletRepository>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 
+// Charging Session & Invoice
+builder.Services.AddScoped<IChargingSessionRepository, ChargingSessionRepository>();
+builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
+
+// Dispute
+builder.Services.AddScoped<IDisputeRepository, DisputeRepository>();
+builder.Services.AddScoped<IDisputeService, DisputeService>();
+
 // Background Jobs
 builder.Services.AddHostedService<PaymentExpiryJob>();
 

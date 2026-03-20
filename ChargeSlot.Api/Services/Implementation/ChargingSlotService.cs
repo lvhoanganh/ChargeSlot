@@ -40,7 +40,14 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<ChargingSlotDto> CreateAsync(int stationId, int ownerUserId, CreateChargingSlotDto dto)
         {
-            await ValidateStationEditableAsync(stationId, ownerUserId);
+            var station = await _stationRepo.GetByIdAsync(stationId, includeDetails: false);
+            if (station == null)
+                throw new KeyNotFoundException($"Station {stationId} not found.");
+            if (station.OwnerUserId != ownerUserId)
+                throw new UnauthorizedAccessException("You do not own this station.");
+
+            // If station is Approved, slot goes Active with QR token immediately
+            var isApproved = station.ApprovalStatus == ApprovalStatus.Approved;
 
             var slot = new ChargingSlot
             {
@@ -49,7 +56,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 BasePricePerHour = dto.BasePricePerHour,
                 PositionX = dto.PositionX,
                 PositionY = dto.PositionY,
-                Status = SlotStatus.Inactive,
+                Status = isApproved ? SlotStatus.Active : SlotStatus.Inactive,
+                QrCodeToken = isApproved ? Guid.NewGuid().ToString("N") : null,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -166,6 +174,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 BasePricePerHour = slot.BasePricePerHour,
                 PositionX = slot.PositionX,
                 PositionY = slot.PositionY,
+                QrCodeToken = slot.QrCodeToken,
                 Status = slot.Status.ToString(),
                 CreatedAt = slot.CreatedAt,
                 UpdatedAt = slot.UpdatedAt

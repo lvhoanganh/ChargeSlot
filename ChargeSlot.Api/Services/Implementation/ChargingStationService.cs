@@ -315,6 +315,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 foreach (var slot in slots)
                 {
                     slot.Status = SlotStatus.Active;
+                    slot.QrCodeToken = Guid.NewGuid().ToString("N");
                     slot.UpdatedAt = DateTime.UtcNow;
                 }
 
@@ -414,6 +415,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     BasePricePerHour = s.BasePricePerHour,
                     PositionX = s.PositionX,
                     PositionY = s.PositionY,
+                    QrCodeToken = s.QrCodeToken,
                     Status = s.Status.ToString(),
                     CreatedAt = s.CreatedAt,
                     UpdatedAt = s.UpdatedAt
