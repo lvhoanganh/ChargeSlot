@@ -49,7 +49,6 @@ namespace ChargeSlot.Api.DTOs.Station
     {
         [Required, MaxLength(100)]
         public string SlotName { get; set; } = null!;
-        public decimal BasePricePerHour { get; set; }
         public int? PositionX { get; set; }
         public int? PositionY { get; set; }
     }

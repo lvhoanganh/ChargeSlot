@@ -118,7 +118,6 @@ namespace ChargeSlot.Api.Services.Implementation
                     station.ChargingSlots.Add(new ChargingSlot
                     {
                         SlotName = s.SlotName,
-                        BasePricePerHour = 0, // Will be set by pricing tiers later
                         PositionX = s.PositionX,
                         PositionY = s.PositionY,
                         Status = SlotStatus.Inactive,
@@ -192,7 +191,6 @@ namespace ChargeSlot.Api.Services.Implementation
                     station.ChargingSlots.Add(new ChargingSlot
                     {
                         SlotName = s.SlotName,
-                        BasePricePerHour = s.BasePricePerHour,
                         PositionX = (decimal?)(s.PositionX ?? 0),
                         PositionY = (decimal?)(s.PositionY ?? 0),
                         Status = SlotStatus.Inactive,
@@ -549,13 +547,26 @@ namespace ChargeSlot.Api.Services.Implementation
                     Id = s.Id,
                     StationId = s.StationId,
                     SlotName = s.SlotName,
-                    BasePricePerHour = s.BasePricePerHour,
                     PositionX = s.PositionX,
                     PositionY = s.PositionY,
                     QrCodeToken = s.QrCodeToken,
                     Status = s.Status.ToString(),
                     CreatedAt = s.CreatedAt,
-                    UpdatedAt = s.UpdatedAt
+                    UpdatedAt = s.UpdatedAt,
+                    PricingTiers = s.SlotPricings?.Where(p => p.IsActive).Select(p => new SlotPricingDto
+                    {
+                        Id = p.Id,
+                        SlotId = p.SlotId,
+                        DayOfWeek = p.DayOfWeek,
+                        StartTime = p.StartTime,
+                        EndTime = p.EndTime,
+                        PricePerHour = p.PricePerHour,
+                        Priority = p.Priority,
+                        EffectiveFrom = p.EffectiveFrom,
+                        EffectiveTo = p.EffectiveTo,
+                        IsActive = p.IsActive,
+                        CreatedAt = p.CreatedAt
+                    }).OrderBy(p => p.StartTime).ToList()
                 }).ToList()
             };
         }

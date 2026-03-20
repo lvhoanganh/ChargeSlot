@@ -1,8 +1,10 @@
+using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Booking;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace ChargeSlot.Api.Services.Implementation
 {
@@ -11,15 +13,18 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IBookingRepository _bookingRepo;
         private readonly IChargingSlotRepository _slotRepo;
         private readonly INotificationService _notificationService;
+        private readonly ChargeSlotDbContext _context;
 
         public BookingService(
             IBookingRepository bookingRepo,
             IChargingSlotRepository slotRepo,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            ChargeSlotDbContext context)
         {
             _bookingRepo = bookingRepo;
             _slotRepo = slotRepo;
             _notificationService = notificationService;
+            _context = context;
         }
 
         /// <summary>
@@ -46,8 +51,18 @@ namespace ChargeSlot.Api.Services.Implementation
             if (hasOverlap)
                 throw new InvalidOperationException("Slot đã được đặt trong khung giờ này.");
 
-            // Step 9: Create booking request (status = WaitingOwner)
-            var totalAmount = slot.BasePricePerHour * dto.DurationHours;
+            // Tính giá từ pricing tiers — tách theo từng khung giờ
+            // VD: booking 11h-14h, tier 5h-12h=10K + 12h-15h=12K → 1h×10K + 2h×12K = 34K
+            var pricings = await _context.Set<SlotPricing>()
+                .Where(p => p.SlotId == dto.SlotId && p.IsActive)
+                .OrderByDescending(p => p.Priority)
+                .ThenBy(p => p.StartTime)
+                .ToListAsync();
+
+            if (pricings.Count == 0)
+                throw new InvalidOperationException("Slot chưa được cài đặt giá. Vui lòng liên hệ chủ trạm.");
+
+            var totalAmount = CalculateTotalPrice(dto.StartTime, endTime, pricings);
 
             var booking = new Booking
             {
@@ -192,6 +207,54 @@ namespace ChargeSlot.Api.Services.Implementation
                 PaymentExpiresAt = b.PaymentExpiresAt,
                 CreatedAt = b.CreatedAt
             };
+        }
+
+        /// <summary>
+        /// Tính tổng tiền booking bằng cách tách thời gian ra theo từng khung giá.
+        /// VD: booking 11h-14h, tier 5h-12h=10K + 12h-15h=12K
+        ///     → segment 11h-12h = 1h × 10K = 10K
+        ///     → segment 12h-14h = 2h × 12K = 24K
+        ///     → tổng = 34K
+        /// </summary>
+        private static decimal CalculateTotalPrice(DateTime startTime, DateTime endTime, List<SlotPricing> pricings)
+        {
+            decimal total = 0;
+            var current = startTime;
+
+            while (current < endTime)
+            {
+                var currentTimeOnly = TimeOnly.FromDateTime(current);
+
+                // Tìm tier phù hợp cho thời điểm hiện tại (ưu tiên priority cao nhất)
+                var tier = pricings
+                    .FirstOrDefault(p => currentTimeOnly >= p.StartTime && currentTimeOnly < p.EndTime);
+
+                if (tier == null)
+                {
+                    // Fallback: dùng tier đầu tiên nếu không match
+                    tier = pricings.First();
+                }
+
+                // Tính giờ kết thúc của segment = min(endTime, cuối tier ngày hôm đó)
+                var tierEndToday = current.Date.Add(tier.EndTime.ToTimeSpan());
+
+                // Nếu tier end = 23:59 nghĩa là đến hết ngày
+                if (tier.EndTime == new TimeOnly(23, 59))
+                    tierEndToday = current.Date.AddDays(1);
+
+                var segmentEnd = endTime < tierEndToday ? endTime : tierEndToday;
+                var hours = (decimal)(segmentEnd - current).TotalHours;
+
+                if (hours > 0)
+                {
+                    total += hours * tier.PricePerHour;
+                }
+
+                current = segmentEnd;
+            }
+
+            // Làm tròn đến hàng đơn vị
+            return Math.Round(total, 0);
         }
     }
 }

@@ -10,7 +10,6 @@ namespace ChargeSlot.Api.Models
         public ChargingStation ChargingStation { get; set; } = null!;
 
         public string SlotName { get; set; } = null!;
-        public decimal BasePricePerHour { get; set; }
 
         // Vị trí trụ sạc trên sơ đồ (tọa độ tương đối %, responsive)
         public decimal? PositionX { get; set; }

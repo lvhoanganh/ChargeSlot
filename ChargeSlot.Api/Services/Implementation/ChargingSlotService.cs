@@ -66,16 +66,10 @@ namespace ChargeSlot.Api.Services.Implementation
             // If station is Approved, slot goes Active with QR token immediately
             var isApproved = station.ApprovalStatus == ApprovalStatus.Approved;
 
-            // BasePricePerHour = giá trung bình từ pricing tiers (fallback)
-            var basePricePerHour = dto.PricingTiers?.Count > 0
-                ? dto.PricingTiers.Average(p => p.PricePerHour)
-                : 0;
-
             var slot = new ChargingSlot
             {
                 StationId = stationId,
                 SlotName = dto.SlotName,
-                BasePricePerHour = basePricePerHour,
                 PositionX = dto.PositionX,
                 PositionY = dto.PositionY,
                 Status = isApproved ? SlotStatus.Active : SlotStatus.Inactive,
@@ -123,11 +117,6 @@ namespace ChargeSlot.Api.Services.Implementation
                 if (dto.PricingTiers.Count > 0)
                 {
                     SavePricingTiers(slotId, dto.PricingTiers);
-                    slot.BasePricePerHour = dto.PricingTiers.Average(p => p.PricePerHour);
-                }
-                else
-                {
-                    slot.BasePricePerHour = 0;
                 }
             }
 
@@ -237,7 +226,6 @@ namespace ChargeSlot.Api.Services.Implementation
                 Id = slot.Id,
                 StationId = slot.StationId,
                 SlotName = slot.SlotName,
-                BasePricePerHour = slot.BasePricePerHour,
                 PositionX = slot.PositionX,
                 PositionY = slot.PositionY,
                 QrCodeToken = slot.QrCodeToken,

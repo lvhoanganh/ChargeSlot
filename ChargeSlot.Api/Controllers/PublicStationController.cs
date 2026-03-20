@@ -93,13 +93,26 @@ namespace ChargeSlot.Api.Controllers
                     Id = s.Id,
                     StationId = s.StationId,
                     SlotName = s.SlotName,
-                    BasePricePerHour = s.BasePricePerHour,
                     PositionX = s.PositionX,
                     PositionY = s.PositionY,
                     Status = s.Status.ToString(),
                     CreatedAt = s.CreatedAt,
-                    UpdatedAt = s.UpdatedAt
+                    UpdatedAt = s.UpdatedAt,
                     // Note: không expose QrCodeToken cho public API
+                    PricingTiers = s.SlotPricings?.Where(p => p.IsActive).Select(p => new SlotPricingDto
+                    {
+                        Id = p.Id,
+                        SlotId = p.SlotId,
+                        DayOfWeek = p.DayOfWeek,
+                        StartTime = p.StartTime,
+                        EndTime = p.EndTime,
+                        PricePerHour = p.PricePerHour,
+                        Priority = p.Priority,
+                        EffectiveFrom = p.EffectiveFrom,
+                        EffectiveTo = p.EffectiveTo,
+                        IsActive = p.IsActive,
+                        CreatedAt = p.CreatedAt
+                    }).OrderBy(p => p.StartTime).ToList()
                 }).ToList()
             };
         }

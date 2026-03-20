@@ -42,7 +42,7 @@ namespace ChargeSlot.Api.Data
             // ============================
             // 2. ADMIN
             // ============================
-            var adminPhone = "0000000000";
+            var adminPhone = "0123456789";
             var adminPassword = "Admin123!";
             var adminUser = await userManager.FindByNameAsync(adminPhone);
 
@@ -218,7 +218,7 @@ namespace ChargeSlot.Api.Data
                         new ChargingSlot
                         {
                             SlotName = "Trụ A1",
-                            BasePricePerHour = 15000,
+
                             PositionX = 10, PositionY = 20,
                             Status = SlotStatus.Active,
                             QrCodeToken = Guid.NewGuid().ToString("N").ToUpper(),
@@ -227,7 +227,7 @@ namespace ChargeSlot.Api.Data
                         new ChargingSlot
                         {
                             SlotName = "Trụ A2",
-                            BasePricePerHour = 15000,
+
                             PositionX = 30, PositionY = 20,
                             Status = SlotStatus.Active,
                             QrCodeToken = Guid.NewGuid().ToString("N").ToUpper(),
@@ -236,7 +236,6 @@ namespace ChargeSlot.Api.Data
                         new ChargingSlot
                         {
                             SlotName = "Trụ B1",
-                            BasePricePerHour = 20000,
                             PositionX = 10, PositionY = 50,
                             Status = SlotStatus.Active,
                             QrCodeToken = Guid.NewGuid().ToString("N").ToUpper(),
@@ -294,7 +293,6 @@ namespace ChargeSlot.Api.Data
                         new ChargingSlot
                         {
                             SlotName = "Slot 1",
-                            BasePricePerHour = 12000,
                             PositionX = 5, PositionY = 10,
                             Status = SlotStatus.Active,
                             QrCodeToken = Guid.NewGuid().ToString("N").ToUpper(),
@@ -303,7 +301,6 @@ namespace ChargeSlot.Api.Data
                         new ChargingSlot
                         {
                             SlotName = "Slot 2",
-                            BasePricePerHour = 12000,
                             PositionX = 25, PositionY = 10,
                             Status = SlotStatus.Active,
                             QrCodeToken = Guid.NewGuid().ToString("N").ToUpper(),
@@ -312,7 +309,6 @@ namespace ChargeSlot.Api.Data
                         new ChargingSlot
                         {
                             SlotName = "Slot VIP",
-                            BasePricePerHour = 25000,
                             PositionX = 50, PositionY = 10,
                             Status = SlotStatus.Active,
                             QrCodeToken = Guid.NewGuid().ToString("N").ToUpper(),
@@ -321,7 +317,6 @@ namespace ChargeSlot.Api.Data
                         new ChargingSlot
                         {
                             SlotName = "Slot bảo trì",
-                            BasePricePerHour = 12000,
                             PositionX = 45, PositionY = 30,
                             Status = SlotStatus.Maintenance,
                             QrCodeToken = Guid.NewGuid().ToString("N").ToUpper(),

@@ -27,7 +27,8 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 query = query
                     .Include(s => s.Images)
                     .Include(s => s.OperatingHours)
-                    .Include(s => s.ChargingSlots);
+                    .Include(s => s.ChargingSlots)
+                        .ThenInclude(slot => slot.SlotPricings);
             }
 
             return await query.FirstOrDefaultAsync(s => s.Id == id);
@@ -40,6 +41,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Include(s => s.Images)
                 .Include(s => s.OperatingHours)
                 .Include(s => s.ChargingSlots)
+                    .ThenInclude(slot => slot.SlotPricings)
                 .Where(s => s.OwnerUserId == ownerUserId)
                 .OrderByDescending(s => s.CreatedAt)
                 .ToListAsync();
@@ -52,6 +54,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Include(s => s.Images)
                 .Include(s => s.OperatingHours)
                 .Include(s => s.ChargingSlots)
+                    .ThenInclude(slot => slot.SlotPricings)
                 .Where(s => s.ApprovalStatus == status)
                 .OrderByDescending(s => s.CreatedAt)
                 .ToListAsync();
