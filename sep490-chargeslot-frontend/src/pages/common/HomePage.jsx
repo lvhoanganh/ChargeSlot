@@ -1,8 +1,9 @@
 import Nav from "@/components/Nav";
 import { Button } from "@/components/ui/button";
-// import homeBg from "../assets/images/home.jpg";
-// import homeBg from "../assets/images/home.jpg";
+import { useNavigate } from "react-router-dom";
+
 export default function HomePage() {
+  const navigate = useNavigate();
   return (
     <div className="pt-20">
       <div className="min-h-60 flex flex-col items-center justify-center gap-5">
@@ -11,7 +12,10 @@ export default function HomePage() {
           Dễ dàng đặt trước lịch sạc cho xe điện của bạn với ChargeSlot. Trải
           nghiệm sự tiện lợi và tiết kiệm thời gian
         </p>
-        <Button className="w-40 h-11 bg-orange-500 rounded-full text-xl hover:bg-green-500 cursor-pointer">
+        <Button
+          className="w-40 h-11 bg-orange-500 rounded-full text-xl hover:bg-green-500 cursor-pointer"
+          onClick={() => navigate("/driver/map")}
+        >
           Tìm trạm sạc
         </Button>
       </div>

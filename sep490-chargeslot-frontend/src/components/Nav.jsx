@@ -103,6 +103,9 @@ export default function Nav() {
             <NavLink to="/about" className={navLinkClass}>
               Về ChargeSlot
             </NavLink>
+            <NavLink to="/driver/map" className={navLinkClass}>
+              Tìm trạm
+            </NavLink>
             <button
               onClick={handleCheckin}
               className={`px-3 py-2 rounded-md cursor-pointer transition-colors ${isCheckinPage

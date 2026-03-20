@@ -37,6 +37,8 @@ import ChargingActive from "./pages/driver/ChargingActive";
 import ChargingComplete from "./pages/driver/ChargingComplete";
 import OwnerProfile from "./pages/owner/OwnerProfile";
 import OwnerEditProfile from "./pages/owner/EditOwnerProfile";
+import StationMap from "./pages/driver/StationMap";
+import StationDetailDriver from "./pages/driver/StationDetailDriver";
 
 export default function App() {
   return (
@@ -47,6 +49,8 @@ export default function App() {
           <Route path="service" element={<Service />} />
           <Route path="news" element={<News />} />
           <Route path="about" element={<About />} />
+          <Route path="driver/map" element={<StationMap />} />
+          <Route path="driver/station/:id" element={<StationDetailDriver />} />
           <Route path="setPassword" element={<SetPassword />} />
           <Route path="forgotPassword" element={<ForgotPassword />} />
           <Route path="verifyOtp" element={<VerifyOtp />} />
