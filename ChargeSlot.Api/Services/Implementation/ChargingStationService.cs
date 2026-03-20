@@ -133,6 +133,143 @@ namespace ChargeSlot.Api.Services.Implementation
             return MapToDto(station);
         }
 
+        /// <summary>
+        /// Tạo trạm từ multipart/form-data: upload ảnh, tạo slots, operating hours, station-level pricing.
+        /// </summary>
+        public async Task<ChargingStationDto> CreateFromFormAsync(int ownerUserId, CreateStationFormDto dto, HttpRequest request)
+        {
+            // Ensure Owner profile record exists
+            var ownerExists = await _context.Owner.AnyAsync(o => o.UserId == ownerUserId);
+            if (!ownerExists)
+            {
+                var user = await _context.Users.FindAsync(ownerUserId)
+                    ?? throw new InvalidOperationException("User not found.");
+                _context.Owner.Add(new Owner
+                {
+                    UserId = ownerUserId,
+                    BusinessName = user.FullName,
+                    TaxCode = "N/A",
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _context.SaveChangesAsync();
+            }
+
+            var station = new ChargingStation
+            {
+                OwnerUserId = ownerUserId,
+                Name = dto.Name,
+                Address = dto.Address,
+                Description = dto.Description,
+                Latitude = dto.Latitude,
+                Longitude = dto.Longitude,
+                LayoutWidth = dto.LayoutWidth,
+                LayoutHeight = dto.LayoutHeight,
+                ApprovalStatus = ApprovalStatus.Draft,
+                OperationalStatus = OperationalStatus.Inactive,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Operating Hours
+            if (dto.OperatingHours?.Count > 0)
+            {
+                foreach (var h in dto.OperatingHours)
+                {
+                    station.OperatingHours.Add(new StationOperatingHours
+                    {
+                        DayOfWeek = (byte)h.DayOfWeek,
+                        IsClosed = h.IsClosed,
+                        OpenTime = !string.IsNullOrEmpty(h.OpenTime) ? TimeOnly.Parse(h.OpenTime) : null,
+                        CloseTime = !string.IsNullOrEmpty(h.CloseTime) ? TimeOnly.Parse(h.CloseTime) : null
+                    });
+                }
+            }
+
+            // Slots
+            if (dto.Slots?.Count > 0)
+            {
+                foreach (var s in dto.Slots)
+                {
+                    station.ChargingSlots.Add(new ChargingSlot
+                    {
+                        SlotName = s.SlotName,
+                        BasePricePerHour = s.BasePricePerHour,
+                        PositionX = s.PositionX ?? 0,
+                        PositionY = s.PositionY ?? 0,
+                        Status = SlotStatus.Inactive,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+
+            // Save station first to get ID (needed for image folder + slot IDs)
+            await _stationRepo.AddAsync(station);
+            await _stationRepo.SaveChangesAsync();
+
+            // Upload images to disk: wwwroot/uploads/stations/{stationId}/
+            if (dto.Images?.Length > 0)
+            {
+                var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "stations", station.Id.ToString());
+                Directory.CreateDirectory(uploadDir);
+
+                foreach (var file in dto.Images)
+                {
+                    if (file.Length > 0)
+                    {
+                        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                        var fileName = $"{Guid.NewGuid():N}{ext}";
+                        var filePath = Path.Combine(uploadDir, fileName);
+
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
+
+                        // Build public URL
+                        var imageUrl = $"/uploads/stations/{station.Id}/{fileName}";
+                        station.Images.Add(new StationImage
+                        {
+                            StationId = station.Id,
+                            ImageUrl = imageUrl,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+                await _stationRepo.SaveChangesAsync();
+            }
+
+            // Station-level pricing → tạo SlotPricing cho TẤT CẢ slots
+            if (dto.StationPricing?.Count > 0 && station.ChargingSlots.Count > 0)
+            {
+                var now = DateTime.UtcNow;
+                foreach (var slot in station.ChargingSlots)
+                {
+                    foreach (var p in dto.StationPricing)
+                    {
+                        if (!TimeOnly.TryParse(p.StartTime, out var startTime) ||
+                            !TimeOnly.TryParse(p.EndTime, out var endTime))
+                            continue;
+
+                        _context.Set<SlotPricing>().Add(new SlotPricing
+                        {
+                            SlotId = slot.Id,
+                            StartTime = startTime,
+                            EndTime = endTime,
+                            PricePerHour = p.PricePerHour,
+                            Priority = 1,
+                            EffectiveFrom = now,
+                            IsActive = true,
+                            CreatedAt = now
+                        });
+                    }
+                }
+                await _context.SaveChangesAsync();
+            }
+
+            // Reload to get full data
+            var created = await _stationRepo.GetByIdAsync(station.Id) ?? station;
+            return MapToDto(created);
+        }
+
         public async Task UpdateAsync(int id, int ownerUserId, UpdateChargingStationDto dto)
         {
             var station = await _stationRepo.GetByIdAsync(id, tracking: true, includeDetails: true);

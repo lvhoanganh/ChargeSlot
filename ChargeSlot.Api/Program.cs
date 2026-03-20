@@ -219,6 +219,8 @@ app.UseHttpsRedirection();
 
 app.UseCors("AllowFrontend");
 
+app.UseStaticFiles(); // Serve wwwroot/uploads/stations images
+
 app.UseAuthentication();
 app.UseAuthorization();
 

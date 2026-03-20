@@ -45,13 +45,21 @@ namespace ChargeSlot.Api.Controllers
             return Ok(station);
         }
 
-        /// <summary>Create a new station (initially in Draft status).</summary>
+        /// <summary>Create a new station (initially in Draft status). Accepts multipart/form-data with image uploads.</summary>
         [HttpPost]
-        public async Task<ActionResult<ChargingStationDto>> Create([FromBody] CreateChargingStationDto dto)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<ChargingStationDto>> Create([FromForm] CreateStationFormDto dto)
         {
             var userId = GetUserId();
-            var created = await _stationService.CreateAsync(userId, dto);
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            try
+            {
+                var created = await _stationService.CreateFromFormAsync(userId, dto, HttpContext.Request);
+                return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
         /// <summary>Update station info (only when Draft or Rejected).</summary>
