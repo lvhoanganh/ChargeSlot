@@ -137,16 +137,24 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException(
                     $"Số dư ví không đủ. Cần {booking.TotalAmount:N0} VND, hiện có {wallet.AvailableBalance:N0} VND.");
 
-            // Trừ tiền ví
+            // Trừ tiền ví Driver
             wallet.AvailableBalance -= booking.TotalAmount;
             await _walletRepo.UpdateAsync(wallet);
 
-            // Ghi ledger: DEBIT từ ví Driver
+            // Cộng tiền vào ESCROW
+            var escrowWallet = await _walletRepo.GetByIdAsync(1); // ESCROW wallet ID = 1
+            if (escrowWallet != null)
+            {
+                escrowWallet.AvailableBalance += booking.TotalAmount;
+                await _walletRepo.UpdateAsync(escrowWallet);
+            }
+
+            // Ghi ledger: DEBIT từ ví Driver, CREDIT vào ESCROW
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "BookingPayment",
                 ReferenceId = bookingId,
-                Memo = $"Thanh toán booking #{bookingId} bằng ví",
+                Memo = $"Thanh toán booking #{bookingId} bằng ví - {booking.TotalAmount:N0}đ → ESCROW",
                 CreatedByUserId = userId,
                 CreatedAt = DateTime.UtcNow,
                 Entries = new List<LedgerEntry>
@@ -155,6 +163,13 @@ namespace ChargeSlot.Api.Services.Implementation
                     {
                         WalletId = wallet.Id,
                         Direction = LedgerDirection.Debit,
+                        Amount = booking.TotalAmount,
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    new LedgerEntry
+                    {
+                        WalletId = escrowWallet?.Id ?? 1,
+                        Direction = LedgerDirection.Credit,
                         Amount = booking.TotalAmount,
                         CreatedAt = DateTime.UtcNow
                     }

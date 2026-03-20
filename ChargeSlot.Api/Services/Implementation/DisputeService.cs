@@ -86,6 +86,11 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.Status = BookingStatus.Disputed;
             booking.UpdatedAt = DateTime.UtcNow;
 
+            // Freeze ESCROW balance: AvailableBalance → FrozenBalance
+            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
+            escrowWallet.AvailableBalance -= booking.TotalAmount;
+            escrowWallet.FrozenBalance += booking.TotalAmount;
+
             // Single SaveChanges for all mutations
             await _db.SaveChangesAsync();
 
@@ -179,8 +184,8 @@ namespace ChargeSlot.Api.Services.Implementation
 
         /// <summary>
         /// Admin resolves dispute:
-        /// - Driver wins → ResolvedRefund → refund driver
-        /// - Owner wins → ResolvedPayout → pay owner
+        /// - Driver wins → ResolvedRefund → ESCROW → Driver (full refund)
+        /// - Owner wins → ResolvedPayout → ESCROW → Owner (net) + PLATFORM_REVENUE (fee)
         /// Both → invoice = Resolved, booking = Completed
         /// </summary>
         public async Task<DisputeDto> ResolveDisputeAsync(int adminUserId, int disputeId, ResolveDisputeDto dto)
@@ -220,23 +225,154 @@ namespace ChargeSlot.Api.Services.Implementation
 
             await _db.SaveChangesAsync();
 
+            // ── WALLET SETTLEMENT ──
+            if (dto.IsDriverWin)
+            {
+                // ESCROW → Driver: full refund (toàn bộ TotalAmount driver đã trả)
+                await RefundToDriverAsync(dispute.Booking, dispute);
+            }
+            else
+            {
+                // ESCROW → Owner (net) + PLATFORM_REVENUE (fee): giống flow confirm
+                if (dispute.Invoice != null)
+                {
+                    await SettleToOwnerAsync(dispute.Booking, dispute.Invoice, dispute);
+                }
+            }
+
             // Notify both parties
             var verdict = dto.IsDriverWin ? "hoàn tiền cho Driver" : "thanh toán cho Owner";
+            var driverAmount = dto.IsDriverWin ? $" Số tiền {dispute.Booking.TotalAmount:N0}đ đã hoàn vào ví." : "";
+            var ownerAmount = !dto.IsDriverWin ? $" Số tiền {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví." : "";
 
             await _notificationService.SendAsync(
                 dispute.Booking.DriverUserId,
                 "Kết quả khiếu nại",
-                $"Khiếu nại #{dispute.Id} đã được xử lý. Kết quả: {verdict}. {dto.AdminNote}",
+                $"Khiếu nại #{dispute.Id} đã được xử lý. Kết quả: {verdict}.{driverAmount} {dto.AdminNote}",
                 NotificationType.Dispute);
 
             var ownerUserId = dispute.Booking.ChargingSlot.ChargingStation.OwnerUserId;
             await _notificationService.SendAsync(
                 ownerUserId,
                 "Kết quả khiếu nại",
-                $"Khiếu nại #{dispute.Id} đã được xử lý. Kết quả: {verdict}. {dto.AdminNote}",
+                $"Khiếu nại #{dispute.Id} đã được xử lý. Kết quả: {verdict}.{ownerAmount} {dto.AdminNote}",
                 NotificationType.Dispute);
 
             return MapToDto(dispute);
+        }
+
+        /// <summary>
+        /// ESCROW → Driver: hoàn toàn bộ TotalAmount.
+        /// </summary>
+        private async Task RefundToDriverAsync(Booking booking, Dispute dispute)
+        {
+            var now = DateTime.UtcNow;
+            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
+
+            // Get or create Driver wallet
+            var driverWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == booking.DriverUserId);
+            if (driverWallet == null)
+            {
+                driverWallet = new Wallet
+                {
+                    UserId = booking.DriverUserId,
+                    WalletType = WalletType.Driver,
+                    AvailableBalance = 0,
+                    FrozenBalance = 0,
+                    CreatedAt = now
+                };
+                _db.Wallets.Add(driverWallet);
+                await _db.SaveChangesAsync();
+            }
+
+            var refundAmount = booking.TotalAmount;
+
+            // Unfreeze from ESCROW.FrozenBalance (was frozen when dispute submitted)
+            escrowWallet.FrozenBalance -= refundAmount;
+            driverWallet.AvailableBalance += refundAmount;
+
+            var ledger = new LedgerTransaction
+            {
+                ReferenceType = "Refund",
+                ReferenceId = booking.Id,
+                Memo = $"Hoàn tiền booking #{booking.Id} (Dispute #{dispute.Id}) - {refundAmount:N0}đ → Driver",
+                CreatedByUserId = null,
+                CreatedAt = now,
+                Entries = new List<LedgerEntry>
+                {
+                    new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = refundAmount, CreatedAt = now },
+                    new LedgerEntry { WalletId = driverWallet.Id, Direction = LedgerDirection.Credit, Amount = refundAmount, CreatedAt = now }
+                }
+            };
+            _db.Set<LedgerTransaction>().Add(ledger);
+            await _db.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// ESCROW → Owner (net) + PLATFORM_REVENUE (fee). Owner wins dispute.
+        /// </summary>
+        private async Task SettleToOwnerAsync(Booking booking, Invoice invoice, Dispute dispute)
+        {
+            var ownerUserId = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
+            var now = DateTime.UtcNow;
+
+            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
+            var platformWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");
+
+            var ownerWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == ownerUserId);
+            if (ownerWallet == null)
+            {
+                ownerWallet = new Wallet
+                {
+                    UserId = ownerUserId,
+                    WalletType = WalletType.Owner,
+                    AvailableBalance = 0,
+                    FrozenBalance = 0,
+                    CreatedAt = now
+                };
+                _db.Wallets.Add(ownerWallet);
+                await _db.SaveChangesAsync();
+            }
+
+            var ownerNet = invoice.ChargingAmount;
+            var platformFee = invoice.PlatformFee;
+            var vatAmount = invoice.VatAmount;
+
+            // Unfreeze from ESCROW.FrozenBalance → distribute
+            escrowWallet.FrozenBalance -= (ownerNet + platformFee + vatAmount);
+            ownerWallet.AvailableBalance += ownerNet;
+
+            _db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            {
+                ReferenceType = "DisputeSettlement",
+                ReferenceId = booking.Id,
+                Memo = $"Dispute #{dispute.Id} - Owner thắng - Nhận {ownerNet:N0}đ (Station: {booking.ChargingSlot.ChargingStation.Name})",
+                CreatedAt = now,
+                Entries = new List<LedgerEntry>
+                {
+                    new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = ownerNet, CreatedAt = now },
+                    new LedgerEntry { WalletId = ownerWallet.Id, Direction = LedgerDirection.Credit, Amount = ownerNet, CreatedAt = now }
+                }
+            });
+
+            // ESCROW → PLATFORM_REVENUE (already unfrozen above)
+            platformWallet.AvailableBalance += platformFee;
+            // VAT stays as revenue in ESCROW for tax authority payment later
+
+            _db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            {
+                ReferenceType = "PlatformFee",
+                ReferenceId = booking.Id,
+                Memo = $"Phí nền tảng Dispute #{dispute.Id} - {platformFee:N0}đ (Station: {booking.ChargingSlot.ChargingStation.Name})",
+                CreatedAt = now,
+                Entries = new List<LedgerEntry>
+                {
+                    new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = platformFee, CreatedAt = now },
+                    new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
+                }
+            });
+
+            await _db.SaveChangesAsync();
         }
 
         public async Task<DisputeDto?> GetByIdAsync(int disputeId)

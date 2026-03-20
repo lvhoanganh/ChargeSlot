@@ -15,6 +15,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IInvoiceRepository _invoiceRepo;
         private readonly IBookingRepository _bookingRepo;
         private readonly IChargingSlotRepository _slotRepo;
+        private readonly IWalletRepository _walletRepo;
         private readonly INotificationService _notificationService;
         private readonly Data.ChargeSlotDbContext _db;
 
@@ -28,6 +29,7 @@ namespace ChargeSlot.Api.Services.Implementation
             IInvoiceRepository invoiceRepo,
             IBookingRepository bookingRepo,
             IChargingSlotRepository slotRepo,
+            IWalletRepository walletRepo,
             INotificationService notificationService,
             Data.ChargeSlotDbContext db)
         {
@@ -35,6 +37,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _invoiceRepo = invoiceRepo;
             _bookingRepo = bookingRepo;
             _slotRepo = slotRepo;
+            _walletRepo = walletRepo;
             _notificationService = notificationService;
             _db = db;
         }
@@ -133,20 +136,22 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.Status = BookingStatus.CompletedPendingInvoice;
             await _bookingRepo.UpdateAsync(booking);
 
-            // Create invoice from pre-calculated booking amount
-            var chargingAmount = booking.TotalAmount;
-            var vatAmount = Math.Round(chargingAmount * VatRate, 0);
-            var platformFee = Math.Round(chargingAmount * PlatformFeeRate, 0);
-            var totalInvoice = chargingAmount + vatAmount + platformFee;
+            // Create invoice - VAT & PlatformFee are DEDUCTED from booking amount
+            // Driver đã trả booking.TotalAmount → ESCROW
+            // Owner sẽ nhận: TotalAmount - VAT - PlatformFee
+            var grossAmount = booking.TotalAmount;
+            var vatAmount = Math.Round(grossAmount * VatRate, 0);
+            var platformFee = Math.Round(grossAmount * PlatformFeeRate, 0);
+            var ownerNetAmount = grossAmount - vatAmount - platformFee;
 
             var invoice = new Invoice
             {
                 BookingId = booking.Id,
-                ChargingAmount = chargingAmount,
-                ServiceAmount = 0, // TODO: calculate from BookingExtraServices
-                VatAmount = vatAmount,
-                PlatformFee = platformFee,
-                TotalAmount = totalInvoice,
+                ChargingAmount = ownerNetAmount,  // Số tiền Owner thực nhận
+                ServiceAmount = 0,
+                VatAmount = vatAmount,             // Thuế (8%)
+                PlatformFee = platformFee,         // Phí nền tảng (5%)
+                TotalAmount = grossAmount,         // Tổng Driver đã trả
                 Status = InvoiceStatus.PendingConfirm,
                 CreatedAt = now
             };
@@ -165,7 +170,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 booking.DriverUserId,
                 "Phiên sạc đã kết thúc",
-                $"Phiên sạc #{session.Id} đã kết thúc. Vui lòng xác nhận hóa đơn {totalInvoice:N0}đ.",
+                $"Phiên sạc #{session.Id} đã kết thúc. Vui lòng xác nhận hóa đơn {grossAmount:N0}đ.",
                 NotificationType.Booking);
 
             return MapToDto(session, booking);
@@ -199,6 +204,13 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.Status = BookingStatus.Completed;
             await _bookingRepo.UpdateAsync(booking);
 
+            // ── WALLET SETTLEMENT ──
+            // ESCROW → Owner (net amount) + ESCROW → PLATFORM_REVENUE (fee)
+            if (invoice != null)
+            {
+                await SettlePaymentToOwnerAsync(booking, invoice);
+            }
+
             // Notify Owner
             var station = booking.ChargingSlot?.ChargingStation;
             if (station != null)
@@ -206,11 +218,89 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _notificationService.SendAsync(
                     station.OwnerUserId,
                     "Driver đã xác nhận hoàn thành",
-                    $"Booking #{booking.Id} đã được xác nhận hoàn thành.",
-                    NotificationType.Booking);
+                    $"Booking #{booking.Id} đã hoàn thành. Số tiền {invoice?.ChargingAmount:N0}đ đã được chuyển vào ví của bạn.",
+                    NotificationType.Payment);
             }
 
             return MapToBookingDto(booking);
+        }
+
+        /// <summary>
+        /// Chuyển tiền từ ESCROW → Owner wallet (net) + PLATFORM_REVENUE (fee).
+        /// Ghi ledger double-entry cho mỗi giao dịch.
+        /// </summary>
+        private async Task SettlePaymentToOwnerAsync(Booking booking, Invoice invoice)
+        {
+            var ownerUserId = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
+            var now = DateTime.UtcNow;
+
+            // Get wallets
+            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
+            var platformWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");
+
+            // Get or create Owner wallet
+            var ownerWallet = await _walletRepo.GetByUserIdAsync(ownerUserId);
+            if (ownerWallet == null)
+            {
+                ownerWallet = new Wallet
+                {
+                    UserId = ownerUserId,
+                    WalletType = WalletType.Owner,
+                    AvailableBalance = 0,
+                    FrozenBalance = 0,
+                    CreatedAt = now
+                };
+                await _walletRepo.CreateAsync(ownerWallet);
+            }
+
+            var ownerNet = invoice.ChargingAmount;  // Net amount after VAT + platform fee deducted
+            var platformFee = invoice.PlatformFee;
+            var totalDeducted = ownerNet + platformFee; // VAT stays in ESCROW (paid to tax authority later)
+
+            // 1. ESCROW → Owner: net amount
+            escrowWallet.AvailableBalance -= ownerNet;
+            ownerWallet.AvailableBalance += ownerNet;
+
+            var ownerLedger = new LedgerTransaction
+            {
+                ReferenceType = "Settlement",
+                ReferenceId = booking.Id,
+                Memo = $"Thanh toán booking #{booking.Id} - Owner nhận {ownerNet:N0}đ (sau trừ phí 5% + thuế 8%)",
+                CreatedByUserId = null, // System
+                CreatedAt = now,
+                Entries = new List<LedgerEntry>
+                {
+                    new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = ownerNet, CreatedAt = now },
+                    new LedgerEntry { WalletId = ownerWallet.Id, Direction = LedgerDirection.Credit, Amount = ownerNet, CreatedAt = now }
+                }
+            };
+            await _walletRepo.AddLedgerTransactionAsync(ownerLedger);
+
+            // 2. ESCROW → PLATFORM_REVENUE: platform fee
+            escrowWallet.AvailableBalance -= platformFee;
+            platformWallet.AvailableBalance += platformFee;
+
+            var feeLedger = new LedgerTransaction
+            {
+                ReferenceType = "PlatformFee",
+                ReferenceId = booking.Id,
+                Memo = $"Phí nền tảng booking #{booking.Id} - {platformFee:N0}đ (Station: {booking.ChargingSlot.ChargingStation.Name})",
+                CreatedByUserId = null,
+                CreatedAt = now,
+                Entries = new List<LedgerEntry>
+                {
+                    new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = platformFee, CreatedAt = now },
+                    new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
+                }
+            };
+            await _walletRepo.AddLedgerTransactionAsync(feeLedger);
+
+            // Note: VAT (invoice.VatAmount) remains in ESCROW for tax authority payment
+            // A separate admin process would handle VAT remittance
+
+            await _walletRepo.UpdateAsync(escrowWallet);
+            await _walletRepo.UpdateAsync(ownerWallet);
+            await _walletRepo.UpdateAsync(platformWallet);
         }
 
         public async Task<ChargingSessionDto?> GetByBookingIdAsync(int bookingId)
