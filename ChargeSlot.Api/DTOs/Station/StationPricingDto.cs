@@ -1,9 +1,9 @@
-namespace ChargeSlot.Api.DTOs.Slot
+namespace ChargeSlot.Api.DTOs.Station
 {
-    public class SlotPricingDto
+    public class StationPricingDto
     {
         public int Id { get; set; }
-        public int SlotId { get; set; }
+        public int StationId { get; set; }
         public byte? DayOfWeek { get; set; }
         public TimeOnly StartTime { get; set; }
         public TimeOnly EndTime { get; set; }
@@ -15,7 +15,7 @@ namespace ChargeSlot.Api.DTOs.Slot
         public DateTime CreatedAt { get; set; }
     }
 
-    public class CreateSlotPricingDto
+    public class CreateStationPricingDto
     {
         public byte? DayOfWeek { get; set; }
         public string StartTime { get; set; } = null!; // "00:00"
@@ -26,7 +26,7 @@ namespace ChargeSlot.Api.DTOs.Slot
         public DateTime? EffectiveTo { get; set; }
     }
 
-    public class UpdateSlotPricingDto
+    public class UpdateStationPricingDto
     {
         public byte? DayOfWeek { get; set; }
         public string StartTime { get; set; } = null!;

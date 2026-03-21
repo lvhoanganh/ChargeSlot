@@ -24,7 +24,7 @@ namespace ChargeSlot.Api.Data
         public DbSet<StationOperatingHours> StationOperatingHours => Set<StationOperatingHours>();
         public DbSet<ExtraService> ExtraServices => Set<ExtraService>();
         public DbSet<ChargingSlot> ChargingSlots => Set<ChargingSlot>();
-        public DbSet<SlotPricing> SlotPricings => Set<SlotPricing>();
+        public DbSet<StationPricing> StationPricings => Set<StationPricing>();
         public DbSet<Booking> Bookings => Set<Booking>();
         public DbSet<BookingExtraService> BookingExtraServices => Set<BookingExtraService>();
         public DbSet<Payment> Payments => Set<Payment>();

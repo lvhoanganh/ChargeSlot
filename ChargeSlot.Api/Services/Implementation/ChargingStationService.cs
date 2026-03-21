@@ -235,30 +235,27 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _stationRepo.SaveChangesAsync();
             }
 
-            // Station-level pricing → tạo SlotPricing cho TẤT CẢ slots
-            if (dto.StationPricing?.Count > 0 && station.ChargingSlots.Count > 0)
+            // Station-level pricing
+            if (dto.StationPricing?.Count > 0)
             {
                 var now = DateTime.UtcNow;
-                foreach (var slot in station.ChargingSlots)
+                foreach (var p in dto.StationPricing)
                 {
-                    foreach (var p in dto.StationPricing)
-                    {
-                        if (!TimeOnly.TryParse(p.StartTime, out var startTime) ||
-                            !TimeOnly.TryParse(p.EndTime, out var endTime))
-                            continue;
+                    if (!TimeOnly.TryParse(p.StartTime, out var startTime) ||
+                        !TimeOnly.TryParse(p.EndTime, out var endTime))
+                        continue;
 
-                        _context.Set<SlotPricing>().Add(new SlotPricing
-                        {
-                            SlotId = slot.Id,
-                            StartTime = startTime,
-                            EndTime = endTime,
-                            PricePerHour = p.PricePerHour,
-                            Priority = 1,
-                            EffectiveFrom = now,
-                            IsActive = true,
-                            CreatedAt = now
-                        });
-                    }
+                    _context.Set<StationPricing>().Add(new StationPricing
+                    {
+                        StationId = station.Id,
+                        StartTime = startTime,
+                        EndTime = endTime,
+                        PricePerHour = p.PricePerHour,
+                        Priority = 1,
+                        EffectiveFrom = now,
+                        IsActive = true,
+                        CreatedAt = now
+                    });
                 }
                 await _context.SaveChangesAsync();
             }
@@ -552,22 +549,22 @@ namespace ChargeSlot.Api.Services.Implementation
                     QrCodeToken = s.QrCodeToken,
                     Status = s.Status.ToString(),
                     CreatedAt = s.CreatedAt,
-                    UpdatedAt = s.UpdatedAt,
-                    PricingTiers = s.SlotPricings?.Where(p => p.IsActive).Select(p => new SlotPricingDto
-                    {
-                        Id = p.Id,
-                        SlotId = p.SlotId,
-                        DayOfWeek = p.DayOfWeek,
-                        StartTime = p.StartTime,
-                        EndTime = p.EndTime,
-                        PricePerHour = p.PricePerHour,
-                        Priority = p.Priority,
-                        EffectiveFrom = p.EffectiveFrom,
-                        EffectiveTo = p.EffectiveTo,
-                        IsActive = p.IsActive,
-                        CreatedAt = p.CreatedAt
-                    }).OrderBy(p => p.StartTime).ToList()
-                }).ToList()
+                    UpdatedAt = s.UpdatedAt
+                }).ToList(),
+                PricingTiers = station.StationPricings?.Where(p => p.IsActive).Select(p => new StationPricingDto
+                {
+                    Id = p.Id,
+                    StationId = p.StationId,
+                    DayOfWeek = p.DayOfWeek,
+                    StartTime = p.StartTime,
+                    EndTime = p.EndTime,
+                    PricePerHour = p.PricePerHour,
+                    Priority = p.Priority,
+                    EffectiveFrom = p.EffectiveFrom,
+                    EffectiveTo = p.EffectiveTo,
+                    IsActive = p.IsActive,
+                    CreatedAt = p.CreatedAt
+                }).OrderBy(p => p.StartTime).ToList() ?? new()
             };
         }
     }

@@ -24,6 +24,5 @@ namespace ChargeSlot.Api.Models
         public DateTime? UpdatedAt { get; set; }
 
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
-        public ICollection<SlotPricing> SlotPricings { get; set; } = new List<SlotPricing>();
     }
 }

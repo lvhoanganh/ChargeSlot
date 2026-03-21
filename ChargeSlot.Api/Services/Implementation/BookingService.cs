@@ -51,16 +51,16 @@ namespace ChargeSlot.Api.Services.Implementation
             if (hasOverlap)
                 throw new InvalidOperationException("Slot đã được đặt trong khung giờ này.");
 
-            // Tính giá từ pricing tiers — tách theo từng khung giờ
+            // Tính giá từ pricing tiers (station-level) — tách theo từng khung giờ
             // VD: booking 11h-14h, tier 5h-12h=10K + 12h-15h=12K → 1h×10K + 2h×12K = 34K
-            var pricings = await _context.Set<SlotPricing>()
-                .Where(p => p.SlotId == dto.SlotId && p.IsActive)
+            var pricings = await _context.Set<StationPricing>()
+                .Where(p => p.StationId == slot.StationId && p.IsActive)
                 .OrderByDescending(p => p.Priority)
                 .ThenBy(p => p.StartTime)
                 .ToListAsync();
 
             if (pricings.Count == 0)
-                throw new InvalidOperationException("Slot chưa được cài đặt giá. Vui lòng liên hệ chủ trạm.");
+                throw new InvalidOperationException("Trạm chưa được cài đặt giá. Vui lòng liên hệ chủ trạm.");
 
             var totalAmount = CalculateTotalPrice(dto.StartTime, endTime, pricings);
 
@@ -216,7 +216,7 @@ namespace ChargeSlot.Api.Services.Implementation
         ///     → segment 12h-14h = 2h × 12K = 24K
         ///     → tổng = 34K
         /// </summary>
-        private static decimal CalculateTotalPrice(DateTime startTime, DateTime endTime, List<SlotPricing> pricings)
+        private static decimal CalculateTotalPrice(DateTime startTime, DateTime endTime, List<StationPricing> pricings)
         {
             decimal total = 0;
             var current = startTime;

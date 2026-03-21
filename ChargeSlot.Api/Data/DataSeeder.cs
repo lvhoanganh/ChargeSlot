@@ -42,7 +42,7 @@ namespace ChargeSlot.Api.Data
             // ============================
             // 2. ADMIN
             // ============================
-            var adminPhone = "0123456789";
+            var adminPhone = "0999999999";
             var adminPassword = "Admin123!";
             var adminUser = await userManager.FindByNameAsync(adminPhone);
 
@@ -350,17 +350,13 @@ namespace ChargeSlot.Api.Data
                 await context.SaveChangesAsync();
 
                 // ============================
-                // 7. SLOT PRICING (giá theo khung giờ)
+                // 7. STATION PRICING (giá theo khung giờ — chung cho tất cả slot)
                 // ============================
-                // Station 1 - Trụ A1: giá khác nhau theo khung giờ
-                var slotA1 = station1.ChargingSlots.First(s => s.SlotName == "Trụ A1");
-                var slotA2 = station1.ChargingSlots.First(s => s.SlotName == "Trụ A2");
-
-                context.Set<SlotPricing>().AddRange(
-                    // Trụ A1: 0h-8h = 8,000đ (giờ thấp điểm), 8h-17h = 15,000đ (giờ bình thường), 17h-24h = 20,000đ (giờ cao điểm)
-                    new SlotPricing
+                // Station 1: 3 khung giờ
+                context.Set<StationPricing>().AddRange(
+                    new StationPricing
                     {
-                        SlotId = slotA1.Id,
+                        StationId = station1.Id,
                         StartTime = new TimeOnly(0, 0),
                         EndTime = new TimeOnly(8, 0),
                         PricePerHour = 8000,
@@ -369,9 +365,9 @@ namespace ChargeSlot.Api.Data
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow
                     },
-                    new SlotPricing
+                    new StationPricing
                     {
-                        SlotId = slotA1.Id,
+                        StationId = station1.Id,
                         StartTime = new TimeOnly(8, 0),
                         EndTime = new TimeOnly(17, 0),
                         PricePerHour = 15000,
@@ -380,9 +376,9 @@ namespace ChargeSlot.Api.Data
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow
                     },
-                    new SlotPricing
+                    new StationPricing
                     {
-                        SlotId = slotA1.Id,
+                        StationId = station1.Id,
                         StartTime = new TimeOnly(17, 0),
                         EndTime = new TimeOnly(23, 59),
                         PricePerHour = 20000,
@@ -390,33 +386,21 @@ namespace ChargeSlot.Api.Data
                         EffectiveFrom = DateTime.UtcNow.AddDays(-7),
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow
-                    },
-                    // Trụ A2: cuối tuần giá tăng
-                    new SlotPricing
-                    {
-                        SlotId = slotA2.Id,
-                        DayOfWeek = 6, // Thứ 7
-                        StartTime = new TimeOnly(0, 0),
-                        EndTime = new TimeOnly(23, 59),
-                        PricePerHour = 22000,
-                        Priority = 2,
-                        EffectiveFrom = DateTime.UtcNow.AddDays(-7),
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new SlotPricing
-                    {
-                        SlotId = slotA2.Id,
-                        DayOfWeek = 0, // Chủ nhật
-                        StartTime = new TimeOnly(0, 0),
-                        EndTime = new TimeOnly(23, 59),
-                        PricePerHour = 22000,
-                        Priority = 2,
-                        EffectiveFrom = DateTime.UtcNow.AddDays(-7),
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow
                     }
                 );
+
+                // Station 2: giá đồng nhất cả ngày
+                context.Set<StationPricing>().Add(new StationPricing
+                {
+                    StationId = station2.Id,
+                    StartTime = new TimeOnly(0, 0),
+                    EndTime = new TimeOnly(23, 59),
+                    PricePerHour = 12000,
+                    Priority = 1,
+                    EffectiveFrom = DateTime.UtcNow.AddDays(-5),
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                });
 
                 await context.SaveChangesAsync();
             }

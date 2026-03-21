@@ -1,11 +1,11 @@
 namespace ChargeSlot.Api.Models
 {
-    /// <summary>Optional time-of-day pricing per slot (SQL SlotPricing).</summary>
-    public class SlotPricing
+    /// <summary>Station-level pricing tiers (giá theo khung giờ, áp dụng chung cho tất cả slot).</summary>
+    public class StationPricing
     {
         public int Id { get; set; }
-        public int SlotId { get; set; }
-        public ChargingSlot ChargingSlot { get; set; } = null!;
+        public int StationId { get; set; }
+        public ChargingStation ChargingStation { get; set; } = null!;
 
         public byte? DayOfWeek { get; set; }
         public TimeOnly StartTime { get; set; }

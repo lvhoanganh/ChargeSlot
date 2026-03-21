@@ -30,7 +30,7 @@ namespace ChargeSlot.Api.Controllers
                 .Include(s => s.Images)
                 .Include(s => s.OperatingHours)
                 .Include(s => s.ChargingSlots)
-                    .ThenInclude(slot => slot.SlotPricings)
+                .Include(s => s.StationPricings)
                 .Include(s => s.ExtraServices)
                 .Where(s => s.ApprovalStatus == ApprovalStatus.Approved
                     && s.OperationalStatus == OperationalStatus.Active)
@@ -48,7 +48,7 @@ namespace ChargeSlot.Api.Controllers
                 .Include(s => s.Images)
                 .Include(s => s.OperatingHours)
                 .Include(s => s.ChargingSlots)
-                    .ThenInclude(slot => slot.SlotPricings)
+                .Include(s => s.StationPricings)
                 .Include(s => s.ExtraServices)
                 .FirstOrDefaultAsync(s => s.Id == id
                     && s.ApprovalStatus == ApprovalStatus.Approved
@@ -97,23 +97,23 @@ namespace ChargeSlot.Api.Controllers
                     PositionY = s.PositionY,
                     Status = s.Status.ToString(),
                     CreatedAt = s.CreatedAt,
-                    UpdatedAt = s.UpdatedAt,
+                    UpdatedAt = s.UpdatedAt
                     // Note: không expose QrCodeToken cho public API
-                    PricingTiers = s.SlotPricings?.Where(p => p.IsActive).Select(p => new SlotPricingDto
-                    {
-                        Id = p.Id,
-                        SlotId = p.SlotId,
-                        DayOfWeek = p.DayOfWeek,
-                        StartTime = p.StartTime,
-                        EndTime = p.EndTime,
-                        PricePerHour = p.PricePerHour,
-                        Priority = p.Priority,
-                        EffectiveFrom = p.EffectiveFrom,
-                        EffectiveTo = p.EffectiveTo,
-                        IsActive = p.IsActive,
-                        CreatedAt = p.CreatedAt
-                    }).OrderBy(p => p.StartTime).ToList()
-                }).ToList()
+                }).ToList(),
+                PricingTiers = station.StationPricings?.Where(p => p.IsActive).Select(p => new StationPricingDto
+                {
+                    Id = p.Id,
+                    StationId = p.StationId,
+                    DayOfWeek = p.DayOfWeek,
+                    StartTime = p.StartTime,
+                    EndTime = p.EndTime,
+                    PricePerHour = p.PricePerHour,
+                    Priority = p.Priority,
+                    EffectiveFrom = p.EffectiveFrom,
+                    EffectiveTo = p.EffectiveTo,
+                    IsActive = p.IsActive,
+                    CreatedAt = p.CreatedAt
+                }).OrderBy(p => p.StartTime).ToList() ?? new()
             };
         }
     }

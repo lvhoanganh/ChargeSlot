@@ -35,5 +35,6 @@ namespace ChargeSlot.Api.Models
         public ICollection<StationOperatingHours> OperatingHours { get; set; } = new List<StationOperatingHours>();
         public ICollection<ExtraService> ExtraServices { get; set; } = new List<ExtraService>();
         public ICollection<ChargingSlot> ChargingSlots { get; set; } = new List<ChargingSlot>();
+        public ICollection<StationPricing> StationPricings { get; set; } = new List<StationPricing>();
     }
 }

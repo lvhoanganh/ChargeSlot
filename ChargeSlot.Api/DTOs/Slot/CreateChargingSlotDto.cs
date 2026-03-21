@@ -10,8 +10,5 @@ namespace ChargeSlot.Api.DTOs.Slot
 
         public decimal? PositionX { get; set; }
         public decimal? PositionY { get; set; }
-
-        /// <summary>Giá theo khung giờ (bắt buộc ít nhất 1 khung).</summary>
-        public List<PricingTierItem>? PricingTiers { get; set; }
     }
 }

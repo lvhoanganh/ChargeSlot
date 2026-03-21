@@ -32,12 +32,7 @@ namespace ChargeSlot.Api.Services.Implementation
             if (slot == null || slot.StationId != stationId)
                 return null;
 
-            var pricings = await _db.Set<SlotPricing>()
-                .Where(p => p.SlotId == slotId && p.IsActive)
-                .OrderBy(p => p.StartTime)
-                .ToListAsync();
-
-            return MapToDto(slot, pricings);
+            return MapToDto(slot);
         }
 
         public async Task<List<ChargingSlotDto>> GetAllByStationAsync(int stationId, int ownerUserId)
@@ -45,14 +40,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await ValidateStationOwnershipAsync(stationId, ownerUserId);
 
             var slots = await _slotRepo.GetAllByStationAsync(stationId);
-            var slotIds = slots.Select(s => s.Id).ToList();
-
-            var pricings = await _db.Set<SlotPricing>()
-                .Where(p => slotIds.Contains(p.SlotId) && p.IsActive)
-                .OrderBy(p => p.StartTime)
-                .ToListAsync();
-
-            return slots.Select(s => MapToDto(s, pricings.Where(p => p.SlotId == s.Id).ToList())).ToList();
+            return slots.Select(MapToDto).ToList();
         }
 
         public async Task<ChargingSlotDto> CreateAsync(int stationId, int ownerUserId, CreateChargingSlotDto dto)
@@ -80,15 +68,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _slotRepo.AddAsync(slot);
             await _slotRepo.SaveChangesAsync();
 
-            // Save pricing tiers
-            var savedPricings = new List<SlotPricing>();
-            if (dto.PricingTiers?.Count > 0)
-            {
-                savedPricings = SavePricingTiers(slot.Id, dto.PricingTiers);
-                await _db.SaveChangesAsync();
-            }
-
-            return MapToDto(slot, savedPricings);
+            return MapToDto(slot);
         }
 
         public async Task UpdateAsync(int stationId, int slotId, int ownerUserId, UpdateChargingSlotDto dto)
@@ -104,24 +84,7 @@ namespace ChargeSlot.Api.Services.Implementation
             slot.PositionY = dto.PositionY;
             slot.UpdatedAt = DateTime.UtcNow;
 
-            // Replace all pricing tiers
-            if (dto.PricingTiers != null)
-            {
-                // Remove old pricing
-                var oldPricings = await _db.Set<SlotPricing>()
-                    .Where(p => p.SlotId == slotId)
-                    .ToListAsync();
-                _db.Set<SlotPricing>().RemoveRange(oldPricings);
-
-                // Add new pricing
-                if (dto.PricingTiers.Count > 0)
-                {
-                    SavePricingTiers(slotId, dto.PricingTiers);
-                }
-            }
-
             await _slotRepo.SaveChangesAsync();
-            await _db.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int stationId, int slotId, int ownerUserId)
@@ -131,12 +94,6 @@ namespace ChargeSlot.Api.Services.Implementation
             var slot = await _slotRepo.GetByIdAsync(slotId, tracking: true);
             if (slot == null || slot.StationId != stationId)
                 throw new KeyNotFoundException($"Slot {slotId} not found in station {stationId}.");
-
-            // Also delete pricing
-            var pricings = await _db.Set<SlotPricing>()
-                .Where(p => p.SlotId == slotId)
-                .ToListAsync();
-            _db.Set<SlotPricing>().RemoveRange(pricings);
 
             _slotRepo.Remove(slot);
             await _slotRepo.SaveChangesAsync();
@@ -189,37 +146,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new UnauthorizedAccessException("You do not own this station.");
         }
 
-        /// <summary>Parse and save pricing tiers to DB.</summary>
-        private List<SlotPricing> SavePricingTiers(int slotId, List<PricingTierItem> tiers)
-        {
-            var now = DateTime.UtcNow;
-            var result = new List<SlotPricing>();
-
-            foreach (var tier in tiers)
-            {
-                if (!TimeOnly.TryParse(tier.StartTime, out var startTime) ||
-                    !TimeOnly.TryParse(tier.EndTime, out var endTime))
-                    continue;
-
-                var pricing = new SlotPricing
-                {
-                    SlotId = slotId,
-                    StartTime = startTime,
-                    EndTime = endTime,
-                    PricePerHour = tier.PricePerHour,
-                    Priority = 1,
-                    EffectiveFrom = now,
-                    IsActive = true,
-                    CreatedAt = now
-                };
-                _db.Set<SlotPricing>().Add(pricing);
-                result.Add(pricing);
-            }
-
-            return result;
-        }
-
-        private static ChargingSlotDto MapToDto(ChargingSlot slot, List<SlotPricing>? pricings = null)
+        private static ChargingSlotDto MapToDto(ChargingSlot slot)
         {
             return new ChargingSlotDto
             {
@@ -231,20 +158,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 QrCodeToken = slot.QrCodeToken,
                 Status = slot.Status.ToString(),
                 CreatedAt = slot.CreatedAt,
-                UpdatedAt = slot.UpdatedAt,
-                PricingTiers = pricings?.Select(p => new SlotPricingDto
-                {
-                    Id = p.Id,
-                    SlotId = p.SlotId,
-                    StartTime = p.StartTime,
-                    EndTime = p.EndTime,
-                    PricePerHour = p.PricePerHour,
-                    Priority = p.Priority,
-                    EffectiveFrom = p.EffectiveFrom,
-                    EffectiveTo = p.EffectiveTo,
-                    IsActive = p.IsActive,
-                    CreatedAt = p.CreatedAt
-                }).ToList()
+                UpdatedAt = slot.UpdatedAt
             };
         }
     }
