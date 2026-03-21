@@ -40,7 +40,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var slot = await _slotRepo.GetByIdAsync(dto.SlotId)
                 ?? throw new InvalidOperationException("Slot không tồn tại.");
 
-            if (slot.Status != SlotStatus.Active)
+            if (slot.Status == SlotStatus.Inactive || slot.Status == SlotStatus.Maintenance)
                 throw new InvalidOperationException("Slot hiện không khả dụng.");
 
             // Step 6: Validate slot availability (check overlap)
@@ -50,6 +50,12 @@ namespace ChargeSlot.Api.Services.Implementation
             // Step 7: Available?
             if (hasOverlap)
                 throw new InvalidOperationException("Slot đã được đặt trong khung giờ này.");
+
+            // Không cho 1 driver book trùng giờ (dù khác slot)
+            var driverOverlap = await _bookingRepo.HasDriverOverlappingBookingAsync(
+                driverUserId, dto.StartTime, endTime);
+            if (driverOverlap)
+                throw new InvalidOperationException("Bạn đã có booking trùng khung giờ này. Vui lòng chọn giờ khác.");
 
             // Tính giá từ pricing tiers (station-level) — tách theo từng khung giờ
             // VD: booking 11h-14h, tier 5h-12h=10K + 12h-15h=12K → 1h×10K + 2h×12K = 34K

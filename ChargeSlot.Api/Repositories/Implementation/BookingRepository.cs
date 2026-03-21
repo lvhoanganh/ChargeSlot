@@ -75,6 +75,29 @@ namespace ChargeSlot.Api.Repositories.Implementation
             return await query.AnyAsync();
         }
 
+        public async Task<bool> HasDriverOverlappingBookingAsync(int driverUserId, DateTime startTime, DateTime endTime, int? excludeBookingId = null)
+        {
+            var activeStatuses = new[]
+            {
+                BookingStatus.WaitingOwner,
+                BookingStatus.PendingPayment,
+                BookingStatus.Paid,
+                BookingStatus.CheckedIn,
+                BookingStatus.InProgress
+            };
+
+            var query = _db.Bookings
+                .Where(b => b.DriverUserId == driverUserId
+                    && activeStatuses.Contains(b.Status)
+                    && b.StartTime < endTime
+                    && b.EndTime > startTime);
+
+            if (excludeBookingId.HasValue)
+                query = query.Where(b => b.Id != excludeBookingId.Value);
+
+            return await query.AnyAsync();
+        }
+
         public async Task<Booking> CreateAsync(Booking booking)
         {
             _db.Bookings.Add(booking);
