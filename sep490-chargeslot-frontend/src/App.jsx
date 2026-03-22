@@ -39,6 +39,12 @@ import OwnerProfile from "./pages/owner/OwnerProfile";
 import OwnerEditProfile from "./pages/owner/EditOwnerProfile";
 import StationMap from "./pages/driver/StationMap";
 import StationDetailDriver from "./pages/driver/StationDetailDriver";
+import BookingForm from "./pages/driver/BookingForm";
+import MyBookings from "./pages/driver/MyBookings";
+import BookingStatus from "./pages/driver/BookingStatus";
+import PaymentResult from "./pages/driver/PaymentResult";
+import BookingRequests from "./pages/owner/BookingRequests";
+import BookingRequestDetail from "./pages/owner/BookingRequestDetail";
 
 export default function App() {
   return (
@@ -51,6 +57,8 @@ export default function App() {
           <Route path="about" element={<About />} />
           <Route path="driver/map" element={<StationMap />} />
           <Route path="driver/station/:id" element={<StationDetailDriver />} />
+          <Route path="driver/station/:stationId/book" element={<BookingForm />} />
+          <Route path="payment/result" element={<PaymentResult />} />
           <Route path="setPassword" element={<SetPassword />} />
           <Route path="forgotPassword" element={<ForgotPassword />} />
           <Route path="verifyOtp" element={<VerifyOtp />} />
@@ -87,11 +95,15 @@ export default function App() {
             <Route path="check-in-result" element={<CheckInResult />} />
             <Route path="charging" element={<ChargingActive />} />
             <Route path="charging-complete" element={<ChargingComplete />} />
+            <Route path="my-bookings" element={<MyBookings />} />
+            <Route path="booking/:id" element={<BookingStatus />} />
           </Route>
         </Route>
         <Route path="owner" element={<OwnerLayout />}>
           <Route path="owner-profile" element={<OwnerProfile />} />
           <Route path="update-owner-profile" element={<OwnerEditProfile />} />
+          <Route path="booking-requests" element={<BookingRequests />} />
+          <Route path="booking/:id" element={<BookingRequestDetail />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

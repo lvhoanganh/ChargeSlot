@@ -170,6 +170,139 @@ export const slotApi = {
             body: JSON.stringify(data),
         }),
 
+    updateStatus: (stationId, slotId, data) =>
+        apiFetch(`/stations/${stationId}/slots/${slotId}/status`, {
+            method: "PATCH",
+            body: JSON.stringify(data),
+        }),
+
     delete: (stationId, slotId) =>
         apiFetch(`/stations/${stationId}/slots/${slotId}`, { method: "DELETE" }),
+};
+
+// ============================
+// STATION PRICING (giá theo khung giờ — per station)
+// ============================
+
+export const stationPricingApi = {
+    getAll: (stationId) =>
+        apiFetch(`/stations/${stationId}/pricing`),
+
+    create: (stationId, data) =>
+        apiFetch(`/stations/${stationId}/pricing`, {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
+    update: (stationId, pricingId, data) =>
+        apiFetch(`/stations/${stationId}/pricing/${pricingId}`, {
+            method: "PUT",
+            body: JSON.stringify(data),
+        }),
+
+    delete: (stationId, pricingId) =>
+        apiFetch(`/stations/${stationId}/pricing/${pricingId}`, { method: "DELETE" }),
+};
+
+// ============================
+// PUBLIC STATIONS (Driver browse)
+// ============================
+
+export const publicStationApi = {
+    getAll: () => apiFetch("/public/stations"),
+    getById: (id) => apiFetch(`/public/stations/${id}`),
+};
+
+// ============================
+// BOOKING
+// ============================
+
+export const bookingApi = {
+    create: (data) =>
+        apiFetch("/Booking", {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
+    getDriverBookings: () => apiFetch("/Booking/driver"),
+
+    getOwnerBookings: () => apiFetch("/Booking/owner"),
+
+    getById: (id) => apiFetch(`/Booking/${id}`),
+
+    accept: (id) =>
+        apiFetch(`/Booking/${id}/accept`, { method: "PUT" }),
+
+    reject: (id, rejectionReason) =>
+        apiFetch(`/Booking/${id}/reject`, {
+            method: "PUT",
+            body: JSON.stringify({ rejectionReason }),
+        }),
+};
+
+// ============================
+// PAYMENT
+// ============================
+
+export const paymentApi = {
+    createPaymentUrl: (bookingId) =>
+        apiFetch(`/Payment/${bookingId}/create-payment-url`, { method: "POST" }),
+};
+
+// ============================
+// CHARGING SESSION
+// ============================
+
+export const chargingApi = {
+    checkIn: (qrCodeToken) =>
+        apiFetch("/charging/check-in", {
+            method: "POST",
+            body: JSON.stringify({ qrCodeToken }),
+        }),
+
+    stopCharging: (sessionId) =>
+        apiFetch(`/charging/${sessionId}/stop`, { method: "PUT" }),
+
+    confirmCompletion: (sessionId) =>
+        apiFetch(`/charging/${sessionId}/confirm`, { method: "PUT" }),
+
+    getActiveSessions: () => apiFetch("/charging/active"),
+
+    getByBookingId: (bookingId) => apiFetch(`/charging/booking/${bookingId}`),
+
+    getInvoice: (bookingId) => apiFetch(`/charging/invoice/${bookingId}`),
+};
+
+// ============================
+// WALLET
+// ============================
+
+export const walletApi = {
+    getWallet: () => apiFetch("/Wallet"),
+
+    topUp: (amount) =>
+        apiFetch("/Wallet/top-up", {
+            method: "POST",
+            body: JSON.stringify({ amount }),
+        }),
+
+    payBooking: (bookingId) =>
+        apiFetch(`/Wallet/pay-booking/${bookingId}`, { method: "POST" }),
+
+    withdraw: (amount) =>
+        apiFetch("/Wallet/withdraw", {
+            method: "POST",
+            body: JSON.stringify({ amount }),
+        }),
+
+    getTransactions: () => apiFetch("/Wallet/transactions"),
+};
+
+// ============================
+// NOTIFICATION
+// ============================
+
+export const notificationApi = {
+    getAll: () => apiFetch("/Notification"),
+    markAsRead: (id) => apiFetch(`/Notification/${id}/read`, { method: "PUT" }),
 };

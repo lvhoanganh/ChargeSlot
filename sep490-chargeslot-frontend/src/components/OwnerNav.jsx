@@ -79,6 +79,12 @@ export default function OwnerNav() {
           <NavLink to="/about" className={navLinkClass}>
             Về ChargeSlot
           </NavLink>
+          <NavLink to="/owner/booking-requests" className={navLinkClass}>
+            Booking
+          </NavLink>
+          <NavLink to="/stations" className={navLinkClass}>
+            Danh sách trạm
+          </NavLink>
         </div>
 
         {!token && (

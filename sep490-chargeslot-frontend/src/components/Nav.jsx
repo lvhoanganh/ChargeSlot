@@ -106,6 +106,11 @@ export default function Nav() {
             <NavLink to="/driver/map" className={navLinkClass}>
               Tìm trạm
             </NavLink>
+            {token && normalizedRole === "driver" && (
+              <NavLink to="/driver/my-bookings" className={navLinkClass}>
+                Booking
+              </NavLink>
+            )}
             <button
               onClick={handleCheckin}
               className={`px-3 py-2 rounded-md cursor-pointer transition-colors ${isCheckinPage

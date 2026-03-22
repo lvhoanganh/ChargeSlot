@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { mockStations } from "@/data/mockStations";
+import { publicStationApi } from "@/services/api";
 
 /* ─── Inject pulse animation (same as StationMap) ─── */
 if (!document.getElementById("station-marker-pulse")) {
@@ -68,20 +68,47 @@ const statusConfig = {
 
 const slotStatusConfig = {
   Available: { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
+  Active: { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
   Occupied: { label: "Đang dùng", color: "#ef4444", bg: "#fef2f2" },
   Maintenance: { label: "Bảo trì", color: "#f97316", bg: "#fff7ed" },
+  Inactive: { label: "Ngưng", color: "#6b7280", bg: "#f3f4f6" },
 };
 
 export default function StationDetailDriver() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [station, setStation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const station = useMemo(
-    () => mockStations.find((s) => s.id === Number(id)),
-    [id]
-  );
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    publicStationApi.getById(Number(id))
+      .then((data) => {
+        if (!cancelled) setStation(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [id]);
 
-  if (!station) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f3f4f5] pt-24 px-4">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="text-5xl mb-4">⚡</div>
+          <p className="text-gray-500">Đang tải thông tin trạm sạc...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !station) {
     return (
       <div className="min-h-screen bg-[#f3f4f5] pt-24 px-4">
         <div className="max-w-3xl mx-auto text-center">
@@ -90,7 +117,7 @@ export default function StationDetailDriver() {
             Không tìm thấy trạm sạc
           </h2>
           <p className="text-gray-500 mb-6">
-            Trạm sạc không tồn tại hoặc đã bị xóa.
+            {error || "Trạm sạc không tồn tại hoặc đã bị xóa."}
           </p>
           <button
             onClick={() => navigate("/driver/map")}
@@ -104,8 +131,8 @@ export default function StationDetailDriver() {
   }
 
   const st = statusConfig[station.operationalStatus] || statusConfig.Open;
-  const availableSlots = station.chargingSlots.filter(
-    (s) => s.status === "Available"
+  const availableSlots = (station.chargingSlots || []).filter(
+    (s) => s.status === "Available" || s.status === "Active"
   ).length;
 
   return (
@@ -226,10 +253,12 @@ export default function StationDetailDriver() {
           </div>
           <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
             <div className="text-lg font-bold text-amber-600">
-              {Math.min(
-                ...station.chargingSlots.map((s) => s.pricePerHour)
-              ).toLocaleString("vi-VN")}
-              đ
+              {(() => {
+                const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
+                const prices = tiers.map(t => t.pricePerHour);
+                if (prices.length === 0) return "Liên hệ";
+                return Math.min(...prices).toLocaleString("vi-VN") + "đ";
+              })()}
             </div>
             <div className="text-xs text-gray-500 mt-1">Giá từ/h</div>
           </div>
@@ -307,14 +336,11 @@ export default function StationDetailDriver() {
                         {slot.slotName}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {slot.connectorType} • {slot.powerOutput}kW
+                        Vị trí: {slot.positionY && slot.positionX ? `${String.fromCharCode(64 + Number(slot.positionY))}${slot.positionX}` : "—"}
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-sm" style={{ color: "#d97706" }}>
-                      {slot.pricePerHour?.toLocaleString("vi-VN")}đ/h
-                    </div>
                     <span
                       className="text-xs font-medium px-2 py-0.5 rounded-full"
                       style={{ color: ss.color, background: `${ss.color}15` }}
@@ -326,6 +352,25 @@ export default function StationDetailDriver() {
               );
             })}
           </div>
+
+          {/* Station-level pricing tiers */}
+          {(() => {
+            const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
+            if (tiers.length === 0) return null;
+            return (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">⏰ Giá theo khung giờ</h3>
+                <div className="space-y-1">
+                  {tiers.map((tier, idx) => (
+                    <div key={idx} className="flex justify-between text-xs bg-gray-50 rounded-lg px-3 py-2">
+                      <span className="text-gray-500">{String(tier.startTime).substring(0,5)}–{String(tier.endTime).substring(0,5)}</span>
+                      <span className="font-bold text-amber-600">{tier.pricePerHour?.toLocaleString("vi-VN")}đ/h</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Operating hours */}
@@ -411,7 +456,7 @@ export default function StationDetailDriver() {
               {station.images.map((img) => (
                 <img
                   key={img.id}
-                  src={img.imageUrl}
+                  src={img.imageUrl?.startsWith("http") ? img.imageUrl : `http://localhost:5162${img.imageUrl}`}
                   alt="Station"
                   className="w-full h-40 object-cover rounded-xl"
                 />
@@ -422,7 +467,7 @@ export default function StationDetailDriver() {
 
         {/* Book button */}
         <button
-          onClick={() => alert("Chức năng đặt lịch sẽ được phát triển sau!")}
+          onClick={() => navigate(`/driver/station/${station.id}/book`)}
           className="w-full py-4 text-white font-bold text-base rounded-2xl shadow-lg transition-all hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
           style={{
             background: "linear-gradient(135deg, #f97316, #ea580c)",

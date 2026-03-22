@@ -96,7 +96,6 @@ const slotSchema = z.object({
   slotName: z.string().trim().min(1, "Tên trụ sạc là bắt buộc"),
   connectorType: z.string().trim().min(1, "Loại đầu sạc là bắt buộc"),
   powerKw: requiredNumber("Công suất", 0),
-  basePricePerHour: requiredNumber("Giá theo giờ", 0),
   positionX: requiredNumber("Tọa độ X", 0),
   positionY: requiredNumber("Tọa độ Y", 0),
 });
@@ -117,4 +116,9 @@ export const createChargingStationSchema = z.object({
     .array(operatingHourSchema)
     .min(1, "Cần ít nhất một cấu hình giờ hoạt động"),
   slots: z.array(slotSchema).min(1, "Cần ít nhất một trụ sạc"),
+  stationPricing: z.array(z.object({
+    startTime: z.string(),
+    endTime: z.string(),
+    pricePerHour: z.union([z.string(), z.number()]),
+  })).optional().default([]),
 });
