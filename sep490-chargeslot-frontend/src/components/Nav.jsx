@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/authStore";
 import { useState, useRef, useEffect } from "react";
 import { walletApi } from "@/services/api";
+import NotificationBell from "@/components/NotificationBell";
 
 const DEFAULT_AVATAR =
   "https://avatarngau.sbs/wp-content/uploads/2025/07/avatar-vo-danh-va-sach.jpg";
@@ -151,6 +152,9 @@ export default function Nav() {
           )}
 
           {token && (
+            <div className="flex items-center gap-3">
+              <NotificationBell />
+
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen((prev) => !prev)}
@@ -274,6 +278,7 @@ export default function Nav() {
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           )}
         </div>

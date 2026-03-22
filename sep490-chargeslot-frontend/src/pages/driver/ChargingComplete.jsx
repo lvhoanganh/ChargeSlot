@@ -1,36 +1,105 @@
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { chargingApi } from "@/services/api";
 
-const MOCK_RESULT = {
-  booking: {
-    id: 1001,
-    slotName: "Cổng sạc A5",
-    stationName: "Trạm sạc Vinhomes Grand Park",
-    address: "Thủ Đức, TP.HCM",
-    connectorType: "Type 2",
-    powerKw: 22,
-    startTime: "2026-03-19T20:30:00",
-    endTime: "2026-03-19T22:00:00",
-    totalAmount: 120000,
-  },
-  chargingResult: { duration: 6847, energyKwh: 35.2 },
+const toLocal = (dt) => {
+  if (!dt) return "—";
+  const s = String(dt);
+  return new Date(s.endsWith("Z") ? s : s + "Z").toLocaleString("vi-VN");
 };
 
 function formatDuration(s) {
+  if (!s || s <= 0) return "—";
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   return h > 0 ? `${h} giờ ${m} phút` : `${m} phút`;
 }
-function formatCurrency(a) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(a); }
-function formatDateTime(d) { return new Date(d).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
+
+function formatCurrency(a) {
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(a || 0);
+}
 
 export default function ChargingComplete() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { booking, chargingResult } = location.state || MOCK_RESULT;
+  const sessionFromState = location.state?.session;
+
+  const [session, setSession] = useState(sessionFromState || null);
+  const [invoice, setInvoice] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // If we have session, try to load invoice
+        if (sessionFromState?.bookingId) {
+          const inv = await chargingApi.getInvoice(sessionFromState.bookingId).catch(() => null);
+          setInvoice(inv);
+        }
+
+        // If session is already completed, mark as confirmed
+        if (sessionFromState?.bookingStatus === "Completed") {
+          setConfirmed(true);
+        }
+      } catch { /* ignore */ }
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  async function handleConfirm() {
+    if (!session) return;
+    setConfirming(true);
+    setError("");
+    try {
+      await chargingApi.confirmCompletion(session.id);
+      setConfirmed(true);
+    } catch (err) {
+      setError(err?.message || "Lỗi xác nhận, vui lòng thử lại!");
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e8ecf1 100%)" }}>
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-green-200 border-t-green-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Đang tải hóa đơn...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e8ecf1 100%)" }}>
+        <div className="max-w-md w-full rounded-2xl bg-white shadow-xl p-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-bold text-gray-800 mb-2">Không tìm thấy phiên sạc</h2>
+          <button onClick={() => navigate("/driver/my-bookings")} className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl cursor-pointer transition-all mt-4">
+            Về danh sách booking
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate duration
+  const actualDurationSec = session.actualDurationHours ? session.actualDurationHours * 3600 : 0;
 
   return (
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
       <div className="max-w-md mx-auto">
+        {/* Success banner */}
         <div className="rounded-2xl overflow-hidden shadow-xl mb-6" style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)" }}>
           <div className="px-8 py-10 flex flex-col items-center text-center">
             <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mb-4">
@@ -39,37 +108,34 @@ export default function ChargingComplete() {
               </svg>
             </div>
             <h1 className="text-2xl font-bold text-white mb-1">Sạc hoàn tất!</h1>
+            <p className="text-white/80 text-sm">Cảm ơn bạn đã sử dụng dịch vụ ChargeSlot</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="rounded-xl bg-white shadow-lg p-5 text-center">
-            <span className="text-3xl">⚡</span>
-            <p className="text-2xl font-bold text-gray-800 mt-2">{chargingResult.energyKwh} kWh</p>
-            <p className="text-xs text-gray-500 mt-1">Năng lượng đã sạc</p>
-          </div>
+        {/* Stats */}
+        <div className="mb-6">
           <div className="rounded-xl bg-white shadow-lg p-5 text-center">
             <span className="text-3xl">⏱️</span>
-            <p className="text-2xl font-bold text-gray-800 mt-2">{formatDuration(chargingResult.duration)}</p>
+            <p className="text-2xl font-bold text-gray-800 mt-2">{formatDuration(actualDurationSec)}</p>
             <p className="text-xs text-gray-500 mt-1">Thời gian sạc</p>
           </div>
         </div>
 
+        {/* Invoice */}
         <div className="rounded-2xl bg-white shadow-lg overflow-hidden mb-6">
           <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-bold text-gray-700">🧾 Hóa đơn (từ Owner)</h2>
+            <h2 className="text-sm font-bold text-gray-700">🧾 Hóa đơn</h2>
           </div>
           <div className="px-6 py-5 space-y-3">
-            <InfoRow label="Trạm sạc" value={booking.stationName} />
-            <InfoRow label="Cổng sạc" value={booking.slotName} />
-            <InfoRow label="Loại cổng" value={`${booking.connectorType} — ${booking.powerKw}kW`} />
-            <InfoRow label="Bắt đầu" value={formatDateTime(booking.startTime)} />
-            <InfoRow label="Kết thúc" value={formatDateTime(booking.endTime)} />
-            <InfoRow label="Năng lượng" value={`${chargingResult.energyKwh} kWh`} />
+            <InfoRow label="Mã booking" value={`#${session.bookingId}`} />
+            <InfoRow label="Trạm sạc" value={session.stationName || "—"} />
+            <InfoRow label="Cổng sạc" value={session.slotName || `Slot ${session.slotId}`} />
+            <InfoRow label="Bắt đầu" value={toLocal(session.actualStartTime || session.checkinTime)} />
+            <InfoRow label="Kết thúc" value={toLocal(session.actualEndTime || session.bookingEndTime)} />
             <div className="border-t border-gray-100 pt-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold text-gray-800">Tổng tiền</span>
-                <span className="text-lg font-bold text-orange-600">{formatCurrency(booking.totalAmount)}</span>
+                <span className="text-lg font-bold text-orange-600">{formatCurrency(invoice?.totalAmount || session.totalAmount)}</span>
               </div>
               <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
@@ -81,12 +147,33 @@ export default function ChargingComplete() {
           </div>
         </div>
 
-        <button
-          onClick={() => navigate("/")}
-          className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-200 transition-all hover:shadow-xl cursor-pointer"
-        >
-          Xác nhận hoàn thành
-        </button>
+        {error && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        {!confirmed ? (
+          <button
+            onClick={handleConfirm}
+            disabled={confirming}
+            className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-200 transition-all hover:shadow-xl cursor-pointer disabled:opacity-50"
+          >
+            {confirming ? "Đang xử lý..." : "✅ Xác nhận hoàn thành"}
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">
+              <p className="text-sm font-semibold text-green-700">✅ Đã xác nhận hoàn thành!</p>
+            </div>
+            <button
+              onClick={() => navigate("/driver/my-bookings")}
+              className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-200 transition-all hover:shadow-xl cursor-pointer"
+            >
+              Về danh sách booking
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

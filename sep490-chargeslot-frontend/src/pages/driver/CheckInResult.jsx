@@ -1,26 +1,9 @@
-import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-
-const MOCK_BOOKING = {
-  id: 1001,
-  slotId: 5,
-  slotName: "Cổng sạc A5",
-  stationName: "Trạm sạc Vinhomes Grand Park",
-  address: "Thủ Đức, TP.HCM",
-  connectorType: "Type 2",
-  powerKw: 22,
-  startTime: "2026-03-19T20:30:00",
-  endTime: "2026-03-19T22:00:00",
-  totalAmount: 120000,
-};
-
-function formatTime(d) { return new Date(d).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }); }
-function formatDate(d) { return new Date(d).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }); }
-function formatCurrency(a) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(a); }
 
 export default function CheckInResult() {
   const navigate = useNavigate();
   const location = useLocation();
+
   if (!location.state) {
     return (
       <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
@@ -40,39 +23,7 @@ export default function CheckInResult() {
     );
   }
 
-  const success = location.state.success;
-  const reason = location.state.reason || "";
-  const booking = MOCK_BOOKING;
-
-  const [verifying, setVerifying] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setVerifying(false), 2500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (verifying) {
-    return (
-      <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
-        <div className="max-w-md w-full">
-          <div className="rounded-2xl bg-white shadow-xl p-10 flex flex-col items-center text-center">
-            <div className="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center mb-6">
-              <div className="w-10 h-10 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-            </div>
-            <h1 className="text-xl font-bold text-gray-800 mb-2">Đang xử lý check-in...</h1>
-            <p className="text-sm text-gray-500">Hệ thống đang kiểm tra booking và xác thực vị trí</p>
-
-            <div className="w-full mt-8 space-y-3">
-              <VerifyStep label="Kiểm tra slot" status="done" />
-              <VerifyStep label="Kiểm tra booking đã thanh toán" status="loading" />
-              <VerifyStep label="Xác thực khung giờ" status="pending" />
-              <VerifyStep label="Kiểm tra cổng sạc" status="pending" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const { success, reason, session } = location.state;
 
   return (
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
@@ -97,36 +48,32 @@ export default function CheckInResult() {
               {success ? "Check-in thành công!" : "Check-in thất bại"}
             </h1>
             <p className="text-white/80 text-sm">
-              {success ? "Xác thực hoàn tất — phiên sạc sẵn sàng bắt đầu" : reason}
+              {success ? "Xác thực hoàn tất — phiên sạc đã bắt đầu" : reason}
             </p>
           </div>
         </div>
 
-        {success && (
+        {success && session && (
           <>
             <div className="rounded-2xl bg-white shadow-lg overflow-hidden mb-6">
               <div className="px-6 py-4 border-b border-gray-100">
                 <h2 className="text-sm font-bold text-gray-700">⚡ Thông tin phiên sạc</h2>
               </div>
               <div className="px-6 py-5 space-y-3">
-                <InfoRow label="Mã booking" value={`#${booking.id}`} />
-                <InfoRow label="Trạm sạc" value={booking.stationName} />
-                <InfoRow label="Cổng sạc" value={booking.slotName} />
-                <InfoRow label="Loại cổng" value={`${booking.connectorType} — ${booking.powerKw}kW`} />
-                <InfoRow label="Khung giờ" value={`${formatTime(booking.startTime)} — ${formatTime(booking.endTime)}`} />
-                <InfoRow label="Ngày" value={formatDate(booking.startTime)} />
-                <InfoRow label="Đã thanh toán" value={formatCurrency(booking.totalAmount)} highlight />
+                <InfoRow label="Mã booking" value={`#${session.bookingId}`} />
+                <InfoRow label="Trạm sạc" value={session.stationName || "—"} />
+                <InfoRow label="Cổng sạc" value={session.slotName || `Slot ${session.slotId}`} />
               </div>
             </div>
 
             <button
-              onClick={() => navigate("/driver/charging", { state: { booking } })}
+              onClick={() => navigate("/driver/charging", { state: { session } })}
               className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-200 transition-all hover:shadow-xl cursor-pointer flex items-center justify-center gap-2"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              Bắt đầu sạc
+              Xem phiên sạc
             </button>
           </>
         )}
@@ -142,10 +89,16 @@ export default function CheckInResult() {
               </ul>
             </div>
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/driver/scan-qr")}
               className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-200 transition-all cursor-pointer"
             >
-              Về trang chủ
+              Quét lại
+            </button>
+            <button
+              onClick={() => navigate("/driver/my-bookings")}
+              className="w-full h-12 border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 cursor-pointer transition-all"
+            >
+              Xem danh sách booking
             </button>
           </div>
         )}
@@ -154,57 +107,11 @@ export default function CheckInResult() {
   );
 }
 
-function VerifyStep({ label, status }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-        {status === "done" && (
-          <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-            <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-          </div>
-        )}
-        {status === "loading" && (
-          <div className="w-5 h-5 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-        )}
-        {status === "pending" && (
-          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
-            <div className="w-2 h-2 rounded-full bg-gray-300" />
-          </div>
-        )}
-      </div>
-      <span className={`text-sm ${status === "done" ? "text-gray-700" : status === "loading" ? "text-orange-600 font-medium" : "text-gray-400"}`}>
-        {label}
-      </span>
-    </div>
-  );
-}
-
-function CheckRow({ label, pass }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${pass ? "bg-green-100" : "bg-red-100"}`}>
-        {pass ? (
-          <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-        ) : (
-          <svg className="w-3.5 h-3.5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        )}
-      </div>
-      <span className="text-sm text-gray-700">{label}</span>
-    </div>
-  );
-}
-
-function InfoRow({ label, value, highlight }) {
+function InfoRow({ label, value }) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-sm text-gray-500">{label}</span>
-      <span className={`text-sm font-semibold ${highlight ? "text-green-600" : "text-gray-800"}`}>{value}</span>
+      <span className="text-sm font-semibold text-gray-800">{value}</span>
     </div>
   );
 }

@@ -1,15 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { chargingApi } from "@/services/api";
 
-const MOCK_BOOKING = {
-  id: 1001,
-  slotName: "Cổng sạc A5",
-  stationName: "Trạm sạc Vinhomes Grand Park",
-  connectorType: "Type 2",
-  powerKw: 22,
-  startTime: "2026-03-19T20:30:00",
-  endTime: "2026-03-19T22:00:00",
-  totalAmount: 120000,
+const toLocal = (dt) => {
+  if (!dt) return "";
+  const s = String(dt);
+  return new Date(s.endsWith("Z") ? s : s + "Z");
 };
 
 function formatDuration(s) {
@@ -22,40 +18,91 @@ function formatDuration(s) {
 export default function ChargingActive() {
   const navigate = useNavigate();
   const location = useLocation();
-  const booking = location.state?.booking || MOCK_BOOKING;
+  const session = location.state?.session;
 
-  const startRef = useRef(Date.now());
-  const endTime = new Date(booking.endTime).getTime();
-  const totalDuration = Math.max(0, Math.floor((endTime - startRef.current) / 1000));
-
+  const [sessionData, setSessionData] = useState(session || null);
   const [elapsed, setElapsed] = useState(0);
-  const [energyKwh, setEnergyKwh] = useState(0);
+  const [loading, setLoading] = useState(!session);
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState("");
+  const startRef = useRef(Date.now());
 
+  // If no session from state, try to load from bookingId in URL
   useEffect(() => {
+    if (session) return;
+    // Fallback — could navigate here with bookingId
+    const bookingId = location.state?.bookingId;
+    if (!bookingId) {
+      navigate("/driver/my-bookings");
+      return;
+    }
+    chargingApi.getByBookingId(bookingId)
+      .then(data => { setSessionData(data); setLoading(false); })
+      .catch(() => { navigate("/driver/my-bookings"); });
+  }, []);
+
+  // Timer
+  useEffect(() => {
+    if (!sessionData) return;
     const interval = setInterval(() => {
       const sec = Math.floor((Date.now() - startRef.current) / 1000);
       setElapsed(sec);
-      setEnergyKwh(((sec / 3600) * booking.powerKw * 0.85).toFixed(2));
     }, 1000);
     return () => clearInterval(interval);
-  }, [booking.powerKw]);
+  }, [sessionData]);
 
+  // Poll session status every 10s — check if Owner stopped
+  useEffect(() => {
+    if (!sessionData) return;
+    const interval = setInterval(async () => {
+      try {
+        const updated = await chargingApi.getByBookingId(sessionData.bookingId);
+        if (updated) {
+          setSessionData(updated);
+          // If session was stopped by owner or completed
+          if (updated.actualEndTime || updated.bookingStatus === "Completed") {
+            navigate("/driver/charging-complete", { state: { session: updated } });
+          }
+        }
+      } catch { /* ignore poll errors */ }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [sessionData?.bookingId]);
+
+  async function handleConfirm() {
+    if (!sessionData) return;
+    setConfirming(true);
+    setError("");
+    try {
+      const result = await chargingApi.confirmCompletion(sessionData.id);
+      navigate("/driver/charging-complete", { state: { session: result || sessionData } });
+    } catch (err) {
+      setError(err?.message || "Lỗi xác nhận, vui lòng thử lại!");
+      setConfirming(false);
+    }
+  }
+
+  if (loading || !sessionData) {
+    return (
+      <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e8ecf1 100%)" }}>
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Đang tải phiên sạc...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const endTime = toLocal(sessionData.bookingEndTime).getTime();
+  const totalDuration = Math.max(0, Math.floor((endTime - startRef.current) / 1000));
   const remaining = Math.max(0, totalDuration - elapsed);
   const progress = totalDuration > 0 ? Math.min(100, (elapsed / totalDuration) * 100) : 0;
   const isTimeUp = remaining <= 0;
 
-  function handleComplete() {
-    navigate("/driver/charging-complete", {
-      state: {
-        booking,
-        chargingResult: { duration: elapsed, energyKwh: parseFloat(energyKwh) },
-      },
-    });
-  }
-
   return (
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
       <div className="max-w-md mx-auto">
+        {/* Timer header */}
         <div
           className="rounded-2xl overflow-hidden shadow-xl mb-6"
           style={{ background: isTimeUp ? "linear-gradient(135deg, #f97316 0%, #ea580c 100%)" : "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }}
@@ -81,6 +128,7 @@ export default function ChargingActive() {
           </div>
         </div>
 
+        {/* Progress bar */}
         <div className="rounded-2xl bg-white shadow-lg overflow-hidden mb-6">
           <div className="px-6 py-4">
             <div className="flex justify-between text-xs text-gray-500 mb-2">
@@ -99,21 +147,31 @@ export default function ChargingActive() {
           </div>
         </div>
 
+        {/* Stats */}
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <StatCard icon="⚡" label="Năng lượng" value={`${energyKwh} kWh`} />
-          <StatCard icon="🔌" label="Công suất" value={`${booking.powerKw} kW`} />
-          <StatCard icon="🏷️" label="Cổng sạc" value={booking.slotName} />
-          <StatCard icon="🏢" label="Trạm" value={booking.stationName} />
+          <StatCard icon="🏷️" label="Cổng sạc" value={sessionData.slotName || `Slot ${sessionData.slotId}`} />
+          <StatCard icon="🏢" label="Trạm" value={sessionData.stationName || "—"} />
         </div>
 
+        {error && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
         <button
-          onClick={handleComplete}
-          className="w-full h-14 bg-green-500 hover:bg-green-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-green-200 transition-all hover:shadow-xl cursor-pointer flex items-center justify-center gap-2"
+          onClick={handleConfirm}
+          disabled={confirming}
+          className="w-full h-14 bg-green-500 hover:bg-green-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-green-200 transition-all hover:shadow-xl cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Hoàn thành phiên sạc
+          {confirming ? (
+            <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+          ) : (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          )}
+          {confirming ? "Đang xử lý..." : "Hoàn thành phiên sạc"}
         </button>
       </div>
     </div>

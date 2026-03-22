@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/authStore";
 import { useState, useRef, useEffect } from "react";
+import NotificationBell from "@/components/NotificationBell";
 
 const DEFAULT_AVATAR =
   "https://avatarngau.sbs/wp-content/uploads/2025/07/avatar-vo-danh-va-sach.jpg";
@@ -105,7 +106,9 @@ export default function OwnerNav() {
         )}
 
         {token && (
-          <div className="relative" ref={dropdownRef}>
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen((prev) => !prev)}
               className="flex items-center gap-2 cursor-pointer group focus:outline-none"
@@ -210,8 +213,9 @@ export default function OwnerNav() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
+            </div>
+            </div>
+          )}
       </div>
     </nav>
   );
