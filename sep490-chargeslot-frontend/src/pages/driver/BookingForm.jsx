@@ -141,6 +141,9 @@ export default function BookingForm() {
       return;
     }
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
     try {
       const res = await fetch("http://localhost:5162/api/Booking", {
         method: "POST",
@@ -154,6 +157,7 @@ export default function BookingForm() {
           durationHours: parseFloat(duration),
           note: note || undefined,
         }),
+        signal: controller.signal,
       });
 
       // Token hết hạn → login lại
@@ -173,9 +177,15 @@ export default function BookingForm() {
       // Lỗi từ backend (trùng giờ, slot không khả dụng, v.v.)
       setApiError(data?.message || `Đặt lịch thất bại (lỗi ${res.status})`);
     } catch (err) {
-      setApiError("Lỗi kết nối đến server, vui lòng thử lại!");
+      if (err.name === "AbortError") {
+        setApiError("⏱️ Yêu cầu quá lâu, vui lòng thử lại!");
+      } else {
+        setApiError("Lỗi kết nối đến server, vui lòng thử lại!");
+      }
+    } finally {
+      clearTimeout(timeout);
+      setSubmitting(false);
     }
-    setSubmitting(false);
   }
 
   if (loading) {
@@ -238,13 +248,7 @@ export default function BookingForm() {
                     }}
                   >
                     <div style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{slot.slotName}</div>
-                    {tiers.length > 0 ? (
-                      <div style={{ fontSize: 11, color: "#d97706", fontWeight: 600 }}>Theo khung giờ</div>
-                    ) : (
-                      <div style={{ fontSize: 12, color: "#d97706", fontWeight: 600 }}>
-                        Chưa có giá
-                      </div>
-                    )}
+
                     <div style={{ fontSize: 11, color: slot.status === "Booked" ? "#f59e0b" : isActive ? "#22c55e" : "#ef4444", marginTop: 2 }}>
                       {isActive ? "Trống" : slot.status === "Booked" ? "Có lịch đặt" : slot.status === "Inactive" ? "Ngưng" : slot.status === "Maintenance" ? "Bảo trì" : slot.status}
                     </div>

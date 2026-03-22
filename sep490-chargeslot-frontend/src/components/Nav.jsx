@@ -2,6 +2,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/authStore";
 import { useState, useRef, useEffect } from "react";
+import { walletApi } from "@/services/api";
 
 const DEFAULT_AVATAR =
   "https://avatarngau.sbs/wp-content/uploads/2025/07/avatar-vo-danh-va-sach.jpg";
@@ -38,6 +39,7 @@ export default function Nav() {
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [toast, setToast] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(null);
   const location = useLocation();
 
   const isCheckinPage = location.pathname.startsWith("/driver/scan-qr")
@@ -67,6 +69,15 @@ export default function Nav() {
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownOpen]);
+
+  // Fetch wallet balance cho driver
+  useEffect(() => {
+    if (token && normalizedRole === "driver") {
+      walletApi.getWallet()
+        .then(w => setWalletBalance(w?.availableBalance ?? null))
+        .catch(() => setWalletBalance(null));
+    }
+  }, [token, normalizedRole]);
 
   function handleCheckin() {
     if (!token) {
@@ -214,6 +225,24 @@ export default function Nav() {
                       <span className="text-gray-600">{roleLabels[normalizedRole] || normalizedRole}</span>
                     </div>
                   </div>
+
+                  {/* Wallet balance (driver only) */}
+                  {normalizedRole === "driver" && walletBalance !== null && (
+                    <div className="px-5 py-2.5 border-b border-gray-100">
+                      <button
+                        onClick={() => { setDropdownOpen(false); navigate("/driver/wallet"); }}
+                        className="w-full flex items-center gap-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors rounded-lg px-0 py-1 cursor-pointer"
+                        style={{ background: "none", border: "none" }}
+                      >
+                        <svg className="w-4 h-4 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                        </svg>
+                        <span>Ví tiền</span>
+                        <span className="ml-auto font-bold text-orange-600">{walletBalance.toLocaleString("vi-VN")}đ</span>
+                      </button>
+                    </div>
+                  )}
+
                   <div className="py-1">
                     <button
                       onClick={() => {

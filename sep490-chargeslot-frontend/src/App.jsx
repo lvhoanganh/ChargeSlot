@@ -43,6 +43,7 @@ import BookingForm from "./pages/driver/BookingForm";
 import MyBookings from "./pages/driver/MyBookings";
 import BookingStatus from "./pages/driver/BookingStatus";
 import PaymentResult from "./pages/driver/PaymentResult";
+import DriverWallet from "./pages/driver/DriverWallet";
 import BookingRequests from "./pages/owner/BookingRequests";
 import BookingRequestDetail from "./pages/owner/BookingRequestDetail";
 
@@ -97,6 +98,7 @@ export default function App() {
             <Route path="charging-complete" element={<ChargingComplete />} />
             <Route path="my-bookings" element={<MyBookings />} />
             <Route path="booking/:id" element={<BookingStatus />} />
+            <Route path="wallet" element={<DriverWallet />} />
           </Route>
         </Route>
         <Route path="owner" element={<OwnerLayout />}>

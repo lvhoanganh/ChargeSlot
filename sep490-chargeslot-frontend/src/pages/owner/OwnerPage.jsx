@@ -313,7 +313,7 @@ export default function OwnerPage() {
                                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
                                   <div className="flex items-center gap-2">
                                     <div style={{ width: 36, height: 36, borderRadius: 10, background: sc.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
                                     </div>
                                     <div>
                                       <div className="font-bold text-slate-900">{slot.slotName}</div>
@@ -403,7 +403,7 @@ export default function OwnerPage() {
 
                       {/* Station-level pricing */}
                       <div className="mt-4 pt-4 border-t border-slate-200">
-                        <StationPricingPanel stationId={s.id} pricingTiers={s.pricingTiers || []} onSaved={fetchStations} />
+                        <StationPricingPanel stationId={s.id} pricingTiers={s.pricingTiers || []} operatingHours={s.operatingHours || []} onSaved={fetchStations} />
                       </div>
                     </div>
                   )}
@@ -426,7 +426,7 @@ function InfoRow({ label, value, highlight }) {
   );
 }
 
-function StationPricingPanel({ stationId, pricingTiers: initialTiers, onSaved }) {
+function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingHours = [], onSaved }) {
   const [showAddPricing, setShowAddPricing] = useState(false);
   const [newTier, setNewTier] = useState({ startTime: "00:00", endTime: "08:00", pricePerHour: "" });
   const [pricingLoading, setPricingLoading] = useState(false);
@@ -434,7 +434,6 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, onSaved })
   const [pricingTiers, setPricingTiers] = useState(initialTiers);
   const [fetchingPricing, setFetchingPricing] = useState(false);
 
-  // Fetch pricing tiers from station pricing endpoint
   useEffect(() => {
     let cancelled = false;
     async function loadPricing() {
@@ -457,8 +456,55 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, onSaved })
     return String(t).substring(0, 5);
   }
 
+  const dayNames = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+
+  // Tính giờ mở sớm nhất & đóng muộn nhất (để so sánh pricing)
+  const openHours = operatingHours.filter(h => !h.isClosed);
+  let earliestOpen = "23:59";
+  let latestClose = "00:00";
+  openHours.forEach(h => {
+    const open = fmtTime(h.openTime);
+    const close = fmtTime(h.closeTime);
+    if (open < earliestOpen) earliestOpen = open;
+    if (close > latestClose) latestClose = close;
+  });
+  // Nếu close = 00:00 → coi là 24:00 (cả ngày)
+  if (latestClose === "00:00" && openHours.length > 0) latestClose = "23:59";
+
+  // Check pricing coverage gaps
+  function getCoverageWarnings() {
+    if (openHours.length === 0 || pricingTiers.length === 0) return [];
+    const warnings = [];
+    const sorted = [...pricingTiers].sort((a, b) => fmtTime(a.startTime).localeCompare(fmtTime(b.startTime)));
+
+    // Check gap trước khung giá đầu tiên
+    const firstPricingStart = fmtTime(sorted[0].startTime);
+    if (firstPricingStart > earliestOpen) {
+      warnings.push(`Thiếu giá: ${earliestOpen} – ${firstPricingStart}`);
+    }
+
+    // Check gaps giữa các khung giá
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const currentEnd = fmtTime(sorted[i].endTime);
+      const nextStart = fmtTime(sorted[i + 1].startTime);
+      if (nextStart > currentEnd) {
+        warnings.push(`Thiếu giá: ${currentEnd} – ${nextStart}`);
+      }
+    }
+
+    // Check gap sau khung giá cuối cùng
+    const lastPricingEnd = fmtTime(sorted[sorted.length - 1].endTime);
+    if (lastPricingEnd < latestClose) {
+      warnings.push(`Thiếu giá: ${lastPricingEnd} – ${latestClose}`);
+    }
+
+    return warnings;
+  }
+
+  const coverageWarnings = getCoverageWarnings();
+
   function getLastEndTime() {
-    if (pricingTiers.length === 0) return "00:00";
+    if (pricingTiers.length === 0) return earliestOpen || "00:00";
     const sorted = [...pricingTiers].sort((a, b) => String(a.endTime).localeCompare(String(b.endTime)));
     return fmtTime(sorted[sorted.length - 1].endTime);
   }
@@ -485,6 +531,12 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, onSaved })
 
     const lastEnd = getLastEndTime();
     if (newTier.startTime < lastEnd) { setPricingError(`Giờ bắt đầu phải từ ${lastEnd} trở đi!`); return; }
+
+    // Validate không vượt quá giờ đóng cửa
+    if (openHours.length > 0 && newTier.endTime > latestClose && latestClose !== "00:00") {
+      setPricingError(`Giờ kết thúc vượt quá giờ đóng cửa (${latestClose})!`);
+      return;
+    }
 
     setPricingLoading(true);
     try {
@@ -519,6 +571,47 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, onSaved })
 
   return (
     <div>
+      {/* Giờ hoạt động */}
+      <div className="mb-3">
+        <h4 className="text-sm font-bold text-slate-700 mb-1.5">🕐 Giờ hoạt động</h4>
+        {operatingHours.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {operatingHours.map((h) => (
+              <span
+                key={h.dayOfWeek}
+                className="text-[11px] px-2 py-1 rounded-lg border"
+                style={{
+                  background: h.isClosed ? "#fef2f2" : "#f0fdf4",
+                  color: h.isClosed ? "#ef4444" : "#16a34a",
+                  borderColor: h.isClosed ? "#fecaca" : "#bbf7d0",
+                }}
+              >
+                <strong>{dayNames[h.dayOfWeek]}</strong>{" "}
+                {h.isClosed ? "Nghỉ" : `${fmtTime(h.openTime)}–${fmtTime(h.closeTime)}`}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400 italic">Chưa cài giờ hoạt động.</p>
+        )}
+      </div>
+
+      {/* Coverage warnings */}
+      {coverageWarnings.length > 0 && (
+        <div className="mb-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <p className="text-[11px] font-bold text-amber-700 mb-1">⚠️ Chưa phủ hết giờ hoạt động:</p>
+          {coverageWarnings.map((w, i) => (
+            <p key={i} className="text-[11px] text-amber-600">• {w}</p>
+          ))}
+        </div>
+      )}
+      {openHours.length > 0 && pricingTiers.length > 0 && coverageWarnings.length === 0 && (
+        <div className="mb-2 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5">
+          <p className="text-[11px] font-semibold text-green-700">✅ Giá đã phủ hết giờ hoạt động</p>
+        </div>
+      )}
+
+      {/* Pricing tiers */}
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-sm font-bold text-slate-700">⏰ Giá theo khung giờ</h4>
         {!showAddPricing && (
