@@ -389,9 +389,9 @@ namespace ChargeSlot.Api.Seeds
 
             db.Payments.AddRange(
                 new Payment { BookingId = booking1.Id, Amount = booking1.TotalAmount, PaymentMethod = PaymentMethod.Wallet, Status = PaymentStatus.Completed, PaidAt = now.AddDays(-4), GatewayTxnRef = $"WALLET_{now.Ticks}", CreatedAt = now.AddDays(-4) },
-                new Payment { BookingId = booking2.Id, Amount = booking2.TotalAmount, PaymentMethod = PaymentMethod.VNPay, Status = PaymentStatus.Completed, PaidAt = now.AddDays(-3), GatewayTxnRef = $"VNP_{now.Ticks}", CreatedAt = now.AddDays(-3) },
+                new Payment { BookingId = booking2.Id, Amount = booking2.TotalAmount, PaymentMethod = PaymentMethod.EWallet, Status = PaymentStatus.Completed, PaidAt = now.AddDays(-3), GatewayTxnRef = $"VNP_{now.Ticks}", CreatedAt = now.AddDays(-3) },
                 new Payment { BookingId = booking3.Id, Amount = booking3.TotalAmount, PaymentMethod = PaymentMethod.Wallet, Status = PaymentStatus.Completed, PaidAt = now, GatewayTxnRef = $"WALLET_{now.Ticks + 1}", CreatedAt = now },
-                new Payment { BookingId = booking6.Id, Amount = booking6.TotalAmount, PaymentMethod = PaymentMethod.VNPay, Status = PaymentStatus.Completed, PaidAt = now.AddDays(-2), GatewayTxnRef = $"VNP_{now.Ticks + 2}", CreatedAt = now.AddDays(-2) },
+                new Payment { BookingId = booking6.Id, Amount = booking6.TotalAmount, PaymentMethod = PaymentMethod.EWallet, Status = PaymentStatus.Completed, PaidAt = now.AddDays(-2), GatewayTxnRef = $"VNP_{now.Ticks + 2}", CreatedAt = now.AddDays(-2) },
                 new Payment { BookingId = booking7.Id, Amount = booking7.TotalAmount, PaymentMethod = PaymentMethod.Wallet, Status = PaymentStatus.Completed, PaidAt = now.AddHours(-2), GatewayTxnRef = $"WALLET_{now.Ticks + 3}", CreatedAt = now.AddHours(-2) }
             );
             await db.SaveChangesAsync();
@@ -454,9 +454,6 @@ namespace ChargeSlot.Api.Seeds
                 Description = "Tôi đặt sạc 2 tiếng nhưng chỉ được 1.5 tiếng thì bị ngắt. Chủ trạm không giải thích.",
                 Status = DisputeStatus.PendingReview,
                 OwnerResponse = "Do nguồn điện khu vực bị mất tạm thời, không phải lỗi của trạm.",
-                OwnerRespondedAt = now.AddHours(-6),
-                DeadlineOwnerEvidence = now.AddHours(18),
-                DeadlineAdminReview = now.AddHours(42),
                 CreatedAt = now.AddHours(-12)
             };
             db.Disputes.Add(dispute);
