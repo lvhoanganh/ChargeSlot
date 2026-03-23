@@ -134,12 +134,11 @@ namespace ChargeSlot.Api.Seeds
                 new Wallet { UserId = driver3.Id, WalletType = WalletType.Driver, AvailableBalance = 200_000, FrozenBalance = 0, CreatedAt = now },
                 // Owner wallets
                 new Wallet { UserId = owner1.Id, WalletType = WalletType.Owner, AvailableBalance = 1_000_000, FrozenBalance = 0, CreatedAt = now },
-                new Wallet { UserId = owner2.Id, WalletType = WalletType.Owner, AvailableBalance = 800_000, FrozenBalance = 0, CreatedAt = now },
-                // System wallets (cần cho cancel/refund và payment flow)
-                new Wallet { WalletType = WalletType.System, SystemCode = "ESCROW", AvailableBalance = 100_000, FrozenBalance = 0, CreatedAt = now },
-                new Wallet { WalletType = WalletType.System, SystemCode = "PLATFORM_REVENUE", AvailableBalance = 0, FrozenBalance = 0, CreatedAt = now }
+                new Wallet { UserId = owner2.Id, WalletType = WalletType.Owner, AvailableBalance = 800_000, FrozenBalance = 0, CreatedAt = now }
             );
             await db.SaveChangesAsync();
+            
+            // System wallets (ESCROW, vv) đã được seed tự động qua HasData trong ChargeSlotDbContext
 
             // ══════════════════════════════════════════
             // 5. CHARGING STATIONS (3 trạm)
