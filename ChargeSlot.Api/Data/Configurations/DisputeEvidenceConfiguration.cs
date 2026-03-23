@@ -10,7 +10,7 @@ namespace ChargeSlot.Api.Data.Configurations
         {
             builder.ToTable("DisputeEvidence");
             builder.HasKey(x => x.Id);
-            builder.Property(x => x.FileUrl).HasMaxLength(500).IsRequired();
+            builder.Property(x => x.FileUrl).IsRequired();
             builder.Property(x => x.FileType).HasMaxLength(20).IsRequired();
             builder.HasOne(x => x.Dispute)
                 .WithMany(d => d.Evidences)

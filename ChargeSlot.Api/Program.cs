@@ -157,6 +157,9 @@ builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
 builder.Services.AddScoped<IDisputeRepository, DisputeRepository>();
 builder.Services.AddScoped<IDisputeService, DisputeService>();
 
+// Admin Revenue
+builder.Services.AddScoped<IAdminRevenueService, AdminRevenueService>();
+
 // Background Jobs
 builder.Services.AddHostedService<PaymentExpiryJob>();
 
