@@ -311,5 +311,16 @@ namespace ChargeSlot.Api.Services.Implementation
             await _otpRepository.SaveChangesAsync();
         }
 
+        public async Task ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString())
+                ?? throw new InvalidOperationException("User không tồn tại.");
+
+            var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+            if (!result.Succeeded)
+                throw new InvalidOperationException(
+                    string.Join("; ", result.Errors.Select(e => e.Description)));
+        }
+
     }
 }

@@ -92,7 +92,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // Upload evidence files
             if (dto.Files?.Length > 0)
             {
-                await SaveEvidenceFilesAsync(dispute, dto.Files);
+                await SaveEvidenceFilesAsync(dispute, dto.Files, driverUserId);
             }
 
             // Notify Owner
@@ -150,10 +150,17 @@ namespace ChargeSlot.Api.Services.Implementation
             // Upload evidence files
             if (dto.Files?.Length > 0)
             {
-                await SaveEvidenceFilesAsync(dispute, dto.Files);
+                await SaveEvidenceFilesAsync(dispute, dto.Files, ownerUserId);
             }
 
             await _db.SaveChangesAsync();
+
+            // Notify Driver: Owner đã phản hồi
+            await _notificationService.SendAsync(
+                dispute.Booking.DriverUserId,
+                "Owner đã phản hồi khiếu nại",
+                $"Khiếu nại #{dispute.Id} (Booking #{dispute.BookingId}) — Owner đã nộp bằng chứng phản hồi. Chờ Admin xem xét.",
+                NotificationType.Dispute);
 
             // Notify Admin
             var adminUsers = await _db.UserRoles
@@ -404,7 +411,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// <summary>
         /// Lưu files bằng chứng vào wwwroot/uploads/disputes/{disputeId}/ và tạo DisputeEvidence records.
         /// </summary>
-        private async Task SaveEvidenceFilesAsync(Dispute dispute, IFormFile[] files)
+        private async Task SaveEvidenceFilesAsync(Dispute dispute, IFormFile[] files, int uploadedByUserId)
         {
             var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "disputes", dispute.Id.ToString());
             Directory.CreateDirectory(uploadDir);
@@ -434,6 +441,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 dispute.Evidences.Add(new DisputeEvidence
                 {
                     DisputeId = dispute.Id,
+                    UploadedByUserId = uploadedByUserId,
                     FileUrl = publicUrl,
                     FileType = fileType,
                     CreatedAt = DateTime.UtcNow
@@ -453,6 +461,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 .Include(d => d.Invoice)
                 .Include(d => d.CreatedByUser)
                 .Include(d => d.Evidences)
+                    .ThenInclude(e => e.UploadedByUser)
                 .FirstOrDefaultAsync(d => d.Id == id);
         }
 
@@ -476,6 +485,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 Evidences = d.Evidences.Select(e => new DisputeEvidenceDto
                 {
                     Id = e.Id,
+                    UploadedByUserId = e.UploadedByUserId,
+                    UploadedByName = e.UploadedByUser?.FullName ?? "",
                     FileUrl = e.FileUrl,
                     FileType = e.FileType,
                     CreatedAt = e.CreatedAt

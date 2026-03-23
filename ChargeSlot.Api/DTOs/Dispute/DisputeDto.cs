@@ -21,6 +21,8 @@ namespace ChargeSlot.Api.DTOs.Dispute
     public class DisputeEvidenceDto
     {
         public int Id { get; set; }
+        public int UploadedByUserId { get; set; }
+        public string UploadedByName { get; set; } = null!;
         public string FileUrl { get; set; } = null!;
         public string FileType { get; set; } = null!;
         public DateTime CreatedAt { get; set; }

@@ -109,6 +109,18 @@ namespace ChargeSlot.Api.BackgroundJobs
                 _logger.LogInformation(
                     "Dispute {DisputeId} auto-resolved: Owner no evidence after 24h. Driver refunded {Amount}.",
                     dispute.Id, dispute.Booking.TotalAmount);
+
+                // Notify Admin
+                var adminUsers = await db.UserRoles
+                    .Where(ur => ur.RoleId == 1).Select(ur => ur.UserId).ToListAsync(ct);
+                foreach (var adminId in adminUsers)
+                {
+                    await notificationService.SendAsync(
+                        adminId,
+                        "Khiếu nại tự động xử lý",
+                        $"Khiếu nại #{dispute.Id} — Owner không phản hồi 24h → Driver được hoàn tiền {dispute.Booking.TotalAmount:N0}đ.",
+                        NotificationType.Dispute);
+                }
             }
         }
 
@@ -179,6 +191,18 @@ namespace ChargeSlot.Api.BackgroundJobs
                 _logger.LogInformation(
                     "Dispute {DisputeId} auto-resolved: Admin no action after 48h. Owner wins.",
                     dispute.Id);
+
+                // Notify Admin
+                var adminUsers = await db.UserRoles
+                    .Where(ur => ur.RoleId == 1).Select(ur => ur.UserId).ToListAsync(ct);
+                foreach (var adminId in adminUsers)
+                {
+                    await notificationService.SendAsync(
+                        adminId,
+                        "Khiếu nại tự động xử lý",
+                        $"Khiếu nại #{dispute.Id} — Quá hạn 48h không phân xử → Owner nhận tiền {dispute.Invoice?.ChargingAmount:N0}đ.",
+                        NotificationType.Dispute);
+                }
             }
         }
 

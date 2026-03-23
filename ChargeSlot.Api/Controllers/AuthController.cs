@@ -175,6 +175,23 @@ namespace ChargeSlot.Api.Controllers
         }
 
 
+        /// <summary>Đổi mật khẩu (cần đăng nhập, nhập mật khẩu cũ).</summary>
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                await _authService.ChangePasswordAsync(userId, dto.CurrentPassword, dto.NewPassword);
+                return Ok(new { message = "Đổi mật khẩu thành công." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
     }
 }
 
