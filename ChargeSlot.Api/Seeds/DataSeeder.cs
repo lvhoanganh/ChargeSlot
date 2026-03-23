@@ -124,15 +124,20 @@ namespace ChargeSlot.Api.Seeds
             await db.SaveChangesAsync();
 
             // ══════════════════════════════════════════
-            // 4. WALLETS (cho drivers & owners)
+            // 4. WALLETS (drivers, owners, SYSTEM)
             // ══════════════════════════════════════════
 
             db.Wallets.AddRange(
+                // Driver wallets
                 new Wallet { UserId = driver1.Id, WalletType = WalletType.Driver, AvailableBalance = 500_000, FrozenBalance = 0, CreatedAt = now },
                 new Wallet { UserId = driver2.Id, WalletType = WalletType.Driver, AvailableBalance = 300_000, FrozenBalance = 0, CreatedAt = now },
                 new Wallet { UserId = driver3.Id, WalletType = WalletType.Driver, AvailableBalance = 200_000, FrozenBalance = 0, CreatedAt = now },
+                // Owner wallets
                 new Wallet { UserId = owner1.Id, WalletType = WalletType.Owner, AvailableBalance = 1_000_000, FrozenBalance = 0, CreatedAt = now },
-                new Wallet { UserId = owner2.Id, WalletType = WalletType.Owner, AvailableBalance = 800_000, FrozenBalance = 0, CreatedAt = now }
+                new Wallet { UserId = owner2.Id, WalletType = WalletType.Owner, AvailableBalance = 800_000, FrozenBalance = 0, CreatedAt = now },
+                // System wallets (cần cho cancel/refund và payment flow)
+                new Wallet { WalletType = WalletType.System, SystemCode = "ESCROW", AvailableBalance = 100_000, FrozenBalance = 0, CreatedAt = now },
+                new Wallet { WalletType = WalletType.System, SystemCode = "PLATFORM_REVENUE", AvailableBalance = 0, FrozenBalance = 0, CreatedAt = now }
             );
             await db.SaveChangesAsync();
 
@@ -153,8 +158,8 @@ namespace ChargeSlot.Api.Seeds
                 SubmittedAt = now.AddDays(-10),
                 ReviewedAt = now.AddDays(-9),
                 ReviewedByUserId = admin.Id,
-                AverageRating = 4.5m,
-                TotalReviews = 3,
+                AverageRating = 4.0m,
+                TotalReviews = 2,
                 CreatedAt = now.AddDays(-15)
             };
 
@@ -171,8 +176,8 @@ namespace ChargeSlot.Api.Seeds
                 SubmittedAt = now.AddDays(-8),
                 ReviewedAt = now.AddDays(-7),
                 ReviewedByUserId = admin.Id,
-                AverageRating = 4.0m,
-                TotalReviews = 2,
+                AverageRating = 0m,
+                TotalReviews = 0,
                 CreatedAt = now.AddDays(-12)
             };
 
@@ -189,8 +194,8 @@ namespace ChargeSlot.Api.Seeds
                 SubmittedAt = now.AddDays(-6),
                 ReviewedAt = now.AddDays(-5),
                 ReviewedByUserId = admin.Id,
-                AverageRating = 4.8m,
-                TotalReviews = 4,
+                AverageRating = 5.0m,
+                TotalReviews = 1,
                 CreatedAt = now.AddDays(-10)
             };
 
@@ -239,20 +244,21 @@ namespace ChargeSlot.Api.Seeds
             }
             await db.SaveChangesAsync();
 
-            // ══════════════════════════════════════════
-            // 8. CHARGING SLOTS
-            // ══════════════════════════════════════════
+            // ═══════════════════════════════════════════════════════════════
+            // 8. CHARGING SLOTS (QR code tokens cố định để test check-in)
+            //    FE scan QR → gửi token → BE match slot → check-in
+            // ═══════════════════════════════════════════════════════════════
 
-            var slotA1 = new ChargingSlot { StationId = station1.Id, SlotName = "A1", PositionX = 20, PositionY = 30, QrCodeToken = Guid.NewGuid().ToString(), Status = SlotStatus.Active, CreatedAt = now };
-            var slotA2 = new ChargingSlot { StationId = station1.Id, SlotName = "A2", PositionX = 50, PositionY = 30, QrCodeToken = Guid.NewGuid().ToString(), Status = SlotStatus.Active, CreatedAt = now };
-            var slotA3 = new ChargingSlot { StationId = station1.Id, SlotName = "A3", PositionX = 80, PositionY = 30, QrCodeToken = Guid.NewGuid().ToString(), Status = SlotStatus.Active, CreatedAt = now };
+            var slotA1 = new ChargingSlot { StationId = station1.Id, SlotName = "A1", PositionX = 20, PositionY = 30, QrCodeToken = "SLOT-A1-QR", Status = SlotStatus.Active, CreatedAt = now };
+            var slotA2 = new ChargingSlot { StationId = station1.Id, SlotName = "A2", PositionX = 50, PositionY = 30, QrCodeToken = "SLOT-A2-QR", Status = SlotStatus.Active, CreatedAt = now };
+            var slotA3 = new ChargingSlot { StationId = station1.Id, SlotName = "A3", PositionX = 80, PositionY = 30, QrCodeToken = "SLOT-A3-QR", Status = SlotStatus.Active, CreatedAt = now };
 
-            var slotB1 = new ChargingSlot { StationId = station2.Id, SlotName = "B1", PositionX = 25, PositionY = 40, QrCodeToken = Guid.NewGuid().ToString(), Status = SlotStatus.Active, CreatedAt = now };
-            var slotB2 = new ChargingSlot { StationId = station2.Id, SlotName = "B2", PositionX = 75, PositionY = 40, QrCodeToken = Guid.NewGuid().ToString(), Status = SlotStatus.Active, CreatedAt = now };
+            var slotB1 = new ChargingSlot { StationId = station2.Id, SlotName = "B1", PositionX = 25, PositionY = 40, QrCodeToken = "SLOT-B1-QR", Status = SlotStatus.Active, CreatedAt = now };
+            var slotB2 = new ChargingSlot { StationId = station2.Id, SlotName = "B2", PositionX = 75, PositionY = 40, QrCodeToken = "SLOT-B2-QR", Status = SlotStatus.Active, CreatedAt = now };
 
-            var slotC1 = new ChargingSlot { StationId = station3.Id, SlotName = "C1", PositionX = 30, PositionY = 50, QrCodeToken = Guid.NewGuid().ToString(), Status = SlotStatus.Active, CreatedAt = now };
-            var slotC2 = new ChargingSlot { StationId = station3.Id, SlotName = "C2", PositionX = 70, PositionY = 50, QrCodeToken = Guid.NewGuid().ToString(), Status = SlotStatus.Active, CreatedAt = now };
-            var slotC3 = new ChargingSlot { StationId = station3.Id, SlotName = "C3", PositionX = 50, PositionY = 80, QrCodeToken = Guid.NewGuid().ToString(), Status = SlotStatus.Active, CreatedAt = now };
+            var slotC1 = new ChargingSlot { StationId = station3.Id, SlotName = "C1", PositionX = 30, PositionY = 50, QrCodeToken = "SLOT-C1-QR", Status = SlotStatus.Active, CreatedAt = now };
+            var slotC2 = new ChargingSlot { StationId = station3.Id, SlotName = "C2", PositionX = 70, PositionY = 50, QrCodeToken = "SLOT-C2-QR", Status = SlotStatus.Active, CreatedAt = now };
+            var slotC3 = new ChargingSlot { StationId = station3.Id, SlotName = "C3", PositionX = 50, PositionY = 80, QrCodeToken = "SLOT-C3-QR", Status = SlotStatus.Active, CreatedAt = now };
 
             db.ChargingSlots.AddRange(slotA1, slotA2, slotA3, slotB1, slotB2, slotC1, slotC2, slotC3);
             await db.SaveChangesAsync();
@@ -295,13 +301,14 @@ namespace ChargeSlot.Api.Seeds
             );
             await db.SaveChangesAsync();
 
-            // ══════════════════════════════════════════
-            // 11. BOOKINGS (nhiều trạng thái khác nhau để demo)
-            // ══════════════════════════════════════════
+            // ════════════════════════════════════════════════════════
+            // 11. BOOKINGS (nhiều trạng thái khác nhau để demo full flow)
+            //     ★ = booking sẵn sàng test ngay khi seed
+            // ════════════════════════════════════════════════════════
 
             var tomorrow = now.Date.AddDays(1);
 
-            // Booking 1: COMPLETED (Driver An → Station 1, Slot A1) — đã xong, đã đánh giá
+            // Booking 1: COMPLETED (Driver An → Station 1, Slot A1) — đã xong, có đánh giá
             var booking1 = new Booking
             {
                 DriverUserId = driver1.Id, SlotId = slotA1.Id,
@@ -312,7 +319,7 @@ namespace ChargeSlot.Api.Seeds
                 CreatedAt = now.AddDays(-4)
             };
 
-            // Booking 2: COMPLETED (Driver Bình → Station 3, Slot C1)
+            // Booking 2: COMPLETED (Driver Bình → Station 3, Slot C1) — đã xong, có đánh giá
             var booking2 = new Booking
             {
                 DriverUserId = driver2.Id, SlotId = slotC1.Id,
@@ -323,37 +330,44 @@ namespace ChargeSlot.Api.Seeds
                 CreatedAt = now.AddDays(-3)
             };
 
-            // Booking 3: PAID (Driver An → Station 2, Slot B1) — chờ check-in ngày mai
+            // ★ Booking 3: PAID — SẴN SÀNG CHECK-IN NGAY!
+            // (Driver An → Station 2, Slot B1)
+            // StartTime = now + 5 phút → nằm trong cửa sổ ±15 phút
+            // Check-in bằng QR: "SLOT-B1-QR"
             var booking3 = new Booking
             {
                 DriverUserId = driver1.Id, SlotId = slotB1.Id,
-                StartTime = tomorrow.AddHours(9),
-                EndTime = tomorrow.AddHours(11),
+                StartTime = now.AddMinutes(5),
+                EndTime = now.AddHours(2).AddMinutes(5),
                 DurationHours = 2, TotalAmount = 14_000,
                 Status = BookingStatus.Paid,
-                CreatedAt = now
+                CreatedAt = now.AddMinutes(-30)
             };
 
-            // Booking 4: WAITING OWNER (Driver Chi → Station 1, Slot A2) — Owner chưa accept
+            // ★ Booking 4: WAITING OWNER — Owner chưa accept
+            // (Driver Chi → Station 1, Slot A2)
+            // Test: login owner_minh → Accept/Reject
             var booking4 = new Booking
             {
                 DriverUserId = driver3.Id, SlotId = slotA2.Id,
-                StartTime = tomorrow.AddHours(14),
-                EndTime = tomorrow.AddHours(16),
+                StartTime = now.AddHours(3),
+                EndTime = now.AddHours(5),
                 DurationHours = 2, TotalAmount = 16_000,
                 Status = BookingStatus.WaitingOwner,
                 CreatedAt = now
             };
 
-            // Booking 5: PENDING PAYMENT (Driver Bình → Station 3, Slot C2) — chờ thanh toán
+            // ★ Booking 5: PENDING PAYMENT — Chờ thanh toán 2 tiếng nữa
+            // (Driver Bình → Station 3, Slot C2)
+            // Test: login driver_binh → PayByWallet hoặc VNPay
             var booking5 = new Booking
             {
                 DriverUserId = driver2.Id, SlotId = slotC2.Id,
-                StartTime = tomorrow.AddHours(10),
-                EndTime = tomorrow.AddHours(12),
+                StartTime = now.AddHours(4),
+                EndTime = now.AddHours(6),
                 DurationHours = 2, TotalAmount = 12_000,
                 Status = BookingStatus.PendingPayment,
-                PaymentExpiresAt = now.AddMinutes(30),
+                PaymentExpiresAt = now.AddHours(2),
                 CreatedAt = now
             };
 
@@ -368,19 +382,40 @@ namespace ChargeSlot.Api.Seeds
                 CreatedAt = now.AddDays(-2)
             };
 
-            // Booking 7: CHECKED IN — đang sạc (Driver An → Station 3, Slot C3)
+            // ★ Booking 7: IN PROGRESS — đang sạc, Owner có thể Stop
+            // (Driver An → Station 3, Slot C3)
+            // StartTime 1h trước, EndTime 1h nữa
+            // Test: login owner_lan → StopCharging
             var booking7 = new Booking
             {
                 DriverUserId = driver1.Id, SlotId = slotC3.Id,
                 StartTime = now.AddHours(-1),
                 EndTime = now.AddHours(1),
                 DurationHours = 2, TotalAmount = 10_000,
-                Status = BookingStatus.CheckedIn,
+                Status = BookingStatus.InProgress,
                 CheckedInAt = now.AddHours(-1),
                 CreatedAt = now.AddHours(-2)
             };
 
-            db.Bookings.AddRange(booking1, booking2, booking3, booking4, booking5, booking6, booking7);
+            // ★ Booking 8: COMPLETED nhưng CHƯA ĐÁNH GIÁ — test CreateReview
+            // (Driver Bình → Station 2, Slot B2)
+            // Test: login driver_binh → POST /api/reviews { bookingId: X, rating: 5, comment: "..." }
+            var booking8 = new Booking
+            {
+                DriverUserId = driver2.Id, SlotId = slotB2.Id,
+                StartTime = now.AddDays(-1).Date.AddHours(9),
+                EndTime = now.AddDays(-1).Date.AddHours(11),
+                DurationHours = 2, TotalAmount = 14_000,
+                Status = BookingStatus.Completed,
+                CheckedInAt = now.AddDays(-1).Date.AddHours(9),
+                CreatedAt = now.AddDays(-2)
+            };
+
+            db.Bookings.AddRange(booking1, booking2, booking3, booking4, booking5, booking6, booking7, booking8);
+            await db.SaveChangesAsync();
+
+            // Đánh dấu slot C3 là đang bận vì booking7 đang sạc
+            slotC3.Status = SlotStatus.Booked;
             await db.SaveChangesAsync();
 
             // ══════════════════════════════════════════
@@ -392,7 +427,8 @@ namespace ChargeSlot.Api.Seeds
                 new Payment { BookingId = booking2.Id, Amount = booking2.TotalAmount, PaymentMethod = PaymentMethod.EWallet, Status = PaymentStatus.Completed, PaidAt = now.AddDays(-3), GatewayTxnRef = $"VNP_{now.Ticks}", CreatedAt = now.AddDays(-3) },
                 new Payment { BookingId = booking3.Id, Amount = booking3.TotalAmount, PaymentMethod = PaymentMethod.Wallet, Status = PaymentStatus.Completed, PaidAt = now, GatewayTxnRef = $"WALLET_{now.Ticks + 1}", CreatedAt = now },
                 new Payment { BookingId = booking6.Id, Amount = booking6.TotalAmount, PaymentMethod = PaymentMethod.EWallet, Status = PaymentStatus.Completed, PaidAt = now.AddDays(-2), GatewayTxnRef = $"VNP_{now.Ticks + 2}", CreatedAt = now.AddDays(-2) },
-                new Payment { BookingId = booking7.Id, Amount = booking7.TotalAmount, PaymentMethod = PaymentMethod.Wallet, Status = PaymentStatus.Completed, PaidAt = now.AddHours(-2), GatewayTxnRef = $"WALLET_{now.Ticks + 3}", CreatedAt = now.AddHours(-2) }
+                new Payment { BookingId = booking7.Id, Amount = booking7.TotalAmount, PaymentMethod = PaymentMethod.Wallet, Status = PaymentStatus.Completed, PaidAt = now.AddHours(-2), GatewayTxnRef = $"WALLET_{now.Ticks + 3}", CreatedAt = now.AddHours(-2) },
+                new Payment { BookingId = booking8.Id, Amount = booking8.TotalAmount, PaymentMethod = PaymentMethod.Wallet, Status = PaymentStatus.Completed, PaidAt = now.AddDays(-1).Date.AddHours(8), GatewayTxnRef = $"WALLET_{now.Ticks + 4}", CreatedAt = now.AddDays(-1).Date.AddHours(8) }
             );
             await db.SaveChangesAsync();
 
@@ -408,7 +444,9 @@ namespace ChargeSlot.Api.Seeds
                 // Booking 6: hoàn thành (có dispute)
                 new ChargingSession { BookingId = booking6.Id, CheckinTime = booking6.StartTime, ActualStartTime = booking6.StartTime, ActualEndTime = booking6.EndTime, ActualDurationHours = 2, CreatedAt = booking6.StartTime },
                 // Booking 7: đang sạc
-                new ChargingSession { BookingId = booking7.Id, CheckinTime = now.AddHours(-1), ActualStartTime = now.AddHours(-1), CreatedAt = now.AddHours(-1) }
+                new ChargingSession { BookingId = booking7.Id, CheckinTime = now.AddHours(-1), ActualStartTime = now.AddHours(-1), CreatedAt = now.AddHours(-1) },
+                // Booking 8: hoàn thành (chưa rating)
+                new ChargingSession { BookingId = booking8.Id, CheckinTime = booking8.StartTime, ActualStartTime = booking8.StartTime, ActualEndTime = booking8.EndTime, ActualDurationHours = 2, CreatedAt = booking8.StartTime }
             );
             await db.SaveChangesAsync();
 
@@ -419,7 +457,8 @@ namespace ChargeSlot.Api.Seeds
             db.Invoices.AddRange(
                 new Invoice { BookingId = booking1.Id, TotalAmount = 10_000, ChargingAmount = 8_700, VatAmount = 800, PlatformFee = 500, ServiceAmount = 0, Status = InvoiceStatus.Confirmed, CreatedAt = booking1.EndTime },
                 new Invoice { BookingId = booking2.Id, TotalAmount = 12_000, ChargingAmount = 10_440, VatAmount = 960, PlatformFee = 600, ServiceAmount = 0, Status = InvoiceStatus.Confirmed, CreatedAt = booking2.EndTime },
-                new Invoice { BookingId = booking6.Id, TotalAmount = 16_000, ChargingAmount = 13_920, VatAmount = 1_280, PlatformFee = 800, ServiceAmount = 0, Status = InvoiceStatus.Confirmed, CreatedAt = booking6.EndTime }
+                new Invoice { BookingId = booking6.Id, TotalAmount = 16_000, ChargingAmount = 13_920, VatAmount = 1_280, PlatformFee = 800, ServiceAmount = 0, Status = InvoiceStatus.Confirmed, CreatedAt = booking6.EndTime },
+                new Invoice { BookingId = booking8.Id, TotalAmount = 14_000, ChargingAmount = 12_180, VatAmount = 1_120, PlatformFee = 700, ServiceAmount = 0, Status = InvoiceStatus.Confirmed, CreatedAt = booking8.EndTime }
             );
             await db.SaveChangesAsync();
 
@@ -428,17 +467,13 @@ namespace ChargeSlot.Api.Seeds
             // ══════════════════════════════════════════
 
             db.Ratings.AddRange(
-                // Station 1 — 3 đánh giá
+                // Station 1 — 2 đánh giá (có BookingId hợp lệ)
                 new Rating { BookingId = booking1.Id, StationId = station1.Id, DriverUserId = driver1.Id, Score = 5, Comment = "Trạm sạc rất sạch sẽ, mát mẻ!", OwnerReply = "Cảm ơn bạn đã ghé thăm!", OwnerRepliedAt = now.AddDays(-2), CreatedAt = now.AddDays(-3) },
                 new Rating { BookingId = booking6.Id, StationId = station1.Id, DriverUserId = driver3.Id, Score = 3, Comment = "Sạc hơi chậm, nhưng chủ trạm thân thiện.", CreatedAt = now.AddDays(-1) },
 
-                // Station 2 — 2 đánh giá (fake thêm)
-                new Rating { StationId = station2.Id, DriverUserId = driver2.Id, Score = 4, Comment = "Trạm 24/7 rất tiện, giá hợp lý.", CreatedAt = now.AddDays(-2) },
-
-                // Station 3 — 4 đánh giá
-                new Rating { BookingId = booking2.Id, StationId = station3.Id, DriverUserId = driver2.Id, Score = 5, Comment = "Trạm rộng rãi, tiện nghi, 5 sao!", OwnerReply = "Trạm luôn welcome bạn!", OwnerRepliedAt = now.AddDays(-1), CreatedAt = now.AddDays(-2) },
-                new Rating { StationId = station3.Id, DriverUserId = driver1.Id, Score = 5, Comment = "Tốt nhất khu vực Thủ Đức!", CreatedAt = now.AddDays(-1) },
-                new Rating { StationId = station3.Id, DriverUserId = driver3.Id, Score = 4, Comment = "Gần Giga Mall rất tiện.", CreatedAt = now }
+                // Station 3 — 1 đánh giá (có BookingId hợp lệ)
+                new Rating { BookingId = booking2.Id, StationId = station3.Id, DriverUserId = driver2.Id, Score = 5, Comment = "Trạm rộng rãi, tiện nghi, 5 sao!", OwnerReply = "Trạm luôn welcome bạn!", OwnerRepliedAt = now.AddDays(-1), CreatedAt = now.AddDays(-2) }
+                // ★ Booking 8 (Station 2) CHƯA có rating → test CreateReview
             );
             await db.SaveChangesAsync();
 

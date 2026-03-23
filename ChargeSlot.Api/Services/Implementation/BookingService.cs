@@ -13,17 +13,20 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IBookingRepository _bookingRepo;
         private readonly IChargingSlotRepository _slotRepo;
         private readonly INotificationService _notificationService;
+        private readonly IWalletRepository _walletRepo;
         private readonly ChargeSlotDbContext _context;
 
         public BookingService(
             IBookingRepository bookingRepo,
             IChargingSlotRepository slotRepo,
             INotificationService notificationService,
+            IWalletRepository walletRepo,
             ChargeSlotDbContext context)
         {
             _bookingRepo = bookingRepo;
             _slotRepo = slotRepo;
             _notificationService = notificationService;
+            _walletRepo = walletRepo;
             _context = context;
         }
 
@@ -192,6 +195,233 @@ namespace ChargeSlot.Api.Services.Implementation
                 NotificationType.Booking);
 
             return MapToDto(booking);
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // CANCEL BOOKING
+        // ═══════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Driver hủy booking.
+        /// - WaitingOwner / PendingPayment → hủy miễn phí (chưa trả tiền)
+        /// - Paid → hoàn tiền theo chính sách: ≥2h=100%, 1-2h=50%, &lt;1h=0%
+        /// </summary>
+        public async Task<BookingDto> DriverCancelBookingAsync(int driverUserId, int bookingId, string? cancelReason)
+        {
+            var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
+                ?? throw new InvalidOperationException("Booking không tồn tại.");
+
+            if (booking.DriverUserId != driverUserId)
+                throw new UnauthorizedAccessException("Booking này không thuộc về bạn.");
+
+            var allowedStatuses = new[] { BookingStatus.WaitingOwner, BookingStatus.PendingPayment, BookingStatus.Paid };
+            if (!allowedStatuses.Contains(booking.Status))
+                throw new InvalidOperationException("Không thể hủy booking ở trạng thái hiện tại.");
+
+            var slotName = booking.ChargingSlot?.SlotName ?? "";
+            var stationName = booking.ChargingSlot?.ChargingStation?.Name ?? "";
+            var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
+
+            // Xử lý hoàn tiền nếu đã Paid
+            if (booking.Status == BookingStatus.Paid)
+            {
+                var hoursBeforeStart = (booking.StartTime - DateTime.UtcNow).TotalHours;
+                decimal refundPercent;
+                string refundNote;
+
+                if (hoursBeforeStart >= 2)
+                {
+                    refundPercent = 1.0m; // 100%
+                    refundNote = "Hoàn 100% (hủy trước ≥2 giờ)";
+                }
+                else if (hoursBeforeStart >= 1)
+                {
+                    refundPercent = 0.5m; // 50%
+                    refundNote = "Hoàn 50% (hủy trước 1-2 giờ)";
+                }
+                else
+                {
+                    refundPercent = 0m; // 0%
+                    refundNote = "Không hoàn tiền (hủy trước <1 giờ)";
+                }
+
+                await ProcessRefundAsync(booking, refundPercent, $"Driver hủy booking — {refundNote}");
+
+                // Notify Driver
+                var refundAmount = booking.TotalAmount * refundPercent;
+                await _notificationService.SendAsync(
+                    driverUserId,
+                    "Đặt chỗ đã hủy",
+                    refundPercent > 0
+                        ? $"Bạn đã hủy đặt chỗ tại slot {slotName} — trạm {stationName}. {refundNote}: {refundAmount:N0}đ đã hoàn vào ví."
+                        : $"Bạn đã hủy đặt chỗ tại slot {slotName} — trạm {stationName}. {refundNote}.",
+                    NotificationType.Booking);
+
+                // Notify Owner
+                if (ownerUserId.HasValue)
+                {
+                    var ownerReceive = booking.TotalAmount * (1 - refundPercent);
+                    await _notificationService.SendAsync(
+                        ownerUserId.Value,
+                        "Khách hủy đặt chỗ",
+                        refundPercent < 1
+                            ? $"Khách đã hủy slot {slotName} — trạm {stationName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}). Bạn nhận bồi thường {ownerReceive:N0}đ."
+                            : $"Khách đã hủy slot {slotName} — trạm {stationName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}). Đã hoàn toàn bộ tiền cho khách.",
+                        NotificationType.Booking);
+                }
+            }
+            else
+            {
+                // Chưa thanh toán → chỉ notify
+                await _notificationService.SendAsync(
+                    driverUserId,
+                    "Đặt chỗ đã hủy",
+                    $"Bạn đã hủy yêu cầu đặt chỗ tại slot {slotName} — trạm {stationName}.",
+                    NotificationType.Booking);
+
+                if (ownerUserId.HasValue)
+                {
+                    await _notificationService.SendAsync(
+                        ownerUserId.Value,
+                        "Khách hủy yêu cầu",
+                        $"Khách đã hủy yêu cầu đặt chỗ tại slot {slotName} — trạm {stationName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}).",
+                        NotificationType.Booking);
+                }
+            }
+
+            // Set cancelled
+            booking.Status = BookingStatus.Cancelled;
+            booking.CancelledAt = DateTime.UtcNow;
+            booking.CancelReason = cancelReason ?? "Driver tự hủy";
+            await _bookingRepo.UpdateAsync(booking);
+
+            // Release slot
+            await ReleaseSlotIfBooked(booking.SlotId);
+
+            return MapToDto(booking);
+        }
+
+        /// <summary>
+        /// Owner hủy booking đã Paid → luôn hoàn 100% cho Driver.
+        /// </summary>
+        public async Task<BookingDto> OwnerCancelBookingAsync(int ownerUserId, int bookingId, string? cancelReason)
+        {
+            var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
+                ?? throw new InvalidOperationException("Booking không tồn tại.");
+
+            if (booking.ChargingSlot.ChargingStation.OwnerUserId != ownerUserId)
+                throw new UnauthorizedAccessException("Bạn không có quyền thao tác trên booking này.");
+
+            if (booking.Status != BookingStatus.Paid)
+                throw new InvalidOperationException("Chỉ có thể hủy booking đã thanh toán. Dùng Reject cho booking chờ duyệt.");
+
+            var slotName = booking.ChargingSlot?.SlotName ?? "";
+            var stationName = booking.ChargingSlot?.ChargingStation?.Name ?? "";
+
+            // Owner hủy → hoàn 100% cho Driver
+            await ProcessRefundAsync(booking, 1.0m, $"Owner hủy booking — hoàn 100% cho Driver");
+
+            // Notify Driver
+            await _notificationService.SendAsync(
+                booking.DriverUserId,
+                "Chủ trạm đã hủy đặt chỗ",
+                $"Chủ trạm {stationName} đã hủy đặt chỗ tại slot {slotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}).{(cancelReason != null ? $" Lý do: {cancelReason}" : "")} {booking.TotalAmount:N0}đ đã hoàn vào ví của bạn.",
+                NotificationType.Booking);
+
+            // Notify Owner
+            await _notificationService.SendAsync(
+                ownerUserId,
+                "Bạn đã hủy đặt chỗ",
+                $"Đã hủy booking slot {slotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}). Hoàn {booking.TotalAmount:N0}đ cho khách.",
+                NotificationType.Booking);
+
+            booking.Status = BookingStatus.Cancelled;
+            booking.CancelledAt = DateTime.UtcNow;
+            booking.CancelReason = cancelReason ?? "Owner hủy";
+            await _bookingRepo.UpdateAsync(booking);
+
+            await ReleaseSlotIfBooked(booking.SlotId);
+
+            return MapToDto(booking);
+        }
+
+        // ─── CANCEL HELPERS ───
+
+        /// <summary>Hoàn tiền từ ESCROW về ví Driver (và Owner nếu có phần bồi thường).</summary>
+        private async Task ProcessRefundAsync(Booking booking, decimal refundPercent, string memo)
+        {
+            if (refundPercent <= 0 && refundPercent == 0)
+            {
+                // 0% refund → toàn bộ ESCROW → Owner
+                var ownerUserId2 = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
+                await TransferFromEscrow(booking, booking.TotalAmount, ownerUserId2, WalletType.Owner, $"{memo} — {booking.TotalAmount:N0}đ → Owner");
+                return;
+            }
+
+            var refundAmount = booking.TotalAmount * refundPercent;
+            var ownerAmount = booking.TotalAmount - refundAmount;
+
+            // Refund → Driver
+            if (refundAmount > 0)
+            {
+                await TransferFromEscrow(booking, refundAmount, booking.DriverUserId, WalletType.Driver, $"{memo} — {refundAmount:N0}đ → Driver");
+            }
+
+            // Bồi thường → Owner
+            if (ownerAmount > 0)
+            {
+                var ownerUserId3 = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
+                await TransferFromEscrow(booking, ownerAmount, ownerUserId3, WalletType.Owner, $"{memo} — {ownerAmount:N0}đ → Owner");
+            }
+        }
+
+        private async Task TransferFromEscrow(Booking booking, decimal amount, int userId, WalletType walletType, string memo)
+        {
+            var escrowWallet = await _context.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
+            var userWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
+
+            if (userWallet == null)
+            {
+                userWallet = new Wallet
+                {
+                    UserId = userId,
+                    WalletType = walletType,
+                    AvailableBalance = 0,
+                    FrozenBalance = 0,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Wallets.Add(userWallet);
+                await _context.SaveChangesAsync();
+            }
+
+            escrowWallet.AvailableBalance -= amount;
+            userWallet.AvailableBalance += amount;
+
+            _context.Set<LedgerTransaction>().Add(new LedgerTransaction
+            {
+                ReferenceType = "BookingCancel",
+                ReferenceId = booking.Id,
+                Memo = memo,
+                CreatedAt = DateTime.UtcNow,
+                Entries = new List<LedgerEntry>
+                {
+                    new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = amount, CreatedAt = DateTime.UtcNow },
+                    new LedgerEntry { WalletId = userWallet.Id, Direction = LedgerDirection.Credit, Amount = amount, CreatedAt = DateTime.UtcNow }
+                }
+            });
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task ReleaseSlotIfBooked(int slotId)
+        {
+            var slot = await _slotRepo.GetByIdAsync(slotId, tracking: true);
+            if (slot != null && slot.Status == SlotStatus.Booked)
+            {
+                slot.Status = SlotStatus.Active;
+                slot.UpdatedAt = DateTime.UtcNow;
+                await _slotRepo.SaveChangesAsync();
+            }
         }
 
         public async Task<BookingDto?> GetByIdAsync(int bookingId)

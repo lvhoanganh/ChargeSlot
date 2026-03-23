@@ -114,5 +114,50 @@ namespace ChargeSlot.Api.Controllers
             if (result == null) return NotFound();
             return Ok(result);
         }
+
+        /// <summary>
+        /// Driver hủy booking (WaitingOwner / PendingPayment / Paid)
+        /// Paid: hoàn tiền theo chính sách (≥2h=100%, 1-2h=50%, &lt;1h=0%)
+        /// </summary>
+        [HttpPut("{id}/driver-cancel")]
+        [Authorize(Roles = "Driver")]
+        public async Task<IActionResult> DriverCancelBooking(int id, [FromBody] CancelBookingDto? dto)
+        {
+            try
+            {
+                var result = await _bookingService.DriverCancelBookingAsync(GetUserId(), id, dto?.CancelReason);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+        }
+
+        /// <summary>
+        /// Owner hủy booking đã Paid → hoàn 100% cho Driver
+        /// </summary>
+        [HttpPut("{id}/owner-cancel")]
+        [Authorize(Roles = "Owner")]
+        public async Task<IActionResult> OwnerCancelBooking(int id, [FromBody] CancelBookingDto? dto)
+        {
+            try
+            {
+                var result = await _bookingService.OwnerCancelBookingAsync(GetUserId(), id, dto?.CancelReason);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+        }
     }
 }

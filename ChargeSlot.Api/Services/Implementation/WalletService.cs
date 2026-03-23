@@ -221,6 +221,17 @@ namespace ChargeSlot.Api.Services.Implementation
                 $"Thanh toán {booking.TotalAmount:N0}đ bằng ví cho slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) thành công. Slot đã được giữ cho bạn.",
                 NotificationType.Payment);
 
+            // Notify Owner: Driver đã thanh toán
+            var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
+            if (ownerUserId.HasValue)
+            {
+                await _notificationService.SendAsync(
+                    ownerUserId.Value,
+                    "Khách đã thanh toán",
+                    $"Slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) đã được thanh toán {booking.TotalAmount:N0}đ bằng ví. Chờ Driver check-in.",
+                    NotificationType.Payment);
+            }
+
             return MapToDto(wallet);
         }
 

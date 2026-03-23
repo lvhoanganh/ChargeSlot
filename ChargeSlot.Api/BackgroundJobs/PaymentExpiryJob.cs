@@ -77,6 +77,17 @@ namespace ChargeSlot.Api.BackgroundJobs
                             $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã bị hủy do không thanh toán kịp thời hạn.",
                             NotificationType.Booking);
 
+                        // Notify Owner: booking bị hết hạn thanh toán
+                        var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
+                        if (ownerUserId.HasValue)
+                        {
+                            await notificationService.SendAsync(
+                                ownerUserId.Value,
+                                "Đặt chỗ bị hủy",
+                                $"Slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}): Khách không thanh toán kịp, slot đã được mở lại.",
+                                NotificationType.Booking);
+                        }
+
                         _logger.LogInformation("Booking {BookingId} expired due to payment timeout.", booking.Id);
                     }
                 }
