@@ -272,8 +272,11 @@ namespace ChargeSlot.Api.Services.Implementation
 
         // ─────────────── HELPERS ───────────────
 
-        private static string NormalizePhone(string phone) =>
-            PhoneNumberHelper.NormalizeAndValidate(phone);
+        private static string NormalizePhone(string phone)
+        {
+            if (phone.Equals("admin", StringComparison.OrdinalIgnoreCase)) return "admin";
+            return PhoneNumberHelper.NormalizeAndValidate(phone);
+        }
 
         public async Task ResetPasswordAsync(string phoneNumber, string newPassword)
         {

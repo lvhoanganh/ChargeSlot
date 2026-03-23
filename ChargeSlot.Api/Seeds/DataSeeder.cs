@@ -53,7 +53,7 @@ namespace ChargeSlot.Api.Seeds
             // --- Owners ---
             var owner1 = new ApplicationUser
             {
-                UserName = "owner_minh",
+                UserName = "0911111111",
                 FullName = "Trần Văn Minh",
                 PhoneNumber = "0911111111",
                 IsPhoneVerified = true,
@@ -64,7 +64,7 @@ namespace ChargeSlot.Api.Seeds
 
             var owner2 = new ApplicationUser
             {
-                UserName = "owner_lan",
+                UserName = "0911111112",
                 FullName = "Nguyễn Thị Lan",
                 PhoneNumber = "0911111112",
                 IsPhoneVerified = true,
@@ -76,7 +76,7 @@ namespace ChargeSlot.Api.Seeds
             // --- Drivers ---
             var driver1 = new ApplicationUser
             {
-                UserName = "driver_an",
+                UserName = "0922222221",
                 FullName = "Lê Văn An",
                 PhoneNumber = "0922222221",
                 IsPhoneVerified = true,
@@ -87,7 +87,7 @@ namespace ChargeSlot.Api.Seeds
 
             var driver2 = new ApplicationUser
             {
-                UserName = "driver_binh",
+                UserName = "0922222222",
                 FullName = "Phạm Văn Bình",
                 PhoneNumber = "0922222222",
                 IsPhoneVerified = true,
@@ -98,7 +98,7 @@ namespace ChargeSlot.Api.Seeds
 
             var driver3 = new ApplicationUser
             {
-                UserName = "driver_chi",
+                UserName = "0922222223",
                 FullName = "Hoàng Thị Chi",
                 PhoneNumber = "0922222223",
                 IsPhoneVerified = true,

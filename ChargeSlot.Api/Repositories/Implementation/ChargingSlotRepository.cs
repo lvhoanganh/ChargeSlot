@@ -16,7 +16,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
 
         public async Task<ChargingSlot?> GetByIdAsync(int id, bool tracking = false)
         {
-            var query = _context.ChargingSlots.AsQueryable();
+            var query = _context.ChargingSlots.Include(s => s.ChargingStation).AsQueryable();
 
             if (!tracking)
                 query = query.AsNoTracking();
