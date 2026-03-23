@@ -154,13 +154,24 @@ export default function ChargingComplete() {
         )}
 
         {!confirmed ? (
-          <button
-            onClick={handleConfirm}
-            disabled={confirming}
-            className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-200 transition-all hover:shadow-xl cursor-pointer disabled:opacity-50"
-          >
-            {confirming ? "Đang xử lý..." : "✅ Xác nhận hoàn thành"}
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={handleConfirm}
+              disabled={confirming}
+              className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-200 transition-all hover:shadow-xl cursor-pointer disabled:opacity-50"
+            >
+              {confirming ? "Đang xử lý..." : "✅ Xác nhận hoàn thành"}
+            </button>
+            <button
+              onClick={() => navigate(`/driver/dispute/submit/${session.bookingId}`)}
+              className="w-full h-14 bg-white hover:bg-red-50 text-red-600 font-bold text-lg rounded-xl border-2 border-red-500 transition-all cursor-pointer"
+            >
+              ⚠️ Khiếu nại
+            </button>
+            <p className="text-xs text-center text-gray-400">
+              Nếu có vấn đề với phiên sạc, bạn có thể gửi khiếu nại thay vì xác nhận
+            </p>
+          </div>
         ) : (
           <div className="space-y-3">
             <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">

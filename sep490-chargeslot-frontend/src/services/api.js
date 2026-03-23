@@ -306,3 +306,39 @@ export const notificationApi = {
     getAll: () => apiFetch("/Notification"),
     markAsRead: (id) => apiFetch(`/Notification/${id}/read`, { method: "PUT" }),
 };
+
+// ============================
+// DISPUTE
+// ============================
+
+export const disputeApi = {
+    /** Driver tạo khiếu nại + upload bằng chứng */
+    submit: (data) =>
+        apiFetch("/dispute", {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
+    /** Owner phản hồi + nộp bằng chứng */
+    submitOwnerEvidence: (disputeId, data) =>
+        apiFetch(`/dispute/${disputeId}/owner-evidence`, {
+            method: "PUT",
+            body: JSON.stringify(data),
+        }),
+
+    /** Admin phán quyết khiếu nại */
+    resolve: (disputeId, data) =>
+        apiFetch(`/dispute/${disputeId}/resolve`, {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
+    /** Danh sách dispute chờ xử lý (Admin) */
+    getPending: () => apiFetch("/dispute/pending"),
+
+    /** Chi tiết dispute */
+    getById: (disputeId) => apiFetch(`/dispute/${disputeId}`),
+
+    /** Dispute theo booking */
+    getByBookingId: (bookingId) => apiFetch(`/dispute/booking/${bookingId}`),
+};

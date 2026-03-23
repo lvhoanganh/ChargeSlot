@@ -19,14 +19,20 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-/* ─── Map Picker Component ─── */
-function LocationMarker({ onSelect }) {
-  const [pos, setPos] = useState(null);
+/* ─── Map helpers ─── */
+function MapFlyTo({ lat, lng }) {
+  const map = useMapEvents({});
+  useEffect(() => {
+    if (lat && lng) map.flyTo([lat, lng], 17, { duration: 1.2 });
+  }, [lat, lng, map]);
+  return null;
+}
+
+function LocationMarker({ pos, onSelect }) {
   useMapEvents({
     click: async (e) => {
       const { lat, lng } = e.latlng;
-      setPos([lat, lng]);
-      // Reverse geocode with Nominatim
+      onSelect(lat, lng, null); // null = will reverse geocode below
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=vi`);
         const data = await res.json();
@@ -39,15 +45,113 @@ function LocationMarker({ onSelect }) {
   return pos ? <Marker position={pos} /> : null;
 }
 
+/* ─── Map Picker with Search ─── */
 function MapPicker({ lat, lng, onSelect }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [markerPos, setMarkerPos] = useState(null);
+  const debounceRef = useRef(null);
+
+  // Debounced search
+  function handleQueryChange(value) {
+    setQuery(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (value.trim().length < 3) { setResults([]); return; }
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(value)}&format=json&limit=5&accept-language=vi&countrycodes=vn`
+        );
+        const data = await res.json();
+        setResults(data);
+      } catch { setResults([]); }
+      setSearching(false);
+    }, 400);
+  }
+
+  function handleSelectResult(item) {
+    const rLat = parseFloat(item.lat);
+    const rLng = parseFloat(item.lon);
+    setMarkerPos([rLat, rLng]);
+    setQuery(item.display_name);
+    setResults([]);
+    onSelect(rLat, rLng, item.display_name);
+  }
+
+  function handleMapClick(cLat, cLng, addr) {
+    setMarkerPos([cLat, cLng]);
+    if (addr !== null) setQuery(addr);
+    onSelect(cLat, cLng, addr);
+  }
+
   return (
-    <MapContainer center={[lat, lng]} zoom={14} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
-      <TileLayer
-        attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
-        url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-      />
-      <LocationMarker onSelect={onSelect} />
-    </MapContainer>
+    <div style={{ position: "relative" }}>
+      {/* Search box */}
+      <div style={{ position: "relative", marginBottom: 8 }}>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => handleQueryChange(e.target.value)}
+          placeholder="🔍 Tìm kiếm địa chỉ"
+          style={{
+            width: "100%", padding: "10px 14px 10px 14px", borderRadius: 12,
+            border: "1.5px solid #e2e8f0", fontSize: 14, outline: "none",
+            boxSizing: "border-box", background: "#fff",
+            transition: "border-color 0.2s",
+          }}
+          onFocus={(e) => (e.target.style.borderColor = "#f97316")}
+          onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+        />
+        {searching && (
+          <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#94a3b8" }}>
+            Đang tìm...
+          </span>
+        )}
+        {/* Dropdown results */}
+        {results.length > 0 && (
+          <div style={{
+            position: "absolute", top: "100%", left: 0, right: 0, zIndex: 1000,
+            background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4,
+            maxHeight: 220, overflowY: "auto",
+          }}>
+            {results.map((item, idx) => (
+              <button
+                key={item.place_id || idx}
+                type="button"
+                onClick={() => handleSelectResult(item)}
+                style={{
+                  width: "100%", textAlign: "left", padding: "10px 14px",
+                  border: "none", background: "transparent", cursor: "pointer",
+                  fontSize: 13, color: "#1e293b", borderBottom: idx < results.length - 1 ? "1px solid #f1f5f9" : "none",
+                  display: "flex", alignItems: "flex-start", gap: 8,
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#fff7ed")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <span style={{ flexShrink: 0, fontSize: 16, marginTop: 1 }}>📍</span>
+                <span style={{ lineHeight: 1.4 }}>{item.display_name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Map */}
+      <div style={{ height: 300, borderRadius: 16, overflow: "hidden", border: "2px solid #e2e8f0" }}>
+        <MapContainer center={[lat, lng]} zoom={14} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
+          <TileLayer
+            attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+            url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+          />
+          <LocationMarker pos={markerPos} onSelect={handleMapClick} />
+          {markerPos && <MapFlyTo lat={markerPos[0]} lng={markerPos[1]} />}
+        </MapContainer>
+      </div>
+    </div>
   );
 }
 
@@ -279,23 +383,20 @@ export default function CreateChargingStation() {
                   <textarea {...register("description")} rows={2} className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-orange-400" placeholder="Mô tả vị trí, tiện ích..." />
                 </div>
 
-                {/* Map picker */}
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">📍 Chọn vị trí trên bản đồ</label>
-                  <div style={{ height: 300, borderRadius: 16, overflow: "hidden", border: "2px solid #e2e8f0" }}>
-                    <MapPicker
-                      lat={watch("latitude") || 10.7295}
-                      lng={watch("longitude") || 106.7218}
-                      onSelect={(lat, lng, addr) => {
-                        setValue("latitude", lat);
-                        setValue("longitude", lng);
-                        if (addr) setValue("address", addr);
-                      }}
-                    />
-                  </div>
+                  <MapPicker
+                    lat={watch("latitude") || 10.7295}
+                    lng={watch("longitude") || 106.7218}
+                    onSelect={(lat, lng, addr) => {
+                      setValue("latitude", lat);
+                      setValue("longitude", lng);
+                      if (addr) setValue("address", addr);
+                    }}
+                  />
                   <div className="mt-2 flex items-start gap-2 text-sm">
                     <span className="text-slate-400 flex-shrink-0">📍</span>
-                    <span className="text-slate-600">{watch("address") || "Nhấn vào bản đồ để chọn vị trí"}</span>
+                    <span className="text-slate-600">{watch("address") || "Tìm kiếm hoặc nhấn vào bản đồ để chọn vị trí"}</span>
                   </div>
                   <input type="hidden" {...register("address")} />
                   <input type="hidden" {...register("latitude")} />

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { bookingApi } from "@/services/api";
+import { bookingApi, disputeApi } from "@/services/api";
 
 const statusStyles = {
   WaitingOwner: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "⏳" },
@@ -146,6 +146,11 @@ export default function BookingRequestDetail() {
               )}
             </div>
           )}
+
+          {/* Dispute link */}
+          {booking.status === "Disputed" && (
+            <OwnerDisputeLink bookingId={booking.id} navigate={navigate} />
+          )}
         </div>
       </div>
     </div>
@@ -157,6 +162,30 @@ function InfoRow({ label, value, highlight, error }) {
     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
       <span style={{ color: "#64748b" }}>{label}</span>
       <span style={{ fontWeight: 600, color: error ? "#ef4444" : highlight ? "#f97316" : "#1e293b" }}>{value}</span>
+    </div>
+  );
+}
+
+function OwnerDisputeLink({ bookingId, navigate }) {
+  const [disputeId, setDisputeId] = useState(null);
+  useEffect(() => {
+    disputeApi.getByBookingId(bookingId)
+      .then((d) => { if (d?.id) setDisputeId(d.id); })
+      .catch(() => {});
+  }, [bookingId]);
+
+  if (!disputeId) return null;
+  return (
+    <div style={{ marginTop: 20 }}>
+      <button
+        onClick={() => navigate(`/owner/dispute/${disputeId}`)}
+        style={{
+          width: "100%", padding: "14px 0", borderRadius: 14, border: "2px solid #dc2626",
+          background: "#fff", color: "#dc2626", fontWeight: 700, fontSize: 15, cursor: "pointer",
+        }}
+      >
+        ⚠️ Xem khiếu nại & Phản hồi
+      </button>
     </div>
   );
 }

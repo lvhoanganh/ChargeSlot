@@ -132,6 +132,15 @@ export default function Nav() {
             >
               Check-in
             </button>
+            {token && normalizedRole === "driver" && (
+              <NavLink to="/driver/my-bookings" className={({ isActive }) =>
+                location.pathname.includes("/dispute")
+                  ? "text-orange-500 font-bold"
+                  : isActive ? "text-orange-500 font-bold" : "text-black hover:bg-green-500 hover:text-white px-3 py-2 rounded-md"
+              }>
+                Khiếu nại
+              </NavLink>
+            )}
           </div>
 
           {!token && (

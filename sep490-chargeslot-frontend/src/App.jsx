@@ -46,6 +46,13 @@ import PaymentResult from "./pages/driver/PaymentResult";
 import DriverWallet from "./pages/driver/DriverWallet";
 import BookingRequests from "./pages/owner/BookingRequests";
 import BookingRequestDetail from "./pages/owner/BookingRequestDetail";
+import SubmitDispute from "./pages/driver/SubmitDispute";
+import DisputeDetail from "./pages/driver/DisputeDetail";
+import OwnerDisputeDetail from "./pages/owner/OwnerDisputeDetail";
+import OwnerActiveSessions from "./pages/owner/OwnerActiveSessions";
+import DisputeList from "./pages/admin/DisputeList";
+import AdminDisputeDetail from "./pages/admin/AdminDisputeDetail";
+import AdminRevenue from "./pages/admin/AdminRevenue";
 
 export default function App() {
   return (
@@ -84,8 +91,11 @@ export default function App() {
           <Route path="admin" element={<AdminLayout />}>
             <Route path="manage-users" element={<ManageUser />} />
             <Route path="approve-station" element={<ApproveStation />} />
+            <Route path="disputes" element={<DisputeList />} />
+            <Route path="disputes/:disputeId" element={<AdminDisputeDetail />} />
             <Route path="admin-profile" element={<AdminProfile />} />
             <Route path="edit-admin-profile" element={<EditAdminProfile />} />
+            <Route path="view-financial-report" element={<AdminRevenue />} />
           </Route>
         </Route>
         <Route element={<AuthDriverMiddleware />}>
@@ -98,6 +108,8 @@ export default function App() {
             <Route path="charging-complete" element={<ChargingComplete />} />
             <Route path="my-bookings" element={<MyBookings />} />
             <Route path="booking/:id" element={<BookingStatus />} />
+            <Route path="dispute/submit/:bookingId" element={<SubmitDispute />} />
+            <Route path="dispute/:disputeId" element={<DisputeDetail />} />
             <Route path="wallet" element={<DriverWallet />} />
           </Route>
         </Route>
@@ -106,6 +118,8 @@ export default function App() {
           <Route path="update-owner-profile" element={<OwnerEditProfile />} />
           <Route path="booking-requests" element={<BookingRequests />} />
           <Route path="booking/:id" element={<BookingRequestDetail />} />
+          <Route path="dispute/:disputeId" element={<OwnerDisputeDetail />} />
+          <Route path="active-sessions" element={<OwnerActiveSessions />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

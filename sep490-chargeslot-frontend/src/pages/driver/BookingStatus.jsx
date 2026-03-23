@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { bookingApi, paymentApi, walletApi } from "@/services/api";
+import { bookingApi, paymentApi, walletApi, disputeApi } from "@/services/api";
 
 const statusStyles = {
   WaitingOwner: { label: "Chờ chủ trạm duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "⏳" },
@@ -14,6 +14,7 @@ const statusStyles = {
   Completed: { label: "Hoàn thành", color: "#8b5cf6", bg: "#f5f3ff", icon: "🎉" },
   NoShow: { label: "Không đến", color: "#9ca3af", bg: "#f3f4f6", icon: "🚷" },
   Disputed: { label: "Tranh chấp", color: "#dc2626", bg: "#fef2f2", icon: "⚠️" },
+  CompletedPendingInvoice: { label: "Chờ xác nhận hóa đơn", color: "#f97316", bg: "#fff7ed", icon: "🧾" },
 };
 
 // Parse API DateTime (không có Z) → UTC → local
@@ -147,6 +148,28 @@ export default function BookingStatus() {
               </button>
             </div>
           )}
+
+          {/* Dispute button - CompletedPendingInvoice */}
+          {booking.status === "CompletedPendingInvoice" && (
+            <div style={{ marginTop: 20 }}>
+              <button
+                onClick={() => navigate(`/driver/dispute/submit/${booking.id}`)}
+                style={{
+                  width: "100%", padding: "14px 0", borderRadius: 14, border: "none",
+                  background: "linear-gradient(135deg, #dc2626, #b91c1c)",
+                  color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer",
+                  boxShadow: "0 4px 14px rgba(220,38,38,0.25)",
+                }}
+              >
+                ⚠️ Khiếu nại
+              </button>
+            </div>
+          )}
+
+          {/* View dispute - Disputed */}
+          {booking.status === "Disputed" && (
+            <DisputeLink bookingId={booking.id} navigate={navigate} />
+          )}
         </div>
       </div>
     </div>
@@ -163,3 +186,27 @@ function InfoRow({ label, value, highlight, error }) {
 }
 
 const btnStyle = { marginTop: 16, padding: "10px 20px", borderRadius: 10, border: "none", background: "#f97316", color: "#fff", fontWeight: 600, cursor: "pointer" };
+
+function DisputeLink({ bookingId, navigate }) {
+  const [disputeId, setDisputeId] = useState(null);
+  useEffect(() => {
+    disputeApi.getByBookingId(bookingId)
+      .then((d) => { if (d?.id) setDisputeId(d.id); })
+      .catch(() => {});
+  }, [bookingId]);
+
+  if (!disputeId) return null;
+  return (
+    <div style={{ marginTop: 20 }}>
+      <button
+        onClick={() => navigate(`/driver/dispute/${disputeId}`)}
+        style={{
+          width: "100%", padding: "14px 0", borderRadius: 14, border: "2px solid #dc2626",
+          background: "#fff", color: "#dc2626", fontWeight: 700, fontSize: 15, cursor: "pointer",
+        }}
+      >
+        ⚠️ Xem khiếu nại
+      </button>
+    </div>
+  );
+}

@@ -53,7 +53,7 @@ export default function AdminNav() {
           <NavLink to="/admin/approve-station" className={navLinkClass}>
             Duyệt trạm sạc
           </NavLink>
-          <NavLink to="/admin/resolve-dispute" className={navLinkClass}>
+          <NavLink to="/admin/disputes" className={navLinkClass}>
             Giải quyết tranh chấp
           </NavLink>
         </div>
