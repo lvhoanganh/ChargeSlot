@@ -133,7 +133,7 @@ export default function StationMap() {
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
       (pos) => setUserPos([pos.coords.latitude, pos.coords.longitude]),
-      () => {},
+      () => { },
       { enableHighAccuracy: true, timeout: 8000 }
     );
   }, []);
@@ -149,7 +149,7 @@ export default function StationMap() {
   }, [search, stations]);
 
   function getAvailableSlots(station) {
-    return station.chargingSlots.filter((s) => s.status === "Available").length;
+    return station.chargingSlots.filter((s) => s.status === "Active").length;
   }
 
   function handleStationClick(station) {
@@ -212,7 +212,7 @@ export default function StationMap() {
             </div>
             <div>
               <div style={{ fontWeight: 800, fontSize: 17, color: "#1e293b", letterSpacing: -0.3 }}>
-                Trạm sạc gần bạn
+                Danh sách trạm sạc
               </div>
               <div style={{ fontSize: 12, color: "#94a3b8" }}>
                 {filtered.length} trạm {search && `· "${search}"`}

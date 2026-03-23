@@ -11,16 +11,7 @@ const REASONS = [
   "Khác",
 ];
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file
 
 function getFileType(file) {
   if (file.type.startsWith("image/")) return "image";
@@ -41,7 +32,7 @@ export default function SubmitDispute() {
 
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
-  const [evidences, setEvidences] = useState([]);
+  const [evidences, setEvidences] = useState([]); // { file, preview, fileType, name }
 
   useEffect(() => {
     bookingApi
@@ -51,7 +42,7 @@ export default function SubmitDispute() {
       .finally(() => setLoading(false));
   }, [bookingId]);
 
-  async function handleFilesSelected(e) {
+  function handleFilesSelected(e) {
     const files = Array.from(e.target.files || []);
     const newEvidences = [];
     for (const file of files) {
@@ -59,12 +50,10 @@ export default function SubmitDispute() {
         setError(`File "${file.name}" vượt quá 5MB.`);
         continue;
       }
-      const dataUrl = await fileToBase64(file);
       newEvidences.push({
         file,
-        preview: file.type.startsWith("image/") ? dataUrl : null,
+        preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
         fileType: getFileType(file),
-        dataUrl,
         name: file.name,
       });
     }
@@ -73,7 +62,11 @@ export default function SubmitDispute() {
   }
 
   function removeEvidence(idx) {
-    setEvidences((prev) => prev.filter((_, i) => i !== idx));
+    setEvidences((prev) => {
+      const removed = prev[idx];
+      if (removed?.preview) URL.revokeObjectURL(removed.preview);
+      return prev.filter((_, i) => i !== idx);
+    });
   }
 
   async function handleSubmit(e) {
@@ -84,16 +77,13 @@ export default function SubmitDispute() {
     setSubmitting(true);
     setError("");
     try {
-      const evPayload = evidences.map((ev) => ({
-        fileUrl: ev.dataUrl,
-        fileType: ev.fileType,
-      }));
-      const result = await disputeApi.submit({
-        bookingId: Number(bookingId),
+      const files = evidences.map((ev) => ev.file);
+      const result = await disputeApi.submit(
+        Number(bookingId),
         reason,
         description,
-        evidences: evPayload.length > 0 ? evPayload : null,
-      });
+        files,
+      );
       setSuccess(true);
       setTimeout(() => navigate(`/driver/dispute/${result.id}`), 1500);
     } catch (err) {

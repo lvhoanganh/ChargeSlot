@@ -88,7 +88,7 @@ export default function AdminDisputeDetail() {
         onClick={() => navigate("/admin/disputes")}
         className="mb-4 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 cursor-pointer"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
         Danh sách khiếu nại
       </button>
 
@@ -210,9 +210,8 @@ export default function AdminDisputeDetail() {
               <label className="block text-sm font-medium text-gray-700 mb-3">Kết quả phán quyết *</label>
               <div className="flex flex-col gap-3">
                 <label
-                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                    isDriverWin ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"
-                  }`}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${isDriverWin ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"
+                    }`}
                 >
                   <input type="radio" checked={isDriverWin} onChange={() => setIsDriverWin(true)} className="accent-green-600" />
                   <div>
@@ -221,9 +220,8 @@ export default function AdminDisputeDetail() {
                   </div>
                 </label>
                 <label
-                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                    !isDriverWin ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-gray-300"
-                  }`}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${!isDriverWin ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-gray-300"
+                    }`}
                 >
                   <input type="radio" checked={!isDriverWin} onChange={() => setIsDriverWin(false)} className="accent-purple-600" />
                   <div>
@@ -259,9 +257,8 @@ export default function AdminDisputeDetail() {
               <button
                 onClick={() => resolveMutation.mutate({ isDriverWin, adminNote })}
                 disabled={resolveMutation.isPending || !adminNote.trim()}
-                className={`px-4 py-2 rounded-md text-white cursor-pointer ${
-                  isDriverWin ? "bg-green-500 hover:bg-green-600" : "bg-purple-500 hover:bg-purple-600"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                className={`px-4 py-2 rounded-md text-white cursor-pointer ${isDriverWin ? "bg-green-500 hover:bg-green-600" : "bg-purple-500 hover:bg-purple-600"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {resolveMutation.isPending ? "Đang xử lý..." : "Xác nhận phán quyết"}
               </button>

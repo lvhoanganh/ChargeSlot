@@ -6,6 +6,7 @@ import { driverEditProfileSchema } from "@/schemas/driverEditProfileSchema";
 import { useAuthStore } from "@/stores/authStore";
 import { instance } from "@/lib/httpRequest";
 import { useEffect, useState } from "react";
+import { driverProfileApi } from "@/services/api";
 
 const DEFAULT_AVATAR =
   "https://avatarngau.sbs/wp-content/uploads/2025/07/avatar-vo-danh-va-sach.jpg";
@@ -58,6 +59,11 @@ export default function EditDriverProfile() {
           licensePlate: p?.licensePlate || "",
           licenseNumber: p?.licenseNumber || "",
         });
+        // Load server avatar if available
+        if (p?.avatarUrl) {
+          const url = p.avatarUrl.startsWith("/") ? `http://localhost:5162${p.avatarUrl}` : p.avatarUrl;
+          setAvatar(url);
+        }
       } catch (e) {
         if (!cancelled) setError(getApiErrorMessage(e, "Không thể tải thông tin hồ sơ"));
       } finally {
@@ -76,10 +82,18 @@ export default function EditDriverProfile() {
     if (!file) return;
 
     try {
+      // Preview immediately
       const dataUrl = await readFileAsDataUrl(file);
       setAvatar(dataUrl);
+
+      // Upload to server
+      const result = await driverProfileApi.uploadAvatar(file);
+      if (result?.avatarUrl) {
+        const fullUrl = result.avatarUrl.startsWith("/") ? `http://localhost:5162${result.avatarUrl}` : result.avatarUrl;
+        setAvatar(fullUrl);
+      }
     } catch {
-      // ignore
+      // keep local preview
     }
   };
 

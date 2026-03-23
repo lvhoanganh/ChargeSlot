@@ -42,7 +42,7 @@ export function getCurrentRole() {
 /**
  * Fetch wrapper — tự động gắn JWT token + xử lý lỗi
  */
-async function apiFetch(endpoint, options = {}) {
+export async function apiFetch(endpoint, options = {}) {
     const token = getToken();
 
     const headers = {
@@ -66,12 +66,66 @@ async function apiFetch(endpoint, options = {}) {
         throw new Error("Phiên đăng nhập hết hạn");
     }
 
+    // 403 → tài khoản bị vô hiệu hóa → force logout
+    if (response.status === 403) {
+        const body = await response.json().catch(() => ({}));
+        if (body.message && body.message.includes("vô hiệu hóa")) {
+            clearAuth();
+            window.location.href = "/login?banned=true";
+            throw new Error("Tài khoản đã bị vô hiệu hóa");
+        }
+        throw new Error(body.message || "Bạn không có quyền thực hiện thao tác này");
+    }
+
     // 204 No Content
     if (response.status === 204) {
         return null;
     }
 
     // Lỗi khác
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || error.error || `Lỗi ${response.status}`);
+    }
+
+    return response.json();
+}
+
+/**
+ * Fetch wrapper cho multipart/form-data (upload file)
+ * KHÔNG set Content-Type — browser tự thêm boundary
+ */
+async function apiFetchFormData(endpoint, formData, method = "POST") {
+    const token = getToken();
+    const headers = {};
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method,
+        headers,
+        body: formData,
+    });
+
+    if (response.status === 401) {
+        clearAuth();
+        window.location.href = "/login";
+        throw new Error("Phiên đăng nhập hết hạn");
+    }
+
+    if (response.status === 403) {
+        const body = await response.json().catch(() => ({}));
+        if (body.message && body.message.includes("vô hiệu hóa")) {
+            clearAuth();
+            window.location.href = "/login?banned=true";
+            throw new Error("Tài khoản đã bị vô hiệu hóa");
+        }
+        throw new Error(body.message || "Bạn không có quyền thực hiện thao tác này");
+    }
+
+    if (response.status === 204) return null;
+
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.message || error.error || `Lỗi ${response.status}`);
@@ -130,6 +184,13 @@ export const stationApi = {
 
     submitForApproval: (id) =>
         apiFetch(`/stations/${id}/submit`, { method: "POST" }),
+
+    /** Owner bật/tắt trạm (Active/Inactive) */
+    updateStatus: (id, operationalStatus) =>
+        apiFetch(`/stations/${id}/status`, {
+            method: "PATCH",
+            body: JSON.stringify({ operationalStatus }),
+        }),
 };
 
 // ============================
@@ -178,6 +239,9 @@ export const slotApi = {
 
     delete: (stationId, slotId) =>
         apiFetch(`/stations/${stationId}/slots/${slotId}`, { method: "DELETE" }),
+
+    getAvailability: (stationId, slotId, date) =>
+        apiFetch(`/stations/${stationId}/slots/${slotId}/availability${date ? `?date=${date}` : ""}`),
 };
 
 // ============================
@@ -266,6 +330,10 @@ export const chargingApi = {
     confirmCompletion: (sessionId) =>
         apiFetch(`/charging/${sessionId}/confirm`, { method: "PUT" }),
 
+    /** Driver yêu cầu kết thúc sạc sớm */
+    requestEarlyEnd: (sessionId) =>
+        apiFetch(`/charging/${sessionId}/request-early-end`, { method: "PUT" }),
+
     getActiveSessions: () => apiFetch("/charging/active"),
 
     getByBookingId: (bookingId) => apiFetch(`/charging/booking/${bookingId}`),
@@ -312,19 +380,23 @@ export const notificationApi = {
 // ============================
 
 export const disputeApi = {
-    /** Driver tạo khiếu nại + upload bằng chứng */
-    submit: (data) =>
-        apiFetch("/dispute", {
-            method: "POST",
-            body: JSON.stringify(data),
-        }),
+    /** Driver tạo khiếu nại + upload bằng chứng (multipart/form-data) */
+    submit: (bookingId, reason, description, files = []) => {
+        const formData = new FormData();
+        formData.append("BookingId", String(bookingId));
+        formData.append("Reason", reason);
+        formData.append("Description", description);
+        files.forEach((file) => formData.append("Files", file));
+        return apiFetchFormData("/dispute", formData, "POST");
+    },
 
-    /** Owner phản hồi + nộp bằng chứng */
-    submitOwnerEvidence: (disputeId, data) =>
-        apiFetch(`/dispute/${disputeId}/owner-evidence`, {
-            method: "PUT",
-            body: JSON.stringify(data),
-        }),
+    /** Owner phản hồi + nộp bằng chứng (multipart/form-data) */
+    submitOwnerEvidence: (disputeId, response, files = []) => {
+        const formData = new FormData();
+        formData.append("Response", response);
+        files.forEach((file) => formData.append("Files", file));
+        return apiFetchFormData(`/dispute/${disputeId}/owner-evidence`, formData, "PUT");
+    },
 
     /** Admin phán quyết khiếu nại */
     resolve: (disputeId, data) =>
@@ -341,4 +413,80 @@ export const disputeApi = {
 
     /** Dispute theo booking */
     getByBookingId: (bookingId) => apiFetch(`/dispute/booking/${bookingId}`),
+
+    /** Tất cả dispute — Admin, filter theo status nếu cần */
+    getAll: (status) => apiFetch(`/dispute/all${status ? `?status=${status}` : ""}`),
+};
+
+// ============================
+// ADMIN REVENUE (Báo cáo tài chính)
+// ============================
+
+export const adminRevenueApi = {
+    getSummary: (period = "all") =>
+        apiFetch(`/admin/revenue/summary?period=${period}`),
+
+    getMonthly: (period = "all") =>
+        apiFetch(`/admin/revenue/monthly?period=${period}`),
+
+    getTopStations: (period = "all", limit = 5) =>
+        apiFetch(`/admin/revenue/top-stations?period=${period}&limit=${limit}`),
+
+    getRecentTransactions: (limit = 10) =>
+        apiFetch(`/admin/revenue/recent-transactions?limit=${limit}`),
+
+    getVatReport: (period = "all") =>
+        apiFetch(`/admin/revenue/vat-report?period=${period}`),
+};
+
+// ============================
+// REVIEW (Đánh giá trạm sạc)
+// ============================
+
+export const reviewApi = {
+    /** Driver đánh giá trạm (sau booking Completed) */
+    create: (data) =>
+        apiFetch("/reviews", {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
+    /** Owner phản hồi đánh giá */
+    reply: (reviewId, reply) =>
+        apiFetch(`/reviews/${reviewId}/reply`, {
+            method: "PUT",
+            body: JSON.stringify({ reply }),
+        }),
+
+    /** Danh sách đánh giá của trạm (Public) */
+    getByStation: (stationId, page = 1, pageSize = 10) =>
+        apiFetch(`/reviews/station/${stationId}?page=${page}&pageSize=${pageSize}`),
+
+    /** Tổng quan rating — breakdown theo sao */
+    getSummary: (stationId) =>
+        apiFetch(`/reviews/station/${stationId}/summary`),
+
+    /** Top trạm xếp hạng (cho trang chủ) */
+    getTopStations: (limit = 10) =>
+        apiFetch(`/reviews/top-stations?limit=${limit}`),
+};
+
+// ============================
+// PROFILE — Avatar Upload
+// ============================
+
+export const driverProfileApi = {
+    uploadAvatar: (file) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        return apiFetchFormData("/driver/profile/avatar", formData, "POST");
+    },
+};
+
+export const ownerProfileApi = {
+    uploadAvatar: (file) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        return apiFetchFormData("/owner/profile/avatar", formData, "POST");
+    },
 };

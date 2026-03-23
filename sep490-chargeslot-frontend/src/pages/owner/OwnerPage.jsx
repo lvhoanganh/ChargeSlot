@@ -172,6 +172,31 @@ export default function OwnerPage() {
                             📤 Gửi duyệt
                           </button>
                         )}
+                        {s.approvalStatus === "Approved" && (
+                          <button
+                            onClick={async () => {
+                              const newStatus = s.operationalStatus === "Active" ? "Inactive" : "Active";
+                              if (!confirm(`${newStatus === "Inactive" ? "Tắt" : "Bật"} trạm sạc "${s.name}"?`)) return;
+                              setActionLoading(s.id);
+                              try {
+                                await stationApi.updateStatus(s.id, newStatus);
+                                fetchStations();
+                              } catch (err) {
+                                alert(err.message || "Lỗi đổi trạng thái");
+                              } finally {
+                                setActionLoading(null);
+                              }
+                            }}
+                            disabled={actionLoading === s.id}
+                            className={`px-4 py-2 text-sm font-semibold rounded-lg transition disabled:opacity-50 cursor-pointer ${
+                              s.operationalStatus === "Active"
+                                ? "bg-amber-50 text-amber-600 hover:bg-amber-100"
+                                : "bg-green-50 text-green-600 hover:bg-green-100"
+                            }`}
+                          >
+                            {s.operationalStatus === "Active" ? "⏸️ Tắt trạm" : "▶️ Bật trạm"}
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDeleteStation(s.id)}
                           disabled={actionLoading === s.id}

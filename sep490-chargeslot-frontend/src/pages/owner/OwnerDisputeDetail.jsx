@@ -12,15 +12,6 @@ const STATUS_MAP = {
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 function getFileType(file) {
   if (file.type.startsWith("image/")) return "image";
   if (file.type.startsWith("video/")) return "video";
@@ -55,7 +46,7 @@ export default function OwnerDisputeDetail() {
       .finally(() => setLoading(false));
   }, [disputeId]);
 
-  async function handleFilesSelected(e) {
+  function handleFilesSelected(e) {
     const files = Array.from(e.target.files || []);
     const newEvidences = [];
     for (const file of files) {
@@ -63,12 +54,10 @@ export default function OwnerDisputeDetail() {
         setError(`File "${file.name}" vượt quá 5MB.`);
         continue;
       }
-      const dataUrl = await fileToBase64(file);
       newEvidences.push({
         file,
-        preview: file.type.startsWith("image/") ? dataUrl : null,
+        preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
         fileType: getFileType(file),
-        dataUrl,
         name: file.name,
       });
     }
@@ -85,14 +74,12 @@ export default function OwnerDisputeDetail() {
     setSubmitting(true);
     setError("");
     try {
-      const evPayload = evidences.map((ev) => ({
-        fileUrl: ev.dataUrl,
-        fileType: ev.fileType,
-      }));
-      const result = await disputeApi.submitOwnerEvidence(Number(disputeId), {
-        response: response || null,
-        evidences: evPayload.length > 0 ? evPayload : null,
-      });
+      const files = evidences.map((ev) => ev.file);
+      const result = await disputeApi.submitOwnerEvidence(
+        Number(disputeId),
+        response || "",
+        files,
+      );
       setDispute(result);
       setSuccess(true);
     } catch (err) {
@@ -295,20 +282,24 @@ export default function OwnerDisputeDetail() {
 }
 
 function EvidenceGallery({ evidences }) {
+  const API_BASE = "http://localhost:5162";
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-      {evidences.map((ev) => (
-        <a key={ev.id} href={ev.fileUrl} target="_blank" rel="noopener noreferrer"
-          style={{ display: "block", width: 80, height: 80, borderRadius: 10, overflow: "hidden", border: "2px solid #e5e7eb", background: "#f3f4f6" }}>
-          {ev.fileType === "image" ? (
-            <img src={ev.fileUrl} alt="evidence" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 24 }}>
-              {ev.fileType === "video" ? "🎬" : "📄"}
-            </div>
-          )}
-        </a>
-      ))}
+      {evidences.map((ev) => {
+        const url = ev.fileUrl?.startsWith("/") ? `${API_BASE}${ev.fileUrl}` : ev.fileUrl;
+        return (
+          <a key={ev.id} href={url} target="_blank" rel="noopener noreferrer"
+            style={{ display: "block", width: 80, height: 80, borderRadius: 10, overflow: "hidden", border: "2px solid #e5e7eb", background: "#f3f4f6" }}>
+            {ev.fileType === "image" ? (
+              <img src={url} alt="evidence" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 24 }}>
+                {ev.fileType === "video" ? "🎬" : "📄"}
+              </div>
+            )}
+          </a>
+        );
+      })}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { ownerEditProfileSchema } from "@/schemas/ownerEditProfileSchema";
 import { useAuthStore } from "@/stores/authStore";
 import { instance } from "@/lib/httpRequest";
 import { useEffect, useState, forwardRef } from "react";
+import { ownerProfileApi } from "@/services/api";
 
 const DEFAULT_AVATAR =
   "https://avatarngau.sbs/wp-content/uploads/2025/07/avatar-vo-danh-va-sach.jpg";
@@ -56,6 +57,11 @@ export default function EditOwnerProfile() {
           businessName: p?.businessName || "",
           taxCode: normalizeOptionalText(p?.taxCode),
         });
+        // Load server avatar if available
+        if (p?.avatarUrl) {
+          const url = p.avatarUrl.startsWith("/") ? `http://localhost:5162${p.avatarUrl}` : p.avatarUrl;
+          setAvatar(url);
+        }
       } catch (e) {
         if (!cancelled) setError(getApiErrorMessage(e, "Không thể tải thông tin hồ sơ"));
       } finally {
@@ -76,8 +82,14 @@ export default function EditOwnerProfile() {
     try {
       const dataUrl = await readFileAsDataUrl(file);
       setAvatar(dataUrl);
+
+      const result = await ownerProfileApi.uploadAvatar(file);
+      if (result?.avatarUrl) {
+        const fullUrl = result.avatarUrl.startsWith("/") ? `http://localhost:5162${result.avatarUrl}` : result.avatarUrl;
+        setAvatar(fullUrl);
+      }
     } catch {
-      // ignore
+      // keep local preview
     }
   };
 

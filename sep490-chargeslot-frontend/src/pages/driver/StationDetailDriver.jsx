@@ -1,9 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { publicStationApi } from "@/services/api";
+import { publicStationApi, reviewApi } from "@/services/api";
+import { useAuthStore } from "@/stores/authStore";
 
 /* ─── Inject pulse animation (same as StationMap) ─── */
 if (!document.getElementById("station-marker-pulse")) {
@@ -80,6 +81,24 @@ export default function StationDetailDriver() {
   const [station, setStation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loginToast, setLoginToast] = useState(false);
+  const toastTimer = useRef(null);
+  const { token } = useAuthStore();
+
+  const [reviewSummary, setReviewSummary] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewPage, setReviewPage] = useState(1);
+  const [hasMoreReviews, setHasMoreReviews] = useState(false);
+
+  function handleBooking() {
+    if (!token) {
+      setLoginToast(true);
+      clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(() => setLoginToast(false), 3500);
+      return;
+    }
+    navigate(`/driver/station/${station.id}/book`);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +115,28 @@ export default function StationDetailDriver() {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  // Fetch reviews
+  useEffect(() => {
+    if (!id) return;
+    reviewApi.getSummary(Number(id)).then(setReviewSummary).catch(() => {});
+    reviewApi.getByStation(Number(id), 1, 5).then((data) => {
+      const list = Array.isArray(data) ? data : (data?.items || []);
+      setReviews(list);
+      setHasMoreReviews(list.length >= 5);
+    }).catch(() => {});
+  }, [id]);
+
+  async function loadMoreReviews() {
+    const nextPage = reviewPage + 1;
+    try {
+      const data = await reviewApi.getByStation(Number(id), nextPage, 5);
+      const list = Array.isArray(data) ? data : (data?.items || []);
+      setReviews((prev) => [...prev, ...list]);
+      setReviewPage(nextPage);
+      setHasMoreReviews(list.length >= 5);
+    } catch { /* ignore */ }
+  }
 
   if (loading) {
     return (
@@ -238,7 +279,7 @@ export default function StationDetailDriver() {
         </div>
 
         {/* Quick stats */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className={`grid ${reviewSummary ? 'grid-cols-4' : 'grid-cols-3'} gap-3 mb-6`}>
           <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
             <div className="text-2xl font-bold text-green-500">
               {availableSlots}
@@ -252,7 +293,7 @@ export default function StationDetailDriver() {
             <div className="text-xs text-gray-500 mt-1">Tổng slot</div>
           </div>
           <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
-            <div className="text-lg font-bold text-amber-600">
+            <div className="text-2xl font-bold text-amber-600">
               {(() => {
                 const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
                 const prices = tiers.map(t => t.pricePerHour);
@@ -262,6 +303,15 @@ export default function StationDetailDriver() {
             </div>
             <div className="text-xs text-gray-500 mt-1">Giá từ/h</div>
           </div>
+          {reviewSummary && (
+            <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
+              <div className="flex items-center justify-center gap-1">
+                <span className="text-2xl font-bold text-amber-500">{reviewSummary.averageRating?.toFixed(1)}</span>
+                <span className="text-amber-400 text-lg">⭐</span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">{reviewSummary.totalReviews} đánh giá</div>
+            </div>
+          )}
         </div>
 
         {/* Description */}
@@ -465,9 +515,72 @@ export default function StationDetailDriver() {
           </div>
         )}
 
+        {/* Reviews section */}
+        <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
+          <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            ⭐ Đánh giá {reviewSummary ? `(${reviewSummary.averageRating?.toFixed(1)}/5 — ${reviewSummary.totalReviews} lượt)` : ""}
+          </h2>
+
+          {/* Star breakdown */}
+          {reviewSummary && reviewSummary.totalReviews > 0 && (
+            <div className="mb-4 space-y-1">
+              {[5, 4, 3, 2, 1].map((star) => {
+                const count = reviewSummary[`star${star}`] || 0;
+                const pct = reviewSummary.totalReviews > 0 ? (count / reviewSummary.totalReviews) * 100 : 0;
+                return (
+                  <div key={star} className="flex items-center gap-2 text-xs">
+                    <span className="w-6 text-right text-gray-500 font-medium">{star}⭐</span>
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-amber-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="w-8 text-gray-400">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Review list */}
+          {reviews.length > 0 ? (
+            <div className="space-y-3">
+              {reviews.map((r) => (
+                <div key={r.id} className="border-b border-gray-50 pb-3 last:border-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    {r.driverAvatarUrl ? (
+                      <img src={r.driverAvatarUrl.startsWith("/") ? `http://localhost:5162${r.driverAvatarUrl}` : r.driverAvatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs">👤</div>
+                    )}
+                    <span className="text-sm font-semibold text-gray-800">{r.driverName || "Driver"}</span>
+                    <span className="text-xs text-amber-500">{"⭐".repeat(r.rating)}</span>
+                    <span className="text-xs text-gray-400 ml-auto">{new Date(r.createdAt).toLocaleDateString("vi-VN")}</span>
+                  </div>
+                  {r.comment && <p className="text-sm text-gray-600 ml-9">{r.comment}</p>}
+                  {r.ownerReply && (
+                    <div className="ml-9 mt-2 pl-3 border-l-2 border-orange-200 bg-orange-50 rounded-r-lg py-2 px-3">
+                      <span className="text-xs font-semibold text-orange-600">Phản hồi Owner:</span>
+                      <p className="text-xs text-gray-600 mt-0.5">{r.ownerReply}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {hasMoreReviews && (
+                <button
+                  onClick={loadMoreReviews}
+                  className="w-full text-sm text-orange-500 font-semibold py-2 hover:text-orange-700 cursor-pointer"
+                >
+                  Xem thêm đánh giá →
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 italic text-center py-4">Chưa có đánh giá nào.</p>
+          )}
+        </div>
+
         {/* Book button */}
         <button
-          onClick={() => navigate(`/driver/station/${station.id}/book`)}
+          onClick={handleBooking}
           className="w-full py-4 text-white font-bold text-base rounded-2xl shadow-lg transition-all hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
           style={{
             background: "linear-gradient(135deg, #f97316, #ea580c)",
@@ -488,6 +601,31 @@ export default function StationDetailDriver() {
           </svg>
           Đặt lịch sạc
         </button>
+
+        {/* Login toast */}
+        <div
+          className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ${loginToast
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 -translate-y-4 pointer-events-none"
+          }`}
+        >
+          <div className="flex items-center gap-3 bg-white border border-orange-200 shadow-2xl rounded-xl px-5 py-4 min-w-[360px]">
+            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">Yêu cầu đăng nhập</p>
+              <p className="text-xs text-gray-500 mt-0.5">Bạn phải đăng nhập vào hệ thống mới có thể đặt lịch sạc</p>
+            </div>
+            <button onClick={() => setLoginToast(false)} className="ml-auto text-gray-400 hover:text-gray-600 cursor-pointer">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

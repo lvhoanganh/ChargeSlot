@@ -23,7 +23,7 @@ export default function ScanQR() {
   useEffect(() => {
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
+        scannerRef.current.stop().catch(() => { });
       }
     };
   }, []);
@@ -64,11 +64,11 @@ export default function ScanQR() {
         (decodedText) => {
           if (scannedRef.current) return;
           scannedRef.current = true;
-          scanner.stop().catch(() => {});
+          scanner.stop().catch(() => { });
           setCameraActive(false);
           runCheckIn(decodedText);
         },
-        () => {}
+        () => { }
       );
       setCameraActive(true);
     } catch (err) {
@@ -79,7 +79,7 @@ export default function ScanQR() {
 
   async function stopScanner() {
     if (scannerRef.current) {
-      await scannerRef.current.stop().catch(() => {});
+      await scannerRef.current.stop().catch(() => { });
       scannerRef.current = null;
     }
     setCameraActive(false);
@@ -331,36 +331,6 @@ export default function ScanQR() {
             )}
           </div>
         </div>
-
-        {/* Manual token input for testing */}
-        <div className="rounded-2xl bg-white shadow-lg overflow-hidden mb-6">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-            <span className="text-sm">🔑</span>
-            <h3 className="text-sm font-bold text-gray-700">Nhập mã token thủ công</h3>
-          </div>
-          <div className="p-5">
-            <div className="flex gap-2">
-              <input
-                id="manual-token"
-                type="text"
-                placeholder="Dán QR token vào đây..."
-                className="flex-1 h-10 rounded-lg border border-gray-200 px-3 text-sm outline-none focus:ring-2 focus:ring-orange-200"
-              />
-              <button
-                onClick={() => {
-                  const input = document.getElementById("manual-token");
-                  const val = input?.value?.trim();
-                  if (val) { stopScanner(); runCheckIn(val); }
-                }}
-                className="h-10 px-4 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg cursor-pointer transition-all"
-              >
-                Check-in
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mt-2">Copy token từ trang Owner → dán vào đây để test</p>
-          </div>
-        </div>
-
         <div className="rounded-2xl bg-white shadow-lg overflow-hidden mb-6">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
             <span className="text-sm">💡</span>

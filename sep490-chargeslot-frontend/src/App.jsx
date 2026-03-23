@@ -53,6 +53,8 @@ import OwnerActiveSessions from "./pages/owner/OwnerActiveSessions";
 import DisputeList from "./pages/admin/DisputeList";
 import AdminDisputeDetail from "./pages/admin/AdminDisputeDetail";
 import AdminRevenue from "./pages/admin/AdminRevenue";
+import ChangePassword from "./pages/common/ChangePassword";
+import DriverReviews from "./pages/driver/DriverReviews";
 
 export default function App() {
   return (
@@ -67,6 +69,7 @@ export default function App() {
           <Route path="driver/station/:id" element={<StationDetailDriver />} />
           <Route path="driver/station/:stationId/book" element={<BookingForm />} />
           <Route path="payment/result" element={<PaymentResult />} />
+          <Route path="change-password" element={<ChangePassword />} />
           <Route path="setPassword" element={<SetPassword />} />
           <Route path="forgotPassword" element={<ForgotPassword />} />
           <Route path="verifyOtp" element={<VerifyOtp />} />
@@ -111,6 +114,7 @@ export default function App() {
             <Route path="dispute/submit/:bookingId" element={<SubmitDispute />} />
             <Route path="dispute/:disputeId" element={<DisputeDetail />} />
             <Route path="wallet" element={<DriverWallet />} />
+            <Route path="reviews" element={<DriverReviews />} />
           </Route>
         </Route>
         <Route path="owner" element={<OwnerLayout />}>

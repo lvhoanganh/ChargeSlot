@@ -24,12 +24,17 @@ export default function ChargingActive() {
   const [elapsed, setElapsed] = useState(0);
   const [loading, setLoading] = useState(!session);
   const [confirming, setConfirming] = useState(false);
+  const [requestingEarlyEnd, setRequestingEarlyEnd] = useState(false);
+  const [earlyEndRequested, setEarlyEndRequested] = useState(false);
   const [error, setError] = useState("");
   const startRef = useRef(Date.now());
 
   // If no session from state, try to load from bookingId in URL
   useEffect(() => {
-    if (session) return;
+    if (session) {
+      if (session.earlyEndRequestedAt) setEarlyEndRequested(true);
+      return;
+    }
     // Fallback — could navigate here with bookingId
     const bookingId = location.state?.bookingId;
     if (!bookingId) {
@@ -37,7 +42,11 @@ export default function ChargingActive() {
       return;
     }
     chargingApi.getByBookingId(bookingId)
-      .then(data => { setSessionData(data); setLoading(false); })
+      .then(data => {
+        setSessionData(data);
+        if (data?.earlyEndRequestedAt) setEarlyEndRequested(true);
+        setLoading(false);
+      })
       .catch(() => { navigate("/driver/my-bookings"); });
   }, []);
 
@@ -59,6 +68,7 @@ export default function ChargingActive() {
         const updated = await chargingApi.getByBookingId(sessionData.bookingId);
         if (updated) {
           setSessionData(updated);
+          if (updated.earlyEndRequestedAt) setEarlyEndRequested(true);
           // If session was stopped by owner or completed
           if (updated.actualEndTime || updated.bookingStatus === "Completed") {
             navigate("/driver/charging-complete", { state: { session: updated } });
@@ -68,6 +78,22 @@ export default function ChargingActive() {
     }, 10000);
     return () => clearInterval(interval);
   }, [sessionData?.bookingId]);
+
+  async function handleRequestEarlyEnd() {
+    if (!sessionData || earlyEndRequested) return;
+    if (!confirm("Bạn muốn yêu cầu kết thúc sạc sớm? Owner sẽ nhận được thông báo.")) return;
+    setRequestingEarlyEnd(true);
+    setError("");
+    try {
+      const result = await chargingApi.requestEarlyEnd(sessionData.id);
+      setEarlyEndRequested(true);
+      if (result) setSessionData(result);
+    } catch (err) {
+      setError(err?.message || "Lỗi khi gửi yêu cầu kết thúc sớm.");
+    } finally {
+      setRequestingEarlyEnd(false);
+    }
+  }
 
   async function handleConfirm() {
     if (!sessionData) return;
@@ -157,6 +183,25 @@ export default function ChargingActive() {
           <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
             <p className="text-sm text-red-600">{error}</p>
           </div>
+        )}
+
+        {/* Early end request */}
+        {earlyEndRequested ? (
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
+            <p className="text-sm font-semibold text-amber-700">⏹️ Đã gửi yêu cầu kết thúc sớm</p>
+            <p className="text-xs text-amber-600 mt-1">Chờ Owner xác nhận dừng phiên sạc...</p>
+          </div>
+        ) : !isTimeUp && (
+          <button
+            onClick={handleRequestEarlyEnd}
+            disabled={requestingEarlyEnd}
+            className="w-full h-12 mb-4 bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold text-sm rounded-xl border border-amber-200 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {requestingEarlyEnd ? (
+              <div className="w-4 h-4 border-2 border-amber-400 border-t-amber-700 rounded-full animate-spin" />
+            ) : "⏹️"}
+            {requestingEarlyEnd ? "Đang gửi..." : "Yêu cầu kết thúc sớm"}
+          </button>
         )}
 
         <button

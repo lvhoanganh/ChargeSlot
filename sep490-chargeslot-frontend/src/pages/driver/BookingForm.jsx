@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { publicStationApi, bookingApi } from "@/services/api";
+import { publicStationApi, bookingApi, slotApi } from "@/services/api";
 
 export default function BookingForm() {
   const { stationId } = useParams();
@@ -13,6 +13,7 @@ export default function BookingForm() {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [bookedRanges, setBookedRanges] = useState([]);
 
   useEffect(() => {
     publicStationApi.getById(Number(stationId))
@@ -20,6 +21,15 @@ export default function BookingForm() {
       .catch(() => setStation(null))
       .finally(() => setLoading(false));
   }, [stationId]);
+
+  // Fetch booked ranges khi chọn slot hoặc đổi ngày
+  useEffect(() => {
+    if (!selectedSlot || !stationId) { setBookedRanges([]); return; }
+    const dateStr = startTime ? new Date(startTime).toISOString().slice(0, 10) : undefined;
+    slotApi.getAvailability(Number(stationId), selectedSlot, dateStr)
+      .then(data => setBookedRanges(data.bookedRanges || []))
+      .catch(() => setBookedRanges([]));
+  }, [selectedSlot, stationId, startTime ? startTime.slice(0, 10) : ""]);
 
   // Tính tổng tiền giống logic BE: CalculateTotalPrice — chia booking theo từng khung giá
   const calculateTotalAmount = () => {
@@ -39,30 +49,52 @@ export default function BookingForm() {
 
     let total = 0;
     let current = new Date(startObj);
+    let maxIter = 200;
 
-    while (current < endObj) {
+    while (current < endObj && maxIter-- > 0) {
       const currentMin = current.getHours() * 60 + current.getMinutes();
 
-      // Tìm tier phù hợp cho thời điểm hiện tại
+      // Tìm tier phù hợp — dùng < cho end (exclusive)  
       let tier = tiers.find(t => {
         const tStart = toMin(t.startTime);
         const tEnd = toMin(t.endTime);
         return currentMin >= tStart && currentMin < tEnd;
       });
 
-      // Fallback: dùng tier đầu tiên
+      // Nếu không match, thử inclusive end (cho trường hợp boundary như 23:00)
+      if (!tier) {
+        tier = tiers.find(t => {
+          const tStart = toMin(t.startTime);
+          const tEnd = toMin(t.endTime);
+          return currentMin >= tStart && currentMin <= tEnd;
+        });
+      }
+
+      // Fallback cuối cùng: dùng tier đầu tiên
       if (!tier) tier = tiers[0];
 
-      // Tính cuối segment = min(endObj, cuối tier hôm đó)
+      // Tính cuối segment
       const tierEndMin = toMin(tier.endTime);
-      // Ngày hiện tại + giờ kết thúc tier
       const tierEndDate = new Date(current);
       tierEndDate.setHours(0, 0, 0, 0);
-      if (tierEndMin === 23 * 60 + 59) {
-        // 23:59 = hết ngày
+      if (tierEndMin === 23 * 60 + 59 || tierEndMin === 0) {
         tierEndDate.setDate(tierEndDate.getDate() + 1);
       } else {
-        tierEndDate.setMinutes(tierEndMin);
+        tierEndDate.setHours(Math.floor(tierEndMin / 60), tierEndMin % 60, 0, 0);
+      }
+
+      // Nếu tierEnd đã qua → dùng endObj hoặc đầu ngày mới, chọn cái nhỏ hơn
+      if (tierEndDate <= current) {
+        const nextDay = new Date(current);
+        nextDay.setHours(0, 0, 0, 0);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const segmentEnd = endObj < nextDay ? endObj : nextDay;
+        const hours = (segmentEnd - current) / 3600000;
+        if (hours > 0) {
+          total += hours * (tier.pricePerHour || 0);
+        }
+        current = segmentEnd;
+        continue;
       }
 
       const segmentEnd = endObj < tierEndDate ? endObj : tierEndDate;
@@ -87,6 +119,37 @@ export default function BookingForm() {
     setStartTime(iso);
   }, []);
 
+  // Realtime validation: kiểm tra giờ có nằm trong khung giá không
+  const timeError = (() => {
+    if (!station || !startTime) return "";
+    const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
+    if (tiers.length === 0) return "";
+
+    const toMin = (str) => {
+      if (!str) return 0;
+      const [h, m] = String(str).split(':');
+      return parseInt(h) * 60 + parseInt(m);
+    };
+    const tierStarts = tiers.map(t => toMin(t.startTime));
+    const tierEnds = tiers.map(t => toMin(t.endTime));
+    const minTier = Math.min(...tierStarts);
+    const maxTier = Math.max(...tierEnds);
+    const fmtMin = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+    const startObj = new Date(startTime);
+    const endObj = new Date(startObj.getTime() + duration * 3600000);
+    const bookStartMin = startObj.getHours() * 60 + startObj.getMinutes();
+    const bookEndMin = endObj.getHours() * 60 + endObj.getMinutes() + (endObj.getDate() !== startObj.getDate() ? 24 * 60 : 0);
+
+    if (bookStartMin < minTier || bookStartMin >= maxTier) {
+      return `⚠️ Giờ bắt đầu phải trong khung ${fmtMin(minTier)} – ${fmtMin(maxTier)}`;
+    }
+    if (bookEndMin > maxTier && maxTier !== 0) {
+      return `⚠️ Giờ kết thúc (${fmtMin(bookEndMin > 24 * 60 ? bookEndMin - 24 * 60 : bookEndMin)}) vượt quá khung giá (${fmtMin(maxTier)}). Giảm thời lượng!`;
+    }
+    return "";
+  })();
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!selectedSlot) return setApiError("Vui lòng chọn slot sạc");
@@ -95,6 +158,32 @@ export default function BookingForm() {
     // Lấy thông tin ngày giờ
     const startObj = new Date(startTime);
     const endObj = new Date(startObj.getTime() + duration * 3600000);
+
+    // Kiểm tra giờ trong khung giá
+    const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
+    if (tiers.length > 0) {
+      const toMin = (str) => {
+        if (!str) return 0;
+        const [h, m] = String(str).split(':');
+        return parseInt(h) * 60 + parseInt(m);
+      };
+      const tierStarts = tiers.map(t => toMin(t.startTime));
+      const tierEnds = tiers.map(t => toMin(t.endTime));
+      const minTier = Math.min(...tierStarts);
+      const maxTier = Math.max(...tierEnds);
+
+      const bookStartMin = startObj.getHours() * 60 + startObj.getMinutes();
+      const bookEndMin = endObj.getHours() * 60 + endObj.getMinutes() + (endObj.getDate() !== startObj.getDate() ? 24 * 60 : 0);
+
+      const fmtMin = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+      if (bookStartMin < minTier || bookStartMin >= maxTier) {
+        return setApiError(`Giờ bắt đầu phải nằm trong khung ${fmtMin(minTier)} – ${fmtMin(maxTier)}!`);
+      }
+      if (bookEndMin > maxTier && maxTier !== 0) {
+        return setApiError(`Giờ kết thúc (${fmtMin(bookEndMin > 24 * 60 ? bookEndMin - 24 * 60 : bookEndMin)}) vượt quá khung giá (${fmtMin(maxTier)}). Vui lòng giảm thời lượng!`);
+      }
+    }
 
     // Kiểm tra giờ hoạt động của trạm
     const dayOfWeek = startObj.getDay();
@@ -142,7 +231,7 @@ export default function BookingForm() {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
     try {
       const res = await fetch("http://localhost:5162/api/Booking", {
@@ -275,6 +364,28 @@ export default function BookingForm() {
               );
             })()}
 
+            {/* Booked time ranges */}
+            {selectedSlot && bookedRanges.length > 0 && (
+              <div style={{ background: "#fef3c7", borderRadius: 10, padding: "10px 14px", marginBottom: 20, border: "1px solid #fde68a" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>📅 Khung giờ đã được đặt</div>
+                {bookedRanges.map((r, idx) => {
+                  const toLocal = (t) => new Date(String(t).endsWith("Z") ? t : t + "Z");
+                  const start = toLocal(r.startTime);
+                  const end = toLocal(r.endTime);
+                  const fmtTime = (d) => d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
+                  const fmtDate = (d) => d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+                  return (
+                    <div key={idx} style={{ fontSize: 12, color: "#78350f", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                      <span>🔴 {fmtTime(start)} – {fmtTime(end)} ({fmtDate(start)})</span>
+                      <span style={{ fontSize: 10, color: "#b45309", background: "#fef9c3", padding: "1px 6px", borderRadius: 6 }}>
+                        {r.status === "Confirmed" ? "Đã xác nhận" : r.status === "PendingPayment" ? "Chờ thanh toán" : r.status === "WaitingOwner" ? "Chờ duyệt" : r.status === "CheckedIn" ? "Đã check-in" : r.status === "Charging" ? "Đang sạc" : r.status}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Start time */}
             <label style={labelStyle}>Thời gian bắt đầu</label>
             <input
@@ -291,6 +402,12 @@ export default function BookingForm() {
                 <option key={h} value={h}>{h} giờ</option>
               ))}
             </select>
+
+            {timeError && (
+              <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px 14px", borderRadius: 10, fontSize: 13, marginBottom: 16, marginTop: -8, border: "1px solid #fecaca" }}>
+                {timeError}
+              </div>
+            )}
 
             {/* Note */}
             <label style={labelStyle}>Ghi chú (tùy chọn)</label>
@@ -331,11 +448,11 @@ export default function BookingForm() {
 
             <button
               type="submit"
-              disabled={submitting || !selectedSlot}
+              disabled={submitting || !selectedSlot || !!timeError}
               style={{
                 width: "100%", padding: "14px 0", borderRadius: 14, border: "none",
-                background: submitting || !selectedSlot ? "#d1d5db" : "linear-gradient(135deg, #f97316, #ea580c)",
-                color: "#fff", fontWeight: 700, fontSize: 15, cursor: submitting || !selectedSlot ? "not-allowed" : "pointer",
+                background: submitting || !selectedSlot || timeError ? "#d1d5db" : "linear-gradient(135deg, #f97316, #ea580c)",
+                color: "#fff", fontWeight: 700, fontSize: 15, cursor: submitting || !selectedSlot || timeError ? "not-allowed" : "pointer",
               }}
             >
               {submitting ? "Đang xử lý..." : "Đặt lịch sạc"}
