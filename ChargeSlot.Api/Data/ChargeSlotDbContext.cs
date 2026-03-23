@@ -39,6 +39,7 @@ namespace ChargeSlot.Api.Data
         public DbSet<LedgerTransaction> LedgerTransactions => Set<LedgerTransaction>();
         public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+        public DbSet<FavoriteStation> FavoriteStations => Set<FavoriteStation>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

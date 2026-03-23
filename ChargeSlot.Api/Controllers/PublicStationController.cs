@@ -22,21 +22,47 @@ namespace ChargeSlot.Api.Controllers
             _db = db;
         }
 
-        /// <summary>List tất cả trạm Approved + Active (cho Driver tìm kiếm).</summary>
+        /// <summary>
+        /// List trạm Approved + Active cho Driver tìm kiếm.
+        /// Filter: keyword, minRating. Sort: name (default), rating, reviews.
+        /// </summary>
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll(
+            [FromQuery] string? keyword = null,
+            [FromQuery] decimal? minRating = null,
+            [FromQuery] string? sortBy = null)
         {
-            var stations = await _db.ChargingStations
+            var query = _db.ChargingStations
                 .Include(s => s.Images)
                 .Include(s => s.OperatingHours)
                 .Include(s => s.ChargingSlots)
                 .Include(s => s.StationPricings)
                 .Include(s => s.ExtraServices)
                 .Where(s => s.ApprovalStatus == ApprovalStatus.Approved
-                    && s.OperationalStatus == OperationalStatus.Active)
-                .OrderBy(s => s.Name)
-                .ToListAsync();
+                    && s.OperationalStatus == OperationalStatus.Active);
 
+            // Filter by keyword (tên hoặc địa chỉ)
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                var kw = keyword.ToLower();
+                query = query.Where(s => s.Name.ToLower().Contains(kw) || s.Address.ToLower().Contains(kw));
+            }
+
+            // Filter by minimum rating
+            if (minRating.HasValue)
+            {
+                query = query.Where(s => s.AverageRating >= minRating.Value);
+            }
+
+            // Sort
+            query = sortBy?.ToLower() switch
+            {
+                "rating" => query.OrderByDescending(s => s.AverageRating).ThenByDescending(s => s.TotalReviews),
+                "reviews" => query.OrderByDescending(s => s.TotalReviews).ThenByDescending(s => s.AverageRating),
+                _ => query.OrderBy(s => s.Name)
+            };
+
+            var stations = await query.ToListAsync();
             return Ok(stations.Select(MapToPublicDto));
         }
 
