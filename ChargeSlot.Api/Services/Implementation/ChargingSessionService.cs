@@ -181,7 +181,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 booking.DriverUserId,
                 "Phiên sạc đã kết thúc",
-                $"Phiên sạc #{session.Id} đã kết thúc. Vui lòng xác nhận hóa đơn {grossAmount:N0}đ.",
+                $"Phiên sạc tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã kết thúc. Vui lòng xác nhận hóa đơn {grossAmount:N0}đ.",
                 NotificationType.Booking);
 
             return MapToDto(session, booking);
@@ -215,7 +215,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 ownerUserId,
                 "Driver yêu cầu kết thúc sạc sớm",
-                $"Booking #{booking.Id} — Driver yêu cầu kết thúc phiên sạc sớm. Vui lòng dừng phiên sạc.",
+                $"{booking.Driver?.User?.FullName ?? "Driver"} yêu cầu kết thúc sớm phiên sạc tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name}. Vui lòng dừng phiên sạc.",
                 NotificationType.Booking);
 
             return MapToDto(session, booking);
@@ -263,7 +263,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _notificationService.SendAsync(
                     station.OwnerUserId,
                     "Driver đã xác nhận hoàn thành",
-                    $"Booking #{booking.Id} đã hoàn thành. Số tiền {invoice?.ChargingAmount:N0}đ đã được chuyển vào ví của bạn.",
+                    $"Phiên sạc tại slot {booking.ChargingSlot?.SlotName} — trạm {station.Name} đã hoàn thành. {invoice?.ChargingAmount:N0}đ đã chuyển vào ví của bạn.",
                     NotificationType.Payment);
             }
 

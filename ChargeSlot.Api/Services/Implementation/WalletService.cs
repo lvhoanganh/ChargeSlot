@@ -218,7 +218,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 userId,
                 "Thanh toán thành công",
-                $"Đặt chỗ #{bookingId} đã thanh toán bằng ví ({booking.TotalAmount:N0} VND). Slot đã được giữ cho bạn.",
+                $"Thanh toán {booking.TotalAmount:N0}đ bằng ví cho slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) thành công. Slot đã được giữ cho bạn.",
                 NotificationType.Payment);
 
             return MapToDto(wallet);

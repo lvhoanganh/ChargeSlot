@@ -74,7 +74,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                         await notificationService.SendAsync(
                             booking.DriverUserId,
                             "Đặt chỗ đã hết hạn",
-                            $"Đặt chỗ #{booking.Id} đã bị hủy do không thanh toán kịp thời hạn.",
+                            $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã bị hủy do không thanh toán kịp thời hạn.",
                             NotificationType.Booking);
 
                         _logger.LogInformation("Booking {BookingId} expired due to payment timeout.", booking.Id);

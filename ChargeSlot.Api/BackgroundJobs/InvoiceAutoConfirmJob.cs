@@ -67,7 +67,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                         await notificationService.SendAsync(
                             booking.DriverUserId,
                             "Hóa đơn tự động xác nhận",
-                            $"Hóa đơn booking #{booking.Id} đã được tự động xác nhận sau 24h. Số tiền {invoice.TotalAmount:N0}đ.",
+                            $"Hóa đơn phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name} ({invoice.TotalAmount:N0}đ) đã được tự động xác nhận sau 24h.",
                             NotificationType.Payment);
 
                         // Notify Owner
@@ -77,7 +77,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                             await notificationService.SendAsync(
                                 ownerUserId.Value,
                                 "Thanh toán đã chuyển",
-                                $"Booking #{booking.Id} auto-confirm. Số tiền {invoice.ChargingAmount:N0}đ đã chuyển vào ví.",
+                                $"Phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name} đã tự động xác nhận. {invoice.ChargingAmount:N0}đ đã chuyển vào ví của bạn.",
                                 NotificationType.Payment);
                         }
 

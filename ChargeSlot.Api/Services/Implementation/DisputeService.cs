@@ -100,7 +100,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 ownerUserId,
                 "Khiếu nại mới từ Driver",
-                $"Booking #{booking.Id} bị khiếu nại. Lý do: {dto.Reason}. Bạn có 1 ngày để nộp bằng chứng phản hồi.",
+                $"{booking.Driver?.User?.FullName ?? "Driver"} khiếu nại về phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name}. Lý do: {dto.Reason}. Bạn có 24h để nộp bằng chứng phản hồi.",
                 NotificationType.Dispute);
 
             // Notify Admin
@@ -114,7 +114,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _notificationService.SendAsync(
                     adminId,
                     "Khiếu nại mới cần xử lý",
-                    $"Booking #{booking.Id} có khiếu nại mới. Chờ Owner phản hồi.",
+                    $"Khiếu nại mới tại trạm {booking.ChargingSlot?.ChargingStation?.Name} từ {booking.Driver?.User?.FullName ?? "Driver"}. Chờ Owner phản hồi.",
                     NotificationType.Dispute);
             }
 
@@ -159,7 +159,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 dispute.Booking.DriverUserId,
                 "Owner đã phản hồi khiếu nại",
-                $"Khiếu nại #{dispute.Id} (Booking #{dispute.BookingId}) — Owner đã nộp bằng chứng phản hồi. Chờ Admin xem xét.",
+                $"Chủ trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} đã nộp bằng chứng phản hồi khiếu nại của bạn. Chờ Admin xem xét.",
                 NotificationType.Dispute);
 
             // Notify Admin
@@ -173,7 +173,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _notificationService.SendAsync(
                     adminId,
                     "Owner đã phản hồi khiếu nại",
-                    $"Khiếu nại #{dispute.Id} (Booking #{dispute.BookingId}) đã có phản hồi từ Owner. Sẵn sàng xem xét.",
+                    $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} đã có phản hồi từ Owner. Sẵn sàng xem xét.",
                     NotificationType.Dispute);
             }
 
@@ -244,17 +244,24 @@ namespace ChargeSlot.Api.Services.Implementation
             var driverAmount = dto.IsDriverWin ? $" Số tiền {dispute.Booking.TotalAmount:N0}đ đã hoàn vào ví." : "";
             var ownerAmount = !dto.IsDriverWin ? $" Số tiền {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví." : "";
 
+            var stationName = dispute.Booking.ChargingSlot?.ChargingStation?.Name ?? "";
+            var driverName = dispute.Booking.Driver?.User?.FullName ?? "Driver";
+
             await _notificationService.SendAsync(
                 dispute.Booking.DriverUserId,
                 "Kết quả khiếu nại",
-                $"Khiếu nại #{dispute.Id} đã được xử lý. Kết quả: {verdict}.{driverAmount} {dto.AdminNote}",
+                dto.IsDriverWin
+                    ? $"Khiếu nại của bạn tại trạm {stationName} đã được chấp nhận. {dispute.Booking.TotalAmount:N0}đ đã hoàn vào ví. {dto.AdminNote}"
+                    : $"Khiếu nại của bạn tại trạm {stationName} không được chấp nhận. Tiền đã thanh toán cho chủ trạm. {dto.AdminNote}",
                 NotificationType.Dispute);
 
             var ownerUserId = dispute.Booking.ChargingSlot.ChargingStation.OwnerUserId;
             await _notificationService.SendAsync(
                 ownerUserId,
                 "Kết quả khiếu nại",
-                $"Khiếu nại #{dispute.Id} đã được xử lý. Kết quả: {verdict}.{ownerAmount} {dto.AdminNote}",
+                dto.IsDriverWin
+                    ? $"Khiếu nại từ {driverName} tại trạm {stationName}: Driver được hoàn tiền. {dto.AdminNote}"
+                    : $"Khiếu nại từ {driverName} tại trạm {stationName}: Bạn được thanh toán. {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví. {dto.AdminNote}",
                 NotificationType.Dispute);
 
             return MapToDto(dispute);

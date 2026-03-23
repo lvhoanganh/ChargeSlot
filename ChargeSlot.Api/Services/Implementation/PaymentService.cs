@@ -185,7 +185,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 booking.DriverUserId,
                 "Thanh toán thành công",
-                $"Đặt chỗ #{booking.Id} đã được thanh toán. Slot đã được giữ cho bạn.",
+                $"Thanh toán {booking.TotalAmount:N0}đ cho slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) thành công. Slot đã được giữ cho bạn.",
                 NotificationType.Payment);
         }
 
@@ -241,7 +241,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 booking.DriverUserId,
                 "Hoàn tiền tự động",
-                $"Đặt chỗ #{booking.Id} đã hết hạn nhưng thanh toán VNPay đã thành công. Số tiền {booking.TotalAmount:N0}đ đã được hoàn vào ví của bạn.",
+                $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã hết hạn nhưng VNPay đã trừ tiền. {booking.TotalAmount:N0}đ đã hoàn vào ví của bạn.",
                 NotificationType.Payment);
         }
     }

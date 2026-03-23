@@ -93,7 +93,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                 await notificationService.SendAsync(
                     dispute.Booking.DriverUserId,
                     "Khiếu nại được giải quyết",
-                    $"Khiếu nại #{dispute.Id} — Owner không phản hồi trong 24h. Số tiền {dispute.Booking.TotalAmount:N0}đ đã hoàn vào ví.",
+                    $"Khiếu nại của bạn tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} được chấp nhận do Owner không phản hồi trong 24h. {dispute.Booking.TotalAmount:N0}đ đã hoàn vào ví.",
                     NotificationType.Dispute);
 
                 var ownerUserId = dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId;
@@ -102,7 +102,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     await notificationService.SendAsync(
                         ownerUserId.Value,
                         "Khiếu nại tự động xử lý",
-                        $"Khiếu nại #{dispute.Id} — Bạn không phản hồi trong 24h. Tiền đã hoàn cho Driver.",
+                        $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Bạn không phản hồi trong 24h nên tiền đã được hoàn cho Driver.",
                         NotificationType.Dispute);
                 }
 
@@ -118,7 +118,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     await notificationService.SendAsync(
                         adminId,
                         "Khiếu nại tự động xử lý",
-                        $"Khiếu nại #{dispute.Id} — Owner không phản hồi 24h → Driver được hoàn tiền {dispute.Booking.TotalAmount:N0}đ.",
+                        $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Owner không phản hồi 24h → Driver được hoàn tiền {dispute.Booking.TotalAmount:N0}đ.",
                         NotificationType.Dispute);
                 }
             }
@@ -175,7 +175,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                 await notificationService.SendAsync(
                     dispute.Booking.DriverUserId,
                     "Khiếu nại được giải quyết",
-                    $"Khiếu nại #{dispute.Id} — Admin không xử lý trong 48h. Tiền được chuyển cho Owner.",
+                    $"Khiếu nại của bạn tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} đã tự động giải quyết. Tiền được chuyển cho chủ trạm.",
                     NotificationType.Dispute);
 
                 var ownerUserId = dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId;
@@ -184,7 +184,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     await notificationService.SendAsync(
                         ownerUserId.Value,
                         "Khiếu nại tự động xử lý",
-                        $"Khiếu nại #{dispute.Id} — Tự động giải quyết. Số tiền {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví.",
+                        $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} đã tự động giải quyết. {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví của bạn.",
                         NotificationType.Dispute);
                 }
 
@@ -200,7 +200,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     await notificationService.SendAsync(
                         adminId,
                         "Khiếu nại tự động xử lý",
-                        $"Khiếu nại #{dispute.Id} — Quá hạn 48h không phân xử → Owner nhận tiền {dispute.Invoice?.ChargingAmount:N0}đ.",
+                        $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Quá hạn 48h không phân xử → Owner nhận tiền {dispute.Invoice?.ChargingAmount:N0}đ.",
                         NotificationType.Dispute);
                 }
             }

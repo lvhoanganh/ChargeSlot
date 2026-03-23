@@ -151,7 +151,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _notificationService.SendAsync(
                     b.DriverUserId,
                     "Đặt chỗ bị từ chối",
-                    $"Yêu cầu đặt chỗ #{b.Id} đã bị từ chối tự động do slot đã được chấp nhận cho yêu cầu khác có giờ trùng.",
+                    $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã bị từ chối tự động do slot đã được chấp nhận cho khách khác.",
                     NotificationType.Booking);
             }
 
@@ -159,7 +159,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 booking.DriverUserId,
                 "Đặt chỗ được chấp nhận",
-                $"Yêu cầu đặt chỗ #{booking.Id} đã được chấp nhận. Vui lòng thanh toán trước {booking.PaymentExpiresAt:dd/MM/yyyy HH:mm}.",
+                $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) đã được chấp nhận. Vui lòng thanh toán {booking.TotalAmount:N0}đ trước {booking.PaymentExpiresAt:HH:mm dd/MM}.",
                 NotificationType.Booking);
 
             return MapToDto(booking);
@@ -188,7 +188,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 booking.DriverUserId,
                 "Đặt chỗ bị từ chối",
-                $"Yêu cầu đặt chỗ #{booking.Id} đã bị từ chối. Lý do: {dto.RejectionReason}",
+                $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) bị từ chối. Lý do: {dto.RejectionReason}",
                 NotificationType.Booking);
 
             return MapToDto(booking);
@@ -247,29 +247,49 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             decimal total = 0;
             var current = startTime;
+            int maxIterations = 1000; // Safety guard
 
-            while (current < endTime)
+            while (current < endTime && maxIterations-- > 0)
             {
                 var currentTimeOnly = TimeOnly.FromDateTime(current);
 
-                // Tìm tier phù hợp cho thời điểm hiện tại (ưu tiên priority cao nhất)
+                // Tìm tier phù hợp cho thời điểm hiện tại
+                // Hỗ trợ cả tier kết thúc lúc 23:00 hoặc 23:59 (inclusive end)
                 var tier = pricings
                     .FirstOrDefault(p => currentTimeOnly >= p.StartTime && currentTimeOnly < p.EndTime);
 
+                // Nếu không match (ví dụ: 23:00 với tier end = 23:00) → thử tier cuối cùng
                 if (tier == null)
                 {
-                    // Fallback: dùng tier đầu tiên nếu không match
+                    tier = pricings
+                        .OrderByDescending(p => p.StartTime)
+                        .FirstOrDefault(p => currentTimeOnly >= p.StartTime);
+                }
+
+                // Vẫn null → fallback tier đầu tiên (sẽ tính qua ngày mới)
+                if (tier == null)
+                {
                     tier = pricings.First();
                 }
 
-                // Tính giờ kết thúc của segment = min(endTime, cuối tier ngày hôm đó)
+                // Tính giờ kết thúc tier trong ngày hiện tại
                 var tierEndToday = current.Date.Add(tier.EndTime.ToTimeSpan());
 
-                // Nếu tier end = 23:59 nghĩa là đến hết ngày
+                // Nếu tier end = 23:59 → hết ngày
                 if (tier.EndTime == new TimeOnly(23, 59))
                     tierEndToday = current.Date.AddDays(1);
 
+                // Nếu tierEndToday <= current → tier wrap qua ngày mới (ví dụ: tier 22:00-06:00)
+                // hoặc fallback tier có endTime < current → đẩy sang ngày mai
+                if (tierEndToday <= current)
+                    tierEndToday = current.Date.AddDays(1).Add(tier.EndTime.ToTimeSpan());
+
                 var segmentEnd = endTime < tierEndToday ? endTime : tierEndToday;
+
+                // Safety: đảm bảo luôn tiến về phía trước
+                if (segmentEnd <= current)
+                    segmentEnd = endTime; // Tính phần còn lại với tier hiện tại
+
                 var hours = (decimal)(segmentEnd - current).TotalHours;
 
                 if (hours > 0)

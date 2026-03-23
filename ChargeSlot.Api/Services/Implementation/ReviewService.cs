@@ -63,7 +63,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 ownerUserId,
                 "Đánh giá mới",
-                $"Booking #{booking.Id} được đánh giá {starText} ({dto.Rating}/5).{(dto.Comment != null ? $" \"{dto.Comment}\"" : "")}",
+                $"Trạm {booking.ChargingSlot?.ChargingStation?.Name} nhận được đánh giá {starText} ({dto.Rating}/5).{(dto.Comment != null ? $" \"{dto.Comment}\"" : "")}",
                 NotificationType.Booking);
 
             return await GetRatingDtoAsync(rating.Id);
@@ -92,7 +92,7 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 rating.DriverUserId,
                 "Chủ trạm đã phản hồi đánh giá",
-                $"Phản hồi: \"{dto.Reply}\"",
+                $"Chủ trạm {rating.ChargingStation?.Name} phản hồi đánh giá của bạn: \"{dto.Reply}\"",
                 NotificationType.Booking);
 
             return await GetRatingDtoAsync(rating.Id);
