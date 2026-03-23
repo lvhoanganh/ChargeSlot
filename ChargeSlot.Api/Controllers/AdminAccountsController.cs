@@ -25,7 +25,7 @@ namespace ChargeSlot.Api.Controllers
             [FromQuery] string? role,
             [FromQuery] string? status,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20)
+            [FromQuery] int pageSize = 10)
         {
             try
             {
