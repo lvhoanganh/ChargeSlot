@@ -7,6 +7,7 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<OwnerProfileDto?> GetByUserIdAsync(int userId);
         Task UpsertForUserAsync(int userId, OwnerProfileDto dto);
         Task DeleteForUserAsync(int userId);
+        Task<string> UploadAvatarAsync(int userId, IFormFile file);
     }
 }
 

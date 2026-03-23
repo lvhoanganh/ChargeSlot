@@ -113,7 +113,9 @@ namespace ChargeSlot.Api.Controllers
                     EffectiveTo = p.EffectiveTo,
                     IsActive = p.IsActive,
                     CreatedAt = p.CreatedAt
-                }).OrderBy(p => p.StartTime).ToList() ?? new()
+                }).OrderBy(p => p.StartTime).ToList() ?? new(),
+                AverageRating = station.AverageRating,
+                TotalReviews = station.TotalReviews
             };
         }
     }

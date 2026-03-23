@@ -160,8 +160,13 @@ builder.Services.AddScoped<IDisputeService, DisputeService>();
 // Admin Revenue
 builder.Services.AddScoped<IAdminRevenueService, AdminRevenueService>();
 
+// Reviews
+builder.Services.AddScoped<IReviewService, ReviewService>();
+
 // Background Jobs
 builder.Services.AddHostedService<PaymentExpiryJob>();
+builder.Services.AddHostedService<InvoiceAutoConfirmJob>();
+builder.Services.AddHostedService<DisputeAutoResolveJob>();
 
 // =======================
 // CONTROLLERS & SWAGGER

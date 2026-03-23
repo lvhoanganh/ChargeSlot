@@ -7,6 +7,7 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<DriverProfileDto?> GetByUserIdAsync(int userId);
         Task UpsertForUserAsync(int userId, DriverProfileDto dto);
         Task DeleteForUserAsync(int userId);
+        Task<string> UploadAvatarAsync(int userId, IFormFile file);
     }
 }
 

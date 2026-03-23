@@ -121,5 +121,22 @@ namespace ChargeSlot.Api.Controllers
             catch (UnauthorizedAccessException) { return Forbid(); }
             catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }
+
+        /// <summary>
+        /// Xem lịch đặt slot và thời gian trống tiếp theo.
+        /// GET /api/stations/{stationId}/slots/{slotId}/availability?date=2026-03-24
+        /// </summary>
+        [HttpGet("{slotId:int}/availability")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAvailability(int stationId, int slotId, [FromQuery] DateTime? date)
+        {
+            try
+            {
+                var targetDate = date ?? DateTime.UtcNow.Date;
+                var availability = await _slotService.GetSlotAvailabilityAsync(slotId, targetDate);
+                return Ok(availability);
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+        }
     }
 }

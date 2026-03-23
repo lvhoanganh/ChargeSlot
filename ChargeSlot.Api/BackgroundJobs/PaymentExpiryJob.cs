@@ -8,6 +8,7 @@ namespace ChargeSlot.Api.BackgroundJobs
     /// Step 23-26: Payment confirmed within deadline?
     /// No → Set booking status = Expired → Release slot → END
     /// Chạy mỗi 30 giây check các booking hết hạn thanh toán.
+    /// Safe-check: nếu payment đã Completed (VNPay callback đã xử lý) → recover booking thay vì expire.
     /// </summary>
     public class PaymentExpiryJob : BackgroundService
     {
@@ -31,11 +32,32 @@ namespace ChargeSlot.Api.BackgroundJobs
                     var slotRepo = scope.ServiceProvider.GetRequiredService<IChargingSlotRepository>();
                     var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
-                    // Lấy các booking hết hạn thanh toán
+                    // Lấy các booking hết hạn thanh toán (đã include Payment)
                     var expiredBookings = await bookingRepo.GetExpiredPendingPaymentsAsync();
 
                     foreach (var booking in expiredBookings)
                     {
+                        // Safe-check: nếu payment đã Completed → VNPay callback đã đến trước
+                        if (booking.Payment?.Status == PaymentStatus.Completed)
+                        {
+                            _logger.LogInformation(
+                                "Booking {BookingId} has payment completed. Recovering to Paid instead of expiring.",
+                                booking.Id);
+
+                            booking.Status = BookingStatus.Paid;
+                            await bookingRepo.UpdateAsync(booking);
+
+                            // Lock slot (nếu chưa)
+                            if (booking.ChargingSlot != null && booking.ChargingSlot.Status != SlotStatus.Booked)
+                            {
+                                booking.ChargingSlot.Status = SlotStatus.Booked;
+                                slotRepo.Update(booking.ChargingSlot);
+                                await slotRepo.SaveChangesAsync();
+                            }
+
+                            continue;
+                        }
+
                         // Step 24: Set booking status = Expired
                         booking.Status = BookingStatus.Expired;
                         await bookingRepo.UpdateAsync(booking);

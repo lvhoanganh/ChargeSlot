@@ -18,6 +18,11 @@ namespace ChargeSlot.Api.Models
         public int Score { get; set; }
         public string? Comment { get; set; }
         public bool IsAnonymous { get; set; }
+
+        /// <summary>Owner phản hồi đánh giá.</summary>
+        public string? OwnerReply { get; set; }
+        public DateTime? OwnerRepliedAt { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

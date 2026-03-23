@@ -102,7 +102,7 @@ namespace ChargeSlot.Api.Services.Implementation
         }
 
         /// <summary>
-        /// Step 14: Owner Accept booking → Notify Driver → PendingPayment
+        /// Step 14: Owner Accept booking → auto-reject overlapping → Notify Driver → PendingPayment
         /// </summary>
         public async Task<BookingDto> AcceptBookingAsync(int ownerUserId, int bookingId)
         {
@@ -116,23 +116,44 @@ namespace ChargeSlot.Api.Services.Implementation
             if (booking.Status != BookingStatus.WaitingOwner)
                 throw new InvalidOperationException("Booking không ở trạng thái chờ duyệt.");
 
+            // Check: đã có booking khác được accept trùng giờ trên slot này chưa?
+            var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
+                booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
+            if (hasConflict)
+                throw new InvalidOperationException("Slot đã có booking khác được chấp nhận trong khung giờ này.");
+
             // Step 16: Set booking status = PendingPayment
             booking.Status = BookingStatus.PendingPayment;
 
-            // Step 18: Compute payment deadline
-            // Time to charging < 15 minutes? → countdown to charging time
-            // Otherwise → 15 minutes timeout
+            // Step 18: Compute payment deadline (30 phút hoặc đến lúc sạc)
             var timeToCharging = booking.StartTime - DateTime.UtcNow;
-            if (timeToCharging.TotalMinutes < 15)
+            if (timeToCharging.TotalMinutes < 30)
             {
                 booking.PaymentExpiresAt = booking.StartTime;
             }
             else
             {
-                booking.PaymentExpiresAt = DateTime.UtcNow.AddMinutes(15);
+                booking.PaymentExpiresAt = DateTime.UtcNow.AddMinutes(30);
             }
 
             await _bookingRepo.UpdateAsync(booking);
+
+            // Auto-reject tất cả booking WaitingOwner trùng giờ trên cùng slot
+            var overlapping = await _bookingRepo.GetOverlappingWaitingBookingsAsync(
+                booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
+
+            foreach (var b in overlapping)
+            {
+                b.Status = BookingStatus.Rejected;
+                b.RejectionReason = "Slot đã được chấp nhận cho yêu cầu khác có giờ trùng.";
+                await _bookingRepo.UpdateAsync(b);
+
+                await _notificationService.SendAsync(
+                    b.DriverUserId,
+                    "Đặt chỗ bị từ chối",
+                    $"Yêu cầu đặt chỗ #{b.Id} đã bị từ chối tự động do slot đã được chấp nhận cho yêu cầu khác có giờ trùng.",
+                    NotificationType.Booking);
+            }
 
             // Notify Driver: booking được chấp nhận
             await _notificationService.SendAsync(

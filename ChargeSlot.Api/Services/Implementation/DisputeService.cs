@@ -44,6 +44,13 @@ namespace ChargeSlot.Api.Services.Implementation
             if (existing)
                 throw new InvalidOperationException("Đã có khiếu nại cho booking này.");
 
+            // Rate limit: max 3 disputes/driver/tháng
+            var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+            var disputeCountThisMonth = await _db.Disputes
+                .CountAsync(d => d.CreatedByUserId == driverUserId && d.CreatedAt >= monthStart);
+            if (disputeCountThisMonth >= 3)
+                throw new InvalidOperationException("Bạn đã đạt giới hạn 3 khiếu nại/tháng. Vui lòng liên hệ hotline nếu cần hỗ trợ thêm.");
+
             // Get invoice
             var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.BookingId == dto.BookingId);
 
@@ -59,19 +66,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Add evidence
-            if (dto.Evidences?.Count > 0)
-            {
-                foreach (var ev in dto.Evidences)
-                {
-                    dispute.Evidences.Add(new DisputeEvidence
-                    {
-                        FileUrl = ev.FileUrl,
-                        FileType = ev.FileType,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
-            }
+            // Evidence sẽ được upload sau khi có disputeId
 
             _db.Disputes.Add(dispute);
 
@@ -93,6 +88,12 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Single SaveChanges for all mutations
             await _db.SaveChangesAsync();
+
+            // Upload evidence files
+            if (dto.Files?.Length > 0)
+            {
+                await SaveEvidenceFilesAsync(dispute, dto.Files);
+            }
 
             // Notify Owner
             var ownerUserId = booking.ChargingSlot.ChargingStation.OwnerUserId;
@@ -146,19 +147,10 @@ namespace ChargeSlot.Api.Services.Implementation
             dispute.OwnerResponse = dto.Response;
             dispute.Status = DisputeStatus.PendingReview;
 
-            // Add evidence
-            if (dto.Evidences?.Count > 0)
+            // Upload evidence files
+            if (dto.Files?.Length > 0)
             {
-                foreach (var ev in dto.Evidences)
-                {
-                    dispute.Evidences.Add(new DisputeEvidence
-                    {
-                        DisputeId = dispute.Id,
-                        FileUrl = ev.FileUrl,
-                        FileType = ev.FileType,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
+                await SaveEvidenceFilesAsync(dispute, dto.Files);
             }
 
             await _db.SaveChangesAsync();
@@ -408,6 +400,48 @@ namespace ChargeSlot.Api.Services.Implementation
         }
 
         // ─────────────── HELPERS ───────────────
+
+        /// <summary>
+        /// Lưu files bằng chứng vào wwwroot/uploads/disputes/{disputeId}/ và tạo DisputeEvidence records.
+        /// </summary>
+        private async Task SaveEvidenceFilesAsync(Dispute dispute, IFormFile[] files)
+        {
+            var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "disputes", dispute.Id.ToString());
+            Directory.CreateDirectory(uploadDir);
+
+            foreach (var file in files)
+            {
+                if (file.Length <= 0) continue;
+
+                var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                var fileName = $"{Guid.NewGuid():N}{ext}";
+                var filePath = Path.Combine(uploadDir, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                // Detect file type from extension
+                var fileType = ext switch
+                {
+                    ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" => "image",
+                    ".mp4" or ".avi" or ".mov" or ".webm" => "video",
+                    _ => "document"
+                };
+
+                var publicUrl = $"/uploads/disputes/{dispute.Id}/{fileName}";
+                dispute.Evidences.Add(new DisputeEvidence
+                {
+                    DisputeId = dispute.Id,
+                    FileUrl = publicUrl,
+                    FileType = fileType,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            await _db.SaveChangesAsync();
+        }
 
         private async Task<Dispute?> LoadDisputeWithDetailsAsync(int id)
         {

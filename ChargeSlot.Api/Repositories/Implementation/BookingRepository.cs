@@ -54,9 +54,10 @@ namespace ChargeSlot.Api.Repositories.Implementation
             // Buffer 15 phút giữa các booking để driver trước lấy xe ra, driver sau đưa xe vào
             const int bufferMinutes = 15;
 
+            // WaitingOwner NOT included: cho phép nhiều driver request cùng giờ
+            // Chỉ block khi Owner đã accept (PendingPayment trở đi)
             var activeStatuses = new[]
             {
-                BookingStatus.WaitingOwner,
                 BookingStatus.PendingPayment,
                 BookingStatus.Paid,
                 BookingStatus.CheckedIn,
@@ -116,9 +117,54 @@ namespace ChargeSlot.Api.Repositories.Implementation
         {
             return await _db.Bookings
                 .Include(b => b.ChargingSlot)
+                .Include(b => b.Payment)
                 .Where(b => b.Status == BookingStatus.PendingPayment
                     && b.PaymentExpiresAt.HasValue
                     && b.PaymentExpiresAt.Value <= DateTime.UtcNow)
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Tìm các booking WaitingOwner trùng giờ trên cùng slot (để auto-reject khi Owner accept).
+        /// </summary>
+        public async Task<List<Booking>> GetOverlappingWaitingBookingsAsync(
+            int slotId, DateTime startTime, DateTime endTime, int excludeBookingId)
+        {
+            const int bufferMinutes = 15;
+
+            return await _db.Bookings
+                .Include(b => b.Driver).ThenInclude(d => d.User)
+                .Where(b => b.SlotId == slotId
+                    && b.Status == BookingStatus.WaitingOwner
+                    && b.Id != excludeBookingId
+                    && b.StartTime < endTime.AddMinutes(bufferMinutes)
+                    && b.EndTime.AddMinutes(bufferMinutes) > startTime)
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Lấy bookings đang active trên slot cho ngày cụ thể (dùng cho availability API).
+        /// </summary>
+        public async Task<List<Booking>> GetActiveBookingsForSlotAsync(int slotId, DateTime date)
+        {
+            var dayStart = date.Date;
+            var dayEnd = dayStart.AddDays(1);
+
+            var activeStatuses = new[]
+            {
+                BookingStatus.WaitingOwner,
+                BookingStatus.PendingPayment,
+                BookingStatus.Paid,
+                BookingStatus.CheckedIn,
+                BookingStatus.InProgress
+            };
+
+            return await _db.Bookings
+                .Where(b => b.SlotId == slotId
+                    && activeStatuses.Contains(b.Status)
+                    && b.StartTime < dayEnd
+                    && b.EndTime > dayStart)
+                .OrderBy(b => b.StartTime)
                 .ToListAsync();
         }
     }

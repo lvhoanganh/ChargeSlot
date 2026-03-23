@@ -13,5 +13,7 @@ namespace ChargeSlot.Api.Repositories.Interfaces
         Task<Booking> CreateAsync(Booking booking);
         Task UpdateAsync(Booking booking);
         Task<List<Booking>> GetExpiredPendingPaymentsAsync();
+        Task<List<Booking>> GetOverlappingWaitingBookingsAsync(int slotId, DateTime startTime, DateTime endTime, int excludeBookingId);
+        Task<List<Booking>> GetActiveBookingsForSlotAsync(int slotId, DateTime date);
     }
 }

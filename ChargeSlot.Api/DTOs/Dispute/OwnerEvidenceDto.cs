@@ -7,7 +7,7 @@ namespace ChargeSlot.Api.DTOs.Dispute
         [MaxLength(2000)]
         public string? Response { get; set; }
 
-        /// <summary>Evidence files from owner.</summary>
-        public List<EvidenceFileDto>? Evidences { get; set; }
+        /// <summary>Upload ảnh/video bằng chứng phản hồi (multipart/form-data).</summary>
+        public IFormFile[]? Files { get; set; }
     }
 }

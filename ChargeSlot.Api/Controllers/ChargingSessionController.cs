@@ -56,6 +56,22 @@ namespace ChargeSlot.Api.Controllers
             }
         }
 
+        /// <summary>Driver yêu cầu kết thúc sạc sớm → Owner mới được dừng phiên.</summary>
+        [HttpPut("{sessionId}/request-early-end")]
+        [Authorize(Roles = "Driver")]
+        public async Task<IActionResult> RequestEarlyEnd(int sessionId)
+        {
+            try
+            {
+                var result = await _sessionService.RequestEarlyEndAsync(GetUserId(), sessionId);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         /// <summary>Driver xác nhận hóa đơn → hoàn thành booking.</summary>
         [HttpPut("{sessionId}/confirm")]
         [Authorize(Roles = "Driver")]

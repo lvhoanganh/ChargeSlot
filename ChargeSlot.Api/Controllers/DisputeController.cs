@@ -21,10 +21,11 @@ namespace ChargeSlot.Api.Controllers
 
         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        /// <summary>Driver tạo khiếu nại + upload bằng chứng.</summary>
+        /// <summary>Driver tạo khiếu nại + upload bằng chứng (multipart/form-data).</summary>
         [HttpPost]
         [Authorize(Roles = "Driver")]
-        public async Task<IActionResult> SubmitDispute([FromBody] CreateDisputeDto dto)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> SubmitDispute([FromForm] CreateDisputeDto dto)
         {
             try
             {
@@ -37,10 +38,11 @@ namespace ChargeSlot.Api.Controllers
             }
         }
 
-        /// <summary>Owner phản hồi + nộp bằng chứng.</summary>
+        /// <summary>Owner phản hồi + nộp bằng chứng (multipart/form-data).</summary>
         [HttpPut("{disputeId}/owner-evidence")]
         [Authorize(Roles = "Owner")]
-        public async Task<IActionResult> SubmitOwnerEvidence(int disputeId, [FromBody] OwnerEvidenceDto dto)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> SubmitOwnerEvidence(int disputeId, [FromForm] OwnerEvidenceDto dto)
         {
             try
             {

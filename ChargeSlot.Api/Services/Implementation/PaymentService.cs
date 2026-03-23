@@ -12,19 +12,25 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IChargingSlotRepository _slotRepo;
         private readonly IVnPayService _vnPayService;
         private readonly INotificationService _notificationService;
+        private readonly IWalletRepository _walletRepo;
+        private readonly ILogger<PaymentService> _logger;
 
         public PaymentService(
             IBookingRepository bookingRepo,
             IPaymentRepository paymentRepo,
             IChargingSlotRepository slotRepo,
             IVnPayService vnPayService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IWalletRepository walletRepo,
+            ILogger<PaymentService> logger)
         {
             _bookingRepo = bookingRepo;
             _paymentRepo = paymentRepo;
             _slotRepo = slotRepo;
             _vnPayService = vnPayService;
             _notificationService = notificationService;
+            _walletRepo = walletRepo;
+            _logger = logger;
         }
 
         /// <summary>
@@ -69,8 +75,8 @@ namespace ChargeSlot.Api.Services.Implementation
 
         /// <summary>
         /// Step 22-27: Process payment callback from VNPay
-        /// →   Yes (confirmed): Set Paid + Lock slot (Step 25, 27)
-        /// → No (failed/expired): Set Expired + Release slot (Step 24, 26)
+        /// Handles race condition: if booking expired during VNPay processing,
+        /// recover booking to Paid status or refund to driver wallet.
         /// </summary>
         public async Task<bool> ProcessVnPayCallbackAsync(IQueryCollection query)
         {
@@ -90,37 +96,57 @@ namespace ChargeSlot.Api.Services.Implementation
             if (payment == null) return false;
 
             // Đã xử lý rồi
-            if (payment.Status != PaymentStatus.Pending) return true;
+            if (payment.Status == PaymentStatus.Completed) return true;
 
             payment.GatewayTxnRef = txnRef;
 
             if (responseCode == "00") // Thanh toán thành công
             {
-                // Step 25: Set booking status = Paid
-                payment.Status = PaymentStatus.Completed;
-                payment.PaidAt = DateTime.UtcNow;
-                await _paymentRepo.UpdateAsync(payment);
-
-                booking.Status = BookingStatus.Paid;
-                await _bookingRepo.UpdateAsync(booking);
-
-                // Step 27: Lock charging slot
-                var slot = await _slotRepo.GetByIdAsync(booking.SlotId, tracking: true);
-                if (slot != null)
+                if (booking.Status == BookingStatus.PendingPayment)
                 {
-                    slot.Status = SlotStatus.Booked;
-                    _slotRepo.Update(slot);
-                    await _slotRepo.SaveChangesAsync();
+                    // ── NORMAL FLOW: Booking vẫn đang chờ thanh toán ──
+                    await CompletePaymentAsync(booking, payment);
+                    return true;
                 }
+                else if (booking.Status == BookingStatus.Expired)
+                {
+                    // ── RECOVERY FLOW: ExpiryJob đã expire booking trong lúc VNPay xử lý ──
+                    _logger.LogWarning(
+                        "Payment race condition detected: Booking {BookingId} expired but VNPay succeeded. Recovering...",
+                        bookingId);
 
-                // Step 28: Notify Driver - Receive booking confirmation
-                await _notificationService.SendAsync(
-                    booking.DriverUserId,
-                    "Thanh toán thành công",
-                    $"Đặt chỗ #{bookingId} đã được thanh toán. Slot đã được giữ cho bạn.",
-                    NotificationType.Payment);
+                    // Check: slot có bị booking khác chiếm chưa?
+                    var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
+                        booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
 
-                return true;
+                    if (!hasConflict)
+                    {
+                        // Slot vẫn trống → recover booking
+                        await CompletePaymentAsync(booking, payment);
+
+                        _logger.LogInformation(
+                            "Booking {BookingId} recovered from Expired → Paid successfully.", bookingId);
+                    }
+                    else
+                    {
+                        // Slot đã bị booking khác chiếm → hoàn tiền vào ví Driver
+                        await RefundToDriverWalletAsync(booking, payment);
+
+                        _logger.LogWarning(
+                            "Booking {BookingId} cannot be recovered (slot conflict). Refunded {Amount} to driver wallet.",
+                            bookingId, booking.TotalAmount);
+                    }
+
+                    return true;
+                }
+                else
+                {
+                    // Booking ở trạng thái không mong đợi (Cancelled, Completed...)
+                    _logger.LogWarning(
+                        "VNPay callback for booking {BookingId} in unexpected status {Status}. Skipping.",
+                        bookingId, booking.Status);
+                    return true;
+                }
             }
             else // Thanh toán thất bại
             {
@@ -132,6 +158,91 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Flow hoàn tất thanh toán: set Paid + lock slot + notify Driver.
+        /// </summary>
+        private async Task CompletePaymentAsync(Booking booking, Payment payment)
+        {
+            payment.Status = PaymentStatus.Completed;
+            payment.PaidAt = DateTime.UtcNow;
+            await _paymentRepo.UpdateAsync(payment);
+
+            booking.Status = BookingStatus.Paid;
+            await _bookingRepo.UpdateAsync(booking);
+
+            // Lock charging slot
+            var slot = await _slotRepo.GetByIdAsync(booking.SlotId, tracking: true);
+            if (slot != null)
+            {
+                slot.Status = SlotStatus.Booked;
+                _slotRepo.Update(slot);
+                await _slotRepo.SaveChangesAsync();
+            }
+
+            // Notify Driver
+            await _notificationService.SendAsync(
+                booking.DriverUserId,
+                "Thanh toán thành công",
+                $"Đặt chỗ #{booking.Id} đã được thanh toán. Slot đã được giữ cho bạn.",
+                NotificationType.Payment);
+        }
+
+        /// <summary>
+        /// Hoàn tiền vào ví Driver khi không thể recover booking (slot conflict).
+        /// </summary>
+        private async Task RefundToDriverWalletAsync(Booking booking, Payment payment)
+        {
+            payment.Status = PaymentStatus.Refunded;
+            payment.PaidAt = DateTime.UtcNow;
+            await _paymentRepo.UpdateAsync(payment);
+
+            // Tạo hoặc lấy ví driver
+            var driverWallet = await _walletRepo.GetByUserIdAsync(booking.DriverUserId);
+            if (driverWallet == null)
+            {
+                driverWallet = new Wallet
+                {
+                    UserId = booking.DriverUserId,
+                    WalletType = WalletType.Driver,
+                    AvailableBalance = 0,
+                    FrozenBalance = 0,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _walletRepo.CreateAsync(driverWallet);
+            }
+
+            driverWallet.AvailableBalance += booking.TotalAmount;
+            await _walletRepo.UpdateAsync(driverWallet);
+
+            // Ghi ledger
+            var ledgerTx = new LedgerTransaction
+            {
+                ReferenceType = "PaymentRaceRefund",
+                ReferenceId = booking.Id,
+                Memo = $"Hoàn tiền booking #{booking.Id} do hết hạn thanh toán nhưng VNPay đã trừ tiền - {booking.TotalAmount:N0}đ → Ví Driver",
+                CreatedByUserId = null,
+                CreatedAt = DateTime.UtcNow,
+                Entries = new List<LedgerEntry>
+                {
+                    new LedgerEntry
+                    {
+                        WalletId = driverWallet.Id,
+                        Direction = LedgerDirection.Credit,
+                        Amount = booking.TotalAmount,
+                        CreatedAt = DateTime.UtcNow
+                    }
+                }
+            };
+            await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
+
+            // Notify Driver
+            await _notificationService.SendAsync(
+                booking.DriverUserId,
+                "Hoàn tiền tự động",
+                $"Đặt chỗ #{booking.Id} đã hết hạn nhưng thanh toán VNPay đã thành công. Số tiền {booking.TotalAmount:N0}đ đã được hoàn vào ví của bạn.",
+                NotificationType.Payment);
         }
     }
 }

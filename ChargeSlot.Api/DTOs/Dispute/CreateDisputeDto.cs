@@ -15,17 +15,7 @@ namespace ChargeSlot.Api.DTOs.Dispute
         [MaxLength(2000)]
         public string Description { get; set; } = null!;
 
-        /// <summary>URLs of evidence files (photos, screenshots).</summary>
-        public List<EvidenceFileDto>? Evidences { get; set; }
-    }
-
-    public class EvidenceFileDto
-    {
-        [Required]
-        public string FileUrl { get; set; } = null!;
-
-        [Required]
-        [MaxLength(20)]
-        public string FileType { get; set; } = null!; // "image", "video", "document"
+        /// <summary>Upload ảnh/video bằng chứng trực tiếp (multipart/form-data).</summary>
+        public IFormFile[]? Files { get; set; }
     }
 }

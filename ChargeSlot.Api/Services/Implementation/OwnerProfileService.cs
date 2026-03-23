@@ -1,17 +1,21 @@
 using ChargeSlot.Api.DTOs.Profile;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class OwnerProfileService : IOwnerProfileService
     {
         private readonly IOwnerRepository _ownerRepository;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public OwnerProfileService(IOwnerRepository ownerRepository)
+        public OwnerProfileService(IOwnerRepository ownerRepository, UserManager<ApplicationUser> userManager)
         {
             _ownerRepository = ownerRepository;
+            _userManager = userManager;
         }
 
         public async Task<OwnerProfileDto?> GetByUserIdAsync(int userId)
@@ -59,6 +63,39 @@ namespace ChargeSlot.Api.Services.Implementation
             _ownerRepository.Remove(owner);
             await _ownerRepository.SaveChangesAsync();
         }
+
+        public async Task<string> UploadAvatarAsync(int userId, IFormFile file)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString())
+                ?? throw new InvalidOperationException("User không tồn tại.");
+
+            // Delete old avatar file if exists
+            if (!string.IsNullOrEmpty(user.AvatarUrl))
+            {
+                var oldPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", user.AvatarUrl.TrimStart('/'));
+                if (File.Exists(oldPath)) File.Delete(oldPath);
+            }
+
+            // Save new avatar
+            var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "avatars", userId.ToString());
+            Directory.CreateDirectory(uploadDir);
+
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var fileName = $"{Guid.NewGuid():N}{ext}";
+            var filePath = Path.Combine(uploadDir, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var avatarUrl = $"/uploads/avatars/{userId}/{fileName}";
+            user.AvatarUrl = avatarUrl;
+            await _userManager.UpdateAsync(user);
+
+            return avatarUrl;
+        }
     }
 }
+
 

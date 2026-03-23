@@ -29,6 +29,9 @@ namespace ChargeSlot.Api.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
 
+        /// <summary>Driver yêu cầu kết thúc sạc sớm.</summary>
+        public DateTime? EarlyEndRequestedAt { get; set; }
+
         public ICollection<BookingExtraService> BookingExtraServices { get; set; } = new List<BookingExtraService>();
         public Payment? Payment { get; set; }
         public ChargingSession? ChargingSession { get; set; }

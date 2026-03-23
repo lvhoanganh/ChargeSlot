@@ -12,15 +12,20 @@ namespace ChargeSlot.Api.Services.Implementation
     {
         private readonly IChargingSlotRepository _slotRepo;
         private readonly IChargingStationRepository _stationRepo;
+        private readonly IBookingRepository _bookingRepo;
         private readonly ChargeSlotDbContext _db;
+
+        private const int BufferMinutes = 15;
 
         public ChargingSlotService(
             IChargingSlotRepository slotRepo,
             IChargingStationRepository stationRepo,
+            IBookingRepository bookingRepo,
             ChargeSlotDbContext db)
         {
             _slotRepo = slotRepo;
             _stationRepo = stationRepo;
+            _bookingRepo = bookingRepo;
             _db = db;
         }
 
@@ -133,6 +138,65 @@ namespace ChargeSlot.Api.Services.Implementation
             slot.UpdatedAt = DateTime.UtcNow;
 
             await _slotRepo.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Lấy thông tin availability của slot cho ngày cụ thể.
+        /// Trả về các khung giờ đã đặt (bao gồm 15 phút buffer) và NextAvailableAt.
+        /// </summary>
+        public async Task<SlotAvailabilityDto> GetSlotAvailabilityAsync(int slotId, DateTime date)
+        {
+            var slot = await _slotRepo.GetByIdAsync(slotId)
+                ?? throw new KeyNotFoundException($"Slot {slotId} not found.");
+
+            var bookings = await _bookingRepo.GetActiveBookingsForSlotAsync(slotId, date);
+
+            var bookedRanges = bookings.Select(b => new BookedTimeRangeDto
+            {
+                StartTime = b.StartTime,
+                EndTime = b.EndTime.AddMinutes(BufferMinutes), // Bao gồm 15 phút buffer
+                Status = b.Status.ToString()
+            }).ToList();
+
+            // Tính NextAvailableAt: thời gian trống tiếp theo từ bây giờ
+            DateTime? nextAvailable = null;
+            var now = DateTime.UtcNow;
+
+            if (bookedRanges.Count == 0)
+            {
+                nextAvailable = now; // Slot trống ngay
+            }
+            else
+            {
+                // Tìm khung trống đầu tiên từ bây giờ
+                foreach (var range in bookedRanges.OrderBy(r => r.StartTime))
+                {
+                    if (range.StartTime > now && (nextAvailable == null || range.StartTime > nextAvailable))
+                    {
+                        // Có khoảng trống trước booking này
+                        nextAvailable = now > (nextAvailable ?? now) ? nextAvailable : now;
+                        break;
+                    }
+                    if (range.EndTime > now)
+                    {
+                        // Đang trong khoảng booking này
+                        nextAvailable = range.EndTime;
+                    }
+                }
+
+                // Nếu tất cả booking đều trước now → slot trống ngay
+                if (nextAvailable == null || nextAvailable < now)
+                    nextAvailable = now;
+            }
+
+            return new SlotAvailabilityDto
+            {
+                SlotId = slot.Id,
+                SlotName = slot.SlotName,
+                Status = slot.Status.ToString(),
+                BookedRanges = bookedRanges,
+                NextAvailableAt = nextAvailable
+            };
         }
 
         // ─────────────── HELPERS ───────────────

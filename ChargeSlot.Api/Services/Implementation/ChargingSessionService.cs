@@ -127,6 +127,17 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var now = DateTime.UtcNow;
 
+            // Owner chỉ được kết thúc khi:
+            // 1. Hết thời gian sạc (now >= EndTime), HOẶC
+            // 2. Driver đã request kết thúc sớm
+            var isTimeUp = now >= booking.EndTime;
+            var isDriverRequestedEarlyEnd = booking.EarlyEndRequestedAt.HasValue;
+
+            if (!isTimeUp && !isDriverRequestedEarlyEnd)
+                throw new InvalidOperationException(
+                    $"Chưa thể kết thúc phiên sạc. Thời gian sạc kết thúc lúc {booking.EndTime:HH:mm dd/MM/yyyy} UTC. " +
+                    "Driver cần yêu cầu kết thúc sớm trước khi Owner có thể dừng.");
+
             // Update session
             session.ActualEndTime = now;
             session.ActualDurationHours = (decimal)(now - (session.ActualStartTime ?? now)).TotalHours;
@@ -171,6 +182,40 @@ namespace ChargeSlot.Api.Services.Implementation
                 booking.DriverUserId,
                 "Phiên sạc đã kết thúc",
                 $"Phiên sạc #{session.Id} đã kết thúc. Vui lòng xác nhận hóa đơn {grossAmount:N0}đ.",
+                NotificationType.Booking);
+
+            return MapToDto(session, booking);
+        }
+
+        /// <summary>
+        /// Driver yêu cầu kết thúc phiên sạc sớm → Owner mới được dừng.
+        /// </summary>
+        public async Task<ChargingSessionDto> RequestEarlyEndAsync(int driverUserId, int sessionId)
+        {
+            var session = await _sessionRepo.GetByIdWithDetailsAsync(sessionId)
+                ?? throw new InvalidOperationException("Session không tồn tại.");
+
+            var booking = session.Booking;
+
+            if (booking.DriverUserId != driverUserId)
+                throw new InvalidOperationException("Booking này không thuộc về bạn.");
+
+            if (booking.Status != BookingStatus.CheckedIn)
+                throw new InvalidOperationException("Booking không ở trạng thái đang sạc.");
+
+            if (booking.EarlyEndRequestedAt.HasValue)
+                throw new InvalidOperationException("Bạn đã yêu cầu kết thúc sớm rồi.");
+
+            booking.EarlyEndRequestedAt = DateTime.UtcNow;
+            booking.UpdatedAt = DateTime.UtcNow;
+            await _bookingRepo.UpdateAsync(booking);
+
+            // Notify Owner
+            var ownerUserId = booking.ChargingSlot.ChargingStation.OwnerUserId;
+            await _notificationService.SendAsync(
+                ownerUserId,
+                "Driver yêu cầu kết thúc sạc sớm",
+                $"Booking #{booking.Id} — Driver yêu cầu kết thúc phiên sạc sớm. Vui lòng dừng phiên sạc.",
                 NotificationType.Booking);
 
             return MapToDto(session, booking);

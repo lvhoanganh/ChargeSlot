@@ -4,6 +4,7 @@ using ChargeSlot.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChargeSlot.Api.Migrations
 {
     [DbContext(typeof(ChargeSlotDbContext))]
-    partial class ChargeSlotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260323144928_AddRatingReviewFields")]
+    partial class AddRatingReviewFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -91,9 +94,6 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<decimal?>("DurationHours")
                         .HasPrecision(6, 2)
                         .HasColumnType("decimal(6,2)");
-
-                    b.Property<DateTime?>("EarlyEndRequestedAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("datetime2");

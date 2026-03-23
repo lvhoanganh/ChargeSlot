@@ -111,6 +111,31 @@ namespace ChargeSlot.Api.Controllers
             catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }
 
+        /// <summary>
+        /// Owner bật/tắt station (Active ↔ Inactive). Chỉ cho station đã Approved.
+        /// PATCH /api/stations/{id}/status { "operationalStatus": "Inactive" }
+        /// </summary>
+        [HttpPatch("{id:int}/status")]
+        public async Task<IActionResult> UpdateOperationalStatus(int id, [FromBody] UpdateStationStatusDto dto)
+        {
+            var userId = GetUserId();
+            var station = await _db.ChargingStations.FindAsync(id);
+            if (station == null) return NotFound();
+            if (station.OwnerUserId != userId) return Forbid();
+
+            if (station.ApprovalStatus != Enums.ApprovalStatus.Approved)
+                return BadRequest(new { error = "Chỉ có thể thay đổi trạng thái hoạt động khi station đã được Approved." });
+
+            if (!Enum.TryParse<Enums.OperationalStatus>(dto.OperationalStatus, true, out var newStatus))
+                return BadRequest(new { error = "OperationalStatus không hợp lệ. Sử dụng: Active, Inactive." });
+
+            station.OperationalStatus = newStatus;
+            station.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = $"Station đã chuyển sang {newStatus}.", operationalStatus = newStatus.ToString() });
+        }
+
         // ─────────────── STATION PRICING (giá theo khung giờ) ───────────────
 
         /// <summary>List all pricing rules for a station.</summary>

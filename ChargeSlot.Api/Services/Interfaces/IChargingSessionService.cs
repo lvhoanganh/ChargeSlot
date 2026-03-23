@@ -12,6 +12,9 @@ namespace ChargeSlot.Api.Services.Interfaces
         /// <summary>Owner stops charging session and issues invoice.</summary>
         Task<ChargingSessionDto> StopChargingAsync(int ownerUserId, int sessionId);
 
+        /// <summary>Driver yêu cầu kết thúc sạc sớm → Owner mới được dừng.</summary>
+        Task<ChargingSessionDto> RequestEarlyEndAsync(int driverUserId, int sessionId);
+
         /// <summary>Driver confirms invoice and completes booking.</summary>
         Task<BookingDto> ConfirmCompletionAsync(int driverUserId, int sessionId);
 

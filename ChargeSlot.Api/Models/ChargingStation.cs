@@ -31,10 +31,16 @@ namespace ChargeSlot.Api.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
 
+        /// <summary>Đánh giá trung bình (denormalized for performance).</summary>
+        public decimal AverageRating { get; set; } = 0;
+        /// <summary>Tổng số đánh giá.</summary>
+        public int TotalReviews { get; set; } = 0;
+
         public ICollection<StationImage> Images { get; set; } = new List<StationImage>();
         public ICollection<StationOperatingHours> OperatingHours { get; set; } = new List<StationOperatingHours>();
         public ICollection<ExtraService> ExtraServices { get; set; } = new List<ExtraService>();
         public ICollection<ChargingSlot> ChargingSlots { get; set; } = new List<ChargingSlot>();
         public ICollection<StationPricing> StationPricings { get; set; } = new List<StationPricing>();
+        public ICollection<Rating> Ratings { get; set; } = new List<Rating>();
     }
 }
