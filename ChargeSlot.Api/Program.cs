@@ -1,5 +1,6 @@
 using ChargeSlot.Api.BackgroundJobs;
 using ChargeSlot.Api.Data;
+using ChargeSlot.Api.Seeds;
 using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Implementation;
 using ChargeSlot.Api.Repositories.Implementations;
