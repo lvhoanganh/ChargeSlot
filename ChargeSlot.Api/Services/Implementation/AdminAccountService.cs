@@ -25,8 +25,8 @@ namespace ChargeSlot.Api.Services.Implementation
             int pageSize)
         {
             page = page <= 0 ? 1 : page;
-            pageSize = pageSize <= 0 ? 20 : pageSize;
-            if (pageSize > 200) pageSize = 200;
+            pageSize = pageSize <= 0 ? 10 : pageSize;
+            if (pageSize > 100) pageSize = 100;
 
             List<ApplicationUser> users;
 
