@@ -84,6 +84,15 @@ namespace ChargeSlot.Api.Controllers
             return Ok(result);
         }
 
+        /// <summary>Tất cả dispute (Admin), filter theo status nếu cần.</summary>
+        [HttpGet("all")]
+        [Authorize(Roles = RoleConstants.Admin)]
+        public async Task<IActionResult> GetAll([FromQuery] string? status = null)
+        {
+            var result = await _disputeService.GetAllAsync(status);
+            return Ok(result);
+        }
+
         /// <summary>Chi tiết dispute.</summary>
         [HttpGet("{disputeId}")]
         public async Task<IActionResult> GetById(int disputeId)

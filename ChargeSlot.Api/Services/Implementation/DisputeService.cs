@@ -406,6 +406,31 @@ namespace ChargeSlot.Api.Services.Implementation
             return disputes.Select(MapToDto).ToList();
         }
 
+        public async Task<List<DisputeDto>> GetAllAsync(string? status = null)
+        {
+            var query = _db.Disputes
+                .Include(d => d.Booking)
+                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(d => d.Booking)
+                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
+                .Include(d => d.Invoice)
+                .Include(d => d.CreatedByUser)
+                .Include(d => d.Evidences)
+                    .ThenInclude(e => e.UploadedByUser)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(status) && Enum.TryParse<DisputeStatus>(status, true, out var parsed))
+            {
+                query = query.Where(d => d.Status == parsed);
+            }
+
+            var disputes = await query
+                .OrderByDescending(d => d.CreatedAt)
+                .ToListAsync();
+
+            return disputes.Select(MapToDto).ToList();
+        }
+
         // ─────────────── HELPERS ───────────────
 
         /// <summary>

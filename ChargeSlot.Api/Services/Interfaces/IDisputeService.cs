@@ -21,5 +21,8 @@ namespace ChargeSlot.Api.Services.Interfaces
 
         /// <summary>Get all pending disputes for admin.</summary>
         Task<List<DisputeDto>> GetPendingAsync();
+
+        /// <summary>Get all disputes (admin) with optional status filter.</summary>
+        Task<List<DisputeDto>> GetAllAsync(string? status = null);
     }
 }
