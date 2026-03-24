@@ -357,7 +357,7 @@ namespace ChargeSlot.Api.Seeds
                 CreatedAt = now
             };
 
-            // ★ Booking 5: PENDING PAYMENT — Chờ thanh toán 2 tiếng nữa
+            // ★ Booking 5: PENDING PAYMENT — Chờ thanh toán (deadline 30 phút)
             // (Driver Bình → Station 3, Slot C2)
             // Test: login driver_binh → PayByWallet hoặc VNPay
             var booking5 = new Booking
@@ -367,7 +367,7 @@ namespace ChargeSlot.Api.Seeds
                 EndTime = now.AddHours(6),
                 DurationHours = 2, TotalAmount = 12_000,
                 Status = BookingStatus.PendingPayment,
-                PaymentExpiresAt = now.AddHours(2),
+                PaymentExpiresAt = now.AddMinutes(30),
                 CreatedAt = now
             };
 
@@ -382,17 +382,17 @@ namespace ChargeSlot.Api.Seeds
                 CreatedAt = now.AddDays(-2)
             };
 
-            // ★ Booking 7: IN PROGRESS — đang sạc, Owner có thể Stop
+            // ★ Booking 7: CHECKED IN — đang sạc, Owner có thể Stop khi hết giờ hoặc Driver yêu cầu
             // (Driver An → Station 3, Slot C3)
             // StartTime 1h trước, EndTime 1h nữa
-            // Test: login owner_lan → StopCharging
+            // Test: login driver_an → RequestEarlyEnd, sau đó login owner_lan → StopCharging
             var booking7 = new Booking
             {
                 DriverUserId = driver1.Id, SlotId = slotC3.Id,
                 StartTime = now.AddHours(-1),
                 EndTime = now.AddHours(1),
                 DurationHours = 2, TotalAmount = 10_000,
-                Status = BookingStatus.InProgress,
+                Status = BookingStatus.CheckedIn,
                 CheckedInAt = now.AddHours(-1),
                 CreatedAt = now.AddHours(-2)
             };
