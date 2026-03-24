@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { instance } from "@/lib/httpRequest";
 import { useAuthStore } from "@/stores/authStore";
 import { useState } from "react";
+import { showToast } from "@/components/Toast";
 
 const verifyOtp = async ({ phoneNumber, otp }) => {
   const res = await instance.post(
@@ -24,19 +25,19 @@ export default function RegisterVerifyOtp() {
   const verifyOtpMutation = useMutation({
     mutationFn: verifyOtp,
     onSuccess: () => {
-      alert("Xác thực OTP thành công!");
+      showToast.success("Xác thực OTP thành công!");
       navigate("/register/create-account");
     },
     onError: (error) => {
       console.error("Failed to verify OTP:", error);
-      alert("Xác thực OTP thất bại. Vui lòng thử lại.");
+      showToast.error("Xác thực OTP thất bại. Vui lòng thử lại.");
     },
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!phoneNumber) {
-      alert("Vui lòng quay lại trang đăng ký để nhập số điện thoại.");
+      showToast.warning("Vui lòng quay lại trang đăng ký để nhập số điện thoại.");
       navigate("/register");
       return;
     }

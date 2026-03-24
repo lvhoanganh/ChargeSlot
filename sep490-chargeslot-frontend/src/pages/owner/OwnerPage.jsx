@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { stationApi, slotApi, stationPricingApi } from "@/services/api";
 import { QRCodeSVG } from "qrcode.react";
+import { showToast } from "@/components/Toast";
 
 const statusConfig = {
   Draft: { label: "Nháp", color: "#6b7280", bg: "#f3f4f6", icon: "📝" },
@@ -45,20 +46,7 @@ export default function OwnerPage() {
       await stationApi.submitForApproval(id);
       fetchStations();
     } catch (err) {
-      alert(err.message || "Lỗi khi gửi duyệt");
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  async function handleDeleteStation(id) {
-    if (!confirm("Bạn có chắc muốn xóa trạm sạc này?")) return;
-    setActionLoading(id);
-    try {
-      await stationApi.delete(id);
-      fetchStations();
-    } catch (err) {
-      alert(err.message || "Lỗi khi xóa trạm");
+      showToast.error(err.message || "Lỗi khi gửi duyệt");
     } finally {
       setActionLoading(null);
     }
@@ -182,28 +170,20 @@ export default function OwnerPage() {
                                 await stationApi.updateStatus(s.id, newStatus);
                                 fetchStations();
                               } catch (err) {
-                                alert(err.message || "Lỗi đổi trạng thái");
+                                showToast.error(err.message || "Lỗi đổi trạng thái");
                               } finally {
                                 setActionLoading(null);
                               }
                             }}
                             disabled={actionLoading === s.id}
-                            className={`px-4 py-2 text-sm font-semibold rounded-lg transition disabled:opacity-50 cursor-pointer ${
-                              s.operationalStatus === "Active"
-                                ? "bg-amber-50 text-amber-600 hover:bg-amber-100"
-                                : "bg-green-50 text-green-600 hover:bg-green-100"
-                            }`}
+                            className={`px-4 py-2 text-sm font-semibold rounded-lg transition disabled:opacity-50 cursor-pointer ${s.operationalStatus === "Active"
+                              ? "bg-amber-50 text-amber-600 hover:bg-amber-100"
+                              : "bg-green-50 text-green-600 hover:bg-green-100"
+                              }`}
                           >
                             {s.operationalStatus === "Active" ? "⏸️ Tắt trạm" : "▶️ Bật trạm"}
                           </button>
                         )}
-                        <button
-                          onClick={() => handleDeleteStation(s.id)}
-                          disabled={actionLoading === s.id}
-                          className="px-4 py-2 text-sm font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition disabled:opacity-50 cursor-pointer"
-                        >
-                          🗑️ Xóa trạm
-                        </button>
                       </div>
 
                       <div className="flex gap-6 flex-col lg:flex-row">
@@ -283,7 +263,7 @@ export default function OwnerPage() {
                                         await slotApi.create(s.id, { slotName, positionX: x, positionY: y });
                                         fetchStations();
                                       } catch (err) {
-                                        alert("Lỗi thêm trụ: " + (err.message || "Không rõ"));
+                                        showToast.error("Lỗi thêm trụ: " + (err.message || "Không rõ"));
                                       } finally {
                                         setActionLoading(null);
                                       }
@@ -375,7 +355,7 @@ export default function OwnerPage() {
                                                 await slotApi.updateStatus(s.id, slot.id, { status: value });
                                                 fetchStations();
                                               } catch (err) {
-                                                alert("Lỗi: " + (err.message || "Không rõ"));
+                                                showToast.error("Lỗi: " + (err.message || "Không rõ"));
                                               } finally {
                                                 setActionLoading(null);
                                               }
@@ -404,7 +384,7 @@ export default function OwnerPage() {
                                         setSelectedSlot(null);
                                         fetchStations();
                                       } catch (err) {
-                                        alert("Lỗi xóa: " + (err.message || "Không rõ"));
+                                        showToast.error("Lỗi xóa: " + (err.message || "Không rõ"));
                                       } finally {
                                         setActionLoading(null);
                                       }

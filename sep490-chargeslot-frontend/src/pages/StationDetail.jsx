@@ -41,10 +41,10 @@ export default function StationDetail() {
 
     try {
       await stationApi.delete(id);
-      alert("Xóa trạm sạc thành công!");
+      showToast.success("Xóa trạm sạc thành công!");
       navigate("/stations");
     } catch (err) {
-      alert(`Lỗi: ${err.message}`);
+      showToast.error(`Lỗi: ${err.message}`);
     }
   };
 
@@ -53,10 +53,10 @@ export default function StationDetail() {
 
     try {
       await stationApi.submitForApproval(id);
-      alert("Đã gửi trạm sạc đi phê duyệt!");
+      showToast.success("Đã gửi trạm sạc đi phê duyệt!");
       loadStation(); // Reload to see updated status
     } catch (err) {
-      alert(`Lỗi: ${err.message}`);
+      showToast.error(`Lỗi: ${err.message}`);
     }
   };
 

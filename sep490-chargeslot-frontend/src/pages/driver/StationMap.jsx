@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { publicStationApi } from "@/services/api";
+import { showToast } from "@/components/Toast";
 
 /* ─── Fix leaflet default icon ─── */
 delete L.Icon.Default.prototype._getIconUrl;
@@ -441,7 +442,7 @@ export default function StationMap() {
                   setUserPos(p);
                   setFlyTarget(p);
                 },
-                () => alert("Không thể lấy vị trí của bạn"),
+                () => showToast.error("Không thể lấy vị trí của bạn"),
                 { enableHighAccuracy: true, timeout: 8000 }
               );
           }}

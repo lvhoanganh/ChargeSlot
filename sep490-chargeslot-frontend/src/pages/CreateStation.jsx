@@ -90,10 +90,10 @@ export default function CreateStation() {
       };
 
       await stationApi.create(payload);
-      alert("Tạo trạm sạc thành công!");
+      showToast.success("Tạo trạm sạc thành công!");
       navigate("/stations");
     } catch (err) {
-      alert(`Lỗi: ${err.message}`);
+      showToast.error(`Lỗi: ${err.message}`);
     } finally {
       setLoading(false);
     }

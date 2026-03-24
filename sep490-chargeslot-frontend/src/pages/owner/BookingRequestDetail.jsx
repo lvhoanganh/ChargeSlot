@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { bookingApi, disputeApi } from "@/services/api";
+import { showToast } from "@/components/Toast";
 
 const statusStyles = {
   WaitingOwner: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "⏳" },
@@ -44,21 +45,21 @@ export default function BookingRequestDetail() {
       const updated = await bookingApi.accept(Number(id));
       setBooking(updated);
     } catch (err) {
-      alert(err.message || "Lỗi khi chấp nhận");
+      showToast.error(err.message || "Lỗi khi chấp nhận");
     } finally {
       setActionLoading(false);
     }
   }
 
   async function handleReject() {
-    if (!rejectReason.trim()) return alert("Vui lòng nhập lý do từ chối");
+    if (!rejectReason.trim()) return showToast.warning("Vui lòng nhập lý do từ chối");
     setActionLoading(true);
     try {
       const updated = await bookingApi.reject(Number(id), rejectReason);
       setBooking(updated);
       setShowRejectForm(false);
     } catch (err) {
-      alert(err.message || "Lỗi khi từ chối");
+      showToast.error(err.message || "Lỗi khi từ chối");
     } finally {
       setActionLoading(false);
     }

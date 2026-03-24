@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema } from "@/schemas/loginSchema";
 import { useAuthStore } from "@/stores/authStore";
+import { showToast } from "@/components/Toast";
 export default function Login() {
   const navigate = useNavigate();
 
@@ -31,7 +32,7 @@ export default function Login() {
       }
     } catch (err) {
       // err is already a user-friendly string from authStore
-      alert(typeof err === "string" ? err : "Đăng nhập thất bại.");
+      showToast.error(typeof err === "string" ? err : "Đăng nhập thất bại.");
     }
   };
   return (

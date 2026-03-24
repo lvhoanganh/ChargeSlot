@@ -302,6 +302,12 @@ export const bookingApi = {
             method: "PUT",
             body: JSON.stringify({ rejectionReason }),
         }),
+
+    driverCancel: (id, cancelReason) =>
+        apiFetch(`/Booking/${id}/driver-cancel`, {
+            method: "PUT",
+            body: JSON.stringify({ cancelReason }),
+        }),
 };
 
 // ============================

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { chargingApi } from "@/services/api";
+import { showToast } from "@/components/Toast";
 
 const toLocal = (dt) => {
   if (!dt) return "—";
@@ -44,7 +45,7 @@ export default function OwnerActiveSessions() {
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       setConfirmStop(null);
     } catch (err) {
-      alert(err?.message || "Lỗi khi dừng phiên sạc");
+      showToast.error(err?.message || "Lỗi khi dừng phiên sạc");
     } finally {
       setStoppingId(null);
     }

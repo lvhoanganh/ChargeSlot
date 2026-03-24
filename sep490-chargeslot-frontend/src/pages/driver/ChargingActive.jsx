@@ -29,25 +29,38 @@ export default function ChargingActive() {
   const [error, setError] = useState("");
   const startRef = useRef(Date.now());
 
-  // If no session from state, try to load from bookingId in URL
+  // If no session from state, try to load from bookingId in URL or localStorage
   useEffect(() => {
     if (session) {
+      // Save bookingId to localStorage for persistence
+      if (session.bookingId) {
+        localStorage.setItem("activeChargingBookingId", String(session.bookingId));
+      }
       if (session.earlyEndRequestedAt) setEarlyEndRequested(true);
       return;
     }
-    // Fallback — could navigate here with bookingId
-    const bookingId = location.state?.bookingId;
+    // Fallback — try bookingId from state or localStorage
+    const bookingId = location.state?.bookingId || localStorage.getItem("activeChargingBookingId");
     if (!bookingId) {
       navigate("/driver/my-bookings");
       return;
     }
-    chargingApi.getByBookingId(bookingId)
+    chargingApi.getByBookingId(Number(bookingId))
       .then(data => {
+        if (!data || data.actualEndTime) {
+          // Session already ended
+          localStorage.removeItem("activeChargingBookingId");
+          navigate("/driver/my-bookings");
+          return;
+        }
         setSessionData(data);
         if (data?.earlyEndRequestedAt) setEarlyEndRequested(true);
         setLoading(false);
       })
-      .catch(() => { navigate("/driver/my-bookings"); });
+      .catch(() => {
+        localStorage.removeItem("activeChargingBookingId");
+        navigate("/driver/my-bookings");
+      });
   }, []);
 
   // Timer
@@ -71,6 +84,7 @@ export default function ChargingActive() {
           if (updated.earlyEndRequestedAt) setEarlyEndRequested(true);
           // If session was stopped by owner or completed
           if (updated.actualEndTime || updated.bookingStatus === "Completed") {
+            localStorage.removeItem("activeChargingBookingId");
             navigate("/driver/charging-complete", { state: { session: updated } });
           }
         }
@@ -101,6 +115,7 @@ export default function ChargingActive() {
     setError("");
     try {
       const result = await chargingApi.confirmCompletion(sessionData.id);
+      localStorage.removeItem("activeChargingBookingId");
       navigate("/driver/charging-complete", { state: { session: result || sessionData } });
     } catch (err) {
       setError(err?.message || "Lỗi xác nhận, vui lòng thử lại!");

@@ -7,6 +7,7 @@ import { instance } from "@/lib/httpRequest";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
+import { showToast } from "@/components/Toast";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -248,7 +249,7 @@ export default function CreateChargingStation() {
     onSuccess: () => {
       // Backend CreateFromFormAsync already saves station-level pricing from FormData
       queryClient.invalidateQueries({ queryKey: ["owner-stations"] });
-      alert("Tạo trạm sạc thành công!");
+      showToast.success("Tạo trạm sạc thành công!");
       reset();
       navigate("/stations");
     },

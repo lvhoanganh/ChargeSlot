@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAdminAccountStore } from "@/stores/adminAccountStore";
+import { showToast } from "@/components/Toast";
 
 const ROLE_OPTIONS = [
   { label: "Tất cả", value: "ALL" },
@@ -120,7 +121,7 @@ export default function ManageUser() {
         fetchStatistics(),
       ]);
     } catch (err) {
-      alert(
+      showToast.error(
         err?.response?.data?.message || err?.message || "Thao tác thất bại."
       );
     } finally {

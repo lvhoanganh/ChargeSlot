@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { instance } from "@/lib/httpRequest";
+import { showToast } from "@/components/Toast";
 
 /* ─── API helpers ─── */
 const disputeApiAdmin = {
@@ -54,7 +55,7 @@ export default function AdminDisputeDetail() {
     },
     onError: (err) => {
       const msg = err?.response?.data?.message || err?.message || "Lỗi không xác định";
-      alert("Lỗi: " + msg);
+      showToast.error("Lỗi: " + msg);
     },
   });
 

@@ -13,6 +13,7 @@ export default function ScanQR() {
   const scannerRef = useRef(null);
   const scannedRef = useRef(false);
 
+
   const [steps, setSteps] = useState([
     { label: "Giải mã QR code", status: "pending" },
     { label: "Xác thực booking (Paid)", status: "pending" },
@@ -177,6 +178,11 @@ export default function ScanQR() {
         i === 3 ? { ...s, status: "done" } : s
       ));
       await delay(500);
+
+      // Save bookingId to localStorage for persistence
+      if (data?.bookingId) {
+        localStorage.setItem("activeChargingBookingId", String(data.bookingId));
+      }
 
       // Navigate to charging page with session data
       navigate("/driver/charging", { state: { session: data } });

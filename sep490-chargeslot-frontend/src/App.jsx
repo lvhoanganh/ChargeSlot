@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import { ToastContainer } from "./components/Toast";
 import HomePage from "./pages/common/HomePage";
 import MainLayout from "./layouts/MainLayout";
 import AdminLayout from "./layouts/AdminLayout";
@@ -50,6 +51,8 @@ import SubmitDispute from "./pages/driver/SubmitDispute";
 import DisputeDetail from "./pages/driver/DisputeDetail";
 import OwnerDisputeDetail from "./pages/owner/OwnerDisputeDetail";
 import OwnerActiveSessions from "./pages/owner/OwnerActiveSessions";
+import OwnerWallet from "./pages/owner/OwnerWallet";
+import OwnerReviews from "./pages/owner/OwnerReviews";
 import DisputeList from "./pages/admin/DisputeList";
 import AdminDisputeDetail from "./pages/admin/AdminDisputeDetail";
 import AdminRevenue from "./pages/admin/AdminRevenue";
@@ -124,6 +127,8 @@ export default function App() {
           <Route path="booking/:id" element={<BookingRequestDetail />} />
           <Route path="dispute/:disputeId" element={<OwnerDisputeDetail />} />
           <Route path="active-sessions" element={<OwnerActiveSessions />} />
+          <Route path="wallet" element={<OwnerWallet />} />
+          <Route path="reviews" element={<OwnerReviews />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -132,6 +137,7 @@ export default function App() {
           <Route path="/stations/create" element={<CreateStation />} />
           <Route path="/stations/:id" element={<StationDetail />} />
           <Route path="/stations/:id/edit" element={<EditStation />} /> */}
+      <ToastContainer />
     </div>
   );
 }

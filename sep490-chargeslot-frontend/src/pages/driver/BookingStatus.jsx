@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { bookingApi, paymentApi, walletApi, disputeApi } from "@/services/api";
+import { showToast } from "@/components/Toast";
 
 const statusStyles = {
   WaitingOwner: { label: "Chờ chủ trạm duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "⏳" },
@@ -30,6 +31,7 @@ export default function BookingStatus() {
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [payLoading, setPayLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   function fetchBooking() {
     bookingApi.getById(Number(id))
@@ -50,7 +52,7 @@ export default function BookingStatus() {
       const res = await paymentApi.createPaymentUrl(Number(id));
       if (res.paymentUrl) window.location.href = res.paymentUrl;
     } catch (err) {
-      alert(err.message || "Lỗi tạo link thanh toán");
+      showToast.error(err.message || "Lỗi tạo link thanh toán");
     } finally {
       setPayLoading(false);
     }
@@ -62,9 +64,26 @@ export default function BookingStatus() {
       await walletApi.payBooking(Number(id));
       fetchBooking();
     } catch (err) {
-      alert(err.message || "Lỗi thanh toán bằng ví");
+      showToast.error(err.message || "Lỗi thanh toán bằng ví");
     } finally {
       setPayLoading(false);
+    }
+  }
+
+  const [showCancelForm, setShowCancelForm] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+
+  async function submitCancel() {
+    setCancelLoading(true);
+    try {
+      await bookingApi.driverCancel(Number(id), cancelReason || "");
+      setShowCancelForm(false);
+      setCancelReason("");
+      fetchBooking();
+    } catch (err) {
+      showToast.error(err.message || "Lỗi hủy booking");
+    } finally {
+      setCancelLoading(false);
     }
   }
 
@@ -149,8 +168,93 @@ export default function BookingStatus() {
             </div>
           )}
 
-          {/* Dispute button - CompletedPendingInvoice */}
-          {booking.status === "CompletedPendingInvoice" && (
+          {/* View charging session - CheckedIn or InProgress */}
+          {(booking.status === "CheckedIn" || booking.status === "InProgress") && (
+            <div style={{ marginTop: 20 }}>
+              <button
+                onClick={() => {
+                  localStorage.setItem("activeChargingBookingId", String(booking.id));
+                  navigate("/driver/charging");
+                }}
+                style={{
+                  width: "100%", padding: "14px 0", borderRadius: 14, border: "none",
+                  background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                  color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer",
+                  boxShadow: "0 4px 14px rgba(59,130,246,0.25)",
+                }}
+              >
+                ⚡ Xem phiên sạc
+              </button>
+            </div>
+          )}
+
+          {/* Cancel section - Paid or WaitingOwner */}
+          {(booking.status === "Paid" || booking.status === "WaitingOwner") && (
+            <div style={{ marginTop: 20 }}>
+              {!showCancelForm ? (
+                <button
+                  onClick={() => setShowCancelForm(true)}
+                  style={{
+                    width: "100%", padding: "14px 0", borderRadius: 14,
+                    border: "2px solid #ef4444", background: "#fff",
+                    color: "#ef4444", fontWeight: 700, fontSize: 15,
+                    cursor: "pointer",
+                  }}
+                >
+                  🚫 Hủy booking
+                </button>
+              ) : (
+                <div style={{
+                  border: "2px solid #fecaca", borderRadius: 16,
+                  padding: 16, background: "#fef2f2",
+                }}>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: "#dc2626", marginBottom: 8 }}>
+                    Lý do hủy booking
+                  </p>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="Nhập lý do hủy (không bắt buộc)..."
+                    rows={3}
+                    style={{
+                      width: "100%", padding: 12, borderRadius: 10,
+                      border: "1px solid #fca5a5", fontSize: 14,
+                      resize: "vertical", outline: "none", boxSizing: "border-box",
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button
+                      onClick={submitCancel}
+                      disabled={cancelLoading}
+                      style={{
+                        flex: 1, padding: "12px 0", borderRadius: 10, border: "none",
+                        background: cancelLoading ? "#d1d5db" : "#ef4444",
+                        color: "#fff", fontWeight: 700, fontSize: 14,
+                        cursor: cancelLoading ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {cancelLoading ? "Đang hủy..." : "Xác nhận hủy"}
+                    </button>
+                    <button
+                      onClick={() => { setShowCancelForm(false); setCancelReason(""); }}
+                      disabled={cancelLoading}
+                      style={{
+                        flex: 1, padding: "12px 0", borderRadius: 10,
+                        border: "1px solid #d1d5db", background: "#fff",
+                        color: "#6b7280", fontWeight: 600, fontSize: 14,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Không hủy
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Dispute button - Completed or CompletedPendingInvoice */}
+          {(booking.status === "CompletedPendingInvoice" || booking.status === "Completed") && (
             <div style={{ marginTop: 20 }}>
               <button
                 onClick={() => navigate(`/driver/dispute/submit/${booking.id}`)}

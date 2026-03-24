@@ -83,7 +83,7 @@ export default function EditStation() {
         operatingHours,
       });
     } catch (err) {
-      alert(`Lỗi: ${err.message}`);
+      showToast.error(`Lỗi: ${err.message}`);
       navigate("/stations");
     } finally {
       setLoading(false);
@@ -143,10 +143,10 @@ export default function EditStation() {
       };
 
       await stationApi.update(id, payload);
-      alert("Cập nhật trạm sạc thành công!");
+      showToast.success("Cập nhật trạm sạc thành công!");
       navigate("/stations");
     } catch (err) {
-      alert(`Lỗi: ${err.message}`);
+      showToast.error(`Lỗi: ${err.message}`);
     } finally {
       setSubmitting(false);
     }

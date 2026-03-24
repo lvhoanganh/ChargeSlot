@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { instance } from "@/lib/httpRequest";
+import { showToast } from "@/components/Toast";
 
 /* ─── API helpers ─── */
 const adminStationApi = {
@@ -54,7 +55,7 @@ export default function ApproveStation() {
     },
     onError: (err) => {
       const msg = err?.response?.data?.error || err?.message || "Lỗi không xác định";
-      alert("Lỗi: " + msg);
+      showToast.error("Lỗi: " + msg);
     },
   });
 

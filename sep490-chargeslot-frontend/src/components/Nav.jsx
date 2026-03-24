@@ -2,7 +2,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/authStore";
 import { useState, useRef, useEffect } from "react";
-import { walletApi } from "@/services/api";
+import { walletApi, chargingApi, bookingApi } from "@/services/api";
 import NotificationBell from "@/components/NotificationBell";
 
 
@@ -82,6 +82,63 @@ export default function Nav() {
     }
   }, [token, normalizedRole]);
 
+  // Check for active charging session
+  const [activeSession, setActiveSession] = useState(null);
+  const [sessionElapsed, setSessionElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!token || normalizedRole !== "driver") return;
+    function checkSession() {
+      const bookingId = localStorage.getItem("activeChargingBookingId");
+      if (bookingId) {
+        chargingApi.getByBookingId(Number(bookingId))
+          .then(data => {
+            if (data && !data.actualEndTime) {
+              setActiveSession(data);
+            } else {
+              localStorage.removeItem("activeChargingBookingId");
+              setActiveSession(null);
+            }
+          })
+          .catch(() => setActiveSession(null));
+      } else {
+        // Fallback: check bookings for active session
+        bookingApi.getDriverBookings()
+          .then(bookings => {
+            const active = (Array.isArray(bookings) ? bookings : [])
+              .find(b => b.status === "CheckedIn" || b.status === "InProgress");
+            if (active) {
+              localStorage.setItem("activeChargingBookingId", String(active.id));
+              chargingApi.getByBookingId(active.id)
+                .then(data => {
+                  if (data && !data.actualEndTime) setActiveSession(data);
+                  else setActiveSession(null);
+                })
+                .catch(() => setActiveSession(null));
+            } else {
+              setActiveSession(null);
+            }
+          })
+          .catch(() => setActiveSession(null));
+      }
+    }
+    checkSession();
+    const interval = setInterval(checkSession, 15000);
+    return () => clearInterval(interval);
+  }, [token, normalizedRole]);
+
+  // Timer for active session banner
+  useEffect(() => {
+    if (!activeSession) return;
+    const interval = setInterval(() => {
+      const startMs = activeSession.actualStartTime
+        ? new Date(String(activeSession.actualStartTime).endsWith("Z") ? activeSession.actualStartTime : activeSession.actualStartTime + "Z").getTime()
+        : Date.now();
+      setSessionElapsed(Math.floor((Date.now() - startMs) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeSession]);
+
   function requireLogin(featureName, redirectTo) {
     if (!token) {
       setToastMsg(`Bạn phải đăng nhập vào hệ thống mới có thể ${featureName}`);
@@ -142,6 +199,24 @@ export default function Nav() {
             >
               Check-in
             </button>
+            {activeSession && (
+              <NavLink
+                to="/driver/charging"
+                className={({ isActive }) =>
+                  isActive
+                    ? "text-blue-600 font-bold flex items-center gap-1"
+                    : "text-blue-600 font-semibold hover:bg-blue-50 px-3 py-2 rounded-md flex items-center gap-1"
+                }
+              >
+                <span style={{
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "#22c55e", display: "inline-block",
+                  boxShadow: "0 0 6px #22c55e",
+                  animation: "pulse-dot 1.5s infinite",
+                }} />
+                ⚡ Phiên sạc
+              </NavLink>
+            )}
             {token ? (
               <NavLink to="/driver/my-bookings" className={({ isActive }) =>
                 location.pathname.includes("/dispute")
@@ -345,6 +420,40 @@ export default function Nav() {
           </button>
         </div>
       </div>
+
+      {/* Active Charging Session floating banner */}
+      {activeSession && normalizedRole === "driver" && !location.pathname.startsWith("/driver/charging") && (
+        <div
+          onClick={() => navigate("/driver/charging")}
+          style={{
+            position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
+            zIndex: 50, cursor: "pointer",
+            background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+            color: "#fff", borderRadius: 20, padding: "12px 24px",
+            display: "flex", alignItems: "center", gap: 12,
+            boxShadow: "0 8px 32px rgba(59,130,246,0.4)",
+            animation: "pulse 2s infinite",
+          }}
+        >
+          <div style={{
+            width: 10, height: 10, borderRadius: "50%",
+            background: "#4ade80", boxShadow: "0 0 8px #4ade80",
+          }} />
+          <span style={{ fontWeight: 700, fontSize: 14 }}>
+            ⚡ Đang sạc — {activeSession.stationName || "Phiên sạc"}
+          </span>
+          <span style={{ fontWeight: 800, fontFamily: "monospace", fontSize: 15 }}>
+            {String(Math.floor(sessionElapsed / 3600)).padStart(2, "0")}:{String(Math.floor((sessionElapsed % 3600) / 60)).padStart(2, "0")}:{String(sessionElapsed % 60).padStart(2, "0")}
+          </span>
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      )}
+      <style>{`
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+      `}</style>
     </>
   );
 }

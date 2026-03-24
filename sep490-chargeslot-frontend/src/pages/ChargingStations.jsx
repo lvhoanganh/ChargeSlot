@@ -30,10 +30,10 @@ export default function ChargingStations() {
 
     try {
       await stationApi.delete(id);
-      alert("Xóa trạm sạc thành công!");
+      showToast.success("Xóa trạm sạc thành công!");
       loadStations();
     } catch (err) {
-      alert(`Lỗi: ${err.message}`);
+      showToast.error(`Lỗi: ${err.message}`);
     }
   };
 
@@ -42,10 +42,10 @@ export default function ChargingStations() {
 
     try {
       await stationApi.submitForApproval(id);
-      alert("Đã gửi trạm sạc đi phê duyệt!");
+      showToast.success("Đã gửi trạm sạc đi phê duyệt!");
       loadStations();
     } catch (err) {
-      alert(`Lỗi: ${err.message}`);
+      showToast.error(`Lỗi: ${err.message}`);
     }
   };
 

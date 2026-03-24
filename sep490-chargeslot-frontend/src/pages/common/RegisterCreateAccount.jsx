@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { instance } from "@/lib/httpRequest";
 import { useAuthStore } from "@/stores/authStore";
 import { useState } from "react";
+import { showToast } from "@/components/Toast";
 
 const register = async ({ phoneNumber, fullName, password, role }) => {
   const res = await instance.post(
@@ -28,19 +29,19 @@ export default function RegisterCreateAccount() {
   const registerMutation = useMutation({
     mutationFn: register,
     onSuccess: () => {
-      alert("Đăng ký tài khoản thành công!");
+      showToast.success("Đăng ký tài khoản thành công!");
       navigate("/login");
     },
     onError: (error) => {
       console.error("Failed to register:", error);
-      alert("Đăng ký tài khoản thất bại. Vui lòng thử lại.");
+      showToast.error("Đăng ký tài khoản thất bại. Vui lòng thử lại.");
     },
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!phoneNumber) {
-      alert("Vui lòng quay lại trang đăng ký để nhập số điện thoại.");
+      showToast.warning("Vui lòng quay lại trang đăng ký để nhập số điện thoại.");
       navigate("/register");
       return;
     }

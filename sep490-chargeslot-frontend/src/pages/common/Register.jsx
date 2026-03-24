@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { instance } from "@/lib/httpRequest";
 import { useAuthStore } from "@/stores/authStore";
 import { useState } from "react";
+import { showToast } from "@/components/Toast";
 
 const sendOtp = async (phoneNumber) => {
   const res = await instance.post(
@@ -27,7 +28,7 @@ export default function Register() {
     },
     onError: (error) => {
       console.error("Failed to send OTP:", error);
-      alert("Gửi OTP thất bại. Vui lòng thử lại.");
+      showToast.error("Gửi OTP thất bại. Vui lòng thử lại.");
     },
   });
   const handleSubmit = (e) => {

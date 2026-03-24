@@ -4,13 +4,14 @@ import { walletApi } from "@/services/api";
 
 const txTypeLabels = {
   TopUp: { label: "Nạp tiền", icon: "💰", color: "#22c55e" },
-  BookingPayment: { label: "Thanh toán booking", icon: "💳", color: "#ef4444" },
-  BookingCancel: { label: "Hoàn tiền hủy booking", icon: "↩️", color: "#3b82f6" },
-  Payment: { label: "Thanh toán", icon: "💳", color: "#ef4444" },
-  Refund: { label: "Hoàn tiền", icon: "↩️", color: "#3b82f6" },
-  Withdraw: { label: "Rút tiền", icon: "🏦", color: "#f59e0b" },
+  BookingPayment: { label: "Thanh toán booking", icon: "💳", color: "#3b82f6" },
+  BookingCancel: { label: "Hoàn tiền hủy booking", icon: "↩️", color: "#f59e0b" },
+  Payment: { label: "Thanh toán", icon: "💳", color: "#3b82f6" },
+  Refund: { label: "Hoàn tiền", icon: "↩️", color: "#f59e0b" },
+  Withdraw: { label: "Rút tiền", icon: "🏦", color: "#ef4444" },
   Earning: { label: "Thu nhập", icon: "📈", color: "#22c55e" },
   OwnerPayout: { label: "Nhận thanh toán", icon: "💰", color: "#22c55e" },
+  ChargingPayout: { label: "Thanh toán phiên sạc", icon: "⚡", color: "#22c55e" },
 };
 
 const toLocal = (dt) => {
@@ -19,7 +20,7 @@ const toLocal = (dt) => {
   return new Date(s.endsWith("Z") ? s : s + "Z").toLocaleString("vi-VN");
 };
 
-export default function DriverWallet() {
+export default function OwnerWallet() {
   const navigate = useNavigate();
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -52,11 +53,11 @@ export default function DriverWallet() {
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 16px 40px" }}>
         {/* Balance card */}
         <div style={{
-          background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)",
+          background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
           borderRadius: 24, padding: "32px 28px", color: "#fff", marginBottom: 24,
-          boxShadow: "0 8px 32px rgba(249,115,22,0.3)",
+          boxShadow: "0 8px 32px rgba(34,197,94,0.3)",
         }}>
-          <p style={{ fontSize: 13, fontWeight: 600, opacity: 0.85, letterSpacing: 1, textTransform: "uppercase" }}>Số dư ví</p>
+          <p style={{ fontSize: 13, fontWeight: 600, opacity: 0.85, letterSpacing: 1, textTransform: "uppercase" }}>Số dư ví chủ trạm</p>
           <div style={{ fontSize: 36, fontWeight: 800, marginTop: 4 }}>
             {balance.toLocaleString("vi-VN")}đ
           </div>
@@ -67,14 +68,24 @@ export default function DriverWallet() {
           )}
           <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
             <button
-              onClick={() => navigate("/driver/my-bookings")}
+              onClick={() => navigate("/owner/booking-requests")}
               style={{
                 padding: "10px 20px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)",
                 background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 600,
                 fontSize: 13, cursor: "pointer", backdropFilter: "blur(4px)",
               }}
             >
-              📋 Booking của tôi
+              📋 Quản lý Booking
+            </button>
+            <button
+              onClick={() => navigate("/stations")}
+              style={{
+                padding: "10px 20px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)",
+                background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 600,
+                fontSize: 13, cursor: "pointer", backdropFilter: "blur(4px)",
+              }}
+            >
+              ⚡ Quản lý trạm
             </button>
           </div>
         </div>
