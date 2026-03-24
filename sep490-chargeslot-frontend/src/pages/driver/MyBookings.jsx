@@ -26,7 +26,7 @@ const TABS = [
 const toLocal = (dt) => {
   if (!dt) return "";
   const s = String(dt);
-  const d = new Date(s.endsWith("Z") ? s : s + "Z");
+  const d = new Date(String(s).replace("Z", ""));
   return d.toLocaleString("vi-VN", {
     hour: "2-digit", minute: "2-digit",
     day: "2-digit", month: "2-digit", year: "numeric",

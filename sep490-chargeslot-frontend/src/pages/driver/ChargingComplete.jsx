@@ -5,7 +5,7 @@ import { chargingApi } from "@/services/api";
 const toLocal = (dt) => {
   if (!dt) return "—";
   const s = String(dt);
-  return new Date(s.endsWith("Z") ? s : s + "Z").toLocaleString("vi-VN");
+  return new Date(String(s).replace("Z", "")).toLocaleString("vi-VN");
 };
 
 function formatDuration(s) {

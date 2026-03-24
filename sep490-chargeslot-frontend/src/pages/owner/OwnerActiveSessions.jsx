@@ -5,13 +5,13 @@ import { showToast } from "@/components/Toast";
 const toLocal = (dt) => {
   if (!dt) return "—";
   const s = String(dt);
-  return new Date(s.endsWith("Z") ? s : s + "Z").toLocaleString("vi-VN");
+  return new Date(String(s).replace("Z", "")).toLocaleString("vi-VN");
 };
 
 function formatElapsed(startTime) {
   if (!startTime) return "—";
   const s = String(startTime);
-  const start = new Date(s.endsWith("Z") ? s : s + "Z");
+  const start = new Date(String(s).replace("Z", ""));
   const now = new Date();
   const diff = Math.floor((now - start) / 1000);
   const h = Math.floor(diff / 3600);

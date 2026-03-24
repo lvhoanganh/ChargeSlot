@@ -23,7 +23,7 @@ const STATUS_MAP = {
 function formatDate(dateStr) {
   if (!dateStr) return "—";
   const s = String(dateStr);
-  const d = new Date(s.endsWith("Z") ? s : s + "Z");
+  const d = new Date(String(s).replace("Z", ""));
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 

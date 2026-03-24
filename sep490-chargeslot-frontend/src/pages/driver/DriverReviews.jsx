@@ -58,7 +58,7 @@ export default function DriverReviews() {
   };
 
   const toVN = (t) => {
-    const d = new Date(String(t).endsWith("Z") ? t : t + "Z");
+    const d = new Date(String(t).replace("Z", ""));
     return d.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric", hour12: false });
   };
 

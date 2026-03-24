@@ -161,7 +161,7 @@ export default function NotificationBell() {
                       <p className={`text-sm ${!n.isRead ? "font-semibold text-gray-800" : "text-gray-600"}`}>{n.title}</p>
                       <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.content}</p>
                       <p className="text-[11px] text-gray-400 mt-1">
-                        {new Date(String(n.createdAt).endsWith("Z") ? n.createdAt : n.createdAt + "Z").toLocaleString("vi-VN")}
+                        {new Date(String(n.createdAt).replace("Z", "")).toLocaleString("vi-VN")}
                       </p>
                     </div>
                     {/* Arrow indicator */}

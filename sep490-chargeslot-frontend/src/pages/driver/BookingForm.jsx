@@ -227,7 +227,7 @@ export default function BookingForm() {
     try {
       const result = await bookingApi.create({
         slotId: selectedSlot,
-        startTime: new Date(startTime).toISOString(),
+        startTime: startTime + ":00",
         durationHours: parseFloat(duration),
         note: note || undefined,
       });
@@ -331,9 +331,9 @@ export default function BookingForm() {
               <div style={{ background: "#fef3c7", borderRadius: 10, padding: "10px 14px", marginBottom: 20, border: "1px solid #fde68a" }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>📅 Khung giờ đã được đặt</div>
                 {bookedRanges.map((r, idx) => {
-                  const toLocal = (t) => new Date(String(t).endsWith("Z") ? t : t + "Z");
-                  const start = toLocal(r.startTime);
-                  const end = toLocal(r.endTime);
+                  const parseVN = (t) => new Date(String(t).replace("Z", ""));
+                  const start = parseVN(r.startTime);
+                  const end = parseVN(r.endTime);
                   const fmtTime = (d) => d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
                   const fmtDate = (d) => d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
                   return (

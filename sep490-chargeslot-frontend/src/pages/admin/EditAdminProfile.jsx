@@ -4,7 +4,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useState } from "react";
 
 const DEFAULT_AVATAR =
-  "https://avatarngau.sbs/wp-content/uploads/2025/07/avatar-vo-danh-va-sach.jpg";
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
 
 const maskPhone = (phone) =>
   phone ? `**** **** ${phone.slice(-2)}` : "";

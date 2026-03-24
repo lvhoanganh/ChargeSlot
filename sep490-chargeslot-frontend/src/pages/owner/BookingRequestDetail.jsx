@@ -20,7 +20,7 @@ const statusStyles = {
 const toLocal = (dt) => {
   if (!dt) return "";
   const s = String(dt);
-  return new Date(s.endsWith("Z") ? s : s + "Z").toLocaleString("vi-VN");
+  return new Date(String(s).replace("Z", "")).toLocaleString("vi-VN");
 };
 
 export default function BookingRequestDetail() {
@@ -148,6 +148,11 @@ export default function BookingRequestDetail() {
             </div>
           )}
 
+          {/* Owner cancel — cho booking đã Paid */}
+          {booking.status === "Paid" && (
+            <OwnerCancelSection bookingId={booking.id} onDone={(updated) => setBooking(updated)} />
+          )}
+
           {/* Dispute link */}
           {booking.status === "Disputed" && (
             <OwnerDisputeLink bookingId={booking.id} navigate={navigate} />
@@ -163,6 +168,68 @@ function InfoRow({ label, value, highlight, error }) {
     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
       <span style={{ color: "#64748b" }}>{label}</span>
       <span style={{ fontWeight: 600, color: error ? "#ef4444" : highlight ? "#f97316" : "#1e293b" }}>{value}</span>
+    </div>
+  );
+}
+
+function OwnerCancelSection({ bookingId, onDone }) {
+  const [show, setShow] = useState(false);
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleCancel() {
+    setLoading(true);
+    try {
+      const updated = await bookingApi.ownerCancel(bookingId, reason || "");
+      onDone(updated);
+      showToast.success("Đã hủy booking — hoàn 100% cho Driver");
+    } catch (err) {
+      showToast.error(err.message || "Lỗi hủy booking");
+    } finally { setLoading(false); }
+  }
+
+  if (!show) {
+    return (
+      <div style={{ marginTop: 20 }}>
+        <button
+          onClick={() => setShow(true)}
+          style={{
+            width: "100%", padding: 14, borderRadius: 14,
+            border: "2px solid #fca5a5", background: "#fff",
+            color: "#ef4444", fontWeight: 700, fontSize: 15, cursor: "pointer",
+          }}
+        >
+          🚫 Hủy booking (hoàn tiền 100%)
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 20, border: "2px solid #fecaca", borderRadius: 16, padding: 20, background: "#fef2f2" }}>
+      <p style={{ fontSize: 14, fontWeight: 700, color: "#dc2626", marginBottom: 10 }}>Lý do hủy booking</p>
+      <textarea
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Nhập lý do hủy (không bắt buộc)..."
+        rows={3}
+        style={{ width: "100%", padding: 12, borderRadius: 10, border: "1px solid #fca5a5", fontSize: 14, resize: "vertical", outline: "none", boxSizing: "border-box" }}
+      />
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button
+          onClick={handleCancel} disabled={loading}
+          style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: loading ? "#d1d5db" : "#ef4444", color: "#fff", fontWeight: 700, fontSize: 14, cursor: loading ? "not-allowed" : "pointer" }}
+        >
+          {loading ? "Đang hủy..." : "Xác nhận hủy"}
+        </button>
+        <button
+          onClick={() => { setShow(false); setReason(""); }}
+          disabled={loading}
+          style={{ flex: 1, padding: 12, borderRadius: 10, border: "1px solid #d1d5db", background: "#fff", color: "#6b7280", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
+        >
+          Không hủy
+        </button>
+      </div>
     </div>
   );
 }

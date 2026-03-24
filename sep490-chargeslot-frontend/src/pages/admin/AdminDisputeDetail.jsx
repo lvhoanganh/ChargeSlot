@@ -27,7 +27,7 @@ const STATUS_MAP = {
 function formatDate(dateStr) {
   if (!dateStr) return "—";
   const s = String(dateStr);
-  const d = new Date(s.endsWith("Z") ? s : s + "Z");
+  const d = new Date(String(s).replace("Z", ""));
   return d.toLocaleString("vi-VN");
 }
 
@@ -134,18 +134,21 @@ export default function AdminDisputeDetail() {
             <div>
               <span className="text-xs text-gray-500 uppercase tracking-wider">Bằng chứng ({dispute.evidences.length})</span>
               <div className="flex flex-wrap gap-2 mt-2">
-                {dispute.evidences.map((ev) => (
-                  <a key={ev.id} href={ev.fileUrl} target="_blank" rel="noopener noreferrer"
-                    className="block w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-colors bg-gray-100">
-                    {ev.fileType === "image" ? (
-                      <img src={ev.fileUrl} alt="evidence" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-2xl">
-                        {ev.fileType === "video" ? "🎬" : "📄"}
-                      </div>
-                    )}
-                  </a>
-                ))}
+                {dispute.evidences.map((ev) => {
+                  const url = ev.fileUrl?.startsWith("http") ? ev.fileUrl : `http://localhost:5162${ev.fileUrl}`;
+                  return (
+                    <a key={ev.id} href={url} target="_blank" rel="noopener noreferrer"
+                      className="block w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-colors bg-gray-100">
+                      {ev.fileType === "image" ? (
+                        <img src={url} alt="evidence" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-2xl">
+                          {ev.fileType === "video" ? "🎬" : "📄"}
+                        </div>
+                      )}
+                    </a>
+                  );
+                })}
               </div>
             </div>
           )}

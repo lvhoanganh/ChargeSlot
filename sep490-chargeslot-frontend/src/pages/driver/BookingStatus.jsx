@@ -21,7 +21,7 @@ const statusStyles = {
 const toLocal = (dt) => {
   if (!dt) return "";
   const s = String(dt);
-  return new Date(s.endsWith("Z") ? s : s + "Z").toLocaleString("vi-VN", {
+  return new Date(String(s).replace("Z", "")).toLocaleString("vi-VN", {
     hour: "2-digit", minute: "2-digit",
     day: "2-digit", month: "2-digit", year: "numeric",
     hour12: false,

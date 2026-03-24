@@ -13,7 +13,7 @@ const STATUS_MAP = {
 const toLocal = (dt) => {
   if (!dt) return "—";
   const s = String(dt);
-  return new Date(s.endsWith("Z") ? s : s + "Z").toLocaleString("vi-VN");
+  return new Date(String(s).replace("Z", "")).toLocaleString("vi-VN");
 };
 
 export default function DisputeDetail() {
@@ -167,12 +167,13 @@ function TimelineStep({ icon, title, time, isActive, isLast, children }) {
 }
 
 function EvidenceGallery({ evidences }) {
+  const toUrl = (url) => url?.startsWith("http") ? url : `http://localhost:5162${url}`;
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
       {evidences.map((ev) => (
         <a
           key={ev.id}
-          href={ev.fileUrl}
+          href={toUrl(ev.fileUrl)}
           target="_blank"
           rel="noopener noreferrer"
           style={{
@@ -181,7 +182,7 @@ function EvidenceGallery({ evidences }) {
           }}
         >
           {ev.fileType === "image" ? (
-            <img src={ev.fileUrl} alt="evidence" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={toUrl(ev.fileUrl)} alt="evidence" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 24 }}>
               {ev.fileType === "video" ? "🎬" : "📄"}

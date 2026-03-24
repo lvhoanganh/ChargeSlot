@@ -7,7 +7,7 @@ import NotificationBell from "@/components/NotificationBell";
 
 
 const DEFAULT_AVATAR =
-  "https://avatarngau.sbs/wp-content/uploads/2025/07/avatar-vo-danh-va-sach.jpg";
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
 
 function getStoredAvatarDataUrl(phoneNumber) {
   if (!phoneNumber) return "";
@@ -73,14 +73,14 @@ export default function Nav() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownOpen]);
 
-  // Fetch wallet balance cho driver
+  // Fetch wallet balance cho driver — re-fetch khi mở dropdown
   useEffect(() => {
     if (token && normalizedRole === "driver") {
       walletApi.getWallet()
         .then(w => setWalletBalance(w?.availableBalance ?? null))
         .catch(() => setWalletBalance(null));
     }
-  }, [token, normalizedRole]);
+  }, [token, normalizedRole, dropdownOpen]);
 
   // Check for active charging session
   const [activeSession, setActiveSession] = useState(null);
@@ -132,7 +132,7 @@ export default function Nav() {
     if (!activeSession) return;
     const interval = setInterval(() => {
       const startMs = activeSession.actualStartTime
-        ? new Date(String(activeSession.actualStartTime).endsWith("Z") ? activeSession.actualStartTime : activeSession.actualStartTime + "Z").getTime()
+        ? new Date(String(activeSession.actualStartTime).replace("Z", "")).getTime()
         : Date.now();
       setSessionElapsed(Math.floor((Date.now() - startMs) / 1000));
     }, 1000);

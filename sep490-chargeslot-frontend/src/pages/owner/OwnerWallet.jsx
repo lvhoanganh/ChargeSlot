@@ -17,7 +17,7 @@ const txTypeLabels = {
 const toLocal = (dt) => {
   if (!dt) return "";
   const s = String(dt);
-  return new Date(s.endsWith("Z") ? s : s + "Z").toLocaleString("vi-VN");
+  return new Date(String(s).replace("Z", "")).toLocaleString("vi-VN");
 };
 
 export default function OwnerWallet() {
