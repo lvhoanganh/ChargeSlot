@@ -224,55 +224,17 @@ export default function BookingForm() {
     setSubmitting(true);
     setApiError("");
 
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-
     try {
-      const res = await fetch("http://localhost:5162/api/Booking", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          slotId: selectedSlot,
-          startTime: new Date(startTime).toISOString(),
-          durationHours: parseFloat(duration),
-          note: note || undefined,
-        }),
-        signal: controller.signal,
+      const result = await bookingApi.create({
+        slotId: selectedSlot,
+        startTime: new Date(startTime).toISOString(),
+        durationHours: parseFloat(duration),
+        note: note || undefined,
       });
-
-      // Token hết hạn → login lại
-      if (res.status === 401) {
-        localStorage.removeItem("accessToken");
-        navigate("/login");
-        return;
-      }
-
-      const data = await res.json().catch(() => null);
-
-      if (res.ok) {
-        navigate("/driver/my-bookings");
-        return;
-      }
-
-      // Lỗi từ backend (trùng giờ, slot không khả dụng, v.v.)
-      setApiError(data?.message || `Đặt lịch thất bại (lỗi ${res.status})`);
+      navigate("/driver/my-bookings");
     } catch (err) {
-      if (err.name === "AbortError") {
-        setApiError("⏱️ Yêu cầu quá lâu, vui lòng thử lại!");
-      } else {
-        setApiError("Lỗi kết nối đến server, vui lòng thử lại!");
-      }
+      setApiError(err.message || "Đặt lịch thất bại");
     } finally {
-      clearTimeout(timeout);
       setSubmitting(false);
     }
   }

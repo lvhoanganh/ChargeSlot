@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { publicStationApi } from "@/services/api";
+import { publicStationApi, favoriteApi } from "@/services/api";
+import { useAuthStore } from "@/stores/authStore";
 import { showToast } from "@/components/Toast";
 
 /* ─── Fix leaflet default icon ─── */
@@ -107,29 +108,14 @@ export default function StationMap() {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [minRating, setMinRating] = useState("");
+  const [sortBy, setSortBy] = useState("");
+  const [favorites, setFavorites] = useState({});
+  const { token } = useAuthStore();
   const markerRefs = useRef({});
+  const searchTimer = useRef(null);
 
   const defaultCenter = [21.0285, 105.8542];
-
-  // Fetch stations from API
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    publicStationApi.getAll()
-      .then((data) => {
-        if (!cancelled) {
-          setStations(Array.isArray(data) ? data : []);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
@@ -138,6 +124,53 @@ export default function StationMap() {
       { enableHighAccuracy: true, timeout: 8000 }
     );
   }, []);
+
+  // Fetch stations from API (server-side filter)
+  function fetchStations(kw, rating, sort) {
+    setLoading(true);
+    publicStationApi.getAll({ keyword: kw || undefined, minRating: rating || undefined, sortBy: sort || undefined })
+      .then((data) => {
+        setStations(Array.isArray(data) ? data : []);
+        setError(null);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => { fetchStations(search, minRating, sortBy); }, [minRating, sortBy]);
+
+  // Debounced search
+  useEffect(() => {
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => fetchStations(search, minRating, sortBy), 400);
+    return () => clearTimeout(searchTimer.current);
+  }, [search]);
+
+  // Load favorites
+  useEffect(() => {
+    if (!token) return;
+    favoriteApi.getMyFavorites()
+      .then(list => {
+        const map = {};
+        (Array.isArray(list) ? list : []).forEach(f => { map[f.stationId] = true; });
+        setFavorites(map);
+      })
+      .catch(() => {});
+  }, [token]);
+
+  async function toggleFavorite(e, stationId) {
+    e.stopPropagation();
+    if (!token) { showToast.error("Đăng nhập để thêm yêu thích"); return; }
+    try {
+      if (favorites[stationId]) {
+        await favoriteApi.remove(stationId);
+        setFavorites(prev => { const n = { ...prev }; delete n[stationId]; return n; });
+      } else {
+        await favoriteApi.add(stationId);
+        setFavorites(prev => ({ ...prev, [stationId]: true }));
+      }
+    } catch (err) { showToast.error(err.message); }
+  }
 
   const filtered = useMemo(() => {
     if (!search.trim()) return stations;
@@ -262,6 +295,41 @@ export default function StationMap() {
               </button>
             )}
           </div>
+
+          {/* Filter row */}
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <select
+              value={minRating}
+              onChange={(e) => setMinRating(e.target.value)}
+              style={{
+                flex: 1, padding: "8px 10px", borderRadius: 10,
+                border: "1.5px solid #e5e7eb", fontSize: 13,
+                color: minRating ? "#1f2937" : "#9ca3af",
+                background: "#f8f9fb", cursor: "pointer", outline: "none",
+              }}
+            >
+              <option value="">⭐ Rating</option>
+              <option value="1">≥ 1 ⭐</option>
+              <option value="2">≥ 2 ⭐</option>
+              <option value="3">≥ 3 ⭐</option>
+              <option value="4">≥ 4 ⭐</option>
+              <option value="4.5">≥ 4.5 ⭐</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{
+                flex: 1, padding: "8px 10px", borderRadius: 10,
+                border: "1.5px solid #e5e7eb", fontSize: 13,
+                color: sortBy ? "#1f2937" : "#9ca3af",
+                background: "#f8f9fb", cursor: "pointer", outline: "none",
+              }}
+            >
+              <option value="">Sắp xếp</option>
+              <option value="rating">Rating cao nhất</option>
+              <option value="reviews">Nhiều đánh giá</option>
+            </select>
+          </div>
         </div>
 
         {/* Station cards */}
@@ -349,6 +417,27 @@ export default function StationMap() {
                       </div>
                     )}
 
+                    {/* Favorite heart */}
+                    <button
+                      onClick={(e) => toggleFavorite(e, s.id)}
+                      style={{
+                        position: "absolute", top: 10, left: 10,
+                        width: 32, height: 32, borderRadius: "50%",
+                        background: "rgba(255,255,255,0.92)",
+                        backdropFilter: "blur(8px)",
+                        border: "none", cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transition: "transform .2s",
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.15)"}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+                      title={favorites[s.id] ? "Bỏ yêu thích" : "Thêm yêu thích"}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill={favorites[s.id] ? "#ef4444" : "none"} stroke={favorites[s.id] ? "#ef4444" : "#9ca3af"} strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
+                    </button>
+
                     {/* Status badge on image */}
                     <div style={{
                       position: "absolute", top: 10, right: 10,
@@ -391,6 +480,15 @@ export default function StationMap() {
 
                     {/* Stats row */}
                     <div style={{ display: "flex", gap: 6 }}>
+                      <div style={{
+                          flex: 1, background: "#fef9ee", borderRadius: 10,
+                          padding: "8px 0", textAlign: "center",
+                        }}>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
+                            ⭐ {s.totalReviews > 0 ? Number(s.averageRating).toFixed(1) : "—"}
+                          </div>
+                          <div style={{ fontSize: 10, color: "#6b7280", marginTop: 1 }}>{s.totalReviews > 0 ? `${s.totalReviews} đánh giá` : "Chưa có"}</div>
+                        </div>
                       <div style={{
                         flex: 1, background: "#f0fdf4", borderRadius: 10,
                         padding: "8px 0", textAlign: "center",

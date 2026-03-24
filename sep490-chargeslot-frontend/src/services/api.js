@@ -273,7 +273,14 @@ export const stationPricingApi = {
 // ============================
 
 export const publicStationApi = {
-    getAll: () => apiFetch("/public/stations"),
+    getAll: ({ keyword, minRating, sortBy } = {}) => {
+        const params = new URLSearchParams();
+        if (keyword) params.set("keyword", keyword);
+        if (minRating) params.set("minRating", String(minRating));
+        if (sortBy) params.set("sortBy", sortBy);
+        const qs = params.toString();
+        return apiFetch(`/public/stations${qs ? `?${qs}` : ""}`);
+    },
     getById: (id) => apiFetch(`/public/stations/${id}`),
 };
 
@@ -305,6 +312,12 @@ export const bookingApi = {
 
     driverCancel: (id, cancelReason) =>
         apiFetch(`/Booking/${id}/driver-cancel`, {
+            method: "PUT",
+            body: JSON.stringify({ cancelReason }),
+        }),
+
+    ownerCancel: (id, cancelReason) =>
+        apiFetch(`/Booking/${id}/owner-cancel`, {
             method: "PUT",
             body: JSON.stringify({ cancelReason }),
         }),
@@ -495,4 +508,27 @@ export const ownerProfileApi = {
         formData.append("file", file);
         return apiFetchFormData("/owner/profile/avatar", formData, "POST");
     },
+};
+
+// ============================
+// FAVORITE (Trạm yêu thích)
+// ============================
+
+export const favoriteApi = {
+    /** Thêm trạm yêu thích */
+    add: (stationId) =>
+        apiFetch(`/favorites/${stationId}`, { method: "POST" }),
+
+    /** Xóa khỏi yêu thích */
+    remove: (stationId) =>
+        apiFetch(`/favorites/${stationId}`, { method: "DELETE" }),
+
+    /** Danh sách trạm yêu thích của Driver */
+    getMyFavorites: () => apiFetch("/favorites"),
+
+    /** Top trạm yêu thích nhất */
+    getTop: (limit = 10) => apiFetch(`/favorites/top?limit=${limit}`),
+
+    /** Check đã yêu thích chưa */
+    check: (stationId) => apiFetch(`/favorites/${stationId}/check`),
 };

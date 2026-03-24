@@ -199,6 +199,11 @@ export default function Nav() {
             >
               Check-in
             </button>
+            {token && (
+              <NavLink to="/driver/favorites" className={navLinkClass}>
+                ❤️ Yêu thích
+              </NavLink>
+            )}
             {activeSession && (
               <NavLink
                 to="/driver/charging"

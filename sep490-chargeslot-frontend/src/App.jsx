@@ -58,6 +58,7 @@ import AdminDisputeDetail from "./pages/admin/AdminDisputeDetail";
 import AdminRevenue from "./pages/admin/AdminRevenue";
 import ChangePassword from "./pages/common/ChangePassword";
 import DriverReviews from "./pages/driver/DriverReviews";
+import FavoriteStations from "./pages/driver/FavoriteStations";
 
 export default function App() {
   return (
@@ -118,6 +119,7 @@ export default function App() {
             <Route path="dispute/:disputeId" element={<DisputeDetail />} />
             <Route path="wallet" element={<DriverWallet />} />
             <Route path="reviews" element={<DriverReviews />} />
+            <Route path="favorites" element={<FavoriteStations />} />
           </Route>
         </Route>
         <Route path="owner" element={<OwnerLayout />}>

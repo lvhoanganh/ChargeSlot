@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { publicStationApi, reviewApi } from "@/services/api";
+import { publicStationApi, reviewApi, favoriteApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 
 /* ─── Inject pulse animation (same as StationMap) ─── */
@@ -89,6 +89,8 @@ export default function StationDetailDriver() {
   const [reviews, setReviews] = useState([]);
   const [reviewPage, setReviewPage] = useState(1);
   const [hasMoreReviews, setHasMoreReviews] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
 
   function handleBooking() {
     if (!token) {
@@ -126,6 +128,34 @@ export default function StationDetailDriver() {
       setHasMoreReviews(list.length >= 5);
     }).catch(() => {});
   }, [id]);
+
+  // Check favorite status
+  useEffect(() => {
+    if (!id || !token) return;
+    favoriteApi.check(Number(id))
+      .then(data => setIsFavorite(data?.isFavorite || false))
+      .catch(() => {});
+  }, [id, token]);
+
+  async function toggleFavorite() {
+    if (!token) {
+      setLoginToast(true);
+      clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(() => setLoginToast(false), 3500);
+      return;
+    }
+    setFavLoading(true);
+    try {
+      if (isFavorite) {
+        await favoriteApi.remove(Number(id));
+        setIsFavorite(false);
+      } else {
+        await favoriteApi.add(Number(id));
+        setIsFavorite(true);
+      }
+    } catch { /* ignore */ }
+    setFavLoading(false);
+  }
 
   async function loadMoreReviews() {
     const nextPage = reviewPage + 1;
@@ -261,6 +291,16 @@ export default function StationDetailDriver() {
             >
               {st.label}
             </span>
+            <button
+              onClick={toggleFavorite}
+              disabled={favLoading}
+              className="ml-auto p-2 rounded-full hover:bg-red-50 transition-colors cursor-pointer"
+              title={isFavorite ? "Bỏ yêu thích" : "Thêm yêu thích"}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill={isFavorite ? "#ef4444" : "none"} stroke={isFavorite ? "#ef4444" : "#9ca3af"} strokeWidth="2">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+            </button>
           </div>
           <p className="text-gray-500 flex items-center gap-1">
             <svg
@@ -336,6 +376,44 @@ export default function StationDetailDriver() {
             <p className="text-gray-600 text-sm leading-relaxed">
               {station.description}
             </p>
+          </div>
+        )}
+
+        {/* ExtraServices */}
+        {station.extraServices && station.extraServices.filter(es => es.isActive).length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
+            <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 7h-9" /><path d="M14 17H5" />
+                <circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" />
+              </svg>
+              Dịch vụ bổ sung
+            </h2>
+            <div className="space-y-2">
+              {station.extraServices.filter(es => es.isActive).map((es, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-purple-50 border border-purple-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2">
+                        <path d="M12 2v20M2 12h20" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-800">{es.serviceName}</div>
+                      {es.description && <div className="text-xs text-gray-500">{es.description}</div>}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-sm font-bold ${es.price > 0 ? "text-purple-600" : "text-green-600"}`}>
+                      {es.price > 0 ? `${es.price.toLocaleString("vi-VN")}đ` : "Miễn phí"}
+                    </span>
+                    {es.totalStock != null && (
+                      <div className="text-[10px] text-gray-400 mt-0.5">Còn {es.totalStock} sản phẩm</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
