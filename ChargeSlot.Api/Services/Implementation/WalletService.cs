@@ -1,8 +1,12 @@
+using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Wallet;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
@@ -15,6 +19,8 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IChargingSlotRepository _slotRepo;
         private readonly IVnPayService _vnPayService;
         private readonly INotificationService _notificationService;
+        private readonly ChargeSlotDbContext _db;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public WalletService(
             IWalletRepository walletRepo,
@@ -22,7 +28,9 @@ namespace ChargeSlot.Api.Services.Implementation
             IPaymentRepository paymentRepo,
             IChargingSlotRepository slotRepo,
             IVnPayService vnPayService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            ChargeSlotDbContext db,
+            UserManager<ApplicationUser> userManager)
         {
             _walletRepo = walletRepo;
             _bookingRepo = bookingRepo;
@@ -30,6 +38,8 @@ namespace ChargeSlot.Api.Services.Implementation
             _slotRepo = slotRepo;
             _vnPayService = vnPayService;
             _notificationService = notificationService;
+            _db = db;
+            _userManager = userManager;
         }
 
         /// <summary>
@@ -83,7 +93,8 @@ namespace ChargeSlot.Api.Services.Implementation
             wallet.AvailableBalance += amount;
             await _walletRepo.UpdateAsync(wallet);
 
-            // Ghi ledger: CREDIT vào ví
+            // Ghi ledger double-entry: DEBIT từ EXTERNAL (VNPay), CREDIT vào ví user
+            var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "TopUp",
@@ -93,6 +104,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 CreatedAt = DateTimeHelper.VietnamNow(),
                 Entries = new List<LedgerEntry>
                 {
+                    new LedgerEntry
+                    {
+                        WalletId = clearingWallet.Id,
+                        Direction = LedgerDirection.Debit,
+                        Amount = amount,
+                        CreatedAt = DateTimeHelper.VietnamNow()
+                    },
                     new LedgerEntry
                     {
                         WalletId = wallet.Id,
@@ -120,6 +138,10 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<WalletDto> PayBookingByWalletAsync(int userId, int bookingId)
         {
+            // Dùng transaction để đảm bảo tính nhất quán tài chính
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
             var wallet = await GetOrCreateWalletInternalAsync(userId);
 
             var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
@@ -142,13 +164,10 @@ namespace ChargeSlot.Api.Services.Implementation
             wallet.AvailableBalance -= booking.TotalAmount;
             await _walletRepo.UpdateAsync(wallet);
 
-            // Cộng tiền vào ESCROW
-            var escrowWallet = await _walletRepo.GetByIdAsync(1); // ESCROW wallet ID = 1
-            if (escrowWallet != null)
-            {
-                escrowWallet.AvailableBalance += booking.TotalAmount;
-                await _walletRepo.UpdateAsync(escrowWallet);
-            }
+            // Cộng tiền vào ESCROW (query by SystemCode thay vì hardcode ID)
+            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
+            escrowWallet.AvailableBalance += booking.TotalAmount;
+            await _walletRepo.UpdateAsync(escrowWallet);
 
             // Ghi ledger: DEBIT từ ví Driver, CREDIT vào ESCROW
             var ledgerTx = new LedgerTransaction
@@ -233,7 +252,14 @@ namespace ChargeSlot.Api.Services.Implementation
                     NotificationType.Payment);
             }
 
+            await transaction.CommitAsync();
             return MapToDto(wallet);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         /// <summary>
@@ -252,7 +278,8 @@ namespace ChargeSlot.Api.Services.Implementation
             wallet.FrozenBalance += amount;
             await _walletRepo.UpdateAsync(wallet);
 
-            // Ghi ledger
+            // Ghi ledger double-entry: DEBIT từ ví user (available → frozen)
+            var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "Withdraw",
@@ -266,6 +293,13 @@ namespace ChargeSlot.Api.Services.Implementation
                     {
                         WalletId = wallet.Id,
                         Direction = LedgerDirection.Debit,
+                        Amount = amount,
+                        CreatedAt = DateTimeHelper.VietnamNow()
+                    },
+                    new LedgerEntry
+                    {
+                        WalletId = clearingWallet.Id,
+                        Direction = LedgerDirection.Credit,
                         Amount = amount,
                         CreatedAt = DateTimeHelper.VietnamNow()
                     }
@@ -306,10 +340,20 @@ namespace ChargeSlot.Api.Services.Implementation
             var wallet = await _walletRepo.GetByUserIdAsync(userId);
             if (wallet == null)
             {
+                // Detect WalletType từ role thực tế của user
+                var user = await _userManager.FindByIdAsync(userId.ToString());
+                var walletType = WalletType.Driver;
+                if (user != null)
+                {
+                    var roles = await _userManager.GetRolesAsync(user);
+                    if (roles.Contains(Constants.RoleConstants.Owner))
+                        walletType = WalletType.Owner;
+                }
+
                 wallet = new Wallet
                 {
                     UserId = userId,
-                    WalletType = WalletType.Driver, // Default, sẽ detect từ role sau
+                    WalletType = walletType,
                     AvailableBalance = 0,
                     FrozenBalance = 0,
                     CreatedAt = DateTimeHelper.VietnamNow()

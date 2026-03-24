@@ -221,7 +221,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 Token = GenerateRefreshTokenString(),
                 UserId = userId,
-                ExpiresAt = DateTimeHelper.VietnamNow().AddDays(refreshDays),
+                ExpiresAt = DateTime.UtcNow.AddDays(refreshDays),
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
 
@@ -250,7 +250,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
             var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 
-            var expiresAtUtc = DateTimeHelper.VietnamNow().AddMinutes(expiresMinutes);
+            var expiresAtUtc = DateTime.UtcNow.AddMinutes(expiresMinutes);
 
             var token = new JwtSecurityToken(
                 issuer: issuer,

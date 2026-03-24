@@ -37,6 +37,14 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<BookingDto> CreateBookingAsync(int driverUserId, CreateBookingDto dto)
         {
+            // Validate: DurationHours phải > 0
+            if (dto.DurationHours <= 0)
+                throw new InvalidOperationException("Thời lượng sạc phải lớn hơn 0.");
+
+            // Validate: StartTime phải trong tương lai
+            if (dto.StartTime <= DateTimeHelper.VietnamNow())
+                throw new InvalidOperationException("Thời gian bắt đầu phải trong tương lai.");
+
             // Step 5: Compute end time
             var endTime = dto.StartTime.AddHours((double)dto.DurationHours);
 
@@ -351,7 +359,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// <summary>Hoàn tiền từ ESCROW về ví Driver (và Owner nếu có phần bồi thường).</summary>
         private async Task ProcessRefundAsync(Booking booking, decimal refundPercent, string memo)
         {
-            if (refundPercent <= 0 && refundPercent == 0)
+            if (refundPercent == 0)
             {
                 // 0% refund → toàn bộ ESCROW → Owner
                 var ownerUserId2 = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
@@ -529,6 +537,9 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
 
                 current = segmentEnd;
+
+                // Nếu current sang ngày mới, reset để match tier mới
+                // (không cần code đặc biệt vì TimeOnly.FromDateTime tự handle)
             }
 
             // Làm tròn đến hàng đơn vị

@@ -136,7 +136,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (!isTimeUp && !isDriverRequestedEarlyEnd)
                 throw new InvalidOperationException(
-                    $"Chưa thể kết thúc phiên sạc. Thời gian sạc kết thúc lúc {booking.EndTime:HH:mm dd/MM/yyyy} UTC. " +
+                    $"Chưa thể kết thúc phiên sạc. Thời gian sạc kết thúc lúc {booking.EndTime:HH:mm dd/MM/yyyy}. " +
                     "Driver cần yêu cầu kết thúc sớm trước khi Owner có thể dừng.");
 
             // Update session

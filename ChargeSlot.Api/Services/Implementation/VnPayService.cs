@@ -1,8 +1,10 @@
 using ChargeSlot.Api.Services.Interfaces;
 using System.Globalization;
 using System.Net;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
@@ -10,10 +12,14 @@ namespace ChargeSlot.Api.Services.Implementation
     public class VnPayService : IVnPayService
     {
         private readonly IConfiguration _config;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ILogger<VnPayService> _logger;
 
-        public VnPayService(IConfiguration config)
+        public VnPayService(IConfiguration config, IHttpClientFactory httpClientFactory, ILogger<VnPayService> logger)
         {
             _config = config;
+            _httpClientFactory = httpClientFactory;
+            _logger = logger;
         }
 
         /// <summary>
@@ -97,6 +103,82 @@ namespace ChargeSlot.Api.Services.Implementation
             var txnRef = vnpParams.GetValueOrDefault("vnp_TxnRef", "");
 
             return (isValid, responseCode, txnRef);
+        }
+
+        /// <summary>
+        /// Gọi VNPay QueryDR API để kiểm tra trạng thái giao dịch thực tế.
+        /// Dùng khi PaymentExpiryJob cần xác nhận trước khi hủy booking.
+        /// Doc: https://sandbox.vnpayment.vn/apis/docs/truy-van-giao-dich/
+        /// </summary>
+        public async Task<(bool isPaid, string responseCode)> QueryTransactionAsync(
+            string txnRef, decimal amount, DateTime createdAt)
+        {
+            try
+            {
+                var vnpay = _config.GetSection("VnPay");
+                var tmnCode = vnpay["TmnCode"]!;
+                var hashSecret = vnpay["HashSecret"]!;
+                var queryApiUrl = vnpay["QueryApiUrl"]
+                    ?? "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction";
+
+                var requestId = Guid.NewGuid().ToString("N");
+                var vnpAmount = ((long)(amount * 100)).ToString();
+                var createDate = createdAt.ToString("yyyyMMddHHmmss");
+                var transDate = createdAt.ToString("yyyyMMddHHmmss");
+                var ipAddr = "127.0.0.1";
+                var orderInfo = $"Query transaction {txnRef}";
+
+                // Build data string theo thứ tự VNPay quy định
+                var signData = $"{requestId}|{vnpay["Version"] ?? "2.1.0"}|querydr|{tmnCode}|{txnRef}|{transDate}|{createDate}|{ipAddr}|{orderInfo}";
+                var secureHash = HmacSha512(hashSecret, signData);
+
+                var requestBody = new
+                {
+                    vnp_RequestId = requestId,
+                    vnp_Version = vnpay["Version"] ?? "2.1.0",
+                    vnp_Command = "querydr",
+                    vnp_TmnCode = tmnCode,
+                    vnp_TxnRef = txnRef,
+                    vnp_OrderInfo = orderInfo,
+                    vnp_TransactionDate = transDate,
+                    vnp_CreateDate = createDate,
+                    vnp_IpAddr = ipAddr,
+                    vnp_SecureHash = secureHash
+                };
+
+                var client = _httpClientFactory.CreateClient();
+                var json = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await client.PostAsync(queryApiUrl, content);
+                var responseBody = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("VNPay QueryDR response for {TxnRef}: {Response}", txnRef, responseBody);
+
+                using var doc = JsonDocument.Parse(responseBody);
+                var root = doc.RootElement;
+
+                var vnpResponseCode = root.TryGetProperty("vnp_ResponseCode", out var rc)
+                    ? rc.GetString() ?? "99"
+                    : "99";
+
+                var vnpTransactionStatus = root.TryGetProperty("vnp_TransactionStatus", out var ts)
+                    ? ts.GetString() ?? "99"
+                    : "99";
+
+                // vnp_ResponseCode = "00" → query thành công
+                // vnp_TransactionStatus = "00" → giao dịch đã thanh toán thành công
+                var isPaid = vnpResponseCode == "00" && vnpTransactionStatus == "00";
+
+                return (isPaid, vnpTransactionStatus);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "VNPay QueryDR failed for txnRef {TxnRef}", txnRef);
+                // Lỗi query → trả về false, KHÔNG tự tin expire
+                // Caller nên xử lý: skip expire, thử lại lần sau
+                return (false, "QUERY_ERROR");
+            }
         }
 
         private static string BuildQueryString(SortedDictionary<string, string> data)

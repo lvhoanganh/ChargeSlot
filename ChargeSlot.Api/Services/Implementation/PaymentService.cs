@@ -1,8 +1,9 @@
+using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-
+using Microsoft.EntityFrameworkCore;
 using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
@@ -14,6 +15,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IVnPayService _vnPayService;
         private readonly INotificationService _notificationService;
         private readonly IWalletRepository _walletRepo;
+        private readonly ChargeSlotDbContext _db;
         private readonly ILogger<PaymentService> _logger;
 
         public PaymentService(
@@ -23,6 +25,7 @@ namespace ChargeSlot.Api.Services.Implementation
             IVnPayService vnPayService,
             INotificationService notificationService,
             IWalletRepository walletRepo,
+            ChargeSlotDbContext db,
             ILogger<PaymentService> logger)
         {
             _bookingRepo = bookingRepo;
@@ -31,6 +34,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _vnPayService = vnPayService;
             _notificationService = notificationService;
             _walletRepo = walletRepo;
+            _db = db;
             _logger = logger;
         }
 
@@ -173,6 +177,28 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.Status = BookingStatus.Paid;
             await _bookingRepo.UpdateAsync(booking);
 
+            // Cộng tiền vào ESCROW wallet (VNPay đã thu tiền thực tế từ Driver)
+            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
+            var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
+            escrowWallet.AvailableBalance += booking.TotalAmount;
+            await _db.SaveChangesAsync();
+
+            // Ghi ledger double-entry: DEBIT từ CLEARING (VNPay gateway), CREDIT vào ESCROW
+            var ledgerTx = new LedgerTransaction
+            {
+                ReferenceType = "BookingPayment",
+                ReferenceId = booking.Id,
+                Memo = $"Thanh toán booking #{booking.Id} qua VNPay - {booking.TotalAmount:N0}đ → ESCROW",
+                CreatedByUserId = booking.DriverUserId,
+                CreatedAt = DateTimeHelper.VietnamNow(),
+                Entries = new List<LedgerEntry>
+                {
+                    new LedgerEntry { WalletId = clearingWallet.Id, Direction = LedgerDirection.Debit, Amount = booking.TotalAmount, CreatedAt = DateTimeHelper.VietnamNow() },
+                    new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Credit, Amount = booking.TotalAmount, CreatedAt = DateTimeHelper.VietnamNow() }
+                }
+            };
+            await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
+
             // Lock charging slot
             var slot = await _slotRepo.GetByIdAsync(booking.SlotId, tracking: true);
             if (slot != null)
@@ -228,7 +254,8 @@ namespace ChargeSlot.Api.Services.Implementation
             driverWallet.AvailableBalance += booking.TotalAmount;
             await _walletRepo.UpdateAsync(driverWallet);
 
-            // Ghi ledger
+            // Ghi ledger double-entry: DEBIT từ CLEARING (VNPay refund), CREDIT vào ví Driver
+            var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "PaymentRaceRefund",
@@ -238,6 +265,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 CreatedAt = DateTimeHelper.VietnamNow(),
                 Entries = new List<LedgerEntry>
                 {
+                    new LedgerEntry
+                    {
+                        WalletId = clearingWallet.Id,
+                        Direction = LedgerDirection.Debit,
+                        Amount = booking.TotalAmount,
+                        CreatedAt = DateTimeHelper.VietnamNow()
+                    },
                     new LedgerEntry
                     {
                         WalletId = driverWallet.Id,
