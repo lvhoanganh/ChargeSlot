@@ -6,6 +6,7 @@ using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class BookingService : IBookingService
@@ -83,7 +84,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 Note = dto.Note,
                 TotalAmount = totalAmount,
                 Status = BookingStatus.WaitingOwner,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.VietnamNow()
             };
 
             await _bookingRepo.CreateAsync(booking);
@@ -129,14 +130,14 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.Status = BookingStatus.PendingPayment;
 
             // Step 18: Compute payment deadline (30 phút hoặc đến lúc sạc)
-            var timeToCharging = booking.StartTime - DateTime.UtcNow;
+            var timeToCharging = booking.StartTime - DateTimeHelper.VietnamNow();
             if (timeToCharging.TotalMinutes < 30)
             {
                 booking.PaymentExpiresAt = booking.StartTime;
             }
             else
             {
-                booking.PaymentExpiresAt = DateTime.UtcNow.AddMinutes(30);
+                booking.PaymentExpiresAt = DateTimeHelper.VietnamNow().AddMinutes(30);
             }
 
             await _bookingRepo.UpdateAsync(booking);
@@ -225,7 +226,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // Xử lý hoàn tiền nếu đã Paid
             if (booking.Status == BookingStatus.Paid)
             {
-                var hoursBeforeStart = (booking.StartTime - DateTime.UtcNow).TotalHours;
+                var hoursBeforeStart = (booking.StartTime - DateTimeHelper.VietnamNow()).TotalHours;
                 decimal refundPercent;
                 string refundNote;
 
@@ -291,7 +292,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Set cancelled
             booking.Status = BookingStatus.Cancelled;
-            booking.CancelledAt = DateTime.UtcNow;
+            booking.CancelledAt = DateTimeHelper.VietnamNow();
             booking.CancelReason = cancelReason ?? "Driver tự hủy";
             await _bookingRepo.UpdateAsync(booking);
 
@@ -336,7 +337,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 NotificationType.Booking);
 
             booking.Status = BookingStatus.Cancelled;
-            booking.CancelledAt = DateTime.UtcNow;
+            booking.CancelledAt = DateTimeHelper.VietnamNow();
             booking.CancelReason = cancelReason ?? "Owner hủy";
             await _bookingRepo.UpdateAsync(booking);
 
@@ -388,7 +389,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     WalletType = walletType,
                     AvailableBalance = 0,
                     FrozenBalance = 0,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 };
                 _context.Wallets.Add(userWallet);
                 await _context.SaveChangesAsync();
@@ -402,11 +403,11 @@ namespace ChargeSlot.Api.Services.Implementation
                 ReferenceType = "BookingCancel",
                 ReferenceId = booking.Id,
                 Memo = memo,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTimeHelper.VietnamNow(),
                 Entries = new List<LedgerEntry>
                 {
-                    new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = amount, CreatedAt = DateTime.UtcNow },
-                    new LedgerEntry { WalletId = userWallet.Id, Direction = LedgerDirection.Credit, Amount = amount, CreatedAt = DateTime.UtcNow }
+                    new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = amount, CreatedAt = DateTimeHelper.VietnamNow() },
+                    new LedgerEntry { WalletId = userWallet.Id, Direction = LedgerDirection.Credit, Amount = amount, CreatedAt = DateTimeHelper.VietnamNow() }
                 }
             });
 
@@ -419,7 +420,7 @@ namespace ChargeSlot.Api.Services.Implementation
             if (slot != null && slot.Status == SlotStatus.Booked)
             {
                 slot.Status = SlotStatus.Active;
-                slot.UpdatedAt = DateTime.UtcNow;
+                slot.UpdatedAt = DateTimeHelper.VietnamNow();
                 await _slotRepo.SaveChangesAsync();
             }
         }

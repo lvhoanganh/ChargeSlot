@@ -4,6 +4,7 @@ using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class AdminRevenueService : IAdminRevenueService
@@ -210,7 +211,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         private static DateTime? GetSinceDate(string period)
         {
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.VietnamNow();
             return period.ToLower() switch
             {
                 "month" => now.AddDays(-30),

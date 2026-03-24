@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Controllers
 {
     [ApiController]
@@ -132,7 +133,7 @@ namespace ChargeSlot.Api.Controllers
         {
             try
             {
-                var targetDate = date ?? DateTime.UtcNow.Date;
+                var targetDate = date ?? DateTimeHelper.VietnamNow().Date;
                 var availability = await _slotService.GetSlotAvailabilityAsync(slotId, targetDate);
                 return Ok(availability);
             }

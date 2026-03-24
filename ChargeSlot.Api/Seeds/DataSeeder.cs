@@ -5,6 +5,7 @@ using ChargeSlot.Api.Models.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Seeds
 {
     /// <summary>
@@ -23,7 +24,7 @@ namespace ChargeSlot.Api.Seeds
             // ──── Kiểm tra đã seed chưa ────
             if (await db.Driver.AnyAsync()) return;
 
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.VietnamNow();
 
             // ══════════════════════════════════════════
             // 1. ROLES (nếu chưa có)
@@ -41,7 +42,7 @@ namespace ChargeSlot.Api.Seeds
             // --- Admin ---
             var admin = new ApplicationUser
             {
-                UserName = "admin",
+                UserName = "0900000001",
                 FullName = "Admin Hệ Thống",
                 PhoneNumber = "0900000001",
                 IsPhoneVerified = true,

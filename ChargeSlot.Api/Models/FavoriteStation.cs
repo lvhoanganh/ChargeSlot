@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Models.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>Driver yêu thích trạm sạc (kiểu Be).</summary>
@@ -10,6 +11,6 @@ namespace ChargeSlot.Api.Models
         public ApplicationUser DriverUser { get; set; } = null!;
         public int StationId { get; set; }
         public ChargingStation Station { get; set; } = null!;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
     }
 }

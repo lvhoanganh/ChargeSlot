@@ -1,6 +1,7 @@
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 PayoutRequest - owner withdraws available balance (UC-39).</summary>
@@ -15,7 +16,7 @@ namespace ChargeSlot.Api.Models
 
         public decimal Amount { get; set; }
         public PayoutStatus Status { get; set; } = PayoutStatus.Pending;
-        public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
+        public DateTime RequestedAt { get; set; } = DateTimeHelper.VietnamNow();
         public DateTime? ProcessedAt { get; set; }
         /// <summary>Admin Id (0) — không FK vì Admin config trong appsettings, không lưu DB.</summary>
         public int? ProcessedByUserId { get; set; }

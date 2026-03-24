@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Enums;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 ChargingStation - owner, location, approval, operational status.</summary>
@@ -28,7 +29,7 @@ namespace ChargeSlot.Api.Models
         public int? ReviewedByUserId { get; set; }
         public string? AdminNote { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
         public DateTime? UpdatedAt { get; set; }
 
         /// <summary>Đánh giá trung bình (denormalized for performance).</summary>

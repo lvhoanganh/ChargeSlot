@@ -5,6 +5,7 @@ using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.BackgroundJobs
 {
     /// <summary>
@@ -36,7 +37,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     var walletRepo = scope.ServiceProvider.GetRequiredService<IWalletRepository>();
                     var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
-                    var deadline = DateTime.UtcNow - AutoConfirmDeadline;
+                    var deadline = DateTimeHelper.VietnamNow() - AutoConfirmDeadline;
 
                     // Tìm invoices PendingConfirm quá 24h
                     var expiredInvoices = await db.Invoices
@@ -52,11 +53,11 @@ namespace ChargeSlot.Api.BackgroundJobs
 
                         // Auto-confirm invoice
                         invoice.Status = InvoiceStatus.Confirmed;
-                        invoice.UpdatedAt = DateTime.UtcNow;
+                        invoice.UpdatedAt = DateTimeHelper.VietnamNow();
 
                         // Complete booking
                         booking.Status = BookingStatus.Completed;
-                        booking.UpdatedAt = DateTime.UtcNow;
+                        booking.UpdatedAt = DateTimeHelper.VietnamNow();
 
                         await db.SaveChangesAsync(stoppingToken);
 
@@ -101,7 +102,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task SettlePaymentAsync(ChargeSlotDbContext db, IWalletRepository walletRepo, Booking booking, Invoice invoice)
         {
             var ownerUserId = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.VietnamNow();
 
             var escrowWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
             var platformWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");

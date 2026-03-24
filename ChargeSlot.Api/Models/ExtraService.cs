@@ -1,3 +1,4 @@
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 ExtraService - e.g. cho thuê củ sạc, bơm lốp, rửa xe.</summary>
@@ -13,7 +14,7 @@ namespace ChargeSlot.Api.Models
         /// <summary>NULL = không giới hạn (dịch vụ). Có giá trị = số lượng vật lý cho thuê (ví dụ: 5 củ sạc).</summary>
         public int? TotalStock { get; set; }
         public bool IsActive { get; set; } = true;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 
         public ICollection<BookingExtraService> BookingExtraServices { get; set; } = new List<BookingExtraService>();
     }

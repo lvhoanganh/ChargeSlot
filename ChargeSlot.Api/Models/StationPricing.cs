@@ -1,3 +1,4 @@
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>Station-level pricing tiers (giá theo khung giờ, áp dụng chung cho tất cả slot).</summary>
@@ -20,6 +21,6 @@ namespace ChargeSlot.Api.Models
         public DateTime? EffectiveTo { get; set; }
 
         public bool IsActive { get; set; } = true;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
     }
 }

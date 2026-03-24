@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Models.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 - Owner payout method (UC-39).</summary>
@@ -13,7 +14,7 @@ namespace ChargeSlot.Api.Models
         public string BankAccountNumber { get; set; } = null!;
         public string BankAccountHolder { get; set; } = null!;
         public bool IsDefault { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 
         public ICollection<PayoutRequest> PayoutRequests { get; set; } = new List<PayoutRequest>();
     }

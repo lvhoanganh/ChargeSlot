@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Enums;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 ChargingSlot - power outlet, price per hour, status.</summary>
@@ -20,7 +21,7 @@ namespace ChargeSlot.Api.Models
 
         public SlotStatus Status { get; set; } = SlotStatus.Inactive;
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
         public DateTime? UpdatedAt { get; set; }
 
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();

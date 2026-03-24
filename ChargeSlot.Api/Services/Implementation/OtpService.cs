@@ -48,9 +48,9 @@ namespace ChargeSlot.Api.Services.Implementation
                 PhoneNumber = phone,
                 OtpHash = otpHash,
                 Purpose = purpose,
-                ExpiredAt = DateTime.UtcNow.AddMinutes(5),
+                ExpiredAt = DateTimeHelper.VietnamNow().AddMinutes(5),
                 IsUsed = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.VietnamNow()
             };
 
             // 4️⃣ Lưu DB
@@ -92,9 +92,9 @@ namespace ChargeSlot.Api.Services.Implementation
                 PhoneNumber = phone,
                 OtpHash = otpHash,
                 Purpose = purpose,
-                ExpiredAt = DateTime.UtcNow.AddMinutes(5),
+                ExpiredAt = DateTimeHelper.VietnamNow().AddMinutes(5),
                 IsUsed = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.VietnamNow()
             };
 
             // 4️⃣ Lưu DB
@@ -119,7 +119,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("OTP is incorrect.");
 
             // 3️⃣ Đánh dấu đã dùng
-            record.VerifiedAt = DateTime.UtcNow;   // 🔥 QUAN TRỌNG
+            record.VerifiedAt = DateTimeHelper.VietnamNow();   // 🔥 QUAN TRỌNG
             record.IsUsed = true;
 
             await _otpRepository.SaveChangesAsync();

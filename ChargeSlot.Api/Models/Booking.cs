@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Enums;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 Booking - driver, slot, time range, status.</summary>
@@ -26,7 +27,7 @@ namespace ChargeSlot.Api.Models
         public string? RejectionReason { get; set; }
         public decimal TotalAmount { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
         public DateTime? UpdatedAt { get; set; }
 
         /// <summary>Driver yêu cầu kết thúc sạc sớm.</summary>

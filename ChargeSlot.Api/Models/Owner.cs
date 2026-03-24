@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Models.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 Owner - extends User, business info. Payout via BankAccount.</summary>
@@ -10,7 +11,7 @@ namespace ChargeSlot.Api.Models
 
         public string BusinessName { get; set; } = null!;
         public string TaxCode { get; set; } = null!;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 
         public ICollection<ChargingStation> ChargingStations { get; set; } = new List<ChargingStation>();
         public ICollection<PayoutRequest> PayoutRequests { get; set; } = new List<PayoutRequest>();

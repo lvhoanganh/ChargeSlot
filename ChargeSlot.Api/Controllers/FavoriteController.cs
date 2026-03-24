@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Controllers
 {
     /// <summary>
@@ -45,7 +46,7 @@ namespace ChargeSlot.Api.Controllers
             {
                 DriverUserId = userId,
                 StationId = stationId,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.VietnamNow()
             });
             await _db.SaveChangesAsync();
 

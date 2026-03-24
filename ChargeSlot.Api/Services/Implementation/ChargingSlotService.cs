@@ -6,6 +6,7 @@ using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class ChargingSlotService : IChargingSlotService
@@ -67,7 +68,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 PositionY = dto.PositionY,
                 Status = isApproved ? SlotStatus.Active : SlotStatus.Inactive,
                 QrCodeToken = isApproved ? Guid.NewGuid().ToString("N") : null,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.VietnamNow()
             };
 
             await _slotRepo.AddAsync(slot);
@@ -87,7 +88,7 @@ namespace ChargeSlot.Api.Services.Implementation
             slot.SlotName = dto.SlotName;
             slot.PositionX = dto.PositionX;
             slot.PositionY = dto.PositionY;
-            slot.UpdatedAt = DateTime.UtcNow;
+            slot.UpdatedAt = DateTimeHelper.VietnamNow();
 
             await _slotRepo.SaveChangesAsync();
         }
@@ -135,7 +136,7 @@ namespace ChargeSlot.Api.Services.Implementation
             }
 
             slot.Status = dto.Status;
-            slot.UpdatedAt = DateTime.UtcNow;
+            slot.UpdatedAt = DateTimeHelper.VietnamNow();
 
             await _slotRepo.SaveChangesAsync();
         }
@@ -160,7 +161,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Tính NextAvailableAt: thời gian trống tiếp theo từ bây giờ
             DateTime? nextAvailable = null;
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.VietnamNow();
 
             if (bookedRanges.Count == 0)
             {

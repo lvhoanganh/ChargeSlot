@@ -5,6 +5,7 @@ using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class DisputeService : IDisputeService
@@ -45,7 +46,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Đã có khiếu nại cho booking này.");
 
             // Rate limit: max 3 disputes/driver/tháng
-            var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+            var monthStart = new DateTime(DateTimeHelper.VietnamNow().Year, DateTimeHelper.VietnamNow().Month, 1);
             var disputeCountThisMonth = await _db.Disputes
                 .CountAsync(d => d.CreatedByUserId == driverUserId && d.CreatedAt >= monthStart);
             if (disputeCountThisMonth >= 3)
@@ -63,7 +64,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 Reason = dto.Reason,
                 Description = dto.Description,
                 Status = DisputeStatus.WaitingOwnerEvidence,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.VietnamNow()
             };
 
             // Evidence sẽ được upload sau khi có disputeId
@@ -74,12 +75,12 @@ namespace ChargeSlot.Api.Services.Implementation
             if (invoice != null)
             {
                 invoice.Status = InvoiceStatus.UnderDispute;
-                invoice.UpdatedAt = DateTime.UtcNow;
+                invoice.UpdatedAt = DateTimeHelper.VietnamNow();
             }
 
             // Booking → Disputed
             booking.Status = BookingStatus.Disputed;
-            booking.UpdatedAt = DateTime.UtcNow;
+            booking.UpdatedAt = DateTimeHelper.VietnamNow();
 
             // Freeze ESCROW balance: AvailableBalance → FrozenBalance
             var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
@@ -203,7 +204,7 @@ namespace ChargeSlot.Api.Services.Implementation
             if (dispute.Status != DisputeStatus.PendingReview && dispute.Status != DisputeStatus.WaitingOwnerEvidence)
                 throw new InvalidOperationException("Khiếu nại không ở trạng thái có thể xử lý.");
 
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.VietnamNow();
 
             // Resolve dispute
             dispute.Status = dto.IsDriverWin ? DisputeStatus.ResolvedRefund : DisputeStatus.ResolvedPayout;
@@ -272,7 +273,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         private async Task RefundToDriverAsync(Booking booking, Dispute dispute)
         {
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.VietnamNow();
             var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
 
             // Get or create Driver wallet
@@ -320,7 +321,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private async Task SettleToOwnerAsync(Booking booking, Invoice invoice, Dispute dispute)
         {
             var ownerUserId = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.VietnamNow();
 
             var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
             var platformWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");
@@ -476,7 +477,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     UploadedByUserId = uploadedByUserId,
                     FileUrl = publicUrl,
                     FileType = fileType,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 });
             }
 

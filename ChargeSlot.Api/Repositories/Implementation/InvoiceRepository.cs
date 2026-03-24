@@ -3,6 +3,7 @@ using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Repositories.Implementation
 {
     public class InvoiceRepository : IInvoiceRepository
@@ -37,7 +38,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
 
         public async Task UpdateAsync(Invoice invoice)
         {
-            invoice.UpdatedAt = DateTime.UtcNow;
+            invoice.UpdatedAt = DateTimeHelper.VietnamNow();
             _db.Invoices.Update(invoice);
             await _db.SaveChangesAsync();
         }

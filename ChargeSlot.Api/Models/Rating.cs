@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Models.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 Rating - driver rates completed booking (BR-75, BR-76).</summary>
@@ -23,6 +24,6 @@ namespace ChargeSlot.Api.Models
         public string? OwnerReply { get; set; }
         public DateTime? OwnerRepliedAt { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
     }
 }

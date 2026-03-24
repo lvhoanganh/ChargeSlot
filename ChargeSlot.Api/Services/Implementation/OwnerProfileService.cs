@@ -5,6 +5,7 @@ using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class OwnerProfileService : IOwnerProfileService
@@ -41,7 +42,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     UserId = userId,
                     BusinessName = dto.BusinessName,
                     TaxCode = dto.TaxCode,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 };
 
                 await _ownerRepository.AddAsync(owner);

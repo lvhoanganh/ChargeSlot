@@ -3,6 +3,7 @@ using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class PaymentService : IPaymentService
@@ -49,7 +50,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Booking không ở trạng thái chờ thanh toán.");
 
             // Kiểm tra đã hết hạn chưa
-            if (booking.PaymentExpiresAt.HasValue && booking.PaymentExpiresAt.Value <= DateTime.UtcNow)
+            if (booking.PaymentExpiresAt.HasValue && booking.PaymentExpiresAt.Value <= DateTimeHelper.VietnamNow())
                 throw new InvalidOperationException("Đã hết thời gian thanh toán.");
 
             // Tạo hoặc lấy Payment record
@@ -62,7 +63,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     Amount = booking.TotalAmount,
                     PaymentMethod = PaymentMethod.BankTransfer,
                     Status = PaymentStatus.Pending,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 };
                 await _paymentRepo.CreateAsync(payment);
             }
@@ -166,7 +167,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private async Task CompletePaymentAsync(Booking booking, Payment payment)
         {
             payment.Status = PaymentStatus.Completed;
-            payment.PaidAt = DateTime.UtcNow;
+            payment.PaidAt = DateTimeHelper.VietnamNow();
             await _paymentRepo.UpdateAsync(payment);
 
             booking.Status = BookingStatus.Paid;
@@ -206,7 +207,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private async Task RefundToDriverWalletAsync(Booking booking, Payment payment)
         {
             payment.Status = PaymentStatus.Refunded;
-            payment.PaidAt = DateTime.UtcNow;
+            payment.PaidAt = DateTimeHelper.VietnamNow();
             await _paymentRepo.UpdateAsync(payment);
 
             // Tạo hoặc lấy ví driver
@@ -219,7 +220,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     WalletType = WalletType.Driver,
                     AvailableBalance = 0,
                     FrozenBalance = 0,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 };
                 await _walletRepo.CreateAsync(driverWallet);
             }
@@ -234,7 +235,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 ReferenceId = booking.Id,
                 Memo = $"Hoàn tiền booking #{booking.Id} do hết hạn thanh toán nhưng VNPay đã trừ tiền - {booking.TotalAmount:N0}đ → Ví Driver",
                 CreatedByUserId = null,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTimeHelper.VietnamNow(),
                 Entries = new List<LedgerEntry>
                 {
                     new LedgerEntry
@@ -242,7 +243,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         WalletId = driverWallet.Id,
                         Direction = LedgerDirection.Credit,
                         Amount = booking.TotalAmount,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.VietnamNow()
                     }
                 }
             };

@@ -4,6 +4,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class VnPayService : IVnPayService
@@ -31,9 +32,9 @@ namespace ChargeSlot.Api.Services.Implementation
             var locale = vnpay["Locale"] ?? "vn";
             var orderType = vnpay["OrderType"] ?? "other";
 
-            var txnRef = bookingId.ToString() + "_" + DateTime.UtcNow.Ticks;
-            var createDate = DateTime.UtcNow.AddHours(7).ToString("yyyyMMddHHmmss");
-            var expireDate = DateTime.UtcNow.AddHours(7).AddMinutes(15).ToString("yyyyMMddHHmmss");
+            var txnRef = bookingId.ToString() + "_" + DateTimeHelper.VietnamNow().Ticks;
+            var createDate = DateTimeHelper.VietnamNow().ToString("yyyyMMddHHmmss");
+            var expireDate = DateTimeHelper.VietnamNow().AddMinutes(15).ToString("yyyyMMddHHmmss");
             var ipAddress = GetIpAddress(context);
 
             // VNPay amount = amount * 100 (không có phần thập phân)

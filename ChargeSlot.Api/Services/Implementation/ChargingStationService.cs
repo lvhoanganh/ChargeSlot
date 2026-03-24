@@ -10,6 +10,7 @@ using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class ChargingStationService : IChargingStationService
@@ -61,7 +62,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     UserId = ownerUserId,
                     BusinessName = user.FullName,
                     TaxCode = "N/A",
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 });
                 await _context.SaveChangesAsync();
             }
@@ -79,7 +80,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 LayoutHeight = dto.LayoutHeight,
                 ApprovalStatus = ApprovalStatus.Draft,
                 OperationalStatus = OperationalStatus.Inactive,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.VietnamNow()
             };
 
             // Add operating hours
@@ -105,7 +106,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     station.Images.Add(new StationImage
                     {
                         ImageUrl = url,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.VietnamNow()
                     });
                 }
             }
@@ -121,7 +122,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         PositionX = s.PositionX,
                         PositionY = s.PositionY,
                         Status = SlotStatus.Inactive,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.VietnamNow()
                     });
                 }
             }
@@ -148,7 +149,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     UserId = ownerUserId,
                     BusinessName = user.FullName,
                     TaxCode = "N/A",
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 });
                 await _context.SaveChangesAsync();
             }
@@ -165,7 +166,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 LayoutHeight = dto.LayoutHeight,
                 ApprovalStatus = ApprovalStatus.Draft,
                 OperationalStatus = OperationalStatus.Inactive,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.VietnamNow()
             };
 
             // Operating Hours
@@ -194,7 +195,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         PositionX = (decimal?)(s.PositionX ?? 0),
                         PositionY = (decimal?)(s.PositionY ?? 0),
                         Status = SlotStatus.Inactive,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.VietnamNow()
                     });
                 }
             }
@@ -228,7 +229,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         {
                             StationId = station.Id,
                             ImageUrl = imageUrl,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTimeHelper.VietnamNow()
                         });
                     }
                 }
@@ -238,7 +239,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // Station-level pricing
             if (dto.StationPricing?.Count > 0)
             {
-                var now = DateTime.UtcNow;
+                var now = DateTimeHelper.VietnamNow();
                 foreach (var p in dto.StationPricing)
                 {
                     if (!TimeOnly.TryParse(p.StartTime, out var startTime) ||
@@ -289,7 +290,7 @@ namespace ChargeSlot.Api.Services.Implementation
             station.LayoutImageUrl = dto.LayoutImageUrl;
             station.LayoutWidth = dto.LayoutWidth;
             station.LayoutHeight = dto.LayoutHeight;
-            station.UpdatedAt = DateTime.UtcNow;
+            station.UpdatedAt = DateTimeHelper.VietnamNow();
 
             // Replace operating hours
             if (dto.OperatingHours != null)
@@ -322,7 +323,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     {
                         StationId = station.Id,
                         ImageUrl = url,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.VietnamNow()
                     });
                 }
             }
@@ -383,9 +384,9 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Transition to PendingApproval
             station.ApprovalStatus = ApprovalStatus.PendingApproval;
-            station.SubmittedAt = DateTime.UtcNow;
+            station.SubmittedAt = DateTimeHelper.VietnamNow();
             station.AdminNote = null; // clear previous rejection note
-            station.UpdatedAt = DateTime.UtcNow;
+            station.UpdatedAt = DateTimeHelper.VietnamNow();
 
             // Notify all Admin users
             var adminUsers = await _userManager.GetUsersInRoleAsync(RoleConstants.Admin);
@@ -398,7 +399,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     Content = $"Trạm sạc \"{station.Name}\" đã được gửi yêu cầu phê duyệt.",
                     Type = NotificationType.StationApproval,
                     IsRead = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 });
             }
 
@@ -430,10 +431,10 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException(
                     $"Station is not pending approval. Current status: {station.ApprovalStatus}");
 
-            station.ReviewedAt = DateTime.UtcNow;
+            station.ReviewedAt = DateTimeHelper.VietnamNow();
             station.ReviewedByUserId = adminUserId;
             station.AdminNote = dto.AdminNote;
-            station.UpdatedAt = DateTime.UtcNow;
+            station.UpdatedAt = DateTimeHelper.VietnamNow();
 
             if (dto.IsApproved)
             {
@@ -448,7 +449,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     slot.Status = SlotStatus.Active;
                     slot.QrCodeToken = Guid.NewGuid().ToString("N");
-                    slot.UpdatedAt = DateTime.UtcNow;
+                    slot.UpdatedAt = DateTimeHelper.VietnamNow();
                 }
 
                 // Notify Owner
@@ -459,7 +460,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     Content = $"Trạm sạc \"{station.Name}\" đã được phê duyệt và công bố trên hệ thống.",
                     Type = NotificationType.StationApproval,
                     IsRead = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 });
             }
             else
@@ -478,7 +479,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     Content = $"Trạm sạc \"{station.Name}\" đã bị từ chối. Lý do: {dto.AdminNote}",
                     Type = NotificationType.StationApproval,
                     IsRead = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 });
             }
 

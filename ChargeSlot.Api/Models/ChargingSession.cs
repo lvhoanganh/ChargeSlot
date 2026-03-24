@@ -1,3 +1,4 @@
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 ChargingSession - actual start/end, duration.</summary>
@@ -11,6 +12,6 @@ namespace ChargeSlot.Api.Models
         public DateTime? ActualStartTime { get; set; }
         public DateTime? ActualEndTime { get; set; }
         public decimal? ActualDurationHours { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
     }
 }

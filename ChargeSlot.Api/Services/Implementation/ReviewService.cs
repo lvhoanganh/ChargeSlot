@@ -5,6 +5,7 @@ using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class ReviewService : IReviewService
@@ -48,7 +49,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 Score = dto.Rating,
                 Comment = dto.Comment,
                 IsAnonymous = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.VietnamNow()
             };
 
             _db.Ratings.Add(rating);
@@ -86,7 +87,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Đã phản hồi đánh giá này rồi.");
 
             rating.OwnerReply = dto.Reply;
-            rating.OwnerRepliedAt = DateTime.UtcNow;
+            rating.OwnerRepliedAt = DateTimeHelper.VietnamNow();
             await _db.SaveChangesAsync();
 
             await _notificationService.SendAsync(

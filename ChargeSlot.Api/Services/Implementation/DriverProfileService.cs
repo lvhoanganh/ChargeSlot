@@ -5,6 +5,7 @@ using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class DriverProfileService : IDriverProfileService
@@ -43,7 +44,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     VehicleType = dto.VehicleType,
                     LicensePlate = dto.LicensePlate,
                     LicenseNumber = dto.LicenseNumber,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 };
 
                 await _driverRepository.AddAsync(driver);

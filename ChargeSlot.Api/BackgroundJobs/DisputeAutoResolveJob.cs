@@ -4,6 +4,7 @@ using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.BackgroundJobs
 {
     /// <summary>
@@ -54,7 +55,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task AutoResolveOwnerNoEvidenceAsync(
             ChargeSlotDbContext db, INotificationService notificationService, CancellationToken ct)
         {
-            var deadline = DateTime.UtcNow - OwnerEvidenceDeadline;
+            var deadline = DateTimeHelper.VietnamNow() - OwnerEvidenceDeadline;
 
             var expiredDisputes = await db.Disputes
                 .Include(d => d.Booking)
@@ -66,7 +67,7 @@ namespace ChargeSlot.Api.BackgroundJobs
 
             foreach (var dispute in expiredDisputes)
             {
-                var now = DateTime.UtcNow;
+                var now = DateTimeHelper.VietnamNow();
 
                 // Auto-resolve: Driver thắng
                 dispute.Status = DisputeStatus.ResolvedRefund;
@@ -130,7 +131,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task AutoResolveAdminNoActionAsync(
             ChargeSlotDbContext db, INotificationService notificationService, CancellationToken ct)
         {
-            var deadline = DateTime.UtcNow - AdminReviewDeadline;
+            var deadline = DateTimeHelper.VietnamNow() - AdminReviewDeadline;
 
             // PendingReview disputes: tìm theo thời gian Owner nộp evidence
             // Vì không có trường riêng, dùng heuristic: dispute nào PendingReview quá 48h
@@ -145,7 +146,7 @@ namespace ChargeSlot.Api.BackgroundJobs
 
             foreach (var dispute in expiredDisputes)
             {
-                var now = DateTime.UtcNow;
+                var now = DateTimeHelper.VietnamNow();
 
                 // Auto-resolve: Owner thắng
                 dispute.Status = DisputeStatus.ResolvedPayout;
@@ -208,7 +209,7 @@ namespace ChargeSlot.Api.BackgroundJobs
 
         private async Task RefundToDriverAsync(ChargeSlotDbContext db, Booking booking, Dispute dispute)
         {
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.VietnamNow();
             var escrowWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
             var driverWallet = await db.Wallets.FirstOrDefaultAsync(w => w.UserId == booking.DriverUserId);
 
@@ -246,7 +247,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task SettleToOwnerAsync(ChargeSlotDbContext db, Booking booking, Invoice invoice, Dispute dispute)
         {
             var ownerUserId = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.VietnamNow();
 
             var escrowWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
             var platformWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");

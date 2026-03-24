@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Enums;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 Payment - booking payment, E-wallet or Bank transfer.</summary>
@@ -14,6 +15,6 @@ namespace ChargeSlot.Api.Models
         public string? GatewayTxnRef { get; set; }
         public PaymentStatus Status { get; set; } = PaymentStatus.Pending;
         public DateTime? PaidAt { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
     }
 }

@@ -75,7 +75,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 FullName = dto.FullName,
                 Status = "ACTIVE",
                 IsPhoneVerified = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.VietnamNow()
             };
 
             var createResult = await _userManager.CreateAsync(user, dto.Password);
@@ -96,7 +96,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     UserId = user.Id,
                     BusinessName = dto.FullName,
                     TaxCode = "N/A",
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 });
             }
             else if (role == RoleConstants.Driver)
@@ -104,7 +104,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 _context.Driver.Add(new Driver
                 {
                     UserId = user.Id,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 });
             }
 
@@ -150,7 +150,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Refresh token has expired.");
 
             // Revoke old token (rotation)
-            storedToken.RevokedAt = DateTime.UtcNow;
+            storedToken.RevokedAt = DateTimeHelper.VietnamNow();
 
             var user = storedToken.User;
             if (user.Status != "ACTIVE")
@@ -180,7 +180,7 @@ namespace ChargeSlot.Api.Services.Implementation
             if (storedToken.IsRevoked)
                 throw new InvalidOperationException("Token already revoked.");
 
-            storedToken.RevokedAt = DateTime.UtcNow;
+            storedToken.RevokedAt = DateTimeHelper.VietnamNow();
             await _context.SaveChangesAsync();
         }
 
@@ -221,8 +221,8 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 Token = GenerateRefreshTokenString(),
                 UserId = userId,
-                ExpiresAt = DateTime.UtcNow.AddDays(refreshDays),
-                CreatedAt = DateTime.UtcNow
+                ExpiresAt = DateTimeHelper.VietnamNow().AddDays(refreshDays),
+                CreatedAt = DateTimeHelper.VietnamNow()
             };
 
             _context.RefreshTokens.Add(refreshToken);
@@ -250,7 +250,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
             var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 
-            var expiresAtUtc = DateTime.UtcNow.AddMinutes(expiresMinutes);
+            var expiresAtUtc = DateTimeHelper.VietnamNow().AddMinutes(expiresMinutes);
 
             var token = new JwtSecurityToken(
                 issuer: issuer,

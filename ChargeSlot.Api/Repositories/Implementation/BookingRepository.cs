@@ -4,6 +4,7 @@ using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Repositories.Implementation
 {
     public class BookingRepository : IBookingRepository
@@ -108,7 +109,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
 
         public async Task UpdateAsync(Booking booking)
         {
-            booking.UpdatedAt = DateTime.UtcNow;
+            booking.UpdatedAt = DateTimeHelper.VietnamNow();
             _db.Bookings.Update(booking);
             await _db.SaveChangesAsync();
         }
@@ -120,7 +121,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Include(b => b.Payment)
                 .Where(b => b.Status == BookingStatus.PendingPayment
                     && b.PaymentExpiresAt.HasValue
-                    && b.PaymentExpiresAt.Value <= DateTime.UtcNow)
+                    && b.PaymentExpiresAt.Value <= DateTimeHelper.VietnamNow())
                 .ToListAsync();
         }
 

@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Models.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS UC-23 - evidence (images/documents) for dispute.</summary>
@@ -15,6 +16,6 @@ namespace ChargeSlot.Api.Models
 
         public string FileUrl { get; set; } = null!;
         public string FileType { get; set; } = null!;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
     }
 }

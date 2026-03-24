@@ -4,6 +4,7 @@ using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class WalletService : IWalletService
@@ -89,7 +90,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 ReferenceId = wallet.Id,
                 Memo = $"Nạp tiền {amount:N0} VND qua VNPay",
                 CreatedByUserId = wallet.UserId,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTimeHelper.VietnamNow(),
                 Entries = new List<LedgerEntry>
                 {
                     new LedgerEntry
@@ -97,7 +98,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         WalletId = wallet.Id,
                         Direction = LedgerDirection.Credit,
                         Amount = amount,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.VietnamNow()
                     }
                 }
             };
@@ -130,7 +131,7 @@ namespace ChargeSlot.Api.Services.Implementation
             if (booking.Status != BookingStatus.PendingPayment)
                 throw new InvalidOperationException("Booking không ở trạng thái chờ thanh toán.");
 
-            if (booking.PaymentExpiresAt.HasValue && booking.PaymentExpiresAt.Value <= DateTime.UtcNow)
+            if (booking.PaymentExpiresAt.HasValue && booking.PaymentExpiresAt.Value <= DateTimeHelper.VietnamNow())
                 throw new InvalidOperationException("Đã hết thời gian thanh toán.");
 
             if (wallet.AvailableBalance < booking.TotalAmount)
@@ -156,7 +157,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 ReferenceId = bookingId,
                 Memo = $"Thanh toán booking #{bookingId} bằng ví - {booking.TotalAmount:N0}đ → ESCROW",
                 CreatedByUserId = userId,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTimeHelper.VietnamNow(),
                 Entries = new List<LedgerEntry>
                 {
                     new LedgerEntry
@@ -164,14 +165,14 @@ namespace ChargeSlot.Api.Services.Implementation
                         WalletId = wallet.Id,
                         Direction = LedgerDirection.Debit,
                         Amount = booking.TotalAmount,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.VietnamNow()
                     },
                     new LedgerEntry
                     {
                         WalletId = escrowWallet?.Id ?? 1,
                         Direction = LedgerDirection.Credit,
                         Amount = booking.TotalAmount,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.VietnamNow()
                     }
                 }
             };
@@ -187,9 +188,9 @@ namespace ChargeSlot.Api.Services.Implementation
                     Amount = booking.TotalAmount,
                     PaymentMethod = PaymentMethod.Wallet,
                     Status = PaymentStatus.Completed,
-                    PaidAt = DateTime.UtcNow,
-                    GatewayTxnRef = $"WALLET_{wallet.Id}_{DateTime.UtcNow.Ticks}",
-                    CreatedAt = DateTime.UtcNow
+                    PaidAt = DateTimeHelper.VietnamNow(),
+                    GatewayTxnRef = $"WALLET_{wallet.Id}_{DateTimeHelper.VietnamNow().Ticks}",
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 };
                 await _paymentRepo.CreateAsync(payment);
             }
@@ -197,7 +198,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 payment.Status = PaymentStatus.Completed;
                 payment.PaymentMethod = PaymentMethod.Wallet;
-                payment.PaidAt = DateTime.UtcNow;
+                payment.PaidAt = DateTimeHelper.VietnamNow();
                 await _paymentRepo.UpdateAsync(payment);
             }
 
@@ -258,7 +259,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 ReferenceId = 0,
                 Memo = $"Yêu cầu rút {amount:N0} VND",
                 CreatedByUserId = userId,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTimeHelper.VietnamNow(),
                 Entries = new List<LedgerEntry>
                 {
                     new LedgerEntry
@@ -266,7 +267,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         WalletId = wallet.Id,
                         Direction = LedgerDirection.Debit,
                         Amount = amount,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.VietnamNow()
                     }
                 }
             };
@@ -311,7 +312,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     WalletType = WalletType.Driver, // Default, sẽ detect từ role sau
                     AvailableBalance = 0,
                     FrozenBalance = 0,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 };
                 await _walletRepo.CreateAsync(wallet);
             }

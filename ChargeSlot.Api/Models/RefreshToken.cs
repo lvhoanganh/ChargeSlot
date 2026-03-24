@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Models.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     public class RefreshToken
@@ -13,7 +14,7 @@ namespace ChargeSlot.Api.Models
         public ApplicationUser User { get; set; } = null!;
 
         public DateTime ExpiresAt { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 
         /// <summary>Null if still active; set when revoked or rotated.</summary>
         public DateTime? RevokedAt { get; set; }
@@ -21,7 +22,7 @@ namespace ChargeSlot.Api.Models
         /// <summary>The new token that replaced this one (token rotation).</summary>
         public string? ReplacedByToken { get; set; }
 
-        public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
+        public bool IsExpired => DateTimeHelper.VietnamNow() >= ExpiresAt;
         public bool IsRevoked => RevokedAt != null;
         public bool IsActive => !IsRevoked && !IsExpired;
     }

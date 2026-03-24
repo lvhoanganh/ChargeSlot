@@ -3,6 +3,7 @@ using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class NotificationService : INotificationService
@@ -23,7 +24,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 Content = content,
                 Type = type,
                 IsRead = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.VietnamNow()
             };
             await _notificationRepo.CreateAsync(notification);
         }

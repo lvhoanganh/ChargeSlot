@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Controllers
 {
     [ApiController]
@@ -130,7 +131,7 @@ namespace ChargeSlot.Api.Controllers
                 return BadRequest(new { error = "OperationalStatus không hợp lệ. Sử dụng: Active, Inactive." });
 
             station.OperationalStatus = newStatus;
-            station.UpdatedAt = DateTime.UtcNow;
+            station.UpdatedAt = DateTimeHelper.VietnamNow();
             await _db.SaveChangesAsync();
 
             return Ok(new { message = $"Station đã chuyển sang {newStatus}.", operationalStatus = newStatus.ToString() });
@@ -175,10 +176,10 @@ namespace ChargeSlot.Api.Controllers
                 EndTime = endTime,
                 PricePerHour = dto.PricePerHour,
                 Priority = dto.Priority,
-                EffectiveFrom = dto.EffectiveFrom ?? DateTime.UtcNow,
+                EffectiveFrom = dto.EffectiveFrom ?? DateTimeHelper.VietnamNow(),
                 EffectiveTo = dto.EffectiveTo,
                 IsActive = true,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.VietnamNow()
             };
 
             _db.StationPricings.Add(pricing);

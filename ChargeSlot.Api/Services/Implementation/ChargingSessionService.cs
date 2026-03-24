@@ -7,6 +7,7 @@ using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class ChargingSessionService : IChargingSessionService
@@ -55,7 +56,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 ?? throw new InvalidOperationException("QR code không hợp lệ.");
 
             // 2. Find Paid booking for this driver on this slot
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.VietnamNow();
             var booking = await _db.Bookings
                 .Include(b => b.Driver).ThenInclude(d => d.User)
                 .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
@@ -125,7 +126,7 @@ namespace ChargeSlot.Api.Services.Implementation
             if (booking.Status != BookingStatus.CheckedIn)
                 throw new InvalidOperationException("Booking không ở trạng thái CheckedIn.");
 
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.VietnamNow();
 
             // Owner chỉ được kết thúc khi:
             // 1. Hết thời gian sạc (now >= EndTime), HOẶC
@@ -206,8 +207,8 @@ namespace ChargeSlot.Api.Services.Implementation
             if (booking.EarlyEndRequestedAt.HasValue)
                 throw new InvalidOperationException("Bạn đã yêu cầu kết thúc sớm rồi.");
 
-            booking.EarlyEndRequestedAt = DateTime.UtcNow;
-            booking.UpdatedAt = DateTime.UtcNow;
+            booking.EarlyEndRequestedAt = DateTimeHelper.VietnamNow();
+            booking.UpdatedAt = DateTimeHelper.VietnamNow();
             await _bookingRepo.UpdateAsync(booking);
 
             // Notify Owner
@@ -277,7 +278,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private async Task SettlePaymentToOwnerAsync(Booking booking, Invoice invoice)
         {
             var ownerUserId = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.VietnamNow();
 
             // Get wallets
             var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
