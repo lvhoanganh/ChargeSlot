@@ -15,5 +15,8 @@ namespace ChargeSlot.Api.DTOs.Booking
         public decimal DurationHours { get; set; }
 
         public string? Note { get; set; }
+
+        /// <summary>Dịch vụ thêm (cho thuê sạc, nước uống...) — optional, giống topping.</summary>
+        public List<BookingExtraServiceItemDto>? ExtraServices { get; set; }
     }
 }

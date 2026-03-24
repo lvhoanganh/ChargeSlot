@@ -215,6 +215,26 @@ namespace ChargeSlot.Api.Seeds
             );
 
             // ══════════════════════════════════════════
+            // 6b. EXTRA SERVICES (cho thuê sạc, nước uống...)
+            // ══════════════════════════════════════════
+
+            db.Set<ExtraService>().AddRange(
+                // Station 1: Trạm Sạc Nguyễn Huệ
+                new ExtraService { StationId = station1.Id, ServiceName = "Cho thuê củ sạc", Description = "Củ sạc 2A tiêu chuẩn", Price = 5000, TotalStock = 10, IsActive = true },
+                new ExtraService { StationId = station1.Id, ServiceName = "Nước suối", Description = "Chai 500ml", Price = 10000, TotalStock = null, IsActive = true },
+
+                // Station 2: Trạm Sạc Lê Lợi
+                new ExtraService { StationId = station2.Id, ServiceName = "Cho thuê củ sạc", Description = "Củ sạc 2A tiêu chuẩn", Price = 5000, TotalStock = 5, IsActive = true },
+                new ExtraService { StationId = station2.Id, ServiceName = "Nước suối", Description = "Chai 500ml", Price = 10000, TotalStock = null, IsActive = true },
+                new ExtraService { StationId = station2.Id, ServiceName = "Bơm lốp", Description = "Bơm lốp xe máy", Price = 15000, TotalStock = null, IsActive = true },
+
+                // Station 3: Trạm Sạc Phạm Văn Đồng
+                new ExtraService { StationId = station3.Id, ServiceName = "Cho thuê củ sạc", Description = "Củ sạc nhanh 3A", Price = 8000, TotalStock = 3, IsActive = true },
+                new ExtraService { StationId = station3.Id, ServiceName = "Nước ngọt", Description = "Lon 330ml", Price = 15000, TotalStock = null, IsActive = true }
+            );
+            await db.SaveChangesAsync();
+
+            // ══════════════════════════════════════════
             // 7. OPERATING HOURS (tất cả mở 6:00-22:00, CN nghỉ)
             // ══════════════════════════════════════════
 

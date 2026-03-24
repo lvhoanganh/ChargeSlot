@@ -27,6 +27,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Include(b => b.Driver).ThenInclude(d => d.User)
                 .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
                 .Include(b => b.Payment)
+                .Include(b => b.BookingExtraServices).ThenInclude(be => be.ExtraService)
                 .FirstOrDefaultAsync(b => b.Id == id);
         }
 
@@ -35,6 +36,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
             return await _db.Bookings
                 .Include(b => b.Driver).ThenInclude(d => d.User)
                 .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(b => b.BookingExtraServices).ThenInclude(be => be.ExtraService)
                 .Where(b => b.DriverUserId == driverUserId)
                 .OrderByDescending(b => b.CreatedAt)
                 .ToListAsync();
@@ -45,6 +47,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
             return await _db.Bookings
                 .Include(b => b.Driver).ThenInclude(d => d.User)
                 .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(b => b.BookingExtraServices).ThenInclude(be => be.ExtraService)
                 .Where(b => b.ChargingSlot.ChargingStation.OwnerUserId == ownerUserId)
                 .OrderByDescending(b => b.CreatedAt)
                 .ToListAsync();

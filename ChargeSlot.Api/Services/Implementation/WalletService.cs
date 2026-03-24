@@ -225,6 +225,23 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.Status = BookingStatus.Paid;
             await _bookingRepo.UpdateAsync(booking);
 
+            // Trừ stock cho ExtraServices (nếu có)
+            if (booking.BookingExtraServices != null && booking.BookingExtraServices.Count > 0)
+            {
+                foreach (var bes in booking.BookingExtraServices)
+                {
+                    var svc = await _db.Set<ExtraService>().FindAsync(bes.ServiceId);
+                    if (svc != null && svc.TotalStock.HasValue)
+                    {
+                        if (svc.TotalStock.Value < bes.Quantity)
+                            throw new InvalidOperationException(
+                                $"Dịch vụ '{svc.ServiceName}' đã hết hàng.");
+                        svc.TotalStock -= bes.Quantity;
+                    }
+                }
+                await _db.SaveChangesAsync();
+            }
+
             // Lock slot
             var slot = await _slotRepo.GetByIdAsync(booking.SlotId, tracking: true);
             if (slot != null)

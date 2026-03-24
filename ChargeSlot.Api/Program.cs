@@ -1,5 +1,6 @@
 using ChargeSlot.Api.BackgroundJobs;
 using ChargeSlot.Api.Data;
+using Microsoft.EntityFrameworkCore;
 using ChargeSlot.Api.Seeds;
 using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Implementation;
@@ -220,6 +221,13 @@ builder.Services.AddSwaggerGen(c =>
 // BUILD APP
 // =======================
 var app = builder.Build();
+
+// Auto-migrate database
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ChargeSlot.Api.Data.ChargeSlotDbContext>();
+    await db.Database.MigrateAsync();
+}
 
 // Seed demo data
 await DataSeeder.SeedAsync(app.Services);

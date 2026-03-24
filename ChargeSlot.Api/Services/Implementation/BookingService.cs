@@ -82,6 +82,47 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var totalAmount = CalculateTotalPrice(dto.StartTime, endTime, pricings);
 
+            // ── Validate & create ExtraServices (topping) ──
+            decimal serviceAmount = 0;
+            var extraServiceRecords = new List<BookingExtraService>();
+
+            if (dto.ExtraServices != null && dto.ExtraServices.Count > 0)
+            {
+                var serviceIds = dto.ExtraServices.Select(e => e.ServiceId).ToList();
+                var services = await _context.Set<ExtraService>()
+                    .Where(s => serviceIds.Contains(s.Id))
+                    .ToListAsync();
+
+                foreach (var item in dto.ExtraServices)
+                {
+                    var svc = services.FirstOrDefault(s => s.Id == item.ServiceId)
+                        ?? throw new InvalidOperationException($"Dịch vụ #{item.ServiceId} không tồn tại.");
+
+                    if (svc.StationId != slot.StationId)
+                        throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' không thuộc trạm này.");
+
+                    if (!svc.IsActive)
+                        throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' hiện không khả dụng.");
+
+                    if (svc.TotalStock.HasValue && svc.TotalStock.Value < item.Quantity)
+                        throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' chỉ còn {svc.TotalStock} — không đủ {item.Quantity}.");
+
+                    var unitPrice = svc.Price;
+                    var totalPrice = unitPrice * item.Quantity;
+                    serviceAmount += totalPrice;
+
+                    extraServiceRecords.Add(new BookingExtraService
+                    {
+                        ServiceId = item.ServiceId,
+                        Quantity = item.Quantity,
+                        UnitPrice = unitPrice,
+                        TotalPrice = totalPrice
+                    });
+                }
+            }
+
+            totalAmount += serviceAmount;
+
             var booking = new Booking
             {
                 DriverUserId = driverUserId,
@@ -92,6 +133,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 Note = dto.Note,
                 TotalAmount = totalAmount,
                 Status = BookingStatus.WaitingOwner,
+                BookingExtraServices = extraServiceRecords,
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
 
@@ -255,6 +297,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
 
                 await ProcessRefundAsync(booking, refundPercent, $"Driver hủy booking — {refundNote}");
+                await RestoreExtraServiceStockAsync(booking);
 
                 // Notify Driver
                 var refundAmount = booking.TotalAmount * refundPercent;
@@ -329,6 +372,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Owner hủy → hoàn 100% cho Driver
             await ProcessRefundAsync(booking, 1.0m, $"Owner hủy booking — hoàn 100% cho Driver");
+            await RestoreExtraServiceStockAsync(booking);
 
             // Notify Driver
             await _notificationService.SendAsync(
@@ -453,6 +497,8 @@ namespace ChargeSlot.Api.Services.Implementation
 
         private static BookingDto MapToDto(Booking b)
         {
+            var serviceAmount = b.BookingExtraServices?.Sum(e => e.TotalPrice) ?? 0;
+
             return new BookingDto
             {
                 Id = b.Id,
@@ -466,13 +512,39 @@ namespace ChargeSlot.Api.Services.Implementation
                 EndTime = b.EndTime,
                 DurationHours = b.DurationHours,
                 TotalAmount = b.TotalAmount,
+                ServiceAmount = serviceAmount,
                 Note = b.Note,
                 Status = b.Status.ToString(),
                 RejectionReason = b.RejectionReason,
                 CancelReason = b.CancelReason,
                 PaymentExpiresAt = b.PaymentExpiresAt,
-                CreatedAt = b.CreatedAt
+                CreatedAt = b.CreatedAt,
+                ExtraServices = b.BookingExtraServices?.Select(e => new BookingExtraServiceDto
+                {
+                    ServiceId = e.ServiceId,
+                    ServiceName = e.ExtraService?.ServiceName ?? "",
+                    Quantity = e.Quantity,
+                    UnitPrice = e.UnitPrice,
+                    TotalPrice = e.TotalPrice
+                }).ToList()
             };
+        }
+
+        /// <summary>Hoàn stock cho ExtraService khi cancel booking đã paid.</summary>
+        private async Task RestoreExtraServiceStockAsync(Booking booking)
+        {
+            if (booking.BookingExtraServices == null || booking.BookingExtraServices.Count == 0)
+                return;
+
+            foreach (var bes in booking.BookingExtraServices)
+            {
+                var svc = await _context.Set<ExtraService>().FindAsync(bes.ServiceId);
+                if (svc != null && svc.TotalStock.HasValue)
+                {
+                    svc.TotalStock += bes.Quantity;
+                }
+            }
+            await _context.SaveChangesAsync();
         }
 
         /// <summary>
