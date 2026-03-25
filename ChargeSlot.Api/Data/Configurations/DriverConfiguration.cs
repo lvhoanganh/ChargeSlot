@@ -14,6 +14,8 @@ namespace ChargeSlot.Api.Data.Configurations
                 .WithOne(u => u.DriverProfile)
                 .HasForeignKey<Driver>(x => x.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Property(x => x.LoyaltyPoints).HasColumnType("decimal(18,2)");
         }
     }
 }

@@ -25,6 +25,7 @@ namespace ChargeSlot.Api.DTOs.Station
         public List<OperatingHoursDto> OperatingHours { get; set; } = new();
         public List<DTOs.Slot.ChargingSlotDto> ChargingSlots { get; set; } = new();
         public List<StationPricingDto> PricingTiers { get; set; } = new();
+        public List<ExtraServiceDto> ExtraServices { get; set; } = new();
         public decimal AverageRating { get; set; }
         public int TotalReviews { get; set; }
     }

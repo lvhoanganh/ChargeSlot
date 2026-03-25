@@ -250,6 +250,33 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.Status = BookingStatus.Completed;
             await _bookingRepo.UpdateAsync(booking);
 
+            // ── LOYALTY POINTS: tích điểm ──
+            var earnRateConfig = await _db.SystemConfigs.FindAsync("LoyaltyEarnRate");
+            var earnRate = decimal.TryParse(earnRateConfig?.Value, out var er) ? er : 0.05m;
+            var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
+
+            if (pointsEarned > 0)
+            {
+                var driver = await _db.Set<Driver>().FirstOrDefaultAsync(d => d.UserId == booking.DriverUserId);
+                if (driver != null)
+                {
+                    driver.LoyaltyPoints += pointsEarned;
+                    booking.PointsEarned = pointsEarned;
+                    await _bookingRepo.UpdateAsync(booking);
+
+                    _db.LoyaltyTransactions.Add(new LoyaltyTransaction
+                    {
+                        DriverUserId = booking.DriverUserId,
+                        BookingId = booking.Id,
+                        Type = "Earn",
+                        Points = pointsEarned,
+                        Description = $"Tích {pointsEarned:N0} điểm từ booking #{booking.Id} ({booking.TotalAmount:N0}đ × {earnRate * 100:N0}%)",
+                        CreatedAt = DateTimeHelper.VietnamNow()
+                    });
+                    await _db.SaveChangesAsync();
+                }
+            }
+
             // ── WALLET SETTLEMENT ──
             // ESCROW → Owner (net amount) + ESCROW → PLATFORM_REVENUE (fee)
             if (invoice != null)

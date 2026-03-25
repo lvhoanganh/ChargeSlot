@@ -123,6 +123,46 @@ namespace ChargeSlot.Api.Services.Implementation
 
             totalAmount += serviceAmount;
 
+            // ── Loyalty Points redemption ──
+            decimal pointsUsed = 0;
+            decimal pointsDiscountAmount = 0;
+
+            if (dto.PointsToUse > 0)
+            {
+                var driver = await _context.Driver.FirstOrDefaultAsync(d => d.UserId == driverUserId)
+                    ?? throw new InvalidOperationException("Driver profile không tồn tại.");
+
+                if (dto.PointsToUse > driver.LoyaltyPoints)
+                    throw new InvalidOperationException(
+                        $"Bạn chỉ có {driver.LoyaltyPoints:N0} điểm, không đủ {dto.PointsToUse:N0} điểm.");
+
+                // Load max redeem rate from config
+                var maxRedeemConfig = await _context.SystemConfigs.FindAsync("LoyaltyMaxRedeemRate");
+                var maxRedeemRate = decimal.TryParse(maxRedeemConfig?.Value, out var rate) ? rate : 0.5m;
+                var maxPointsAllowed = Math.Floor(totalAmount * maxRedeemRate);
+
+                if (dto.PointsToUse > maxPointsAllowed)
+                    throw new InvalidOperationException(
+                        $"Tối đa được dùng {maxPointsAllowed:N0} điểm ({maxRedeemRate * 100:N0}% của {totalAmount:N0}đ).");
+
+                pointsUsed = dto.PointsToUse;
+                pointsDiscountAmount = pointsUsed; // 1 điểm = 1 VND
+                totalAmount -= pointsDiscountAmount;
+
+                // Trừ điểm Driver
+                driver.LoyaltyPoints -= pointsUsed;
+
+                // Ghi lịch sử
+                _context.LoyaltyTransactions.Add(new LoyaltyTransaction
+                {
+                    DriverUserId = driverUserId,
+                    Type = "Redeem",
+                    Points = pointsUsed,
+                    Description = $"Dùng {pointsUsed:N0} điểm cho booking slot {dto.SlotId}",
+                    CreatedAt = DateTimeHelper.VietnamNow()
+                });
+            }
+
             var booking = new Booking
             {
                 DriverUserId = driverUserId,
@@ -132,6 +172,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 DurationHours = dto.DurationHours,
                 Note = dto.Note,
                 TotalAmount = totalAmount,
+                PointsUsed = pointsUsed,
+                PointsDiscountAmount = pointsDiscountAmount,
                 Status = BookingStatus.WaitingOwner,
                 BookingExtraServices = extraServiceRecords,
                 CreatedAt = DateTimeHelper.VietnamNow()
@@ -298,6 +340,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 await ProcessRefundAsync(booking, refundPercent, $"Driver hủy booking — {refundNote}");
                 await RestoreExtraServiceStockAsync(booking);
+                await RefundLoyaltyPointsAsync(booking);
 
                 // Notify Driver
                 var refundAmount = booking.TotalAmount * refundPercent;
@@ -373,6 +416,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // Owner hủy → hoàn 100% cho Driver
             await ProcessRefundAsync(booking, 1.0m, $"Owner hủy booking — hoàn 100% cho Driver");
             await RestoreExtraServiceStockAsync(booking);
+            await RefundLoyaltyPointsAsync(booking);
 
             // Notify Driver
             await _notificationService.SendAsync(
@@ -513,6 +557,9 @@ namespace ChargeSlot.Api.Services.Implementation
                 DurationHours = b.DurationHours,
                 TotalAmount = b.TotalAmount,
                 ServiceAmount = serviceAmount,
+                PointsUsed = b.PointsUsed,
+                PointsDiscountAmount = b.PointsDiscountAmount,
+                PointsEarned = b.PointsEarned,
                 Note = b.Note,
                 Status = b.Status.ToString(),
                 RejectionReason = b.RejectionReason,
@@ -544,6 +591,29 @@ namespace ChargeSlot.Api.Services.Implementation
                     svc.TotalStock += bes.Quantity;
                 }
             }
+            await _context.SaveChangesAsync();
+        }
+
+        /// <summary>Hoàn điểm tích lũy khi cancel booking đã dùng điểm.</summary>
+        private async Task RefundLoyaltyPointsAsync(Booking booking)
+        {
+            if (booking.PointsUsed <= 0) return;
+
+            var driver = await _context.Driver.FirstOrDefaultAsync(d => d.UserId == booking.DriverUserId);
+            if (driver == null) return;
+
+            driver.LoyaltyPoints += booking.PointsUsed;
+
+            _context.LoyaltyTransactions.Add(new LoyaltyTransaction
+            {
+                DriverUserId = booking.DriverUserId,
+                BookingId = booking.Id,
+                Type = "Earn",
+                Points = booking.PointsUsed,
+                Description = $"Hoàn {booking.PointsUsed:N0} điểm do hủy booking #{booking.Id}",
+                CreatedAt = DateTimeHelper.VietnamNow()
+            });
+
             await _context.SaveChangesAsync();
         }
 

@@ -14,6 +14,9 @@ namespace ChargeSlot.Api.DTOs.Booking
         public decimal? DurationHours { get; set; }
         public decimal TotalAmount { get; set; }
         public decimal ServiceAmount { get; set; }
+        public decimal PointsUsed { get; set; }
+        public decimal PointsDiscountAmount { get; set; }
+        public decimal PointsEarned { get; set; }
         public string? Note { get; set; }
         public string Status { get; set; } = null!;
         public string? RejectionReason { get; set; }

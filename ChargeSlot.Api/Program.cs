@@ -1,4 +1,5 @@
 using ChargeSlot.Api.BackgroundJobs;
+using ChargeSlot.Api.Hubs;
 using ChargeSlot.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using ChargeSlot.Api.Seeds;
@@ -82,6 +83,19 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             ClockSkew = TimeSpan.Zero,
             RoleClaimType = System.Security.Claims.ClaimTypes.Role
+        };
+
+        // SignalR: đọc JWT từ query string cho WebSocket
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
+                    context.Token = accessToken;
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -179,6 +193,7 @@ builder.Services.AddHostedService<DisputeAutoResolveJob>();
 // =======================
 // CONTROLLERS & SWAGGER
 // =======================
+builder.Services.AddSignalR();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -248,5 +263,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

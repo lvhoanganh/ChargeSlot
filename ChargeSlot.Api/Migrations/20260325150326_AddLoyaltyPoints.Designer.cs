@@ -4,6 +4,7 @@ using ChargeSlot.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChargeSlot.Api.Migrations
 {
     [DbContext(typeof(ChargeSlotDbContext))]
-    partial class ChargeSlotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260325150326_AddLoyaltyPoints")]
+    partial class AddLoyaltyPoints
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -353,72 +356,6 @@ namespace ChargeSlot.Api.Migrations
                     b.HasIndex("ApprovalStatus", "OperationalStatus");
 
                     b.ToTable("ChargingStation", (string)null);
-                });
-
-            modelBuilder.Entity("ChargeSlot.Api.Models.ChatConversation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BookingId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("DriverUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("OwnerUserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BookingId")
-                        .IsUnique();
-
-                    b.HasIndex("DriverUserId");
-
-                    b.HasIndex("OwnerUserId");
-
-                    b.ToTable("ChatConversations");
-                });
-
-            modelBuilder.Entity("ChargeSlot.Api.Models.ChatMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int>("ConversationId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsRead")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("SenderUserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SenderUserId");
-
-                    b.HasIndex("ConversationId", "CreatedAt");
-
-                    b.ToTable("ChatMessages");
                 });
 
             modelBuilder.Entity("ChargeSlot.Api.Models.Dispute", b =>
@@ -1590,52 +1527,6 @@ namespace ChargeSlot.Api.Migrations
                     b.Navigation("Owner");
                 });
 
-            modelBuilder.Entity("ChargeSlot.Api.Models.ChatConversation", b =>
-                {
-                    b.HasOne("ChargeSlot.Api.Models.Booking", "Booking")
-                        .WithOne()
-                        .HasForeignKey("ChargeSlot.Api.Models.ChatConversation", "BookingId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "Driver")
-                        .WithMany()
-                        .HasForeignKey("DriverUserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "Owner")
-                        .WithMany()
-                        .HasForeignKey("OwnerUserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Booking");
-
-                    b.Navigation("Driver");
-
-                    b.Navigation("Owner");
-                });
-
-            modelBuilder.Entity("ChargeSlot.Api.Models.ChatMessage", b =>
-                {
-                    b.HasOne("ChargeSlot.Api.Models.ChatConversation", "Conversation")
-                        .WithMany("Messages")
-                        .HasForeignKey("ConversationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "Sender")
-                        .WithMany()
-                        .HasForeignKey("SenderUserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Conversation");
-
-                    b.Navigation("Sender");
-                });
-
             modelBuilder.Entity("ChargeSlot.Api.Models.Dispute", b =>
                 {
                     b.HasOne("ChargeSlot.Api.Models.Booking", "Booking")
@@ -2016,11 +1907,6 @@ namespace ChargeSlot.Api.Migrations
                     b.Navigation("Ratings");
 
                     b.Navigation("StationPricings");
-                });
-
-            modelBuilder.Entity("ChargeSlot.Api.Models.ChatConversation", b =>
-                {
-                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("ChargeSlot.Api.Models.Dispute", b =>

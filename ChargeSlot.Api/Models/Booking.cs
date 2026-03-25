@@ -27,6 +27,13 @@ namespace ChargeSlot.Api.Models
         public string? RejectionReason { get; set; }
         public decimal TotalAmount { get; set; }
 
+        /// <summary>Số điểm Driver đã dùng cho booking này.</summary>
+        public decimal PointsUsed { get; set; }
+        /// <summary>Số tiền giảm tương ứng từ điểm (= PointsUsed vì 1 điểm = 1 VND).</summary>
+        public decimal PointsDiscountAmount { get; set; }
+        /// <summary>Số điểm nhận được khi booking Completed.</summary>
+        public decimal PointsEarned { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
         public DateTime? UpdatedAt { get; set; }
 
