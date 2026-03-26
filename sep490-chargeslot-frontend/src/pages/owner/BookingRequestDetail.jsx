@@ -89,7 +89,7 @@ export default function BookingRequestDetail() {
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90 }}>
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px 40px" }}>
         <button onClick={() => navigate("/owner/booking-requests")} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 14, marginBottom: 12, display: "flex", alignItems: "center", gap: 4 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
           Quay lại
         </button>
 
@@ -109,10 +109,66 @@ export default function BookingRequestDetail() {
             <InfoRow label="Bắt đầu" value={toLocal(booking.startTime)} />
             <InfoRow label="Kết thúc" value={toLocal(booking.endTime)} />
             <InfoRow label="Thời lượng" value={`${booking.durationHours} giờ`} />
-            <InfoRow label="Tổng tiền" value={`${(booking.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
+
+            {/* Split costs when extras exist */}
+            {booking.extraServices && booking.extraServices.length > 0 ? (
+              <>
+                <InfoRow label="Phí sạc" value={`${((booking.totalAmount || 0) - (booking.serviceAmount || 0)).toLocaleString("vi-VN")}đ`} />
+                <InfoRow label="Phí dịch vụ" value={`${(booking.serviceAmount || 0).toLocaleString("vi-VN")}đ`} purple />
+                <InfoRow label="Tổng cộng" value={`${(booking.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
+              </>
+            ) : (
+              <InfoRow label="Tổng tiền" value={`${(booking.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
+            )}
+
             {booking.note && <InfoRow label="Ghi chú" value={booking.note} />}
             {booking.rejectionReason && <InfoRow label="Lý do từ chối" value={booking.rejectionReason} error />}
           </div>
+
+          {/* Extra Services breakdown */}
+          {booking.extraServices && booking.extraServices.length > 0 && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px dashed #e5e7eb" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#7c3aed", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                🛒 Dịch vụ bổ sung
+              </div>
+              {booking.extraServices.map((es, idx) => (
+                <div key={idx} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "8px 0", borderBottom: "1px solid #f8fafc",
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{es.serviceName}</div>
+                    <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                      {es.unitPrice?.toLocaleString("vi-VN")}đ × {es.quantity}
+                    </div>
+                  </div>
+                  <span style={{ fontWeight: 700, color: "#7c3aed", fontSize: 13 }}>
+                    {es.totalPrice?.toLocaleString("vi-VN")}đ
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Chat button */}
+          {booking.status !== "Cancelled" && booking.status !== "Rejected" && booking.status !== "Expired" && booking.status !== "NoShow" && (
+            <div style={{ marginTop: 16 }}>
+              <button
+                onClick={() => navigate(`/owner/chat/${booking.id}`)}
+                style={{
+                  width: "100%", padding: "12px 0", borderRadius: 12,
+                  border: "2px solid #3b82f6", background: "#eff6ff",
+                  color: "#3b82f6", fontWeight: 700, fontSize: 14,
+                  cursor: "pointer", transition: "all 0.2s",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#dbeafe"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#eff6ff"; }}
+              >
+                💬 Chat với Driver
+              </button>
+            </div>
+          )}
 
           {/* Accept/Reject buttons */}
           {booking.status === "WaitingOwner" && (
@@ -163,11 +219,11 @@ export default function BookingRequestDetail() {
   );
 }
 
-function InfoRow({ label, value, highlight, error }) {
+function InfoRow({ label, value, highlight, error, purple }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
       <span style={{ color: "#64748b" }}>{label}</span>
-      <span style={{ fontWeight: 600, color: error ? "#ef4444" : highlight ? "#f97316" : "#1e293b" }}>{value}</span>
+      <span style={{ fontWeight: 600, color: error ? "#ef4444" : purple ? "#7c3aed" : highlight ? "#f97316" : "#1e293b" }}>{value}</span>
     </div>
   );
 }
@@ -239,7 +295,7 @@ function OwnerDisputeLink({ bookingId, navigate }) {
   useEffect(() => {
     disputeApi.getByBookingId(bookingId)
       .then((d) => { if (d?.id) setDisputeId(d.id); })
-      .catch(() => {});
+      .catch(() => { });
   }, [bookingId]);
 
   if (!disputeId) return null;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { publicStationApi, bookingApi, slotApi } from "@/services/api";
+import { publicStationApi, bookingApi, slotApi, loyaltyApi } from "@/services/api";
 
 export default function BookingForm() {
   const { stationId } = useParams();
@@ -14,6 +14,9 @@ export default function BookingForm() {
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState("");
   const [bookedRanges, setBookedRanges] = useState([]);
+  const [selectedExtras, setSelectedExtras] = useState({});
+  const [loyaltyInfo, setLoyaltyInfo] = useState(null);
+  const [pointsToUse, setPointsToUse] = useState(0);
 
   useEffect(() => {
     publicStationApi.getById(Number(stationId))
@@ -21,6 +24,13 @@ export default function BookingForm() {
       .catch(() => setStation(null))
       .finally(() => setLoading(false));
   }, [stationId]);
+
+  // Fetch loyalty info
+  useEffect(() => {
+    loyaltyApi.getInfo()
+      .then(setLoyaltyInfo)
+      .catch(() => setLoyaltyInfo(null));
+  }, []);
 
   // Fetch booked ranges khi chọn slot hoặc đổi ngày
   useEffect(() => {
@@ -32,7 +42,7 @@ export default function BookingForm() {
   }, [selectedSlot, stationId, startTime ? startTime.slice(0, 10) : ""]);
 
   // Tính tổng tiền giống logic BE: CalculateTotalPrice — chia booking theo từng khung giá
-  const calculateTotalAmount = () => {
+  const calculateChargingAmount = () => {
     if (!station || !selectedSlot || !startTime) return 0;
     const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
     if (tiers.length === 0) return 0;
@@ -40,7 +50,6 @@ export default function BookingForm() {
     const startObj = new Date(startTime);
     const endObj = new Date(startObj.getTime() + duration * 3600000);
 
-    // Helper: parse "HH:mm" → phút trong ngày
     const toMin = (str) => {
       if (!str) return 0;
       const [h, m] = String(str).split(':');
@@ -54,14 +63,12 @@ export default function BookingForm() {
     while (current < endObj && maxIter-- > 0) {
       const currentMin = current.getHours() * 60 + current.getMinutes();
 
-      // Tìm tier phù hợp — dùng < cho end (exclusive)  
       let tier = tiers.find(t => {
         const tStart = toMin(t.startTime);
         const tEnd = toMin(t.endTime);
         return currentMin >= tStart && currentMin < tEnd;
       });
 
-      // Nếu không match, thử inclusive end (cho trường hợp boundary như 23:00)
       if (!tier) {
         tier = tiers.find(t => {
           const tStart = toMin(t.startTime);
@@ -70,10 +77,8 @@ export default function BookingForm() {
         });
       }
 
-      // Fallback cuối cùng: dùng tier đầu tiên
       if (!tier) tier = tiers[0];
 
-      // Tính cuối segment
       const tierEndMin = toMin(tier.endTime);
       const tierEndDate = new Date(current);
       tierEndDate.setHours(0, 0, 0, 0);
@@ -83,7 +88,6 @@ export default function BookingForm() {
         tierEndDate.setHours(Math.floor(tierEndMin / 60), tierEndMin % 60, 0, 0);
       }
 
-      // Nếu tierEnd đã qua → dùng endObj hoặc đầu ngày mới, chọn cái nhỏ hơn
       if (tierEndDate <= current) {
         const nextDay = new Date(current);
         nextDay.setHours(0, 0, 0, 0);
@@ -108,6 +112,46 @@ export default function BookingForm() {
     }
 
     return Math.round(total);
+  };
+
+  // Tính tiền dịch vụ bổ sung
+  const calculateServiceAmount = () => {
+    if (!station) return 0;
+    const extras = station.extraServices || [];
+    let total = 0;
+    for (const [id, qty] of Object.entries(selectedExtras)) {
+      if (qty <= 0) continue;
+      const svc = extras.find(e => e.id === Number(id));
+      if (svc) total += svc.price * qty;
+    }
+    return total;
+  };
+
+  const calculateTotalAmount = () => calculateChargingAmount() + calculateServiceAmount();
+
+  // Max points the driver can use
+  const maxPoints = (() => {
+    if (!loyaltyInfo) return 0;
+    const total = calculateTotalAmount();
+    const maxByRate = Math.floor(total * (loyaltyInfo.maxRedeemRate || 0));
+    return Math.min(loyaltyInfo.currentPoints || 0, maxByRate);
+  })();
+
+  const finalAmount = Math.max(0, calculateTotalAmount() - pointsToUse);
+
+  // Helper: thay đổi số lượng dịch vụ
+  const updateExtraQty = (serviceId, delta) => {
+    setSelectedExtras(prev => {
+      const current = prev[serviceId] || 0;
+      const svc = (station?.extraServices || []).find(e => e.id === serviceId);
+      const maxQty = svc?.totalStock != null ? Math.min(10, svc.totalStock) : 10;
+      const next = Math.max(0, Math.min(maxQty, current + delta));
+      if (next === 0) {
+        const { [serviceId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [serviceId]: next };
+    });
   };
 
   // Default start time to nearest future hour
@@ -225,11 +269,18 @@ export default function BookingForm() {
     setApiError("");
 
     try {
+      // Build extraServices array
+      const extraServices = Object.entries(selectedExtras)
+        .filter(([, qty]) => qty > 0)
+        .map(([id, qty]) => ({ serviceId: Number(id), quantity: qty }));
+
       const result = await bookingApi.create({
         slotId: selectedSlot,
         startTime: startTime + ":00",
         durationHours: parseFloat(duration),
         note: note || undefined,
+        extraServices: extraServices.length > 0 ? extraServices : undefined,
+        pointsToUse: pointsToUse > 0 ? pointsToUse : 0,
       });
       navigate("/driver/my-bookings");
     } catch (err) {
@@ -381,6 +432,80 @@ export default function BookingForm() {
               style={{ ...inputStyle, resize: "vertical" }}
             />
 
+            {/* Extra Services */}
+            {station.extraServices && station.extraServices.filter(es => es.isActive).length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <label style={labelStyle}>Dịch vụ bổ sung (tùy chọn)</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {station.extraServices.filter(es => es.isActive).map(es => {
+                    const qty = selectedExtras[es.id] || 0;
+                    const maxQty = es.totalStock != null ? Math.min(10, es.totalStock) : 10;
+                    return (
+                      <div key={es.id} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "10px 14px", borderRadius: 12,
+                        border: qty > 0 ? "2px solid #a855f7" : "1.5px solid #e5e7eb",
+                        background: qty > 0 ? "#faf5ff" : "#fff",
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{es.serviceName}</div>
+                          {es.description && <div style={{ fontSize: 11, color: "#6b7280" }}>{es.description}</div>}
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#7c3aed", marginTop: 2 }}>
+                            {es.price.toLocaleString("vi-VN")}đ
+                            {es.totalStock != null && <span style={{ fontWeight: 400, color: "#9ca3af", marginLeft: 6 }}>Còn {es.totalStock}</span>}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <button type="button" onClick={() => updateExtraQty(es.id, -1)} disabled={qty <= 0}
+                            style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #d1d5db", background: qty > 0 ? "#fff" : "#f3f4f6", cursor: qty > 0 ? "pointer" : "not-allowed", fontSize: 16, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", minWidth: 20, textAlign: "center" }}>{qty}</span>
+                          <button type="button" onClick={() => updateExtraQty(es.id, 1)} disabled={qty >= maxQty}
+                            style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #d1d5db", background: qty < maxQty ? "#fff" : "#f3f4f6", cursor: qty < maxQty ? "pointer" : "not-allowed", fontSize: 16, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Loyalty Points */}
+            {loyaltyInfo && loyaltyInfo.currentPoints > 0 && selectedSlot && calculateTotalAmount() > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <label style={labelStyle}>🏆 Dùng điểm tích lũy ({loyaltyInfo.currentPoints.toLocaleString("vi-VN")} điểm khả dụng)</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={maxPoints}
+                    step={100}
+                    value={pointsToUse}
+                    onChange={e => setPointsToUse(Number(e.target.value))}
+                    style={{ flex: 1, accentColor: "#7c3aed" }}
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    max={maxPoints}
+                    value={pointsToUse}
+                    onChange={e => {
+                      const v = Math.min(Math.max(0, Number(e.target.value) || 0), maxPoints);
+                      setPointsToUse(v);
+                    }}
+                    style={{ width: 100, padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 14, textAlign: "right", outline: "none" }}
+                  />
+                </div>
+                {pointsToUse > 0 && (
+                  <div style={{ fontSize: 12, color: "#7c3aed", marginTop: 4, fontWeight: 600 }}>
+                    Giảm {pointsToUse.toLocaleString("vi-VN")}đ từ điểm tích lũy
+                  </div>
+                )}
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+                  Tối đa dùng {((loyaltyInfo.maxRedeemRate || 0) * 100).toFixed(0)}% giá trị booking bằng điểm
+                </div>
+              </div>
+            )}
+
             {/* Summary */}
             {selectedSlot && (
               <div style={{ background: "#f8fafc", borderRadius: 12, padding: 16, marginBottom: 20 }}>
@@ -393,10 +518,26 @@ export default function BookingForm() {
                   <span>Thời lượng</span>
                   <span style={{ fontWeight: 600, color: "#1e293b" }}>{duration} giờ</span>
                 </div>
-                <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
-                  <span>Tạm tính</span>
+                <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span>Phí sạc</span>
+                  <span style={{ fontWeight: 600, color: "#1e293b" }}>{calculateChargingAmount().toLocaleString("vi-VN")}đ</span>
+                </div>
+                {calculateServiceAmount() > 0 && (
+                  <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span>Dịch vụ bổ sung</span>
+                    <span style={{ fontWeight: 600, color: "#7c3aed" }}>{calculateServiceAmount().toLocaleString("vi-VN")}đ</span>
+                  </div>
+                )}
+                {pointsToUse > 0 && (
+                  <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span>🏆 Giảm từ điểm</span>
+                    <span style={{ fontWeight: 600, color: "#7c3aed" }}>−{pointsToUse.toLocaleString("vi-VN")}đ</span>
+                  </div>
+                )}
+                <div style={{ borderTop: "1px solid #e5e7eb", marginTop: 6, paddingTop: 6, fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontWeight: 700 }}>Tổng cộng</span>
                   <span style={{ fontWeight: 700, color: "#f97316", fontSize: 15 }}>
-                    {calculateTotalAmount().toLocaleString("vi-VN")}đ
+                    {finalAmount.toLocaleString("vi-VN")}đ
                   </span>
                 </div>
               </div>

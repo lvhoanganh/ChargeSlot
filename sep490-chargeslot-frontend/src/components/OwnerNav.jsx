@@ -112,6 +112,12 @@ export default function OwnerNav() {
           <NavLink to="/owner/reviews" className={navLinkClass}>
             Đánh giá
           </NavLink>
+          <NavLink to="/owner/extra-services" className={navLinkClass}>
+            Dịch vụ
+          </NavLink>
+          <NavLink to="/owner/chat-list" className={navLinkClass}>
+            💬 Chat
+          </NavLink>
         </div>
 
         {!token && (

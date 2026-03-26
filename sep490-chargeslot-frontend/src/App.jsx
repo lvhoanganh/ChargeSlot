@@ -59,6 +59,11 @@ import AdminRevenue from "./pages/admin/AdminRevenue";
 import ChangePassword from "./pages/common/ChangePassword";
 import DriverReviews from "./pages/driver/DriverReviews";
 import FavoriteStations from "./pages/driver/FavoriteStations";
+import DriverLoyalty from "./pages/driver/DriverLoyalty";
+import OwnerExtraServices from "./pages/owner/OwnerExtraServices";
+import AdminSystemConfig from "./pages/admin/AdminSystemConfig";
+import ChatList from "./pages/common/ChatList";
+import ChatPage from "./pages/common/ChatPage";
 
 export default function App() {
   return (
@@ -103,6 +108,7 @@ export default function App() {
             <Route path="admin-profile" element={<AdminProfile />} />
             <Route path="edit-admin-profile" element={<EditAdminProfile />} />
             <Route path="view-financial-report" element={<AdminRevenue />} />
+            <Route path="system-config" element={<AdminSystemConfig />} />
           </Route>
         </Route>
         <Route element={<AuthDriverMiddleware />}>
@@ -120,6 +126,9 @@ export default function App() {
             <Route path="wallet" element={<DriverWallet />} />
             <Route path="reviews" element={<DriverReviews />} />
             <Route path="favorites" element={<FavoriteStations />} />
+            <Route path="loyalty" element={<DriverLoyalty />} />
+            <Route path="chat-list" element={<ChatList />} />
+            <Route path="chat/:bookingId" element={<ChatPage />} />
           </Route>
         </Route>
         <Route path="owner" element={<OwnerLayout />}>
@@ -131,6 +140,9 @@ export default function App() {
           <Route path="active-sessions" element={<OwnerActiveSessions />} />
           <Route path="wallet" element={<OwnerWallet />} />
           <Route path="reviews" element={<OwnerReviews />} />
+          <Route path="extra-services" element={<OwnerExtraServices />} />
+          <Route path="chat-list" element={<ChatList />} />
+          <Route path="chat/:bookingId" element={<ChatPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

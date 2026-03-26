@@ -532,3 +532,67 @@ export const favoriteApi = {
     /** Check đã yêu thích chưa */
     check: (stationId) => apiFetch(`/favorites/${stationId}/check`),
 };
+
+// ============================
+// EXTRA SERVICE (Owner CRUD)
+// ============================
+
+export const extraServiceApi = {
+    getAll: (stationId) => apiFetch(`/stations/${stationId}/extra-services`),
+
+    create: (stationId, data) =>
+        apiFetch(`/stations/${stationId}/extra-services`, {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
+    update: (stationId, id, data) =>
+        apiFetch(`/stations/${stationId}/extra-services/${id}`, {
+            method: "PUT",
+            body: JSON.stringify(data),
+        }),
+
+    delete: (stationId, id) =>
+        apiFetch(`/stations/${stationId}/extra-services/${id}`, { method: "DELETE" }),
+};
+
+// ============================
+// LOYALTY (Driver)
+// ============================
+
+export const loyaltyApi = {
+    getInfo: () => apiFetch("/loyalty"),
+};
+
+// ============================
+// ADMIN CONFIG
+// ============================
+
+export const adminConfigApi = {
+    getAll: () => apiFetch("/admin/config"),
+
+    update: (key, value) =>
+        apiFetch(`/admin/config/${key}`, {
+            method: "PUT",
+            body: JSON.stringify({ value }),
+        }),
+};
+
+// ============================
+// CHAT (Driver ↔ Owner)
+// ============================
+
+export const chatApi = {
+    /** Danh sách conversations */
+    getConversations: () => apiFetch("/chat"),
+
+    /** Lịch sử tin nhắn theo booking */
+    getMessages: (bookingId) => apiFetch(`/chat/${bookingId}`),
+
+    /** Gửi tin nhắn */
+    sendMessage: (bookingId, content) =>
+        apiFetch(`/chat/${bookingId}`, {
+            method: "POST",
+            body: JSON.stringify({ content }),
+        }),
+};

@@ -191,6 +191,19 @@ export default function MyBookings() {
                     </div>
                   </div>
 
+                  {/* Extra Services */}
+                  {b.extraServices && b.extraServices.length > 0 && (
+                    <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px dashed #e5e7eb" }}>
+                      <div style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600, marginBottom: 2 }}>🛒 Dịch vụ bổ sung:</div>
+                      {b.extraServices.map((es, idx) => (
+                        <div key={idx} style={{ fontSize: 11, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
+                          <span>{es.serviceName} ×{es.quantity}</span>
+                          <span style={{ fontWeight: 600, color: "#7c3aed" }}>{es.totalPrice?.toLocaleString("vi-VN")}đ</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Action hint for active bookings */}
                   {isActive && (
                     <div style={{

@@ -126,7 +126,7 @@ export default function BookingStatus() {
             fontWeight: 500,
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
           Danh sách booking
         </button>
 
@@ -165,7 +165,18 @@ export default function BookingStatus() {
             <InfoRow icon="📅" label="Bắt đầu" value={toLocal(booking.startTime)} />
             <InfoRow icon="🏁" label="Kết thúc" value={toLocal(booking.endTime)} />
             <InfoRow icon="⏱" label="Thời lượng" value={`${booking.durationHours} giờ`} />
-            <InfoRow icon="💰" label="Tổng tiền" value={`${(booking.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
+
+            {/* Phí sạc & dịch vụ tách riêng khi có extras */}
+            {booking.extraServices && booking.extraServices.length > 0 ? (
+              <>
+                <InfoRow icon="🔌" label="Phí sạc" value={`${((booking.totalAmount || 0) - (booking.serviceAmount || 0)).toLocaleString("vi-VN")}đ`} />
+                <InfoRow icon="🛒" label="Phí dịch vụ" value={`${(booking.serviceAmount || 0).toLocaleString("vi-VN")}đ`} purple />
+                <InfoRow icon="💰" label="Tổng cộng" value={`${(booking.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
+              </>
+            ) : (
+              <InfoRow icon="💰" label="Tổng tiền" value={`${(booking.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
+            )}
+
             {booking.note && <InfoRow icon="📝" label="Ghi chú" value={booking.note} />}
             {booking.rejectionReason && <InfoRow icon="❌" label="Lý do từ chối" value={booking.rejectionReason} error />}
             {booking.cancelReason && <InfoRow icon="🚫" label="Lý do hủy" value={booking.cancelReason} error />}
@@ -174,6 +185,63 @@ export default function BookingStatus() {
             )}
           </div>
         </div>
+
+        {/* Extra Services breakdown */}
+        {booking.extraServices && booking.extraServices.length > 0 && (
+          <div style={{
+            background: "#fff", borderRadius: 20, padding: 24,
+            boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 16,
+          }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+              🛒 Dịch vụ bổ sung
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              {booking.extraServices.map((es, idx) => (
+                <div key={idx} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "10px 0", borderBottom: "1px solid #f8fafc",
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{es.serviceName}</div>
+                    <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                      {es.unitPrice?.toLocaleString("vi-VN")}đ × {es.quantity}
+                    </div>
+                  </div>
+                  <span style={{ fontWeight: 700, color: "#7c3aed", fontSize: 14 }}>
+                    {es.totalPrice?.toLocaleString("vi-VN")}đ
+                  </span>
+                </div>
+              ))}
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "10px 0", borderTop: "1px dashed #e5e7eb", marginTop: 4,
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>Tổng dịch vụ</span>
+                <span style={{ fontWeight: 800, color: "#7c3aed", fontSize: 15 }}>
+                  {(booking.serviceAmount || booking.extraServices.reduce((s, e) => s + (e.totalPrice || 0), 0)).toLocaleString("vi-VN")}đ
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Chat button */}
+        {booking.status !== "Cancelled" && booking.status !== "Rejected" && booking.status !== "Expired" && booking.status !== "NoShow" && (
+          <button
+            onClick={() => navigate(`/driver/chat/${booking.id}`)}
+            style={{
+              width: "100%", padding: "14px 0", borderRadius: 14,
+              border: "2px solid #3b82f6", background: "#eff6ff",
+              color: "#3b82f6", fontWeight: 700, fontSize: 14,
+              cursor: "pointer", marginBottom: 16, transition: "all 0.2s",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#dbeafe"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#eff6ff"; }}
+          >
+            💬 Chat với chủ trạm
+          </button>
+        )}
 
         {/* Action cards */}
         {booking.status === "PendingPayment" && (
@@ -307,7 +375,7 @@ export default function BookingStatus() {
   );
 }
 
-function InfoRow({ icon, label, value, highlight, error, warning }) {
+function InfoRow({ icon, label, value, highlight, error, warning, purple }) {
   return (
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -319,7 +387,7 @@ function InfoRow({ icon, label, value, highlight, error, warning }) {
       </span>
       <span style={{
         fontWeight: 600, textAlign: "right", maxWidth: "55%",
-        color: error ? "#ef4444" : warning ? "#f59e0b" : highlight ? "#f97316" : "#1e293b",
+        color: error ? "#ef4444" : warning ? "#f59e0b" : purple ? "#7c3aed" : highlight ? "#f97316" : "#1e293b",
       }}>
         {value}
       </span>
@@ -352,7 +420,7 @@ function DisputeLink({ bookingId, navigate }) {
   useEffect(() => {
     disputeApi.getByBookingId(bookingId)
       .then((d) => { if (d?.id) setDisputeId(d.id); })
-      .catch(() => {});
+      .catch(() => { });
   }, [bookingId]);
 
   if (!disputeId) return null;

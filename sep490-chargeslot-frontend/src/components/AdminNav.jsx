@@ -57,6 +57,9 @@ export default function AdminNav() {
           <NavLink to="/admin/disputes" className={navLinkClass}>
             Giải quyết tranh chấp
           </NavLink>
+          <NavLink to="/admin/system-config" className={navLinkClass}>
+            Cấu hình
+          </NavLink>
         </div>
 
         {/* Avatar dropdown - logged in */}

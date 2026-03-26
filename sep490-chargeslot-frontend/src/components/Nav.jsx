@@ -204,6 +204,16 @@ export default function Nav() {
                 ❤️ Yêu thích
               </NavLink>
             )}
+            {token && (
+              <NavLink to="/driver/loyalty" className={navLinkClass}>
+                🏆 Điểm thưởng
+              </NavLink>
+            )}
+            {token && (
+              <NavLink to="/driver/chat-list" className={navLinkClass}>
+                💬 Chat
+              </NavLink>
+            )}
             {activeSession && (
               <NavLink
                 to="/driver/charging"
