@@ -1,13 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace ChargeSlot.Api.DTOs.Wallet
+namespace ChargeSlot.Api.DTOs.BankAccount
 {
-    public class WithdrawDto
+    public class CreateBankAccountDto
     {
-        [Required]
-        [Range(10000, 50000000)]
-        public decimal Amount { get; set; }
-
         [Required]
         [MaxLength(200)]
         public string BankName { get; set; } = null!;
@@ -20,7 +16,6 @@ namespace ChargeSlot.Api.DTOs.Wallet
         [MaxLength(200)]
         public string BankAccountHolder { get; set; } = null!;
 
-        [MaxLength(2000)]
-        public string? UserNote { get; set; }
+        public bool IsDefault { get; set; }
     }
 }

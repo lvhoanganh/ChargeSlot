@@ -90,13 +90,23 @@ namespace ChargeSlot.Api.Controllers
         {
             try
             {
-                var result = await _walletService.WithdrawAsync(GetUserId(), dto.Amount);
-                return Ok(new { message = "Yêu cầu rút tiền đã được gửi", wallet = result });
+                var result = await _walletService.WithdrawAsync(GetUserId(), dto);
+                return Ok(new { message = "Yêu cầu rút tiền đã được gửi", withdrawRequest = result });
             }
             catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// Xem danh sách yêu cầu rút tiền của mình
+        /// </summary>
+        [HttpGet("withdraw-requests")]
+        public async Task<IActionResult> GetWithdrawRequests()
+        {
+            var result = await _walletService.GetUserWithdrawRequestsAsync(GetUserId());
+            return Ok(result);
         }
 
         /// <summary>

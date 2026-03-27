@@ -94,14 +94,35 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
-        /// Driver xem danh sách booking của mình
+        /// Driver xem danh sách booking của mình (filter theo status nếu cần)
         /// </summary>
         [HttpGet("driver")]
         [Authorize(Roles = "Driver")]
-        public async Task<IActionResult> GetDriverBookings()
+        public async Task<IActionResult> GetDriverBookings([FromQuery] string? status = null)
         {
             var result = await _bookingService.GetByDriverAsync(GetUserId());
+            if (!string.IsNullOrEmpty(status))
+                result = result.Where(b => b.Status.Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Driver xem lịch sử booking đã hoàn thành
+        /// </summary>
+        [HttpGet("driver/history")]
+        [Authorize(Roles = "Driver")]
+        public async Task<IActionResult> GetDriverBookingHistory()
+        {
+            var result = await _bookingService.GetByDriverAsync(GetUserId());
+            var history = result.Where(b =>
+                b.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase) ||
+                b.Status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase) ||
+                b.Status.Equals("DriverCancelled", StringComparison.OrdinalIgnoreCase) ||
+                b.Status.Equals("OwnerCancelled", StringComparison.OrdinalIgnoreCase) ||
+                b.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase) ||
+                b.Status.Equals("Expired", StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+            return Ok(history);
         }
 
         /// <summary>

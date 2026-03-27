@@ -8,7 +8,12 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<string> TopUpViaVnPayAsync(int userId, decimal amount, HttpContext context);
         Task ProcessTopUpCallbackAsync(IQueryCollection query);
         Task<WalletDto> PayBookingByWalletAsync(int userId, int bookingId);
-        Task<WalletDto> WithdrawAsync(int userId, decimal amount);
+        Task<WithdrawRequestDto> WithdrawAsync(int userId, WithdrawDto dto);
         Task<List<TransactionHistoryDto>> GetTransactionHistoryAsync(int userId);
+
+        // Withdraw requests
+        Task<List<WithdrawRequestDto>> GetUserWithdrawRequestsAsync(int userId);
+        Task<List<WithdrawRequestDto>> GetAllPendingWithdrawsAsync();
+        Task<WithdrawRequestDto> ProcessWithdrawAsync(int adminUserId, int requestId, ProcessWithdrawDto dto);
     }
 }

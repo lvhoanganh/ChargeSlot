@@ -44,6 +44,7 @@ namespace ChargeSlot.Api.Data
         public DbSet<LoyaltyTransaction> LoyaltyTransactions => Set<LoyaltyTransaction>();
         public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+        public DbSet<WithdrawRequest> WithdrawRequests => Set<WithdrawRequest>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

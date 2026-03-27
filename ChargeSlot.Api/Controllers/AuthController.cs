@@ -107,7 +107,7 @@ namespace ChargeSlot.Api.Controllers
         {
             try
             {
-                await _otpService.SendOtpAsync(
+                await _otpService.SendOtpRegister(
                     dto.PhoneNumber,
                     OtpPurpose.Register
                 );
