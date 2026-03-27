@@ -63,6 +63,16 @@ export default function AdminNav() {
       icon: "⚠️",
     },
     {
+      to: "/admin/payouts",
+      label: "Duyệt rút tiền Owner",
+      icon: "🏦",
+    },
+    {
+      to: "/admin/withdraws",
+      label: "Duyệt rút tiền Driver",
+      icon: "💸",
+    },
+    {
       to: "/admin/system-config",
       label: "Cấu hình",
       icon: "⚙️",

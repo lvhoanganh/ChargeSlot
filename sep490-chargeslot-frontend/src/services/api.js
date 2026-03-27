@@ -282,6 +282,9 @@ export const publicStationApi = {
         return apiFetch(`/public/stations${qs ? `?${qs}` : ""}`);
     },
     getById: (id) => apiFetch(`/public/stations/${id}`),
+
+    getNearby: (lat, lng, radiusKm = 5) =>
+        apiFetch(`/public/stations/nearby?lat=${lat}&lng=${lng}&radiusKm=${radiusKm}`),
 };
 
 // ============================
@@ -295,7 +298,12 @@ export const bookingApi = {
             body: JSON.stringify(data),
         }),
 
-    getDriverBookings: () => apiFetch("/Booking/driver"),
+    getDriverBookings: (status) => {
+        const qs = status ? `?status=${status}` : "";
+        return apiFetch(`/Booking/driver${qs}`);
+    },
+
+    getDriverHistory: () => apiFetch("/Booking/driver/history"),
 
     getOwnerBookings: () => apiFetch("/Booking/owner"),
 
@@ -330,6 +338,10 @@ export const bookingApi = {
 export const paymentApi = {
     createPaymentUrl: (bookingId) =>
         apiFetch(`/Payment/${bookingId}/create-payment-url`, { method: "POST" }),
+
+    /** Thanh toán bằng ví */
+    payWithWallet: (bookingId) =>
+        apiFetch(`/Payment/pay-wallet?bookingId=${bookingId}`, { method: "POST" }),
 };
 
 // ============================
@@ -376,13 +388,16 @@ export const walletApi = {
     payBooking: (bookingId) =>
         apiFetch(`/Wallet/pay-booking/${bookingId}`, { method: "POST" }),
 
-    withdraw: (amount) =>
+    /** Rút tiền (Driver) — cần info ngân hàng */
+    withdraw: ({ amount, bankName, bankAccountNumber, bankAccountHolder, userNote }) =>
         apiFetch("/Wallet/withdraw", {
             method: "POST",
-            body: JSON.stringify({ amount }),
+            body: JSON.stringify({ amount, bankName, bankAccountNumber, bankAccountHolder, userNote }),
         }),
 
     getTransactions: () => apiFetch("/Wallet/transactions"),
+
+    getWithdrawRequests: () => apiFetch("/Wallet/withdraw-requests"),
 };
 
 // ============================
@@ -392,6 +407,7 @@ export const walletApi = {
 export const notificationApi = {
     getAll: () => apiFetch("/Notification"),
     markAsRead: (id) => apiFetch(`/Notification/${id}/read`, { method: "PUT" }),
+    markAllAsRead: () => apiFetch("/Notification/read-all", { method: "PUT" }),
 };
 
 // ============================
@@ -484,6 +500,9 @@ export const reviewApi = {
     /** Tổng quan rating — breakdown theo sao */
     getSummary: (stationId) =>
         apiFetch(`/reviews/station/${stationId}/summary`),
+
+    /** Đánh giá của driver */
+    getMyReviews: () => apiFetch("/Review/my"),
 
     /** Top trạm xếp hạng (cho trang chủ) */
     getTopStations: (limit = 10) =>
@@ -595,4 +614,80 @@ export const chatApi = {
             method: "POST",
             body: JSON.stringify({ content }),
         }),
+};
+
+// ============================
+// BANK ACCOUNTS
+// ============================
+
+export const bankAccountApi = {
+    getAll: () => apiFetch("/bank-accounts"),
+
+    create: (data) =>
+        apiFetch("/bank-accounts", {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
+    setDefault: (id) =>
+        apiFetch(`/bank-accounts/${id}/set-default`, { method: "PUT" }),
+
+    delete: (id) =>
+        apiFetch(`/bank-accounts/${id}`, { method: "DELETE" }),
+};
+
+// ============================
+// OWNER PAYOUT (rút tiền Owner)
+// ============================
+
+export const payoutApi = {
+    create: (data) =>
+        apiFetch("/payouts", {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
+    getAll: () => apiFetch("/payouts"),
+};
+
+// ============================
+// ADMIN — Duyệt payout (Owner)
+// ============================
+
+export const adminPayoutApi = {
+    getPending: () => apiFetch("/admin/payouts"),
+
+    process: (id, approve, note) =>
+        apiFetch(`/admin/payouts/${id}/process`, {
+            method: "PUT",
+            body: JSON.stringify({ approve, note }),
+        }),
+};
+
+// ============================
+// ADMIN — Duyệt rút tiền (Driver)
+// ============================
+
+export const adminWithdrawApi = {
+    getPending: () => apiFetch("/admin/withdraws"),
+
+    process: (id, approve, adminNote) =>
+        apiFetch(`/admin/withdraws/${id}/process`, {
+            method: "PUT",
+            body: JSON.stringify({ approve, adminNote }),
+        }),
+};
+
+// ============================
+// ADMIN — Quản lý tài khoản
+// ============================
+
+export const adminAccountApi = {
+    getAll: () => apiFetch("/admin/accounts"),
+
+    ban: (id) =>
+        apiFetch(`/admin/accounts/${id}/ban`, { method: "PUT" }),
+
+    unban: (id) =>
+        apiFetch(`/admin/accounts/${id}/unban`, { method: "PUT" }),
 };

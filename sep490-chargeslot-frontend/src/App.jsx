@@ -62,6 +62,8 @@ import FavoriteStations from "./pages/driver/FavoriteStations";
 import DriverLoyalty from "./pages/driver/DriverLoyalty";
 import OwnerExtraServices from "./pages/owner/OwnerExtraServices";
 import AdminSystemConfig from "./pages/admin/AdminSystemConfig";
+import AdminPayouts from "./pages/admin/AdminPayouts";
+import AdminWithdraws from "./pages/admin/AdminWithdraws";
 import ChatList from "./pages/common/ChatList";
 import ChatPage from "./pages/common/ChatPage";
 
@@ -96,7 +98,6 @@ export default function App() {
           <Route element={<OwnerLayout />}>
             <Route path="stations" element={<OwnerPage />} />
             <Route path="stations/add" element={<CreateChargingStation />} />
-            <Route path="owner/change-password" element={<ChangePassword />} />
           </Route>
         </Route>
         <Route element={<AuthAdminMiddleware />}>
@@ -109,6 +110,8 @@ export default function App() {
             <Route path="edit-admin-profile" element={<EditAdminProfile />} />
             <Route path="view-financial-report" element={<AdminRevenue />} />
             <Route path="system-config" element={<AdminSystemConfig />} />
+            <Route path="payouts" element={<AdminPayouts />} />
+            <Route path="withdraws" element={<AdminWithdraws />} />
             <Route path="change-password" element={<ChangePassword />} />
           </Route>
         </Route>
@@ -133,19 +136,21 @@ export default function App() {
             <Route path="change-password" element={<ChangePassword />} />
           </Route>
         </Route>
-        <Route path="owner" element={<OwnerLayout />}>
-          <Route path="owner-profile" element={<OwnerProfile />} />
-          <Route path="update-owner-profile" element={<OwnerEditProfile />} />
-          <Route path="booking-requests" element={<BookingRequests />} />
-          <Route path="booking/:id" element={<BookingRequestDetail />} />
-          <Route path="dispute/:disputeId" element={<OwnerDisputeDetail />} />
-          <Route path="active-sessions" element={<OwnerActiveSessions />} />
-          <Route path="wallet" element={<OwnerWallet />} />
-          <Route path="reviews" element={<OwnerReviews />} />
-          <Route path="extra-services" element={<OwnerExtraServices />} />
-          <Route path="chat-list" element={<ChatList />} />
-          <Route path="chat/:bookingId" element={<ChatPage />} />
-          <Route path="change-password" element={<ChangePassword />} />
+        <Route element={<AuthOwnerMiddleware />}>
+          <Route path="owner" element={<OwnerLayout />}>
+            <Route path="owner-profile" element={<OwnerProfile />} />
+            <Route path="update-owner-profile" element={<OwnerEditProfile />} />
+            <Route path="booking-requests" element={<BookingRequests />} />
+            <Route path="booking/:id" element={<BookingRequestDetail />} />
+            <Route path="dispute/:disputeId" element={<OwnerDisputeDetail />} />
+            <Route path="active-sessions" element={<OwnerActiveSessions />} />
+            <Route path="wallet" element={<OwnerWallet />} />
+            <Route path="reviews" element={<OwnerReviews />} />
+            <Route path="extra-services" element={<OwnerExtraServices />} />
+            <Route path="chat-list" element={<ChatList />} />
+            <Route path="chat/:bookingId" element={<ChatPage />} />
+            <Route path="change-password" element={<ChangePassword />} />
+          </Route>
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

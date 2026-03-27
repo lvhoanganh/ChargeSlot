@@ -11,12 +11,16 @@ export default function ChatWindow({ conversationId, bookingId, messages = [], o
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [connection, setConnection] = useState(null);
-  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const connectionRef = useRef(null);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on new messages — use scrollTop instead of scrollIntoView
+  // to avoid scrolling the entire page
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [messages]);
 
   // SignalR connection
@@ -92,7 +96,7 @@ export default function ChatWindow({ conversationId, bookingId, messages = [], o
       background: "#f8fafc", borderRadius: 16, overflow: "hidden",
     }}>
       {/* Messages */}
-      <div style={{
+      <div ref={messagesContainerRef} style={{
         flex: 1, overflow: "auto", padding: "16px 16px 8px",
         display: "flex", flexDirection: "column", gap: 8,
       }}>
@@ -137,7 +141,6 @@ export default function ChatWindow({ conversationId, bookingId, messages = [], o
             </div>
           );
         })}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}

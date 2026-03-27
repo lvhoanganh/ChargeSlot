@@ -103,11 +103,10 @@ export default function NotificationBell() {
   }
 
   async function markAllRead() {
-    const unread = notifications.filter(n => !n.isRead);
-    for (const n of unread) {
-      await notificationApi.markAsRead(n.id).catch(() => {});
-    }
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    try {
+      await notificationApi.markAllAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch {}
   }
 
   return (
