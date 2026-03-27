@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { instance } from "@/lib/httpRequest";
 import { resetPasswordSchema } from "@/schemas/resetPasswordSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useLocation, useNavigate } from "react-router-dom";
+import ChargeSlotLogo from "@/components/ChargeSlotLogo";
 
 const FORGOT_PHONE_KEY = "forgotPasswordPhoneNumber";
 
@@ -69,86 +69,120 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f3f4f5] flex justify-center items-center px-4">
-      <form
-        className="max-w-[500px] w-full bg-white rounded-md shadow-md"
-        onSubmit={form.handleSubmit(onSubmit)}
-      >
-        <div className="p-8">
-          <h1 className="text-xl font-bold mb-6">Đặt lại mật khẩu</h1>
+    <div className="cs-auth-wrapper">
+      <div className="cs-auth-left">
+        <div className="cs-auth-left__content">
+          <div className="cs-animate-fadeInUp" style={{ marginBottom: 24 }}>
+            <ChargeSlotLogo size={56} dark />
+          </div>
+          <h1 className="cs-auth-left__title cs-animate-fadeInUp-delay-1">
+            Đặt mật khẩu mới
+          </h1>
+          <p className="cs-auth-left__desc cs-animate-fadeInUp-delay-2">
+            Tạo mật khẩu mới an toàn cho tài khoản của bạn. Đảm bảo mật khẩu đủ mạnh để bảo vệ tài khoản.
+          </p>
+          <div className="cs-auth-left__features cs-animate-fadeInUp-delay-3">
+            <div className="cs-auth-left__feature">
+              <span className="cs-auth-left__feature-icon">🔐</span>
+              <span>Sử dụng ít nhất 6 ký tự</span>
+            </div>
+            <div className="cs-auth-left__feature">
+              <span className="cs-auth-left__feature-icon">🛡️</span>
+              <span>Kết hợp chữ và số</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          <div className="flex flex-col mb-4">
-            <label className="text-gray-500">Số điện thoại</label>
+      <div className="cs-auth-right">
+        <form className="cs-auth-form" onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="cs-auth-form__logo">
+            <ChargeSlotLogo size={38} showText />
+          </div>
+          <h2 className="cs-auth-form__title">Đặt lại mật khẩu</h2>
+          <p className="cs-auth-form__subtitle">
+            Nhập mật khẩu mới cho tài khoản của bạn.
+          </p>
+
+          {!!apiError && (
+            <div className="cs-auth-error">{apiError}</div>
+          )}
+
+          <div className="cs-auth-input-group">
+            <label>Số điện thoại</label>
             <input
-              className="w-full h-10 px-4 border outline-none"
+              className="cs-auth-input"
               placeholder="090xxxxxxx"
               {...form.register("phoneNumber")}
             />
             {!!form.formState.errors.phoneNumber?.message && (
-              <p className="mt-1 text-sm text-red-600">
+              <p className="text-red-500 text-sm mt-1.5">
                 {form.formState.errors.phoneNumber.message}
               </p>
             )}
           </div>
 
-          <div className="flex flex-col mb-4">
-            <label className="text-gray-500">Mật khẩu mới</label>
+          <div className="cs-auth-input-group">
+            <label>Mật khẩu mới</label>
             <input
               type="password"
-              className="w-full h-10 px-4 border outline-none"
+              className="cs-auth-input"
               placeholder="Nhập mật khẩu mới..."
               {...form.register("newPassword")}
             />
             {!!form.formState.errors.newPassword?.message && (
-              <p className="mt-1 text-sm text-red-600">
+              <p className="text-red-500 text-sm mt-1.5">
                 {form.formState.errors.newPassword.message}
               </p>
             )}
           </div>
 
-          <div className="flex flex-col mb-6">
-            <label className="text-gray-500">Xác nhận mật khẩu mới</label>
+          <div className="cs-auth-input-group">
+            <label>Xác nhận mật khẩu mới</label>
             <input
               type="password"
-              className="w-full h-10 px-4 border outline-none"
+              className="cs-auth-input"
               placeholder="Nhập lại mật khẩu mới..."
               {...form.register("confirmPassword")}
             />
             {!!form.formState.errors.confirmPassword?.message && (
-              <p className="mt-1 text-sm text-red-600">
+              <p className="text-red-500 text-sm mt-1.5">
                 {form.formState.errors.confirmPassword.message}
               </p>
             )}
           </div>
 
-          {!!apiError && (
-            <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded">
-              <p className="text-sm text-red-700">{apiError}</p>
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <div className="w-1/2">
-              <Button
-                type="button"
-                className="w-full h-12 bg-gray-300 hover:bg-gray-400 text-black"
-                onClick={() => navigate(role ? backPath : "/forgotPassword")}
-                disabled={resetPasswordMutation.isPending}
-              >
-                Huỷ
-              </Button>
-            </div>
-
-            <Button
+          <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+            <button
+              type="button"
+              onClick={() => navigate(role ? backPath : "/forgotPassword")}
+              disabled={resetPasswordMutation.isPending}
+              style={{
+                flex: 1,
+                height: 48,
+                border: "1.5px solid #e5e7eb",
+                borderRadius: 12,
+                background: "white",
+                color: "#374151",
+                fontWeight: 600,
+                fontSize: 15,
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+            >
+              Huỷ
+            </button>
+            <button
               type="submit"
-              className="w-1/2 h-12 bg-orange-500 hover:bg-orange-600"
+              className="cs-auth-submit"
+              style={{ flex: 1, marginTop: 0 }}
               disabled={resetPasswordMutation.isPending}
             >
               {resetPasswordMutation.isPending ? "Đang cập nhật..." : "Cập nhật"}
-            </Button>
+            </button>
           </div>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
@@ -168,4 +202,3 @@ function getApiErrorMessage(error, fallback) {
     fallback
   );
 }
-

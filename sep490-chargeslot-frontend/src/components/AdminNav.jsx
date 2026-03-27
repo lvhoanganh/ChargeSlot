@@ -2,6 +2,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { useState, useRef, useEffect } from "react";
 import NotificationBell from "@/components/NotificationBell";
+import ChargeSlotLogo from "@/components/ChargeSlotLogo";
 
 
 const DEFAULT_AVATAR =
@@ -77,8 +78,7 @@ export default function AdminNav() {
         <div className="cs-nav__container">
           {/* Brand */}
           <NavLink to="/admin/manage-users" className="cs-nav__brand">
-            <span className="cs-nav__brand-icon">⚡</span>
-            <span className="cs-nav__brand-text cs-nav__brand-text--admin">ChargeSlot Admin</span>
+            <ChargeSlotLogo size={34} showText suffix="Admin" />
           </NavLink>
 
           {/* Primary nav links */}

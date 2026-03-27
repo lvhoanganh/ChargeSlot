@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useState, useRef, useEffect } from "react";
 import NotificationBell from "@/components/NotificationBell";
 import { walletApi } from "@/services/api";
+import ChargeSlotLogo from "@/components/ChargeSlotLogo";
 
 
 const DEFAULT_AVATAR =
@@ -128,8 +129,7 @@ export default function OwnerNav() {
         <div className="cs-nav__container">
           {/* Brand */}
           <NavLink to="/stations" className="cs-nav__brand">
-            <span className="cs-nav__brand-icon">⚡</span>
-            <span className="cs-nav__brand-text cs-nav__brand-text--owner">ChargeSlot Owner</span>
+            <ChargeSlotLogo size={34} showText suffix="Owner" />
           </NavLink>
 
           {/* Primary nav links */}

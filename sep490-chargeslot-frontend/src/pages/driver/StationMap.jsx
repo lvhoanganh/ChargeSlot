@@ -155,7 +155,7 @@ export default function StationMap() {
         (Array.isArray(list) ? list : []).forEach(f => { map[f.stationId] = true; });
         setFavorites(map);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [token]);
 
   async function toggleFavorite(e, stationId) {
@@ -308,7 +308,7 @@ export default function StationMap() {
                 background: "#f8f9fb", cursor: "pointer", outline: "none",
               }}
             >
-              <option value="">⭐ Rating</option>
+              <option value="">⭐ Đánh giá</option>
               <option value="1">≥ 1 ⭐</option>
               <option value="2">≥ 2 ⭐</option>
               <option value="3">≥ 3 ⭐</option>
@@ -326,8 +326,8 @@ export default function StationMap() {
               }}
             >
               <option value="">Sắp xếp</option>
-              <option value="rating">Rating cao nhất</option>
-              <option value="reviews">Nhiều đánh giá</option>
+              <option value="rating">Đánh giá cao nhất</option>
+              <option value="reviews">Nhiều đánh giá nhất</option>
             </select>
           </div>
         </div>
@@ -481,14 +481,14 @@ export default function StationMap() {
                     {/* Stats row */}
                     <div style={{ display: "flex", gap: 6 }}>
                       <div style={{
-                          flex: 1, background: "#fef9ee", borderRadius: 10,
-                          padding: "8px 0", textAlign: "center",
-                        }}>
-                          <div style={{ fontSize: 14, fontWeight: 800, color: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
-                            ⭐ {s.totalReviews > 0 ? Number(s.averageRating).toFixed(1) : "—"}
-                          </div>
-                          <div style={{ fontSize: 10, color: "#6b7280", marginTop: 1 }}>{s.totalReviews > 0 ? `${s.totalReviews} đánh giá` : "Chưa có"}</div>
+                        flex: 1, background: "#fef9ee", borderRadius: 10,
+                        padding: "8px 0", textAlign: "center",
+                      }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
+                          ⭐ {s.totalReviews > 0 ? Number(s.averageRating).toFixed(1) : "—"}
                         </div>
+                        <div style={{ fontSize: 10, color: "#6b7280", marginTop: 1 }}>{s.totalReviews > 0 ? `${s.totalReviews} đánh giá` : "Chưa có"}</div>
+                      </div>
                       <div style={{
                         flex: 1, background: "#f0fdf4", borderRadius: 10,
                         padding: "8px 0", textAlign: "center",

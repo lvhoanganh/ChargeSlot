@@ -1,20 +1,15 @@
-import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { instance } from "@/lib/httpRequest";
 import { useAuthStore } from "@/stores/authStore";
 import { useState } from "react";
 import { showToast } from "@/components/Toast";
+import ChargeSlotLogo from "@/components/ChargeSlotLogo";
 
 const register = async ({ phoneNumber, fullName, password, role }) => {
   const res = await instance.post(
     `${import.meta.env.VITE_BASE_URL}/Auth/register`,
-    {
-      phoneNumber,
-      fullName,
-      password,
-      role,
-    },
+    { phoneNumber, fullName, password, role },
   );
   return res.data;
 };
@@ -49,63 +44,94 @@ export default function RegisterCreateAccount() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f3f4f5] flex justify-center items-center">
-      <form
-        className="max-w-[500px] w-full bg-white rounded-md shadow-md"
-        onSubmit={handleSubmit}
-      >
-        <div className="p-8">
-          <h1 className="text-xl font-bold mb-5">Tạo tài khoản</h1>
-          <p className="mb-5 text-gray-600">
-            Số điện thoại: <strong>{phoneNumber}</strong>
+    <div className="cs-auth-wrapper">
+      <div className="cs-auth-left">
+        <div className="cs-auth-left__content">
+          <div className="cs-animate-fadeInUp" style={{ marginBottom: 24 }}>
+            <ChargeSlotLogo size={56} dark />
+          </div>
+          <h1 className="cs-auth-left__title cs-animate-fadeInUp-delay-1">
+            Hoàn tất đăng ký
+          </h1>
+          <p className="cs-auth-left__desc cs-animate-fadeInUp-delay-2">
+            Chỉ còn một bước nữa! Điền thông tin cá nhân để bắt đầu sử dụng ChargeSlot.
           </p>
-          <div className="flex flex-col mb-5">
+          <div className="cs-auth-left__features cs-animate-fadeInUp-delay-3">
+            <div className="cs-auth-left__feature">
+              <span className="cs-auth-left__feature-icon">🚗</span>
+              <span>Tài xế — Đặt lịch sạc xe</span>
+            </div>
+            <div className="cs-auth-left__feature">
+              <span className="cs-auth-left__feature-icon">🏢</span>
+              <span>Chủ trạm — Quản lý trạm sạc</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="cs-auth-right">
+        <form className="cs-auth-form" onSubmit={handleSubmit}>
+          <div className="cs-auth-form__logo">
+            <ChargeSlotLogo size={38} showText />
+          </div>
+          <h2 className="cs-auth-form__title">Tạo tài khoản</h2>
+          <p className="cs-auth-form__subtitle">
+            Số điện thoại: <strong style={{ color: "#f97316" }}>{phoneNumber}</strong>
+          </p>
+
+          <div className="cs-auth-input-group">
             <label>Họ và tên</label>
             <input
-              className="h-10 px-4 border"
+              className="cs-auth-input"
               placeholder="Nhập họ và tên"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required
             />
           </div>
-          <div className="flex flex-col mb-5">
+
+          <div className="cs-auth-input-group">
             <label>Mật khẩu</label>
             <input
               type="password"
-              className="h-10 px-4 border"
+              className="cs-auth-input"
               placeholder="Nhập mật khẩu"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
-          <div className="flex flex-col mb-5">
+
+          <div className="cs-auth-input-group">
             <label>Vai trò</label>
             <select
-              className="h-10 px-4 border"
+              className="cs-auth-input"
               value={role}
               onChange={(e) => setRole(e.target.value)}
               required
+              style={{ cursor: "pointer" }}
             >
-              <option value="Driver">Driver</option>
-              <option value="Owner">Owner</option>
+              <option value="Driver">🚗 Tài xế (Driver)</option>
+              <option value="Owner">🏢 Chủ trạm (Owner)</option>
             </select>
           </div>
-          <Button
+
+          <button
             type="submit"
-            className="w-full h-12 bg-orange-500 mb-5 cursor-pointer hover:bg-green-500"
+            className="cs-auth-submit"
             disabled={registerMutation.isPending}
           >
-            {registerMutation.isPending ? "Đang đăng ký..." : "Đăng ký"}
-          </Button>
-          <div className="text-center hover:underline">
-            <Link to="/login" className="text-blue-500">
-              Đã có tài khoản? Đăng nhập
+            {registerMutation.isPending ? "Đang đăng ký..." : "Hoàn tất đăng ký"}
+          </button>
+
+          <p style={{ textAlign: "center", marginTop: 24, fontSize: 14, color: "#64748b" }}>
+            Đã có tài khoản?{" "}
+            <Link to="/login" className="cs-auth-link">
+              Đăng nhập
             </Link>
-          </div>
-        </div>
-      </form>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }

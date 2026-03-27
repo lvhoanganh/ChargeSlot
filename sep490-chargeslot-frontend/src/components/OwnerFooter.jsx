@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import ChargeSlotLogo from "@/components/ChargeSlotLogo";
 
 export default function OwnerFooter() {
   const currentYear = new Date().getFullYear();
@@ -10,8 +11,7 @@ export default function OwnerFooter() {
           {/* Brand column */}
           <div className="cs-footer__brand-col">
             <div className="cs-footer__brand">
-              <span className="cs-footer__brand-icon">⚡</span>
-              <span className="cs-footer__brand-text">ChargeSlot Owner</span>
+              <ChargeSlotLogo size={30} showText suffix="Owner" dark />
             </div>
             <p className="cs-footer__desc">
               Quản lý trạm sạc, theo dõi booking, phiên sạc và dịch vụ khác.

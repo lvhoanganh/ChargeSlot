@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import ChargeSlotLogo from "@/components/ChargeSlotLogo";
 
 export default function AdminFooter() {
   const currentYear = new Date().getFullYear();
@@ -10,8 +11,7 @@ export default function AdminFooter() {
           {/* Brand column */}
           <div className="cs-footer__brand-col">
             <div className="cs-footer__brand">
-              <span className="cs-footer__brand-icon">⚡</span>
-              <span className="cs-footer__brand-text">ChargeSlot Admin</span>
+              <ChargeSlotLogo size={30} showText suffix="Admin" dark />
             </div>
             <p className="cs-footer__desc">
               Trung tâm quản trị dành cho kiểm duyệt tài khoản, báo cáo doanh thu, trạm sạc và giải quyết tranh chấp.

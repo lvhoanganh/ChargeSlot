@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { instance } from "@/lib/httpRequest";
 import { forgotPasswordSchema } from "@/schemas/forgotPasswordSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,6 +5,8 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
+import ChargeSlotLogo from "@/components/ChargeSlotLogo";
+import { showToast } from "@/components/Toast";
 
 const FORGOT_PHONE_KEY = "forgotPasswordPhoneNumber";
 
@@ -38,7 +39,12 @@ export default function ForgotPassword() {
       });
     },
     onError: (error) => {
-      setApiError(getApiErrorMessage(error, "Gửi OTP thất bại. Vui lòng thử lại."));
+      const msg = error?.response?.data?.message || "";
+      if (msg.toLowerCase().includes("not exist")) {
+        showToast.error("Số điện thoại không tồn tại.");
+      } else {
+        showToast.error(msg || "Gửi OTP thất bại. Vui lòng thử lại.");
+      }
     },
   });
 
@@ -48,59 +54,91 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f3f4f5] flex justify-center items-center px-4">
-      <form
-        className="max-w-[500px] w-full bg-white rounded-md shadow-md"
-        onSubmit={form.handleSubmit(onSubmit)}
-      >
-        <div className="p-8">
-          <h1 className="text-xl font-bold mb-5">Quên mật khẩu</h1>
+    <div className="cs-auth-wrapper">
+      {/* Left Branding Panel */}
+      <div className="cs-auth-left">
+        <div className="cs-auth-left__content">
+          <div className="cs-animate-fadeInUp" style={{ marginBottom: 24 }}>
+            <ChargeSlotLogo size={56} dark />
+          </div>
+          <h1 className="cs-auth-left__title cs-animate-fadeInUp-delay-1">
+            Khôi phục mật khẩu
+          </h1>
+          <p className="cs-auth-left__desc cs-animate-fadeInUp-delay-2">
+            Đừng lo lắng! Nhập số điện thoại đã đăng ký và chúng tôi sẽ gửi mã OTP để bạn đặt lại mật khẩu.
+          </p>
+          <div className="cs-auth-left__features cs-animate-fadeInUp-delay-3">
+            <div className="cs-auth-left__feature">
+              <span className="cs-auth-left__feature-icon">📱</span>
+              <span>Nhập số điện thoại đã đăng ký</span>
+            </div>
+            <div className="cs-auth-left__feature">
+              <span className="cs-auth-left__feature-icon">🔑</span>
+              <span>Nhận mã OTP xác thực</span>
+            </div>
+            <div className="cs-auth-left__feature">
+              <span className="cs-auth-left__feature-icon">✅</span>
+              <span>Đặt mật khẩu mới an toàn</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          <div className="flex flex-col mb-5">
+      {/* Right Form Panel */}
+      <div className="cs-auth-right">
+        <form className="cs-auth-form" onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="cs-auth-form__logo">
+            <ChargeSlotLogo size={38} showText />
+          </div>
+          <h2 className="cs-auth-form__title">Quên mật khẩu</h2>
+          <p className="cs-auth-form__subtitle">
+            Nhập số điện thoại để nhận mã OTP khôi phục.
+          </p>
+
+          {!!apiError && (
+            <div className="cs-auth-error">{apiError}</div>
+          )}
+
+          <div className="cs-auth-input-group">
             <label>Số điện thoại</label>
             <input
-              className="h-10 px-4 border"
+              className="cs-auth-input"
               placeholder="090xxxxxxx"
               {...form.register("phoneNumber")}
             />
             {!!form.formState.errors.phoneNumber?.message && (
-              <p className="mt-1 text-sm text-red-600">
+              <p className="text-red-500 text-sm mt-1.5">
                 {form.formState.errors.phoneNumber.message}
               </p>
             )}
           </div>
 
-          {!!apiError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
-              <p className="text-sm text-red-700">{apiError}</p>
-            </div>
-          )}
-
-          <Button
+          <button
             type="submit"
-            className="w-full h-12 bg-orange-500 mb-5"
+            className="cs-auth-submit"
             disabled={sendOtpMutation.isPending}
           >
             {sendOtpMutation.isPending ? "Đang gửi..." : "Gửi OTP"}
-          </Button>
+          </button>
 
-          <div className="text-center">
+          <p style={{ textAlign: "center", marginTop: 24, fontSize: 14, color: "#64748b" }}>
             {role ? (
               <button
                 type="button"
-                className="text-blue-500 hover:underline"
+                className="cs-auth-link"
+                style={{ background: "none", border: "none", cursor: "pointer" }}
                 onClick={() => navigate(backPath)}
               >
                 Quay lại hồ sơ
               </button>
             ) : (
-              <Link to="/login" className="text-blue-500 hover:underline">
+              <Link to="/login" className="cs-auth-link">
                 Quay lại đăng nhập
               </Link>
             )}
-          </div>
-        </div>
-      </form>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }
@@ -120,4 +158,3 @@ function getApiErrorMessage(error, fallback) {
     fallback
   );
 }
-

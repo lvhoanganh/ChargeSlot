@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useState, useRef, useEffect } from "react";
 import { walletApi, chargingApi, bookingApi } from "@/services/api";
 import NotificationBell from "@/components/NotificationBell";
+import ChargeSlotLogo from "@/components/ChargeSlotLogo";
 
 
 const DEFAULT_AVATAR =
@@ -227,8 +228,7 @@ export default function Nav() {
         <div className="cs-nav__container">
           {/* Brand */}
           <NavLink to="/" className="cs-nav__brand">
-            <span className="cs-nav__brand-icon">⚡</span>
-            <span className="cs-nav__brand-text">ChargeSlot</span>
+            <ChargeSlotLogo size={34} showText />
           </NavLink>
 
           {/* Primary nav links */}
