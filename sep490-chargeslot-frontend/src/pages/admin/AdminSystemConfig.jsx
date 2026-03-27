@@ -37,7 +37,7 @@ export default function AdminSystemConfig() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-100 p-8 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-100 pt-20 px-8 pb-8 flex items-center justify-center">
         <div className="text-center">
           <div className="text-5xl mb-4">⚙️</div>
           <p className="text-slate-500">Đang tải cấu hình hệ thống...</p>
@@ -47,7 +47,7 @@ export default function AdminSystemConfig() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-8">
+    <div className="min-h-screen bg-slate-100 pt-20 px-8 pb-8">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-6 rounded-2xl bg-white px-6 py-5 shadow-sm ring-1 ring-slate-200">

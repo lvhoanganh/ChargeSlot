@@ -117,7 +117,7 @@ export default function OwnerExtraServices() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-100 px-6 py-8 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-100 px-6 pt-20 pb-8 flex items-center justify-center">
         <div className="text-center">
           <div className="text-5xl mb-4">🛠️</div>
           <p className="text-slate-500">Đang tải...</p>
@@ -127,7 +127,7 @@ export default function OwnerExtraServices() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 px-6 py-8 text-slate-900">
+    <div className="min-h-screen bg-slate-100 px-6 pt-20 pb-8 text-slate-900">
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="mb-6 rounded-2xl bg-white px-6 py-5 shadow-sm ring-1 ring-slate-200">

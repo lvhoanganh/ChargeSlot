@@ -354,7 +354,7 @@ export default function CreateChargingStation() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 px-6 py-8 text-slate-900">
+    <div className="min-h-screen bg-slate-100 px-6 pt-20 pb-8 text-slate-900">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-6 py-5 shadow-sm ring-1 ring-slate-200">

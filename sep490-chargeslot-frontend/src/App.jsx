@@ -78,7 +78,6 @@ export default function App() {
           <Route path="driver/station/:id" element={<StationDetailDriver />} />
           <Route path="driver/station/:stationId/book" element={<BookingForm />} />
           <Route path="payment/result" element={<PaymentResult />} />
-          <Route path="change-password" element={<ChangePassword />} />
           <Route path="setPassword" element={<SetPassword />} />
           <Route path="forgotPassword" element={<ForgotPassword />} />
           <Route path="verifyOtp" element={<VerifyOtp />} />
@@ -97,6 +96,7 @@ export default function App() {
           <Route element={<OwnerLayout />}>
             <Route path="stations" element={<OwnerPage />} />
             <Route path="stations/add" element={<CreateChargingStation />} />
+            <Route path="owner/change-password" element={<ChangePassword />} />
           </Route>
         </Route>
         <Route element={<AuthAdminMiddleware />}>
@@ -109,6 +109,7 @@ export default function App() {
             <Route path="edit-admin-profile" element={<EditAdminProfile />} />
             <Route path="view-financial-report" element={<AdminRevenue />} />
             <Route path="system-config" element={<AdminSystemConfig />} />
+            <Route path="change-password" element={<ChangePassword />} />
           </Route>
         </Route>
         <Route element={<AuthDriverMiddleware />}>
@@ -129,6 +130,7 @@ export default function App() {
             <Route path="loyalty" element={<DriverLoyalty />} />
             <Route path="chat-list" element={<ChatList />} />
             <Route path="chat/:bookingId" element={<ChatPage />} />
+            <Route path="change-password" element={<ChangePassword />} />
           </Route>
         </Route>
         <Route path="owner" element={<OwnerLayout />}>
@@ -143,6 +145,7 @@ export default function App() {
           <Route path="extra-services" element={<OwnerExtraServices />} />
           <Route path="chat-list" element={<ChatList />} />
           <Route path="chat/:bookingId" element={<ChatPage />} />
+          <Route path="change-password" element={<ChangePassword />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
