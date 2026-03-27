@@ -2,7 +2,7 @@ namespace ChargeSlot.Api.Services.Interfaces
 {
     public interface IVnPayService
     {
-        string CreatePaymentUrl(int bookingId, decimal amount, string orderInfo, HttpContext context);
+        string CreatePaymentUrl(int bookingId, decimal amount, string orderInfo, HttpContext context, string? returnUrlOverride = null);
         (bool isValid, string responseCode, string txnRef) ValidateCallback(IQueryCollection query);
 
         /// <summary>

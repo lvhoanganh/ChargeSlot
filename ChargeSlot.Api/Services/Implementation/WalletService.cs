@@ -58,17 +58,22 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             var wallet = await GetOrCreateWalletInternalAsync(userId);
             var orderInfo = $"Nap tien vi ChargeSlot - {amount:N0} VND";
-            // Dùng walletId + prefix "TOPUP" để phân biệt với payment booking
+
+            // Build return URL chính xác cho top-up (khác với booking payment)
+            var request = context.Request;
+            var topUpReturnUrl = $"{request.Scheme}://{request.Host}/api/Wallet/top-up/vnpay-return";
+
             var paymentUrl = _vnPayService.CreatePaymentUrl(
                 wallet.Id * -1, // dùng số âm để phân biệt top-up vs booking payment
                 amount,
                 orderInfo,
-                context);
+                context,
+                topUpReturnUrl); // FIX Bug 1: dùng URL riêng cho top-up
             return paymentUrl;
         }
 
         /// <summary>
-        /// Xử lý callback VNPay cho top-up
+        /// Xử lý callback VNPay cho top-up (có idempotency + transaction)
         /// </summary>
         public async Task ProcessTopUpCallbackAsync(IQueryCollection query)
         {
@@ -81,55 +86,72 @@ namespace ChargeSlot.Api.Services.Implementation
             var walletId = negativeWalletId * -1;
             if (walletId <= 0) return;
 
-            var wallet = await _walletRepo.GetByIdAsync(walletId);
-            if (wallet == null) return;
+            // FIX Bug 2: Idempotency — kiểm tra txnRef đã xử lý chưa
+            var alreadyProcessed = await _db.LedgerTransactions
+                .AnyAsync(t => t.ReferenceType == "TopUp" && t.Memo!.Contains(txnRef));
+            if (alreadyProcessed) return;
 
-            // Parse amount từ VNPay (vnp_Amount / 100)
-            var amountStr = query["vnp_Amount"].ToString();
-            if (!long.TryParse(amountStr, out var vnpAmount)) return;
-            var amount = vnpAmount / 100m;
-
-            // Cộng tiền vào ví
-            wallet.AvailableBalance += amount;
-            await _walletRepo.UpdateAsync(wallet);
-
-            // Ghi ledger double-entry: DEBIT từ EXTERNAL (VNPay), CREDIT vào ví user
-            var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
-            var ledgerTx = new LedgerTransaction
+            // FIX Bug 3: Transaction — wrap tất cả trong DB transaction
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
             {
-                ReferenceType = "TopUp",
-                ReferenceId = wallet.Id,
-                Memo = $"Nạp tiền {amount:N0} VND qua VNPay",
-                CreatedByUserId = wallet.UserId,
-                CreatedAt = DateTimeHelper.VietnamNow(),
-                Entries = new List<LedgerEntry>
+                var wallet = await _walletRepo.GetByIdAsync(walletId);
+                if (wallet == null) return;
+
+                // Parse amount từ VNPay (vnp_Amount / 100)
+                var amountStr = query["vnp_Amount"].ToString();
+                if (!long.TryParse(amountStr, out var vnpAmount)) return;
+                var amount = vnpAmount / 100m;
+
+                // Cộng tiền vào ví
+                wallet.AvailableBalance += amount;
+                await _walletRepo.UpdateAsync(wallet);
+
+                // Ghi ledger double-entry: DEBIT từ EXTERNAL (VNPay), CREDIT vào ví user
+                var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
+                var ledgerTx = new LedgerTransaction
                 {
-                    new LedgerEntry
+                    ReferenceType = "TopUp",
+                    ReferenceId = wallet.Id,
+                    Memo = $"Nạp tiền {amount:N0} VND qua VNPay | TxnRef: {txnRef}",
+                    CreatedByUserId = wallet.UserId,
+                    CreatedAt = DateTimeHelper.VietnamNow(),
+                    Entries = new List<LedgerEntry>
                     {
-                        WalletId = clearingWallet.Id,
-                        Direction = LedgerDirection.Debit,
-                        Amount = amount,
-                        CreatedAt = DateTimeHelper.VietnamNow()
-                    },
-                    new LedgerEntry
-                    {
-                        WalletId = wallet.Id,
-                        Direction = LedgerDirection.Credit,
-                        Amount = amount,
-                        CreatedAt = DateTimeHelper.VietnamNow()
+                        new LedgerEntry
+                        {
+                            WalletId = clearingWallet.Id,
+                            Direction = LedgerDirection.Debit,
+                            Amount = amount,
+                            CreatedAt = DateTimeHelper.VietnamNow()
+                        },
+                        new LedgerEntry
+                        {
+                            WalletId = wallet.Id,
+                            Direction = LedgerDirection.Credit,
+                            Amount = amount,
+                            CreatedAt = DateTimeHelper.VietnamNow()
+                        }
                     }
-                }
-            };
-            await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
+                };
+                await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
 
-            // Notify user
-            if (wallet.UserId.HasValue)
+                await transaction.CommitAsync();
+
+                // Notify user (ngoài transaction — không cần rollback nếu notification lỗi)
+                if (wallet.UserId.HasValue)
+                {
+                    await _notificationService.SendAsync(
+                        wallet.UserId.Value,
+                        "Nạp tiền thành công",
+                        $"Đã nạp {amount:N0} VND vào ví. Số dư hiện tại: {wallet.AvailableBalance:N0} VND.",
+                        NotificationType.Payment);
+                }
+            }
+            catch
             {
-                await _notificationService.SendAsync(
-                    wallet.UserId.Value,
-                    "Nạp tiền thành công",
-                    $"Đã nạp {amount:N0} VND vào ví. Số dư hiện tại: {wallet.AvailableBalance:N0} VND.",
-                    NotificationType.Payment);
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 

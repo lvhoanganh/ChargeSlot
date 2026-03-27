@@ -22,45 +22,53 @@ namespace ChargeSlot.Api.Services.Implementation
         /// <summary>Owner tạo yêu cầu rút tiền từ ví Owner (ESCROW đã settle vào ví Owner).</summary>
         public async Task<PayoutRequestDto> CreatePayoutAsync(int ownerUserId, CreatePayoutDto dto)
         {
-            // Kiểm tra Owner
-            var owner = await _db.Owner.Include(o => o.User).FirstOrDefaultAsync(o => o.UserId == ownerUserId)
-                ?? throw new InvalidOperationException("Owner profile không tồn tại.");
-
-            // Kiểm tra bank account thuộc về Owner
-            var bank = await _db.BankAccounts.FirstOrDefaultAsync(b => b.Id == dto.BankAccountId && b.UserId == ownerUserId)
-                ?? throw new InvalidOperationException("Tài khoản ngân hàng không tồn tại hoặc không thuộc về bạn.");
-
-            // Kiểm tra số dư ví Owner
-            var wallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == ownerUserId)
-                ?? throw new InvalidOperationException("Ví không tồn tại.");
-
-            if (wallet.AvailableBalance < dto.Amount)
-                throw new InvalidOperationException(
-                    $"Số dư không đủ. Hiện có {wallet.AvailableBalance:N0} VND.");
-
-            // Freeze tiền
-            wallet.AvailableBalance -= dto.Amount;
-            wallet.FrozenBalance += dto.Amount;
-
-            var request = new PayoutRequest
+            // FIX: Transaction bảo vệ freeze + tạo request
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
             {
-                OwnerUserId = ownerUserId,
-                BankAccountId = dto.BankAccountId,
-                Amount = dto.Amount,
-                Status = PayoutStatus.Pending,
-                Note = dto.Note,
-                RequestedAt = DateTimeHelper.VietnamNow()
-            };
-            _db.PayoutRequests.Add(request);
-            await _db.SaveChangesAsync();
+                var owner = await _db.Owner.Include(o => o.User).FirstOrDefaultAsync(o => o.UserId == ownerUserId)
+                    ?? throw new InvalidOperationException("Owner profile không tồn tại.");
 
-            await _notificationService.SendAsync(
-                ownerUserId,
-                "Yêu cầu rút tiền",
-                $"Yêu cầu rút {dto.Amount:N0} VND → {bank.BankName} ({bank.BankAccountNumber}) đã được gửi. Chờ Admin duyệt.",
-                NotificationType.System);
+                var bank = await _db.BankAccounts.FirstOrDefaultAsync(b => b.Id == dto.BankAccountId && b.UserId == ownerUserId)
+                    ?? throw new InvalidOperationException("Tài khoản ngân hàng không tồn tại hoặc không thuộc về bạn.");
 
-            return MapToDto(request, owner.User?.FullName, bank);
+                var wallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == ownerUserId)
+                    ?? throw new InvalidOperationException("Ví không tồn tại.");
+
+                if (wallet.AvailableBalance < dto.Amount)
+                    throw new InvalidOperationException(
+                        $"Số dư không đủ. Hiện có {wallet.AvailableBalance:N0} VND.");
+
+                wallet.AvailableBalance -= dto.Amount;
+                wallet.FrozenBalance += dto.Amount;
+
+                var request = new PayoutRequest
+                {
+                    OwnerUserId = ownerUserId,
+                    BankAccountId = dto.BankAccountId,
+                    Amount = dto.Amount,
+                    Status = PayoutStatus.Pending,
+                    Note = dto.Note,
+                    RequestedAt = DateTimeHelper.VietnamNow()
+                };
+                _db.PayoutRequests.Add(request);
+                await _db.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                await _notificationService.SendAsync(
+                    ownerUserId,
+                    "Yêu cầu rút tiền",
+                    $"Yêu cầu rút {dto.Amount:N0} VND → {bank.BankName} ({bank.BankAccountNumber}) đã được gửi. Chờ Admin duyệt.",
+                    NotificationType.System);
+
+                return MapToDto(request, owner.User?.FullName, bank);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         /// <summary>Owner xem danh sách yêu cầu rút tiền của mình.</summary>
@@ -92,50 +100,68 @@ namespace ChargeSlot.Api.Services.Implementation
         /// <summary>Admin duyệt / từ chối.</summary>
         public async Task<PayoutRequestDto> ProcessPayoutAsync(int adminUserId, int requestId, ProcessPayoutDto dto)
         {
-            var request = await _db.PayoutRequests
-                .Include(r => r.Owner).ThenInclude(o => o.User)
-                .Include(r => r.BankAccount)
-                .FirstOrDefaultAsync(r => r.Id == requestId)
-                ?? throw new InvalidOperationException("Yêu cầu rút tiền không tồn tại.");
-
-            if (request.Status != PayoutStatus.Pending)
-                throw new InvalidOperationException("Yêu cầu đã được xử lý trước đó.");
-
-            var wallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == request.OwnerUserId)
-                ?? throw new InvalidOperationException("Ví Owner không tồn tại.");
-
-            if (dto.Approve)
+            // FIX: Transaction bảo vệ approve/reject + wallet update
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
             {
-                wallet.FrozenBalance -= request.Amount;
-                request.Status = PayoutStatus.Processed;
+                var request = await _db.PayoutRequests
+                    .Include(r => r.Owner).ThenInclude(o => o.User)
+                    .Include(r => r.BankAccount)
+                    .FirstOrDefaultAsync(r => r.Id == requestId)
+                    ?? throw new InvalidOperationException("Yêu cầu rút tiền không tồn tại.");
 
-                await _notificationService.SendAsync(
-                    request.OwnerUserId,
-                    "Rút tiền thành công",
-                    $"Yêu cầu rút {request.Amount:N0} VND đã được duyệt." +
-                    (string.IsNullOrEmpty(dto.Note) ? "" : $" Ghi chú: {dto.Note}"),
-                    NotificationType.Payment);
+                if (request.Status != PayoutStatus.Pending)
+                    throw new InvalidOperationException("Yêu cầu đã được xử lý trước đó.");
+
+                var wallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == request.OwnerUserId)
+                    ?? throw new InvalidOperationException("Ví Owner không tồn tại.");
+
+                if (dto.Approve)
+                {
+                    wallet.FrozenBalance -= request.Amount;
+                    request.Status = PayoutStatus.Processed;
+                }
+                else
+                {
+                    wallet.FrozenBalance -= request.Amount;
+                    wallet.AvailableBalance += request.Amount;
+                    request.Status = PayoutStatus.Rejected;
+                }
+
+                request.ProcessedAt = DateTimeHelper.VietnamNow();
+                request.ProcessedByUserId = adminUserId;
+                if (!string.IsNullOrEmpty(dto.Note)) request.Note = dto.Note;
+
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Notifications (ngoài transaction)
+                if (dto.Approve)
+                {
+                    await _notificationService.SendAsync(
+                        request.OwnerUserId,
+                        "Rút tiền thành công",
+                        $"Yêu cầu rút {request.Amount:N0} VND đã được duyệt." +
+                        (string.IsNullOrEmpty(dto.Note) ? "" : $" Ghi chú: {dto.Note}"),
+                        NotificationType.Payment);
+                }
+                else
+                {
+                    await _notificationService.SendAsync(
+                        request.OwnerUserId,
+                        "Yêu cầu rút tiền bị từ chối",
+                        $"Yêu cầu rút {request.Amount:N0} VND bị từ chối. Tiền đã hoàn lại ví." +
+                        (string.IsNullOrEmpty(dto.Note) ? "" : $" Lý do: {dto.Note}"),
+                        NotificationType.System);
+                }
+
+                return MapToDto(request, request.Owner?.User?.FullName, request.BankAccount);
             }
-            else
+            catch
             {
-                wallet.FrozenBalance -= request.Amount;
-                wallet.AvailableBalance += request.Amount;
-                request.Status = PayoutStatus.Rejected;
-
-                await _notificationService.SendAsync(
-                    request.OwnerUserId,
-                    "Yêu cầu rút tiền bị từ chối",
-                    $"Yêu cầu rút {request.Amount:N0} VND bị từ chối. Tiền đã hoàn lại ví." +
-                    (string.IsNullOrEmpty(dto.Note) ? "" : $" Lý do: {dto.Note}"),
-                    NotificationType.System);
+                await transaction.RollbackAsync();
+                throw;
             }
-
-            request.ProcessedAt = DateTimeHelper.VietnamNow();
-            request.ProcessedByUserId = adminUserId;
-            if (!string.IsNullOrEmpty(dto.Note)) request.Note = dto.Note;
-
-            await _db.SaveChangesAsync();
-            return MapToDto(request, request.Owner?.User?.FullName, request.BankAccount);
         }
 
         private static PayoutRequestDto MapToDto(PayoutRequest r, string? ownerName, Models.BankAccount? bank)

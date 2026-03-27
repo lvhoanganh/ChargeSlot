@@ -25,13 +25,13 @@ namespace ChargeSlot.Api.Services.Implementation
         /// <summary>
         /// Tạo URL thanh toán VNPay (Step 17: Create payment request)
         /// </summary>
-        public string CreatePaymentUrl(int bookingId, decimal amount, string orderInfo, HttpContext context)
+        public string CreatePaymentUrl(int bookingId, decimal amount, string orderInfo, HttpContext context, string? returnUrlOverride = null)
         {
             var vnpay = _config.GetSection("VnPay");
             var tmnCode = vnpay["TmnCode"]!;
             var hashSecret = vnpay["HashSecret"]!;
             var paymentUrl = vnpay["PaymentUrl"]!;
-            var returnUrl = vnpay["ReturnUrl"]!;
+            var returnUrl = returnUrlOverride ?? vnpay["ReturnUrl"]!;
             var version = vnpay["Version"] ?? "2.1.0";
             var command = vnpay["Command"] ?? "pay";
             var currCode = vnpay["CurrCode"] ?? "VND";

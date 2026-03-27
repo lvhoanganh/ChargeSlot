@@ -94,74 +94,76 @@ namespace ChargeSlot.Api.Services.Implementation
             if (!int.TryParse(bookingIdStr, out var bookingId))
                 return false;
 
-            var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId);
-            if (booking == null) return false;
-
-            var payment = await _paymentRepo.GetByBookingIdAsync(bookingId);
-            if (payment == null) return false;
-
-            // Đã xử lý rồi
-            if (payment.Status == PaymentStatus.Completed) return true;
-
-            payment.GatewayTxnRef = txnRef;
-
-            if (responseCode == "00") // Thanh toán thành công
+            // FIX: Wrap trong transaction để đảm bảo atomicity
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
             {
-                if (booking.Status == BookingStatus.PendingPayment)
+                var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId);
+                if (booking == null) return false;
+
+                var payment = await _paymentRepo.GetByBookingIdAsync(bookingId);
+                if (payment == null) return false;
+
+                // Idempotency check (bên trong transaction để tránh race condition)
+                if (payment.Status == PaymentStatus.Completed || payment.Status == PaymentStatus.Refunded)
                 {
-                    // ── NORMAL FLOW: Booking vẫn đang chờ thanh toán ──
-                    await CompletePaymentAsync(booking, payment);
+                    await transaction.RollbackAsync();
                     return true;
                 }
-                else if (booking.Status == BookingStatus.Expired)
+
+                payment.GatewayTxnRef = txnRef;
+
+                if (responseCode == "00") // Thanh toán thành công
                 {
-                    // ── RECOVERY FLOW: ExpiryJob đã expire booking trong lúc VNPay xử lý ──
-                    _logger.LogWarning(
-                        "Payment race condition detected: Booking {BookingId} expired but VNPay succeeded. Recovering...",
-                        bookingId);
-
-                    // Check: slot có bị booking khác chiếm chưa?
-                    var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
-                        booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
-
-                    if (!hasConflict)
+                    if (booking.Status == BookingStatus.PendingPayment)
                     {
-                        // Slot vẫn trống → recover booking
                         await CompletePaymentAsync(booking, payment);
+                    }
+                    else if (booking.Status == BookingStatus.Expired)
+                    {
+                        _logger.LogWarning(
+                            "Payment race condition detected: Booking {BookingId} expired but VNPay succeeded. Recovering...",
+                            bookingId);
 
-                        _logger.LogInformation(
-                            "Booking {BookingId} recovered from Expired → Paid successfully.", bookingId);
+                        var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
+                            booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
+
+                        if (!hasConflict)
+                        {
+                            await CompletePaymentAsync(booking, payment);
+                            _logger.LogInformation(
+                                "Booking {BookingId} recovered from Expired → Paid successfully.", bookingId);
+                        }
+                        else
+                        {
+                            await RefundToDriverWalletAsync(booking, payment);
+                            _logger.LogWarning(
+                                "Booking {BookingId} cannot be recovered (slot conflict). Refunded {Amount} to driver wallet.",
+                                bookingId, booking.TotalAmount);
+                        }
                     }
                     else
                     {
-                        // Slot đã bị booking khác chiếm → hoàn tiền vào ví Driver
-                        await RefundToDriverWalletAsync(booking, payment);
-
                         _logger.LogWarning(
-                            "Booking {BookingId} cannot be recovered (slot conflict). Refunded {Amount} to driver wallet.",
-                            bookingId, booking.TotalAmount);
+                            "VNPay callback for booking {BookingId} in unexpected status {Status}. Skipping.",
+                            bookingId, booking.Status);
                     }
 
+                    await transaction.CommitAsync();
                     return true;
                 }
-                else
+                else // Thanh toán thất bại
                 {
-                    // Booking ở trạng thái không mong đợi (Cancelled, Completed...)
-                    _logger.LogWarning(
-                        "VNPay callback for booking {BookingId} in unexpected status {Status}. Skipping.",
-                        bookingId, booking.Status);
-                    return true;
+                    payment.Status = PaymentStatus.Failed;
+                    await _paymentRepo.UpdateAsync(payment);
+                    await transaction.CommitAsync();
+                    return false;
                 }
             }
-            else // Thanh toán thất bại
+            catch
             {
-                payment.Status = PaymentStatus.Failed;
-                await _paymentRepo.UpdateAsync(payment);
-
-                // Không thay đổi booking status ở đây
-                // PaymentExpiryJob sẽ xử lý expire nếu hết hạn
-
-                return false;
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 
