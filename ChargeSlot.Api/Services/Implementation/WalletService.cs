@@ -362,14 +362,27 @@ namespace ChargeSlot.Api.Services.Implementation
             };
             await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
 
+            // Load user name
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+
             await _notificationService.SendAsync(
                 userId,
                 "Yêu cầu rút tiền",
                 $"Yêu cầu rút {dto.Amount:N0} VND → {dto.BankName} ({dto.BankAccountNumber}) đã được gửi. Vui lòng chờ Admin xử lý.",
-                NotificationType.System);
+                NotificationType.Wallet);
+
+            // Notify all Admins về yêu cầu rút tiền mới
+            var adminUsers = await _userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
+            foreach (var admin in adminUsers)
+            {
+                await _notificationService.SendAsync(
+                    admin.Id,
+                    "Yêu cầu rút tiền mới",
+                    $"User {user?.FullName ?? userId.ToString()} yêu cầu rút {dto.Amount:N0} VND → {dto.BankName} ({dto.BankAccountNumber}). Vui lòng xử lý.",
+                    NotificationType.Wallet);
+            }
 
             // Load user name for DTO
-            var user = await _userManager.FindByIdAsync(userId.ToString());
             return MapToWithdrawDto(request, user?.FullName);
         }
 
