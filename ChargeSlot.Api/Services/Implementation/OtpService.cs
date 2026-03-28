@@ -179,7 +179,16 @@ namespace ChargeSlot.Api.Services.Implementation
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                throw new InvalidOperationException($"Lỗi gửi SMS qua SpeedSMS: {errorContent}");
+                throw new InvalidOperationException($"Lỗi kết nối tới SpeedSMS: {errorContent}");
+            }
+
+            // SpeedSMS luôn trả về HTTP 200, kết quả thực sự nằm trong body JSON
+            var result = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+            if (result.TryGetProperty("status", out var statusProp) && statusProp.GetString() == "error")
+            {
+                var code = result.TryGetProperty("code", out var codeProp) ? codeProp.GetInt32().ToString() : "Unknown";
+                var message = result.TryGetProperty("message", out var msgProp) ? msgProp.GetString() : "Unknown error";
+                throw new InvalidOperationException($"Lỗi từ SpeedSMS - Code: {code}, Message: {message}");
             }
         }
     }
