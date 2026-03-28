@@ -9,6 +9,8 @@ using ChargeSlot.Api.Repositories.Implementations;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Implementation;
 using ChargeSlot.Api.Services.Interfaces;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -143,6 +145,22 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserOtpRepository, UserOtpRepository>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ISmsService, EsmsSmsService>();
+
+// Firebase Auth
+var firebaseKeyPath = configuration["Firebase:ServiceAccountKeyPath"] ?? "firebase-service-account.json";
+if (File.Exists(firebaseKeyPath))
+{
+    using var stream = new FileStream(firebaseKeyPath, FileMode.Open, FileAccess.Read);
+    FirebaseApp.Create(new AppOptions()
+    {
+        Credential = GoogleCredential.FromStream(stream)
+    });
+}
+else
+{
+    Console.WriteLine($"[WARNING] Firebase service account key not found at: {firebaseKeyPath}");
+}
+builder.Services.AddScoped<IFirebaseAuthService, FirebaseAuthService>();
 builder.Services.AddScoped<IDriverRepository, DriverRepository>();
 builder.Services.AddScoped<IOwnerRepository, OwnerRepository>();
 builder.Services.AddScoped<IDriverProfileService, DriverProfileService>();

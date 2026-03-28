@@ -57,7 +57,10 @@ namespace ChargeSlot.Api.Controllers
             await _walletService.ProcessTopUpCallbackAsync(Request.Query);
             var responseCode = Request.Query["vnp_ResponseCode"].ToString();
             var success = responseCode == "00";
-            return Ok(new { success, message = success ? "Nạp tiền thành công" : "Nạp tiền thất bại" });
+
+            // Redirect về frontend với kết quả (giống PaymentController)
+            var frontendUrl = $"http://localhost:5173/wallet/top-up/result?success={success}&responseCode={responseCode}";
+            return Redirect(frontendUrl);
         }
 
         /// <summary>

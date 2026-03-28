@@ -12,15 +12,17 @@ namespace ChargeSlot.Api.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
-
         private readonly IOtpService _otpService;
+        private readonly IFirebaseAuthService _firebaseAuthService;
 
         public AuthController(
             IAuthService authService,
-            IOtpService otpService)
+            IOtpService otpService,
+            IFirebaseAuthService firebaseAuthService)
         {
             _authService = authService;
             _otpService = otpService;
+            _firebaseAuthService = firebaseAuthService;
         }
 
 
@@ -44,6 +46,26 @@ namespace ChargeSlot.Api.Controllers
             try
             {
                 var result = await _authService.LoginAsync(dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Đăng nhập/đăng ký bằng Firebase Phone Auth.
+        /// Frontend gửi Firebase ID Token, backend verify và trả về JWT ChargeSlot.
+        /// Nếu user chưa tồn tại sẽ tự động tạo tài khoản.
+        /// </summary>
+        [HttpPost("firebase-login")]
+        public async Task<IActionResult> FirebaseLogin([FromBody] FirebaseLoginDto dto)
+        {
+            try
+            {
+                var result = await _firebaseAuthService.LoginWithFirebaseAsync(
+                    dto.FirebaseIdToken, dto.Role, dto.FullName);
                 return Ok(result);
             }
             catch (Exception ex)

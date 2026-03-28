@@ -23,7 +23,7 @@ namespace ChargeSlot.Api.Services.Implementation
         {
 
             var phone = PhoneNumberHelper.NormalizeAndValidate(phoneNumber);
-            var existing = await _userManager.FindByNameAsync(phoneNumber);
+            var existing = await _userManager.FindByNameAsync(phone);
             if (existing == null)
                 throw new InvalidOperationException("Phone number not exist.");
             // ⏱️ CHẶN SPAM OTP (30s)
@@ -66,7 +66,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
         {
             var phone = PhoneNumberHelper.NormalizeAndValidate(phoneNumber);
-            var existing = await _userManager.FindByNameAsync(phoneNumber);
+            var existing = await _userManager.FindByNameAsync(phone);
             if (existing != null)
                 throw new InvalidOperationException("Phone number already registered.");
             
