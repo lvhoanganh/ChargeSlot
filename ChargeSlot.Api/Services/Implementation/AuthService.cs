@@ -25,7 +25,6 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IConfiguration _config;
         private readonly IUserOtpRepository _otpRepository;
-        private readonly IFirebaseAuthService _firebaseAuthService;
         private readonly ChargeSlotDbContext _context;
 
         public AuthService(
@@ -34,7 +33,6 @@ namespace ChargeSlot.Api.Services.Implementation
             SignInManager<ApplicationUser> signInManager,
             IConfiguration config,
             IUserOtpRepository otpRepository,
-            IFirebaseAuthService firebaseAuthService,
             ChargeSlotDbContext context)
         {
             _userManager = userManager;
@@ -42,7 +40,6 @@ namespace ChargeSlot.Api.Services.Implementation
             _signInManager = signInManager;
             _config = config;
             _otpRepository = otpRepository;
-            _firebaseAuthService = firebaseAuthService;
             _context = context;
         }
 
@@ -50,12 +47,15 @@ namespace ChargeSlot.Api.Services.Implementation
         public async Task RegisterAsync(RegisterDto dto)
         {
             var phone = NormalizePhone(dto.PhoneNumber);
+            var canRegister = await _otpRepository.HasRecentlyVerifiedOtpAsync(
+                phone,
+                OtpPurpose.Register,
+                TimeSpan.FromMinutes(5)
+            );
 
-            // Verify Firebase token → confirm SĐT đã được xác thực qua OTP
-            var verifiedPhone = await _firebaseAuthService.VerifyTokenAndGetPhoneAsync(dto.FirebaseIdToken);
-            if (verifiedPhone != phone)
+            if (!canRegister)
                 throw new InvalidOperationException(
-                    "SĐT trong Firebase token không khớp với SĐT đăng ký."
+                    "OTP verification required before registration."
                 );
 
             var existing = await _userManager.FindByNameAsync(phone);
@@ -278,15 +278,19 @@ namespace ChargeSlot.Api.Services.Implementation
             return PhoneNumberHelper.NormalizeAndValidate(phone);
         }
 
-        public async Task ResetPasswordAsync(string phoneNumber, string newPassword, string firebaseIdToken)
+        public async Task ResetPasswordAsync(string phoneNumber, string newPassword)
         {
             var phone = NormalizePhone(phoneNumber);
 
-            // Verify Firebase token → confirm SĐT đã được xác thực qua OTP
-            var verifiedPhone = await _firebaseAuthService.VerifyTokenAndGetPhoneAsync(firebaseIdToken);
-            if (verifiedPhone != phone)
+            var canReset = await _otpRepository.HasRecentlyVerifiedOtpAsync(
+                phone,
+                OtpPurpose.ResetPassword,
+                TimeSpan.FromMinutes(5)
+            );
+
+            if (!canReset)
                 throw new InvalidOperationException(
-                    "SĐT trong Firebase token không khớp."
+                    "OTP verification required before resetting password."
                 );
 
             var user = await _userManager.FindByNameAsync(phone);

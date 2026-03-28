@@ -8,7 +8,7 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<AuthResponseDto> LoginAsync(LoginDto dto);
         Task<AuthResponseDto> RefreshTokenAsync(string refreshToken);
         Task RevokeTokenAsync(string refreshToken, int userId);
-        Task ResetPasswordAsync(string phoneNumber, string newPassword, string firebaseIdToken);
+        Task ResetPasswordAsync(string phoneNumber, string newPassword);
         Task ChangePasswordAsync(int userId, string currentPassword, string newPassword);
     }
 }
