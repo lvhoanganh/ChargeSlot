@@ -12,12 +12,10 @@ namespace ChargeSlot.Api.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
-        private readonly IOtpService _otpService;
 
-        public AuthController(IAuthService authService, IOtpService otpService)
+        public AuthController(IAuthService authService)
         {
             _authService = authService;
-            _otpService = otpService;
         }
 
         [HttpPost("register")]
@@ -87,7 +85,8 @@ namespace ChargeSlot.Api.Controllers
             {
                 await _authService.ResetPasswordAsync(
                     dto.PhoneNumber,
-                    dto.NewPassword
+                    dto.NewPassword,
+                    dto.FirebaseIdToken
                 );
 
                 return Ok(new { message = "Password reset successful" });
@@ -97,79 +96,6 @@ namespace ChargeSlot.Api.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
-
-        [HttpPost("register/send-otp")]
-        public async Task<IActionResult> SendOtp([FromBody] SendOtpDto dto)
-        {
-            try
-            {
-                await _otpService.SendOtpRegister(
-                    dto.PhoneNumber,
-                    OtpPurpose.Register
-                );
-                return Ok(new { message = "OTP sent" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        [HttpPost("register/verify-otp")]
-        public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpDto dto)
-        {
-            try
-            {
-                await _otpService.VerifyOtpAsync(
-                    dto.PhoneNumber,
-                    dto.Otp,
-                    OtpPurpose.Register
-                   );
-                return Ok(new { message = "OTP verified" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        [HttpPost("forgot-password/send-otp")]
-        public async Task<IActionResult> SendOtpForReset([FromBody] SendOtpDto dto)
-        {
-            try
-            {
-                await _otpService.SendOtpAsync(
-                    dto.PhoneNumber,
-                    OtpPurpose.ResetPassword
-                );
-
-                return Ok(new { message = "OTP sent for reset password" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        [HttpPost("forgot-password/verify-otp")]
-        public async Task<IActionResult> VerifyOtpForReset([FromBody] VerifyOtpDto dto)
-        {
-            try
-            {
-                await _otpService.VerifyOtpAsync(
-                    dto.PhoneNumber,
-                    dto.Otp,
-                    OtpPurpose.ResetPassword
-                );
-
-                return Ok(new { message = "OTP verified for reset password" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
 
         /// <summary>Đổi mật khẩu (cần đăng nhập, nhập mật khẩu cũ).</summary>
         [Authorize]
