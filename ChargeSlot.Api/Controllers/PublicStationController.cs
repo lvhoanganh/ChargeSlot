@@ -24,13 +24,20 @@ namespace ChargeSlot.Api.Controllers
 
         /// <summary>
         /// List trạm Approved + Active cho Driver tìm kiếm.
-        /// Filter: keyword, minRating. Sort: name (default), rating, reviews.
+        /// Filter: keyword, minRating, lat/lng/radiusKm (tìm gần).
+        /// Sort: name (default), rating, reviews, distance (cần truyền lat/lng).
+        /// Pagination: page, pageSize.
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] string? keyword = null,
             [FromQuery] decimal? minRating = null,
-            [FromQuery] string? sortBy = null)
+            [FromQuery] double? lat = null,
+            [FromQuery] double? lng = null,
+            [FromQuery] double radiusKm = 50,
+            [FromQuery] string? sortBy = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var query = _db.ChargingStations
                 .Include(s => s.Images)
@@ -54,16 +61,107 @@ namespace ChargeSlot.Api.Controllers
                 query = query.Where(s => s.AverageRating >= minRating.Value);
             }
 
-            // Sort
-            query = sortBy?.ToLower() switch
+            var stations = await query.ToListAsync();
+
+            // Location-based filter + distance calculation
+            List<(ChargingStation station, double? distanceKm)> stationsWithDistance;
+            if (lat.HasValue && lng.HasValue)
             {
-                "rating" => query.OrderByDescending(s => s.AverageRating).ThenByDescending(s => s.TotalReviews),
-                "reviews" => query.OrderByDescending(s => s.TotalReviews).ThenByDescending(s => s.AverageRating),
-                _ => query.OrderBy(s => s.Name)
+                stationsWithDistance = stations
+                    .Where(s => s.Latitude.HasValue && s.Longitude.HasValue)
+                    .Select(s => (station: s, distanceKm: (double?)HaversineKm(lat.Value, lng.Value, (double)s.Latitude!.Value, (double)s.Longitude!.Value)))
+                    .Where(x => x.distanceKm <= radiusKm)
+                    .ToList();
+
+                // Thêm lại các trạm chưa có tọa độ (hiển thị cuối, distance = null)
+                var noCoordStations = stations
+                    .Where(s => !s.Latitude.HasValue || !s.Longitude.HasValue)
+                    .Select(s => (station: s, distanceKm: (double?)null));
+                stationsWithDistance.AddRange(noCoordStations);
+            }
+            else
+            {
+                stationsWithDistance = stations.Select(s => (station: s, distanceKm: (double?)null)).ToList();
+            }
+
+            // Sort
+            stationsWithDistance = sortBy?.ToLower() switch
+            {
+                "distance" when lat.HasValue && lng.HasValue =>
+                    stationsWithDistance.OrderBy(x => x.distanceKm ?? double.MaxValue).ToList(),
+                "rating" =>
+                    stationsWithDistance.OrderByDescending(x => x.station.AverageRating)
+                        .ThenByDescending(x => x.station.TotalReviews).ToList(),
+                "reviews" =>
+                    stationsWithDistance.OrderByDescending(x => x.station.TotalReviews)
+                        .ThenByDescending(x => x.station.AverageRating).ToList(),
+                _ when lat.HasValue && lng.HasValue =>
+                    stationsWithDistance.OrderBy(x => x.distanceKm ?? double.MaxValue).ToList(),
+                _ =>
+                    stationsWithDistance.OrderBy(x => x.station.Name).ToList()
             };
 
-            var stations = await query.ToListAsync();
-            return Ok(stations.Select(MapToPublicDto));
+            // Pagination
+            var total = stationsWithDistance.Count;
+            var items = stationsWithDistance
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(x =>
+                {
+                    var dto = MapToPublicDto(x.station);
+                    dto.DistanceKm = x.distanceKm.HasValue ? Math.Round(x.distanceKm.Value, 2) : null;
+                    return dto;
+                })
+                .ToList();
+
+            return Ok(new { total, page, pageSize, items });
+        }
+
+        /// <summary>
+        /// Tìm trạm gần nhất (shortcut cho FE map view).
+        /// Trả top N trạm gần nhất theo tọa độ.
+        /// </summary>
+        [HttpGet("nearby")]
+        public async Task<IActionResult> GetNearby(
+            [FromQuery] double lat,
+            [FromQuery] double lng,
+            [FromQuery] double radiusKm = 10,
+            [FromQuery] int top = 10)
+        {
+            var stations = await _db.ChargingStations
+                .Include(s => s.Images)
+                .Include(s => s.ChargingSlots)
+                .Where(s => s.ApprovalStatus == ApprovalStatus.Approved
+                    && s.OperationalStatus == OperationalStatus.Active
+                    && s.Latitude.HasValue && s.Longitude.HasValue)
+                .ToListAsync();
+
+            var nearby = stations
+                .Select(s => new
+                {
+                    Station = s,
+                    DistanceKm = HaversineKm(lat, lng, (double)s.Latitude!.Value, (double)s.Longitude!.Value)
+                })
+                .Where(x => x.DistanceKm <= radiusKm)
+                .OrderBy(x => x.DistanceKm)
+                .Take(top)
+                .Select(x => new
+                {
+                    x.Station.Id,
+                    x.Station.Name,
+                    x.Station.Address,
+                    x.Station.Latitude,
+                    x.Station.Longitude,
+                    DistanceKm = Math.Round(x.DistanceKm, 2),
+                    AvailableSlots = x.Station.ChargingSlots.Count(sl => sl.Status == SlotStatus.Active),
+                    TotalSlots = x.Station.ChargingSlots.Count,
+                    x.Station.AverageRating,
+                    x.Station.TotalReviews,
+                    ThumbnailUrl = x.Station.Images.FirstOrDefault()?.ImageUrl
+                })
+                .ToList();
+
+            return Ok(nearby);
         }
 
         /// <summary>Chi tiết 1 trạm (chỉ trả về nếu Approved + Active).</summary>
@@ -153,5 +251,22 @@ namespace ChargeSlot.Api.Controllers
                 TotalReviews = station.TotalReviews
             };
         }
+
+        /// <summary>
+        /// Haversine formula — tính khoảng cách (km) giữa 2 tọa độ GPS.
+        /// </summary>
+        private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6371; // Bán kính Trái Đất (km)
+            var dLat = ToRad(lat2 - lat1);
+            var dLon = ToRad(lon2 - lon1);
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+                  + Math.Cos(ToRad(lat1)) * Math.Cos(ToRad(lat2))
+                  * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return R * c;
+        }
+
+        private static double ToRad(double deg) => deg * Math.PI / 180;
     }
 }
