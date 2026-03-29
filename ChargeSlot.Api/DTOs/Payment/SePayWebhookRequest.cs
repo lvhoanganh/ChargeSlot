@@ -11,6 +11,7 @@ namespace ChargeSlot.Api.DTOs.Payment
         public decimal amountOut { get; set; }
         public decimal accumulated { get; set; }
         public string? code { get; set; }
+        public string? content { get; set; }
         public string? transactionContent { get; set; }
         public string? referenceCode { get; set; }
         public string? body { get; set; }

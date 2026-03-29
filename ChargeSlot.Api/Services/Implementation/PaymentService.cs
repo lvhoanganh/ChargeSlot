@@ -215,7 +215,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<bool> ProcessSePayWebhookAsync(SePayWebhookRequest request)
         {
-            var content = request.transactionContent.ToUpper();
+            var content = (request.transactionContent ?? request.content ?? request.body ?? "").ToUpper();
             var words = content.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
             
             int bookingId = 0;
