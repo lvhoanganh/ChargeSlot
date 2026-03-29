@@ -42,7 +42,7 @@ export default function MyBookings() {
 
   useEffect(() => {
     bookingApi.getDriverBookings()
-      .then((data) => setBookings(Array.isArray(data) ? data : []))
+      .then((data) => setBookings(Array.isArray(data) ? data : (data?.items ?? [])))
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
   }, []);

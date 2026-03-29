@@ -140,26 +140,36 @@ export default function StationMap() {
     );
   }, []);
 
-  // Fetch stations from API (server-side filter)
-  function fetchStations(kw, rating, sort) {
+  // Fetch stations from API (server-side filter + GPS sort)
+  function fetchStations(kw, rating, sort, pos) {
     setLoading(true);
-    publicStationApi.getAll({ keyword: kw || undefined, minRating: rating || undefined, sortBy: sort || undefined })
+    const opts = { keyword: kw || undefined, minRating: rating || undefined, sortBy: sort || undefined };
+    if (pos) {
+      opts.lat = pos[0];
+      opts.lng = pos[1];
+      opts.radiusKm = maxRadius;
+      if (!sort) opts.sortBy = "distance";
+    }
+    publicStationApi.getAll(opts)
       .then((data) => {
-        setStations(Array.isArray(data) ? data : []);
+        // Response: { total, page, pageSize, items } OR legacy array
+        const list = Array.isArray(data) ? data : (data?.items ?? []);
+        setStations(list);
         setError(null);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { fetchStations(search, minRating, sortBy); }, [minRating, sortBy]);
+  useEffect(() => { fetchStations(search, minRating, sortBy, nearbyMode ? userPos : null); }, [minRating, sortBy, nearbyMode, maxRadius]);
 
   // Debounced search
   useEffect(() => {
     clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => fetchStations(search, minRating, sortBy), 400);
+    searchTimer.current = setTimeout(() => fetchStations(search, minRating, sortBy, nearbyMode ? userPos : null), 400);
     return () => clearTimeout(searchTimer.current);
   }, [search]);
+
 
   // Load favorites
   useEffect(() => {

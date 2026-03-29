@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { bookingApi, paymentApi, walletApi, disputeApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
@@ -40,6 +40,9 @@ export default function BookingStatus() {
   const [cancelReason, setCancelReason] = useState("");
   const [sepayOpen, setSepayOpen] = useState(false);
   const [sepayUrl, setSepayUrl] = useState("");
+  const [walletReceivedAlert, setWalletReceivedAlert] = useState(false);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false); // Full-screen success overlay
+  const initialWalletBalanceRef = useRef(0);
 
   function fetchBooking() {
     bookingApi.getById(Number(id))
@@ -56,13 +59,31 @@ export default function BookingStatus() {
 
   useEffect(() => {
     if (!sepayOpen) return;
+    // Ghi nhớ số dư ví ban đầu để so sánh
+    walletApi.getWallet()
+      .then((w) => { initialWalletBalanceRef.current = w?.availableBalance || 0; })
+      .catch(() => { });
+
     const timer = setInterval(() => {
+      // Kiểm tra trạng thái booking
       bookingApi.getById(Number(id))
         .then((data) => {
           setBooking(data);
           if (data && data.status === "Paid") {
             setSepayOpen(false);
-            showToast.success("🎉 Thanh toán thành công!");
+            setShowPaymentSuccess(true); // Hiện overlay thay vì toast nhỏ
+          }
+        })
+        .catch(() => { });
+
+      // Kiểm tra số dư ví — nếu tăng nhưng booking vẫn PendingPayment có nghĩa tiền vào ví
+      walletApi.getWallet()
+        .then((w) => {
+          const currentBalance = w?.availableBalance || 0;
+          if (currentBalance > initialWalletBalanceRef.current) {
+            setSepayOpen(false);
+            setWalletReceivedAlert(true);
+            showToast.error("⚠️ Tiền đã vào ví! Kiểm tra lưu ý bên dưới.");
           }
         })
         .catch(() => { });
@@ -72,6 +93,7 @@ export default function BookingStatus() {
 
   async function handlePaySepay() {
     setPayLoading(true);
+    setWalletReceivedAlert(false); // Reset alert khi thử lại
     try {
       const res = await paymentApi.createSepayUrl(Number(id));
       if (res.qrUrl) {
@@ -139,6 +161,104 @@ export default function BookingStatus() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 84 }}>
+
+      {/* ======= PAYMENT SUCCESS OVERLAY ======= */}
+      {showPaymentSuccess && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(0,0,0,0.55)",
+          backdropFilter: "blur(6px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 24,
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 28,
+            padding: "48px 36px", maxWidth: 420, width: "100%",
+            textAlign: "center",
+            boxShadow: "0 24px 64px rgba(0,0,0,0.25)",
+            animation: "popIn 0.35s cubic-bezier(0.34,1.56,0.64,1)",
+          }}>
+            {/* Icon vòng tròn xanh + check */}
+            <div style={{
+              width: 96, height: 96, borderRadius: "50%",
+              background: "linear-gradient(135deg, #22c55e, #16a34a)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 24px",
+              boxShadow: "0 8px 32px rgba(34,197,94,0.4)",
+              animation: "scaleIn 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.1s both",
+            }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </div>
+
+            <h2 style={{ fontSize: 26, fontWeight: 900, color: "#15803d", margin: "0 0 8px" }}>
+              Thanh toán thành công!
+            </h2>
+            <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 8px" }}>
+              Hệ thống đã nhận tiền và xác nhận booking.
+            </p>
+
+            {/* Số tiền */}
+            {booking?.totalAmount && (
+              <div style={{
+                background: "linear-gradient(135deg, #f0fdf4, #dcfce7)",
+                borderRadius: 16, padding: "16px 24px", margin: "20px 0",
+                border: "1.5px solid #86efac",
+              }}>
+                <div style={{ fontSize: 13, color: "#166534", fontWeight: 600, marginBottom: 4 }}>Số tiền đã thanh toán</div>
+                <div style={{ fontSize: 32, fontWeight: 900, color: "#15803d" }}>
+                  {booking.totalAmount.toLocaleString("vi-VN")}đ
+                </div>
+              </div>
+            )}
+
+            {/* Thông tin booking */}
+            {booking?.stationName && (
+              <div style={{ fontSize: 13, color: "#475569", marginBottom: 24, lineHeight: 1.6 }}>
+                <div>🏠 <strong>{booking.stationName}</strong></div>
+                {booking.slotName && <div>⚡ Slot: {booking.slotName}</div>}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                onClick={() => { setShowPaymentSuccess(false); navigate("/driver/my-bookings"); }}
+                style={{
+                  width: "100%", padding: "14px 0", borderRadius: 14, border: "none",
+                  background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                  color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer",
+                  boxShadow: "0 4px 14px rgba(34,197,94,0.35)",
+                }}
+              >
+                📋 Xem danh sách booking
+              </button>
+              <button
+                onClick={() => setShowPaymentSuccess(false)}
+                style={{
+                  width: "100%", padding: "12px 0", borderRadius: 14,
+                  border: "1.5px solid #e2e8f0", background: "#f8fafc",
+                  color: "#64748b", fontWeight: 600, fontSize: 14, cursor: "pointer",
+                }}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+          <style>{`
+            @keyframes popIn {
+              from { opacity: 0; transform: scale(0.85) translateY(20px); }
+              to   { opacity: 1; transform: scale(1) translateY(0); }
+            }
+            @keyframes scaleIn {
+              from { transform: scale(0); }
+              to   { transform: scale(1); }
+            }
+          `}</style>
+        </div>
+      )}
+      {/* ======================================= */}
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px 40px" }}>
 
         {/* Back button */}
@@ -245,6 +365,33 @@ export default function BookingStatus() {
                 <span style={{ fontWeight: 800, color: "#7c3aed", fontSize: 15 }}>
                   {(booking.serviceAmount || booking.extraServices.reduce((s, e) => s + (e.totalPrice || 0), 0)).toLocaleString("vi-VN")}đ
                 </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Wallet Received Alert — tiền vào ví thay vì xác nhận booking */}
+        {walletReceivedAlert && booking.status === "PendingPayment" && (
+          <div style={{
+            background: "linear-gradient(135deg, #fffbeb, #fef3c7)",
+            border: "2px solid #f59e0b",
+            borderRadius: 16,
+            padding: "16px 20px",
+            marginBottom: 16,
+          }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <span style={{ fontSize: 24, flexShrink: 0 }}>💰</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#92400e", marginBottom: 6 }}>
+                  Tiền đã vào ví ChargeSlot của bạn!
+                </div>
+                <div style={{ fontSize: 12, color: "#92400e", lineHeight: 1.6 }}>
+                  Hệ thống nhận được chuyển khoản nhưng <strong>không khớp với booking này</strong>
+                  (sai số tiền hoặc sai nội dung). Tiền đã được bảo toàn trong ví của bạn.
+                </div>
+                <div style={{ fontSize: 12, color: "#92400e", marginTop: 6 }}>
+                  Ồ <strong>Thanh toán bằng ví:</strong> Bấm nút "Thanh toán bằng ví" bên dưới để dùng số tiền trong ví đã nạp xác nhận booking ngay.
+                </div>
               </div>
             </div>
           </div>
@@ -403,6 +550,7 @@ export default function BookingStatus() {
         qrUrl={sepayUrl}
         title="Thanh toán VietQR"
         amount={booking.totalAmount}
+        isBookingPayment={true}
       />
     </div>
   );

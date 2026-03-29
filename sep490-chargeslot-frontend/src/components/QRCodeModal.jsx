@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-export default function QRCodeModal({ isOpen, onClose, qrUrl, title, description, amount }) {
+export default function QRCodeModal({ isOpen, onClose, qrUrl, title, description, amount, isBookingPayment = false }) {
   // Hủy cuộc gọi khi press Escape
   useEffect(() => {
     const handleEsc = (e) => {
@@ -31,9 +31,33 @@ export default function QRCodeModal({ isOpen, onClose, qrUrl, title, description
         {/* Body */}
         <div className="p-6 text-center">
           {description && (
-            <p className="text-sm text-gray-600 mb-6 bg-orange-50 text-orange-700 px-4 py-2 rounded-lg font-medium">
+            <p className="text-sm text-gray-600 mb-4 bg-orange-50 text-orange-700 px-4 py-2 rounded-lg font-medium">
               {description}
             </p>
+          )}
+
+          {/* ⚠️ Critical warning for booking payments */}
+          {isBookingPayment && (
+            <div style={{
+              background: "linear-gradient(135deg, #fef2f2, #fee2e2)",
+              border: "1.5px solid #fca5a5",
+              borderRadius: 12,
+              padding: "10px 14px",
+              marginBottom: 16,
+              textAlign: "left",
+            }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+                <div style={{ fontSize: 12, color: "#991b1b", lineHeight: 1.5 }}>
+                  <strong>Lưu ý quan trọng:</strong>
+                  <ul style={{ margin: "4px 0 0 0", paddingLeft: 16 }}>
+                    <li>Chuyển <strong>đúng số tiền</strong> hiển thị bên dưới — không thêm/bớt.</li>
+                    <li><strong>Không sửa nội dung</strong> chuyển khoản (đã được điền sẵn trong mã QR).</li>
+                    <li>Nếu chuyển sai, tiền sẽ vào <strong>ví ChargeSlot</strong> của bạn, booking chưa được xác nhận.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           )}
           
           <div className="bg-white p-4 rounded-xl border-2 border-dashed border-gray-200 mx-auto max-w-[260px] aspect-square relative flex items-center justify-center mb-4 shadow-sm group">

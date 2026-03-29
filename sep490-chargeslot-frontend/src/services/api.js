@@ -295,19 +295,33 @@ export const stationPricingApi = {
 // ============================
 
 export const publicStationApi = {
-    getAll: ({ keyword, minRating, sortBy } = {}) => {
+    /**
+     * Tìm trạm có phân trang + GPS
+     * Response: { total, page, pageSize, items }
+     */
+    getAll: ({ keyword, minRating, sortBy, lat, lng, radiusKm, page = 1, pageSize = 20 } = {}) => {
         const params = new URLSearchParams();
-        if (keyword) params.set("keyword", keyword);
+        if (keyword)   params.set("keyword", keyword);
         if (minRating) params.set("minRating", String(minRating));
-        if (sortBy) params.set("sortBy", sortBy);
-        const qs = params.toString();
-        return apiFetch(`/public/stations${qs ? `?${qs}` : ""}`);
+        if (sortBy)    params.set("sortBy", sortBy);
+        if (lat != null) params.set("lat", String(lat));
+        if (lng != null) params.set("lng", String(lng));
+        if (radiusKm)  params.set("radiusKm", String(radiusKm));
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
+        return apiFetch(`/public/stations?${params.toString()}`);
     },
+
     getById: (id) => apiFetch(`/public/stations/${id}`),
 
-    getNearby: (lat, lng, radiusKm = 5) =>
-        apiFetch(`/public/stations/nearby?lat=${lat}&lng=${lng}&radiusKm=${radiusKm}`),
+    /**
+     * Nearby — gọn cho Map View
+     * Response: array (không phân trang)
+     */
+    getNearby: (lat, lng, radiusKm = 5, top = 20) =>
+        apiFetch(`/public/stations/nearby?lat=${lat}&lng=${lng}&radiusKm=${radiusKm}&top=${top}`),
 };
+
 
 // ============================
 // BOOKING
@@ -320,12 +334,24 @@ export const bookingApi = {
             body: JSON.stringify(data),
         }),
 
-    getDriverBookings: (status) => {
-        const qs = status ? `?status=${status}` : "";
-        return apiFetch(`/Booking/driver${qs}`);
+    /**
+     * Danh sách booking driver (có phân trang)
+     * Response: { total, page, pageSize, items }
+     */
+    getDriverBookings: (status, page = 1, pageSize = 50) => {
+        const params = new URLSearchParams();
+        if (status) params.set("status", status);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
+        return apiFetch(`/Booking/driver?${params.toString()}`);
     },
 
-    getDriverHistory: () => apiFetch("/Booking/driver/history"),
+    /**
+     * Lịch sử booking (có phân trang)
+     * Response: { total, page, pageSize, items }
+     */
+    getDriverHistory: (page = 1, pageSize = 50) =>
+        apiFetch(`/Booking/driver/history?page=${page}&pageSize=${pageSize}`),
 
     getOwnerBookings: () => apiFetch("/Booking/owner"),
 
@@ -351,7 +377,21 @@ export const bookingApi = {
             method: "PUT",
             body: JSON.stringify({ cancelReason }),
         }),
+
+    /** Lấy thông tin phí hủy trước khi xác nhận hủy (Driver) */
+    cancelPreview: (id) => apiFetch(`/Booking/${id}/cancel-preview`),
+
+    /**
+     * Lấy lịch đặt chỗ của một slot theo ngày
+     * GET /api/Booking/slot/{slotId}/schedule?date=YYYY-MM-DD
+     * Không truyền date → mặc định hôm nay
+     */
+    getSlotSchedule: (slotId, date) => {
+        const qs = date ? `?date=${date}` : "";
+        return apiFetch(`/Booking/slot/${slotId}/schedule${qs}`);
+    },
 };
+
 
 // ============================
 // PAYMENT
@@ -361,14 +401,19 @@ export const paymentApi = {
     createPaymentUrl: (bookingId) =>
         apiFetch(`/Payment/${bookingId}/create-payment-url`, { method: "POST" }),
 
-    /** Thanh toán chuyển khoản (SePay) */
+    /**
+     * Thanh toán SePay VietQR
+     * POST /api/Payment/sepay/{bookingId}
+     * Response: { qrUrl, bookingId, amount, description }
+     */
     createSepayUrl: (bookingId) =>
-        apiFetch(`/Payment/${bookingId}/sepay-qr`, { method: "GET" }),
+        apiFetch(`/Payment/sepay/${bookingId}`, { method: "POST" }),
 
     /** Thanh toán bằng ví */
     payWithWallet: (bookingId) =>
         apiFetch(`/Payment/pay-wallet?bookingId=${bookingId}`, { method: "POST" }),
 };
+
 
 // ============================
 // CHARGING SESSION

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { publicStationApi, bookingApi, slotApi, loyaltyApi } from "@/services/api";
+import { publicStationApi, bookingApi, loyaltyApi } from "@/services/api";
 
 export default function BookingForm() {
   const { stationId } = useParams();
@@ -17,6 +17,10 @@ export default function BookingForm() {
   const [selectedExtras, setSelectedExtras] = useState({});
   const [loyaltyInfo, setLoyaltyInfo] = useState(null);
   const [pointsToUse, setPointsToUse] = useState(0);
+  // Time picker — ngày + giờ tự do
+  const [selectedDate, setSelectedDate] = useState("");
+  const [startHHMM, setStartHHMM] = useState(""); // "08:30"
+  const [endHHMM, setEndHHMM] = useState("");     // "10:00"
 
   useEffect(() => {
     publicStationApi.getById(Number(stationId))
@@ -25,21 +29,64 @@ export default function BookingForm() {
       .finally(() => setLoading(false));
   }, [stationId]);
 
-  // Fetch loyalty info
   useEffect(() => {
     loyaltyApi.getInfo()
       .then(setLoyaltyInfo)
       .catch(() => setLoyaltyInfo(null));
   }, []);
 
-  // Fetch booked ranges khi chọn slot hoặc đổi ngày
+  // Fetch lịch đã đặt của slot — gọi đúng endpoint BE
+  // BE: GET /api/stations/{stationId}/slots/{slotId}/availability?date=YYYY-MM-DD
+  // Response: { slotId, slotName, status, bookedRanges: [{startTime, endTime, status}], nextAvailableAt }
   useEffect(() => {
     if (!selectedSlot || !stationId) { setBookedRanges([]); return; }
-    const dateStr = startTime ? new Date(startTime).toISOString().slice(0, 10) : undefined;
-    slotApi.getAvailability(Number(stationId), selectedSlot, dateStr)
-      .then(data => setBookedRanges(data.bookedRanges || []))
+    const base = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
+    const token = localStorage.getItem("accessToken");
+    const dateParam = selectedDate ? `?date=${selectedDate}` : "";
+    fetch(`${base}/stations/${stationId}/slots/${selectedSlot}/availability${dateParam}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const list = Array.isArray(data?.bookedRanges) ? data.bookedRanges : [];
+        setBookedRanges(list);
+      })
       .catch(() => setBookedRanges([]));
-  }, [selectedSlot, stationId, startTime ? startTime.slice(0, 10) : ""]);
+  }, [selectedSlot, stationId, selectedDate]);
+
+
+  // Default: ngày hôm nay + giờ hiện tại + làm tròn lên 30 phút
+  useEffect(() => {
+    const now = new Date();
+    now.setSeconds(0, 0);
+    now.setMinutes(now.getMinutes() < 30 ? 30 : 0);
+    if (now.getMinutes() === 0) now.setHours(now.getHours() + 1);
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    setSelectedDate(`${yyyy}-${mm}-${dd}`);
+    const hh = String(now.getHours()).padStart(2, "0");
+    const min = String(now.getMinutes()).padStart(2, "0");
+    setStartHHMM(`${hh}:${min}`);
+    const end = new Date(now.getTime() + 3600000);
+    setEndHHMM(`${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`);
+  }, []);
+
+  // Sync selectedDate + startHHMM → startTime
+  useEffect(() => {
+    if (!selectedDate || !startHHMM) return;
+    setStartTime(`${selectedDate}T${startHHMM}`);
+  }, [selectedDate, startHHMM]);
+
+  // Tính duration tự động từ startHHMM đến endHHMM
+  useEffect(() => {
+    if (!startHHMM || !endHHMM) return;
+    const [sh, sm] = startHHMM.split(":").map(Number);
+    const [eh, em] = endHHMM.split(":").map(Number);
+    let diffMin = (eh * 60 + em) - (sh * 60 + sm);
+    if (diffMin <= 0) diffMin += 24 * 60; // qua đêm
+    setDuration(parseFloat((diffMin / 60).toFixed(2)));
+  }, [startHHMM, endHHMM]);
 
   // Tính tổng tiền giống logic BE: CalculateTotalPrice — chia booking theo từng khung giá
   const calculateChargingAmount = () => {
@@ -94,27 +141,20 @@ export default function BookingForm() {
         nextDay.setDate(nextDay.getDate() + 1);
         const segmentEnd = endObj < nextDay ? endObj : nextDay;
         const hours = (segmentEnd - current) / 3600000;
-        if (hours > 0) {
-          total += hours * (tier.pricePerHour || 0);
-        }
+        if (hours > 0) total += hours * (tier.pricePerHour || 0);
         current = segmentEnd;
         continue;
       }
 
       const segmentEnd = endObj < tierEndDate ? endObj : tierEndDate;
       const hours = (segmentEnd - current) / 3600000;
-
-      if (hours > 0) {
-        total += hours * (tier.pricePerHour || 0);
-      }
-
+      if (hours > 0) total += hours * (tier.pricePerHour || 0);
       current = segmentEnd;
     }
 
     return Math.round(total);
   };
 
-  // Tính tiền dịch vụ bổ sung
   const calculateServiceAmount = () => {
     if (!station) return 0;
     const extras = station.extraServices || [];
@@ -129,7 +169,6 @@ export default function BookingForm() {
 
   const calculateTotalAmount = () => calculateChargingAmount() + calculateServiceAmount();
 
-  // Max points the driver can use
   const maxPoints = (() => {
     if (!loyaltyInfo) return 0;
     const total = calculateTotalAmount();
@@ -139,7 +178,6 @@ export default function BookingForm() {
 
   const finalAmount = Math.max(0, calculateTotalAmount() - pointsToUse);
 
-  // Helper: thay đổi số lượng dịch vụ
   const updateExtraQty = (serviceId, delta) => {
     setSelectedExtras(prev => {
       const current = prev[serviceId] || 0;
@@ -154,16 +192,7 @@ export default function BookingForm() {
     });
   };
 
-  // Default start time to nearest future hour
-  useEffect(() => {
-    const now = new Date();
-    now.setMinutes(0, 0, 0);
-    now.setHours(now.getHours() + 1);
-    const iso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    setStartTime(iso);
-  }, []);
-
-  // Realtime validation: kiểm tra giờ có nằm trong khung giá không
+  // Realtime validation
   const timeError = (() => {
     if (!station || !startTime) return "";
     const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
@@ -179,6 +208,15 @@ export default function BookingForm() {
     const minTier = Math.min(...tierStarts);
     const maxTier = Math.max(...tierEnds);
     const fmtMin = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+    // Validate endHHMM > startHHMM
+    if (startHHMM && endHHMM) {
+      const [sh, sm] = startHHMM.split(":").map(Number);
+      const [eh, em] = endHHMM.split(":").map(Number);
+      if ((eh * 60 + em) <= (sh * 60 + sm)) {
+        return "⚠️ Giờ kết thúc phải sau giờ bắt đầu";
+      }
+    }
 
     const startObj = new Date(startTime);
     const endObj = new Date(startObj.getTime() + duration * 3600000);
@@ -198,12 +236,21 @@ export default function BookingForm() {
     e.preventDefault();
     if (!selectedSlot) return setApiError("Vui lòng chọn slot sạc");
     if (!startTime) return setApiError("Vui lòng chọn thời gian bắt đầu");
+    if (!endHHMM) return setApiError("Vui lòng chọn giờ kết thúc");
 
-    // Lấy thông tin ngày giờ
+    // BE rule: DurationHours > 0 and ≤ 24
+    if (duration <= 0) return setApiError("Thời lượng phải lớn hơn 0");
+    if (duration > 24) return setApiError("⚠️ Tối đa 24 giờ mỗi lần đặt (backend giới hạn)");
+
+    // BE rule: StartTime phải cách hiện tại ≥ 30 phút
+    const startObj30 = new Date(startTime);
+    const nowPlus30 = new Date(Date.now() + 30 * 60 * 1000);
+    if (startObj30 < nowPlus30) return setApiError("⚠️ Giờ bắt đầu phải cách hiện tại ít nhất 30 phút");
+
+
     const startObj = new Date(startTime);
     const endObj = new Date(startObj.getTime() + duration * 3600000);
 
-    // Kiểm tra giờ trong khung giá
     const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
     if (tiers.length > 0) {
       const toMin = (str) => {
@@ -211,53 +258,35 @@ export default function BookingForm() {
         const [h, m] = String(str).split(':');
         return parseInt(h) * 60 + parseInt(m);
       };
-      const tierStarts = tiers.map(t => toMin(t.startTime));
-      const tierEnds = tiers.map(t => toMin(t.endTime));
-      const minTier = Math.min(...tierStarts);
-      const maxTier = Math.max(...tierEnds);
-
+      const minTier = Math.min(...tiers.map(t => toMin(t.startTime)));
+      const maxTier = Math.max(...tiers.map(t => toMin(t.endTime)));
+      const fmtMin = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
       const bookStartMin = startObj.getHours() * 60 + startObj.getMinutes();
       const bookEndMin = endObj.getHours() * 60 + endObj.getMinutes() + (endObj.getDate() !== startObj.getDate() ? 24 * 60 : 0);
-
-      const fmtMin = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
       if (bookStartMin < minTier || bookStartMin >= maxTier) {
         return setApiError(`Giờ bắt đầu phải nằm trong khung ${fmtMin(minTier)} – ${fmtMin(maxTier)}!`);
       }
       if (bookEndMin > maxTier && maxTier !== 0) {
-        return setApiError(`Giờ kết thúc (${fmtMin(bookEndMin > 24 * 60 ? bookEndMin - 24 * 60 : bookEndMin)}) vượt quá khung giá (${fmtMin(maxTier)}). Vui lòng giảm thời lượng!`);
+        return setApiError(`Giờ kết thúc vượt quá khung giá (${fmtMin(maxTier)}). Vui lòng điều chỉnh giờ kết thúc!`);
       }
     }
 
-    // Kiểm tra giờ hoạt động của trạm
     const dayOfWeek = startObj.getDay();
     const opHours = station.operatingHours?.find(h => h.dayOfWeek === dayOfWeek);
-
     if (opHours) {
-      if (opHours.isClosed) {
-        return setApiError("Trạm sạc đóng cửa vào ngày bạn chọn!");
-      }
-
+      if (opHours.isClosed) return setApiError("Trạm sạc đóng cửa vào ngày bạn chọn!");
       const timeToStrMin = (tStr) => {
         if (!tStr) return 0;
         const [h, m] = tStr.split(":");
         return parseInt(h) * 60 + parseInt(m);
       };
-
       const bookStart = startObj.getHours() * 60 + startObj.getMinutes();
       const bookEnd = endObj.getHours() * 60 + endObj.getMinutes() + (endObj.getDate() !== startObj.getDate() ? 24 * 60 : 0);
-
       const opStart = timeToStrMin(opHours.openTime);
       let opEnd = timeToStrMin(opHours.closeTime);
-
-      // Mở 00:00 đóng 00:00 là cả ngày
-      if (opStart === 0 && opEnd === 0) {
-        opEnd = 24 * 60;
-      } else if (opEnd <= opStart) {
-        // Vd mở 18:00 đóng 06:00
-        opEnd += 24 * 60;
-      }
-
+      if (opStart === 0 && opEnd === 0) { opEnd = 24 * 60; }
+      else if (opEnd <= opStart) { opEnd += 24 * 60; }
       if (bookStart < opStart || bookEnd > opEnd) {
         const fmtOpen = String(opHours.openTime).substring(0, 5);
         const fmtClose = String(opHours.closeTime).substring(0, 5);
@@ -267,14 +296,12 @@ export default function BookingForm() {
 
     setSubmitting(true);
     setApiError("");
-
     try {
-      // Build extraServices array
       const extraServices = Object.entries(selectedExtras)
         .filter(([, qty]) => qty > 0)
         .map(([id, qty]) => ({ serviceId: Number(id), quantity: qty }));
 
-      const result = await bookingApi.create({
+      await bookingApi.create({
         slotId: selectedSlot,
         startTime: startTime + ":00",
         durationHours: parseFloat(duration),
@@ -285,6 +312,17 @@ export default function BookingForm() {
       navigate("/driver/my-bookings");
     } catch (err) {
       setApiError(err.message || "Đặt lịch thất bại");
+      // Sau khi conflict → reload availability để hiện khung giờ bị chiếm
+      if (selectedSlot && stationId && selectedDate) {
+        const base = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
+        const token = localStorage.getItem("accessToken");
+        fetch(`${base}/stations/${stationId}/slots/${selectedSlot}/availability?date=${selectedDate}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => { if (Array.isArray(data?.bookedRanges)) setBookedRanges(data.bookedRanges); })
+          .catch(() => { });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -311,10 +349,25 @@ export default function BookingForm() {
 
   const slots = station.chargingSlots || [];
 
+  // Helper: check if start/end time overlaps with booked ranges
+  const isTimeConflict = () => {
+    if (!startHHMM || !endHHMM || !selectedDate) return false;
+    const [sh, sm] = startHHMM.split(":").map(Number);
+    const [eh, em] = endHHMM.split(":").map(Number);
+    const sMin = sh * 60 + sm, eMin = eh * 60 + em;
+    if (eMin <= sMin) return false;
+    return bookedRanges.some(r => {
+      const parseT = (t) => { const d = new Date(String(t).replace("Z", "")); return d.getHours() * 60 + d.getMinutes(); };
+      const rS = parseT(r.startTime), rE = parseT(r.endTime);
+      return sMin < rE && eMin > rS;
+    });
+  };
+
+  const hasConflict = isTimeConflict();
+
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90 }}>
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px 40px" }}>
-        {/* Header */}
         <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 14, marginBottom: 12, display: "flex", alignItems: "center", gap: 4 }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
           Quay lại
@@ -331,26 +384,11 @@ export default function BookingForm() {
               {slots.map((slot) => {
                 const isActive = slot.status === "Active" || slot.status === "Available";
                 const isSelected = selectedSlot === slot.id;
-                const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
                 const canSelect = isActive || slot.status === "Booked";
                 return (
-                  <button
-                    type="button"
-                    key={slot.id}
-                    disabled={!canSelect}
-                    onClick={() => setSelectedSlot(slot.id)}
-                    style={{
-                      padding: "12px 10px",
-                      borderRadius: 12,
-                      border: isSelected ? "2px solid #f97316" : "2px solid #e5e7eb",
-                      background: isSelected ? "#fff7ed" : !canSelect ? "#f3f4f6" : "#fff",
-                      cursor: canSelect ? "pointer" : "not-allowed",
-                      opacity: canSelect ? 1 : 0.5,
-                      textAlign: "center",
-                    }}
-                  >
+                  <button type="button" key={slot.id} disabled={!canSelect} onClick={() => setSelectedSlot(slot.id)}
+                    style={{ padding: "12px 10px", borderRadius: 12, border: isSelected ? "2px solid #f97316" : "2px solid #e5e7eb", background: isSelected ? "#fff7ed" : !canSelect ? "#f3f4f6" : "#fff", cursor: canSelect ? "pointer" : "not-allowed", opacity: canSelect ? 1 : 0.5, textAlign: "center" }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{slot.slotName}</div>
-
                     <div style={{ fontSize: 11, color: slot.status === "Booked" ? "#f59e0b" : isActive ? "#22c55e" : "#ef4444", marginTop: 2 }}>
                       {isActive ? "Trống" : slot.status === "Booked" ? "Có lịch đặt" : slot.status === "Inactive" ? "Ngưng" : slot.status === "Maintenance" ? "Bảo trì" : slot.status}
                     </div>
@@ -359,9 +397,8 @@ export default function BookingForm() {
               })}
             </div>
 
-            {/* Pricing tiers for selected slot */}
+            {/* Pricing tiers */}
             {selectedSlot && (() => {
-              const slot = slots.find(s => s.id === selectedSlot);
               const tiers = (station?.pricingTiers || []).filter(t => t.isActive !== false);
               if (tiers.length === 0) return null;
               return (
@@ -377,60 +414,173 @@ export default function BookingForm() {
               );
             })()}
 
-            {/* Booked time ranges */}
-            {selectedSlot && bookedRanges.length > 0 && (
-              <div style={{ background: "#fef3c7", borderRadius: 10, padding: "10px 14px", marginBottom: 20, border: "1px solid #fde68a" }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>📅 Khung giờ đã được đặt</div>
-                {bookedRanges.map((r, idx) => {
-                  const parseVN = (t) => new Date(String(t).replace("Z", ""));
-                  const start = parseVN(r.startTime);
-                  const end = parseVN(r.endTime);
-                  const fmtTime = (d) => d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
-                  const fmtDate = (d) => d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+            {/* ===== KHUNG GIỜ ĐÃ ĐẶT — hiện ngay sau khi chọn slot ===== */}
+            {selectedSlot && (
+              bookedRanges.length > 0 ? (
+                <div style={{ background: "#fef3c7", borderRadius: 12, padding: "12px 14px", marginBottom: 20, border: "1px solid #fde68a" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                    🔒 Khung giờ đã được đặt ngày {selectedDate ? selectedDate.split("-").reverse().join("/") : "hôm nay"} — vui lòng chọn giờ khác
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    {bookedRanges.map((r, idx) => {
+                      const parseVN = (t) => new Date(String(t).replace("Z", ""));
+                      const start = parseVN(r.startTime);
+                      const end = parseVN(r.endTime);
+                      const fmtT = (d) => d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
+                      const statusLabel =
+                        r.status === "Paid" ? "Đã thanh toán" :
+                          r.status === "Confirmed" ? "Đã xác nhận" :
+                            r.status === "PendingPayment" ? "Chờ thanh toán" :
+                              r.status === "WaitingOwner" ? "Chờ duyệt" :
+                                r.status === "CheckedIn" ? "Đã check-in" :
+                                  r.status === "InProgress" || r.status === "Charging" ? "Đang sạc" : r.status;
+                      return (
+                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderRadius: 8, padding: "7px 12px", border: "1px solid #fde68a" }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>🔴 {fmtT(start)} – {fmtT(end)}</span>
+                          <span style={{ fontSize: 11, color: "#b45309", background: "#fef9c3", padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>{statusLabel}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "10px 14px", marginBottom: 20, border: "1px solid #bbf7d0", fontSize: 12, color: "#166534", fontWeight: 600 }}>
+                  📅 Chưa thấy lịch đặt ngày {selectedDate ? selectedDate.split("-").reverse().join("/") : "hôm nay"} — kiểm tra kỹ giờ trước khi đặt.
+                </div>
+              )
+            )}
+
+            {/* ===== DATE PICKER ===== */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={labelStyle}>Chọn ngày</label>
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6 }}>
+                {Array.from({ length: 7 }, (_, i) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() + i);
+                  const yyyy = d.getFullYear();
+                  const mm = String(d.getMonth() + 1).padStart(2, "0");
+                  const dd2 = String(d.getDate()).padStart(2, "0");
+                  const dateStr = `${yyyy}-${mm}-${dd2}`;
+                  const isSel = selectedDate === dateStr;
+                  const DAY_NAMES = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+                  const label = i === 0 ? "Hôm nay" : i === 1 ? "Ngày mai" : DAY_NAMES[d.getDay()];
                   return (
-                    <div key={idx} style={{ fontSize: 12, color: "#78350f", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
-                      <span>🔴 {fmtTime(start)} – {fmtTime(end)} ({fmtDate(start)})</span>
-                      <span style={{ fontSize: 10, color: "#b45309", background: "#fef9c3", padding: "1px 6px", borderRadius: 6 }}>
-                        {r.status === "Confirmed" ? "Đã xác nhận" : r.status === "PendingPayment" ? "Chờ thanh toán" : r.status === "WaitingOwner" ? "Chờ duyệt" : r.status === "CheckedIn" ? "Đã check-in" : r.status === "Charging" ? "Đang sạc" : r.status}
-                      </span>
-                    </div>
+                    <button key={dateStr} type="button" onClick={() => setSelectedDate(dateStr)} style={{
+                      flexShrink: 0, minWidth: 68, padding: "8px 10px", borderRadius: 14,
+                      border: isSel ? "2px solid #f97316" : "1.5px solid #e5e7eb",
+                      background: isSel ? "linear-gradient(135deg,#fff7ed,#ffedd5)" : "#fff",
+                      color: isSel ? "#ea580c" : "#374151",
+                      cursor: "pointer", textAlign: "center",
+                      boxShadow: isSel ? "0 2px 8px rgba(249,115,22,0.2)" : "none",
+                      transition: "all 0.15s",
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: isSel ? "#ea580c" : "#94a3b8" }}>{label}</div>
+                      <div style={{ fontSize: 15, fontWeight: 800 }}>{dd2}/{mm}</div>
+                    </button>
                   );
                 })}
               </div>
-            )}
+            </div>
 
-            {/* Start time */}
-            <label style={labelStyle}>Thời gian bắt đầu</label>
-            <input
-              type="datetime-local"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              style={inputStyle}
-            />
+            {/* ===== TIME INPUTS + TIMELINE ===== */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={labelStyle}>Giờ bắt đầu — Kết thúc</label>
 
-            {/* Duration */}
-            <label style={labelStyle}>Thời lượng (giờ)</label>
-            <select value={duration} onChange={(e) => setDuration(e.target.value)} style={inputStyle}>
-              {[0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 24].map((h) => (
-                <option key={h} value={h}>{h} giờ</option>
-              ))}
-            </select>
+              {/* Visual timeline bar */}
+              {selectedDate && (
+                <div style={{ position: "relative", height: 44, borderRadius: 12, overflow: "hidden", background: "#f1f5f9", border: "1.5px solid #e2e8f0", marginBottom: 14 }}>
+                  {[0, 6, 12, 18, 24].map(h => (
+                    <div key={h} style={{ position: "absolute", left: `${(h / 24) * 100}%`, top: 0, bottom: 0, borderLeft: "1px dashed #cbd5e1", display: "flex", alignItems: "flex-end", paddingBottom: 2 }}>
+                      <span style={{ fontSize: 9, color: "#94a3b8", marginLeft: 2 }}>{String(h).padStart(2, "0")}:00</span>
+                    </div>
+                  ))}
+                  {bookedRanges.map((r, i) => {
+                    const parseT = (t) => { const d = new Date(String(t).replace("Z", "")); return d.getHours() * 60 + d.getMinutes(); };
+                    const sMin = parseT(r.startTime);
+                    const eMin = Math.min(parseT(r.endTime), 24 * 60);
+                    if (eMin <= sMin) return null;
+                    return (
+                      <div key={i} title={`${String(r.startTime).slice(11, 16)} – ${String(r.endTime).slice(11, 16)}: ${r.status}`} style={{
+                        position: "absolute", top: 4, bottom: 4,
+                        left: `${(sMin / 1440) * 100}%`, width: `${((eMin - sMin) / 1440) * 100}%`,
+                        background: "rgba(239,68,68,0.7)", borderRadius: 4,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        <span style={{ fontSize: 8, color: "#fff", fontWeight: 700 }}>🔒</span>
+                      </div>
+                    );
+                  })}
+                  {startHHMM && endHHMM && (() => {
+                    const [sh, sm] = startHHMM.split(":").map(Number);
+                    const [eh, em] = endHHMM.split(":").map(Number);
+                    const sMin = sh * 60 + sm, eMin = eh * 60 + em;
+                    if (eMin <= sMin) return null;
+                    return (
+                      <div style={{
+                        position: "absolute", top: 4, bottom: 4,
+                        left: `${(sMin / 1440) * 100}%`, width: `${((eMin - sMin) / 1440) * 100}%`,
+                        background: hasConflict ? "rgba(239,68,68,0.5)" : "rgba(249,115,22,0.75)", borderRadius: 4,
+                      }} />
+                    );
+                  })()}
+                </div>
+              )}
+
+
+              {/* 2 time inputs */}
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>Bắt đầu</div>
+                  <input type="time" step="900" value={startHHMM}
+                    onChange={e => setStartHHMM(e.target.value)}
+                    style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "2px solid #f97316", fontSize: 18, fontWeight: 700, color: "#ea580c", outline: "none", boxSizing: "border-box", textAlign: "center", background: "#fff7ed" }} />
+                </div>
+                <div style={{ fontSize: 22, color: "#f97316", fontWeight: 700, paddingTop: 18 }}>→</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>Kết thúc</div>
+                  <input type="time" step="900" value={endHHMM}
+                    onChange={e => setEndHHMM(e.target.value)}
+                    style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: hasConflict ? "2px solid #ef4444" : "2px solid #e5e7eb", fontSize: 18, fontWeight: 700, color: "#374151", outline: "none", boxSizing: "border-box", textAlign: "center" }} />
+                </div>
+              </div>
+
+              {/* Duration badge + conflict warning */}
+              {startHHMM && endHHMM && (() => {
+                const [sh, sm] = startHHMM.split(":").map(Number);
+                const [eh, em] = endHHMM.split(":").map(Number);
+                const diffMin = (eh * 60 + em) - (sh * 60 + sm);
+                if (diffMin <= 0) return (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#ef4444", fontWeight: 600 }}>
+                    ⚠️ Giờ kết thúc phải sau giờ bắt đầu
+                  </div>
+                );
+                const h = Math.floor(diffMin / 60), m = diffMin % 60;
+                return (
+                  <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg,#fff7ed,#ffedd5)", border: "1.5px solid #fed7aa", borderRadius: 99, padding: "5px 14px", fontSize: 13, fontWeight: 700, color: "#c2410c" }}>
+                      ⏱ {h > 0 ? `${h} giờ ` : ""}{m > 0 ? `${m} phút` : ""}
+                    </div>
+                    {hasConflict && (
+                      <div style={{ fontSize: 12, color: "#ef4444", fontWeight: 600 }}>
+                        🔒 Giờ này trùng với lịch đã đặt!
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
 
             {timeError && (
-              <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px 14px", borderRadius: 10, fontSize: 13, marginBottom: 16, marginTop: -8, border: "1px solid #fecaca" }}>
+              <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px 14px", borderRadius: 10, fontSize: 13, marginBottom: 16, border: "1px solid #fecaca" }}>
                 {timeError}
               </div>
             )}
 
             {/* Note */}
             <label style={labelStyle}>Ghi chú (tùy chọn)</label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
+            <textarea value={note} onChange={(e) => setNote(e.target.value)}
               placeholder="Ghi chú cho chủ trạm..."
-              rows={3}
-              style={{ ...inputStyle, resize: "vertical" }}
-            />
+              rows={3} style={{ ...inputStyle, resize: "vertical" }} />
 
             {/* Extra Services */}
             {station.extraServices && station.extraServices.filter(es => es.isActive).length > 0 && (
@@ -441,12 +591,7 @@ export default function BookingForm() {
                     const qty = selectedExtras[es.id] || 0;
                     const maxQty = es.totalStock != null ? Math.min(10, es.totalStock) : 10;
                     return (
-                      <div key={es.id} style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        padding: "10px 14px", borderRadius: 12,
-                        border: qty > 0 ? "2px solid #a855f7" : "1.5px solid #e5e7eb",
-                        background: qty > 0 ? "#faf5ff" : "#fff",
-                      }}>
+                      <div key={es.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 12, border: qty > 0 ? "2px solid #a855f7" : "1.5px solid #e5e7eb", background: qty > 0 ? "#faf5ff" : "#fff" }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{es.serviceName}</div>
                           {es.description && <div style={{ fontSize: 11, color: "#6b7280" }}>{es.description}</div>}
@@ -474,35 +619,15 @@ export default function BookingForm() {
               <div style={{ marginBottom: 20 }}>
                 <label style={labelStyle}>🏆 Dùng điểm tích lũy ({loyaltyInfo.currentPoints.toLocaleString("vi-VN")} điểm khả dụng)</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <input
-                    type="range"
-                    min={0}
-                    max={maxPoints}
-                    step={100}
-                    value={pointsToUse}
+                  <input type="range" min={0} max={maxPoints} step={100} value={pointsToUse}
                     onChange={e => setPointsToUse(Number(e.target.value))}
-                    style={{ flex: 1, accentColor: "#7c3aed" }}
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    max={maxPoints}
-                    value={pointsToUse}
-                    onChange={e => {
-                      const v = Math.min(Math.max(0, Number(e.target.value) || 0), maxPoints);
-                      setPointsToUse(v);
-                    }}
-                    style={{ width: 100, padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 14, textAlign: "right", outline: "none" }}
-                  />
+                    style={{ flex: 1, accentColor: "#7c3aed" }} />
+                  <input type="number" min={0} max={maxPoints} value={pointsToUse}
+                    onChange={e => { const v = Math.min(Math.max(0, Number(e.target.value) || 0), maxPoints); setPointsToUse(v); }}
+                    style={{ width: 100, padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 14, textAlign: "right", outline: "none" }} />
                 </div>
-                {pointsToUse > 0 && (
-                  <div style={{ fontSize: 12, color: "#7c3aed", marginTop: 4, fontWeight: 600 }}>
-                    Giảm {pointsToUse.toLocaleString("vi-VN")}đ từ điểm tích lũy
-                  </div>
-                )}
-                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
-                  Tối đa dùng {((loyaltyInfo.maxRedeemRate || 0) * 100).toFixed(0)}% giá trị booking bằng điểm
-                </div>
+                {pointsToUse > 0 && <div style={{ fontSize: 12, color: "#7c3aed", marginTop: 4, fontWeight: 600 }}>Giảm {pointsToUse.toLocaleString("vi-VN")}đ từ điểm tích lũy</div>}
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Tối đa dùng {((loyaltyInfo.maxRedeemRate || 0) * 100).toFixed(0)}% giá trị booking bằng điểm</div>
               </div>
             )}
 
@@ -512,7 +637,7 @@ export default function BookingForm() {
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 8 }}>Tóm tắt</div>
                 <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <span>Trụ sạc</span>
-                  <span style={{ fontWeight: 600, color: "#1e293b" }}>{slots.find((s) => s.id === selectedSlot)?.slotName}</span>
+                  <span style={{ fontWeight: 600, color: "#1e293b" }}>{slots.find(s => s.id === selectedSlot)?.slotName}</span>
                 </div>
                 <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <span>Thời lượng</span>
@@ -536,9 +661,7 @@ export default function BookingForm() {
                 )}
                 <div style={{ borderTop: "1px solid #e5e7eb", marginTop: 6, paddingTop: 6, fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
                   <span style={{ fontWeight: 700 }}>Tổng cộng</span>
-                  <span style={{ fontWeight: 700, color: "#f97316", fontSize: 15 }}>
-                    {finalAmount.toLocaleString("vi-VN")}đ
-                  </span>
+                  <span style={{ fontWeight: 700, color: "#f97316", fontSize: 15 }}>{finalAmount.toLocaleString("vi-VN")}đ</span>
                 </div>
               </div>
             )}
@@ -549,15 +672,16 @@ export default function BookingForm() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={submitting || !selectedSlot || !!timeError}
+            <button type="submit"
+              disabled={submitting || !selectedSlot || !!timeError || !startHHMM || !endHHMM || hasConflict}
               style={{
                 width: "100%", padding: "14px 0", borderRadius: 14, border: "none",
-                background: submitting || !selectedSlot || timeError ? "#d1d5db" : "linear-gradient(135deg, #f97316, #ea580c)",
-                color: "#fff", fontWeight: 700, fontSize: 15, cursor: submitting || !selectedSlot || timeError ? "not-allowed" : "pointer",
-              }}
-            >
+                background: submitting || !selectedSlot || timeError || !startHHMM || !endHHMM || hasConflict
+                  ? "#d1d5db"
+                  : "linear-gradient(135deg, #f97316, #ea580c)",
+                color: "#fff", fontWeight: 700, fontSize: 15,
+                cursor: submitting || !selectedSlot || timeError || !startHHMM || !endHHMM || hasConflict ? "not-allowed" : "pointer",
+              }}>
               {submitting ? "Đang xử lý..." : "Đặt lịch sạc"}
             </button>
           </form>

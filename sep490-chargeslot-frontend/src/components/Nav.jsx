@@ -111,8 +111,8 @@ export default function Nav() {
         // Fallback: check bookings for active session
         bookingApi.getDriverBookings()
           .then(bookings => {
-            const active = (Array.isArray(bookings) ? bookings : [])
-              .find(b => b.status === "CheckedIn" || b.status === "InProgress");
+            const list = Array.isArray(bookings) ? bookings : (bookings?.items ?? []);
+            const active = list.find(b => b.status === "CheckedIn" || b.status === "InProgress");
             if (active) {
               localStorage.setItem("activeChargingBookingId", String(active.id));
               chargingApi.getByBookingId(active.id)
