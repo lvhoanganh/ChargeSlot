@@ -126,6 +126,17 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
+        /// Xem lịch đặt chỗ tại 1 slot trong ngày (để Driver né giờ đã bị đặt).
+        /// Mặc định: ngày hôm nay. Query param: ?date=2026-03-30
+        /// </summary>
+        [HttpGet("slot/{slotId}/schedule")]
+        public async Task<IActionResult> GetSlotSchedule(int slotId, [FromQuery] DateTime? date)
+        {
+            var result = await _bookingService.GetSlotScheduleAsync(slotId, date);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// Xem chi tiết booking
         /// </summary>
         [HttpGet("{id}")]

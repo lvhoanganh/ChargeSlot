@@ -636,6 +636,26 @@ namespace ChargeSlot.Api.Services.Implementation
             return bookings.Select(MapToDto).ToList();
         }
 
+        /// <summary>
+        /// Xem lịch đặt chỗ tại 1 slot trong ngày cụ thể.
+        /// Driver dùng để xem giờ nào đã bị đặt trước khi tạo booking.
+        /// Chỉ trả thời gian + trạng thái, không lộ danh tính driver khác.
+        /// </summary>
+        public async Task<List<SlotScheduleDto>> GetSlotScheduleAsync(int slotId, DateTime? date)
+        {
+            var targetDate = date ?? DateTimeHelper.VietnamNow();
+            var bookings = await _bookingRepo.GetActiveBookingsForSlotAsync(slotId, targetDate);
+
+            return bookings.Select(b => new SlotScheduleDto
+            {
+                BookingId = b.Id,
+                StartTime = b.StartTime,
+                EndTime = b.EndTime,
+                DurationHours = b.DurationHours ?? 0,
+                Status = b.Status.ToString()
+            }).ToList();
+        }
+
         private static BookingDto MapToDto(Booking b)
         {
             var serviceAmount = b.BookingExtraServices?.Sum(e => e.TotalPrice) ?? 0;
