@@ -27,7 +27,6 @@ export default function ChargingActive() {
   const [requestingEarlyEnd, setRequestingEarlyEnd] = useState(false);
   const [earlyEndRequested, setEarlyEndRequested] = useState(false);
   const [error, setError] = useState("");
-  const startRef = useRef(Date.now());
 
   // If no session from state, try to load from bookingId in URL or localStorage
   useEffect(() => {
@@ -67,8 +66,11 @@ export default function ChargingActive() {
   useEffect(() => {
     if (!sessionData) return;
     const interval = setInterval(() => {
-      const sec = Math.floor((Date.now() - startRef.current) / 1000);
-      setElapsed(sec);
+      const startTimeMs = sessionData.actualStartTime 
+        ? toLocal(sessionData.actualStartTime).getTime() 
+        : Date.now();
+      const sec = Math.floor((Date.now() - startTimeMs) / 1000);
+      setElapsed(Math.max(0, sec));
     }, 1000);
     return () => clearInterval(interval);
   }, [sessionData]);
@@ -114,9 +116,9 @@ export default function ChargingActive() {
     setConfirming(true);
     setError("");
     try {
-      const result = await chargingApi.confirmCompletion(sessionData.id);
+      await chargingApi.confirmCompletion(sessionData.id);
       localStorage.removeItem("activeChargingBookingId");
-      navigate("/driver/charging-complete", { state: { session: result || sessionData } });
+      navigate("/driver/charging-complete", { state: { session: { ...sessionData, bookingStatus: "Completed" } } });
     } catch (err) {
       setError(err?.message || "Lỗi xác nhận, vui lòng thử lại!");
       setConfirming(false);
@@ -134,8 +136,11 @@ export default function ChargingActive() {
     );
   }
 
-  const endTime = toLocal(sessionData.bookingEndTime).getTime();
-  const totalDuration = Math.max(0, Math.floor((endTime - startRef.current) / 1000));
+  const startTimeMs = sessionData.actualStartTime 
+    ? toLocal(sessionData.actualStartTime).getTime() 
+    : Date.now();
+  const endTimeMs = toLocal(sessionData.bookingEndTime).getTime();
+  const totalDuration = Math.max(0, Math.floor((endTimeMs - startTimeMs) / 1000));
   const remaining = Math.max(0, totalDuration - elapsed);
   const progress = totalDuration > 0 ? Math.min(100, (elapsed / totalDuration) * 100) : 0;
   const isTimeUp = remaining <= 0;

@@ -98,6 +98,19 @@ function removeDiacritics(str) {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
 }
 
+/* ─── Haversine: tính khoảng cách 2 toạ độ (km) ─── */
+function haversine([lat1, lon1], [lat2, lon2]) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export default function StationMap() {
   const navigate = useNavigate();
   const [userPos, setUserPos] = useState(null);
@@ -110,6 +123,8 @@ export default function StationMap() {
   const [error, setError] = useState(null);
   const [minRating, setMinRating] = useState("");
   const [sortBy, setSortBy] = useState("");
+  const [nearbyMode, setNearbyMode] = useState(false);
+  const [maxRadius, setMaxRadius] = useState(10); // km
   const [favorites, setFavorites] = useState({});
   const { token } = useAuthStore();
   const markerRefs = useRef({});
@@ -173,14 +188,34 @@ export default function StationMap() {
   }
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return stations;
-    const q = removeDiacritics(search.toLowerCase());
-    return stations.filter(
-      (s) =>
-        removeDiacritics((s.name || "").toLowerCase()).includes(q) ||
-        removeDiacritics((s.address || "").toLowerCase()).includes(q)
-    );
-  }, [search, stations]);
+    let result = stations;
+
+    // Text search filter
+    if (search.trim()) {
+      const q = removeDiacritics(search.toLowerCase());
+      result = result.filter(
+        (s) =>
+          removeDiacritics((s.name || "").toLowerCase()).includes(q) ||
+          removeDiacritics((s.address || "").toLowerCase()).includes(q)
+      );
+    }
+
+    // Nearby filter + sort by distance
+    if (nearbyMode && userPos) {
+      result = result
+        .map((s) => ({
+          ...s,
+          _distance: haversine(userPos, [s.latitude, s.longitude]),
+        }))
+        .filter((s) => s._distance <= maxRadius)
+        .sort((a, b) => a._distance - b._distance);
+    } else {
+      // Remove _distance if not in nearby mode
+      result = result.map(({ _distance, ...s }) => s);
+    }
+
+    return result;
+  }, [search, stations, nearbyMode, userPos, maxRadius]);
 
   function getAvailableSlots(station) {
     return station.chargingSlots.filter((s) => s.status === "Active").length;
@@ -249,7 +284,10 @@ export default function StationMap() {
                 Danh sách trạm sạc
               </div>
               <div style={{ fontSize: 12, color: "#94a3b8" }}>
-                {filtered.length} trạm {search && `· "${search}"`}
+                {filtered.length} trạm
+                {search && ` · "${search}"`}
+                {nearbyMode && userPos && ` · trong ${maxRadius}km`}
+                {nearbyMode && !userPos && ` · đang lấy vị trí...`}
               </div>
             </div>
           </div>
@@ -317,7 +355,7 @@ export default function StationMap() {
             </select>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => { setSortBy(e.target.value); setNearbyMode(false); }}
               style={{
                 flex: 1, padding: "8px 10px", borderRadius: 10,
                 border: "1.5px solid #e5e7eb", fontSize: 13,
@@ -329,6 +367,67 @@ export default function StationMap() {
               <option value="rating">Đánh giá cao nhất</option>
               <option value="reviews">Nhiều đánh giá nhất</option>
             </select>
+          </div>
+
+          {/* Nearby row */}
+          <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+            <button
+              onClick={() => {
+                if (!userPos) {
+                  navigator.geolocation?.getCurrentPosition(
+                    (pos) => {
+                      setUserPos([pos.coords.latitude, pos.coords.longitude]);
+                      setNearbyMode(true);
+                      setSortBy("");
+                    },
+                    () => showToast.error("Không thể lấy vị trí. Vui lòng cho phép truy cập GPS."),
+                    { enableHighAccuracy: true, timeout: 8000 }
+                  );
+                } else {
+                  setNearbyMode((v) => {
+                    if (!v) setSortBy("");
+                    return !v;
+                  });
+                }
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "8px 14px", borderRadius: 10, border: "none",
+                cursor: "pointer", fontWeight: 600, fontSize: 13,
+                transition: "all 0.2s",
+                background: nearbyMode
+                  ? "linear-gradient(135deg, #3b82f6, #2563eb)"
+                  : "#f0f4ff",
+                color: nearbyMode ? "#fff" : "#3b82f6",
+                boxShadow: nearbyMode ? "0 2px 10px rgba(59,130,246,0.35)" : "none",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+              </svg>
+              {nearbyMode ? "Đang xem gần tôi" : "Gần tôi"}
+            </button>
+
+            {nearbyMode && (
+              <select
+                value={maxRadius}
+                onChange={(e) => setMaxRadius(Number(e.target.value))}
+                style={{
+                  flex: 1, padding: "8px 10px", borderRadius: 10,
+                  border: "1.5px solid #3b82f6", fontSize: 13,
+                  background: "#eff6ff", color: "#2563eb",
+                  cursor: "pointer", outline: "none", fontWeight: 600,
+                }}
+              >
+                <option value={2}>Trong 2 km</option>
+                <option value={5}>Trong 5 km</option>
+                <option value={10}>Trong 10 km</option>
+                <option value={20}>Trong 20 km</option>
+                <option value={50}>Trong 50 km</option>
+              </select>
+            )}
           </div>
         </div>
 
@@ -477,6 +576,25 @@ export default function StationMap() {
                       </svg>
                       {s.address}
                     </div>
+
+                    {/* Distance badge when nearby mode is on */}
+                    {nearbyMode && s._distance !== undefined && (
+                      <div style={{
+                        display: "inline-flex", alignItems: "center", gap: 4,
+                        background: "#eff6ff", borderRadius: 8, padding: "4px 10px",
+                        fontSize: 12, fontWeight: 700, color: "#2563eb",
+                        marginBottom: 8,
+                      }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" strokeWidth="2.5">
+                          <circle cx="12" cy="12" r="3" />
+                          <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                        </svg>
+                        {s._distance < 1
+                          ? `${Math.round(s._distance * 1000)} m`
+                          : `${s._distance.toFixed(1)} km`}
+                      </div>
+                    )}
 
                     {/* Stats row */}
                     <div style={{ display: "flex", gap: 6 }}>

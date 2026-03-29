@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { walletApi, payoutApi, bankAccountApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+import { showConfirm } from "@/components/ConfirmDialog";
 
 const txTypeLabels = {
   TopUp: { label: "Nạp tiền", icon: "💰", color: "#22c55e" },
@@ -111,7 +112,7 @@ export default function OwnerWallet() {
   }
 
   async function handleDeleteBank(id) {
-    if (!confirm("Bạn có chắc muốn xóa tài khoản ngân hàng này?")) return;
+    if (!(await showConfirm("Bạn có chắc muốn xóa tài khoản ngân hàng này?", "Xác nhận xóa tài khoản"))) return;
     try {
       await bankAccountApi.delete(id);
       showToast.success("Đã xóa tài khoản ngân hàng");

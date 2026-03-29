@@ -14,6 +14,12 @@ export function saveAuth(authResponse) {
     localStorage.setItem("accessToken", authResponse.accessToken);
     localStorage.setItem("userId", authResponse.userId);
     localStorage.setItem("role", authResponse.role);
+    if (authResponse.refreshToken) {
+        localStorage.setItem("refreshToken", authResponse.refreshToken);
+    }
+    if (authResponse.expiresAtUtc) {
+        localStorage.setItem("expiresAtUtc", authResponse.expiresAtUtc);
+    }
 }
 
 /**
@@ -23,6 +29,9 @@ export function clearAuth() {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("userId");
     localStorage.removeItem("role");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("expiresAtUtc");
+    localStorage.removeItem("activeChargingBookingId"); // Xóa cache phiên sạc
 }
 
 /**
@@ -155,6 +164,19 @@ export const authApi = {
         apiFetch("/auth/register", {
             method: "POST",
             body: JSON.stringify(data),
+        }),
+
+    resetPassword: (data) =>
+        apiFetch("/auth/reset-password", {
+            method: "POST",
+            body: JSON.stringify(data),
+        }),
+
+    /** Đổi mật khẩu (cần đăng nhập, nhập mật khẩu cũ) */
+    changePassword: (currentPassword, newPassword) =>
+        apiFetch("/auth/change-password", {
+            method: "POST",
+            body: JSON.stringify({ currentPassword, newPassword }),
         }),
 };
 
@@ -407,7 +429,7 @@ export const walletApi = {
 export const notificationApi = {
     getAll: () => apiFetch("/Notification"),
     markAsRead: (id) => apiFetch(`/Notification/${id}/read`, { method: "PUT" }),
-    markAllAsRead: () => apiFetch("/Notification/read-all", { method: "PUT" }),
+    // markAllAsRead: chưa có endpoint trên BE — cần bổ sung sau
 };
 
 // ============================
@@ -501,8 +523,8 @@ export const reviewApi = {
     getSummary: (stationId) =>
         apiFetch(`/reviews/station/${stationId}/summary`),
 
-    /** Đánh giá của driver */
-    getMyReviews: () => apiFetch("/Review/my"),
+    /** Đánh giá của driver — TODO: BE chưa có endpoint này */
+    // getMyReviews: () => apiFetch("/Review/my"),
 
     /** Top trạm xếp hạng (cho trang chủ) */
     getTopStations: (limit = 10) =>
@@ -683,11 +705,21 @@ export const adminWithdrawApi = {
 // ============================
 
 export const adminAccountApi = {
-    getAll: () => apiFetch("/admin/accounts"),
+    /** GET /api/AdminAccounts?search=&role=&status=&page=&pageSize= */
+    getAll: (search, role, status, page = 1, pageSize = 10) => {
+        const params = new URLSearchParams();
+        if (search) params.set("search", search);
+        if (role && role !== "ALL") params.set("role", role);
+        if (status && status !== "ALL") params.set("status", status);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
+        return apiFetch(`/AdminAccounts?${params.toString()}`);
+    },
 
-    ban: (id) =>
-        apiFetch(`/admin/accounts/${id}/ban`, { method: "PUT" }),
+    /** GET /api/AdminAccounts/statistics */
+    getStatistics: () => apiFetch("/AdminAccounts/statistics"),
 
-    unban: (id) =>
-        apiFetch(`/admin/accounts/${id}/unban`, { method: "PUT" }),
+    /** PATCH /api/AdminAccounts/{id}/toggle-ban — bật/tắt ban */
+    toggleBan: (id) =>
+        apiFetch(`/AdminAccounts/${id}/toggle-ban`, { method: "PATCH" }),
 };

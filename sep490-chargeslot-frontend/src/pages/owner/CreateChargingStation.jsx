@@ -242,6 +242,16 @@ export default function CreateChargingStation() {
   const layoutHeight = watch("layoutHeight") || 4;
   const slots = watch("slots") || [];
 
+  // Tính giờ đóng cửa sớm nhất (strictest) trong các ngày không đóng cửa
+  // closeTime format: "HH:MM:SS" hoặc "HH:MM" → lấy 5 ký tự đầu
+  const latestCloseTime = (() => {
+    if (!operatingHours || operatingHours.length === 0) return null;
+    const closeTimes = operatingHours
+      .filter((h) => !h.isClosed && h.closeTime)
+      .map((h) => String(h.closeTime).substring(0, 5));
+    return closeTimes.length > 0 ? closeTimes.reduce((min, t) => t < min ? t : min) : null;
+  })();
+
   const [stationImages, setStationImages] = useState([]);
 
   const createStationMutation = useMutation({
@@ -283,6 +293,30 @@ export default function CreateChargingStation() {
     if (!data.slots || data.slots.length === 0) {
       setError("root.serverError", { type: "manual", message: "Vui lòng thêm ít nhất 1 trụ sạc bằng cách nhấn vào ô trống trên mặt bằng." });
       return;
+    }
+
+    // Validate khung giờ pricing
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    const pricing = data.stationPricing || [];
+    for (let i = 0; i < pricing.length; i++) {
+      const rule = pricing[i];
+      if (!rule.endTime) {
+        setError("root.serverError", { type: "manual", message: `Khung giờ ${i + 1}: Vui lòng nhập giờ kết thúc.` });
+        return;
+      }
+      if (!timeRegex.test(rule.endTime)) {
+        setError("root.serverError", { type: "manual", message: `Khung giờ ${i + 1}: Thời gian "${rule.endTime}" không hợp lệ! Giờ từ 00–23, phút từ 00–59.` });
+        return;
+      }
+      const autoStart = i === 0 ? "00:00" : pricing[i - 1].endTime;
+      if (rule.endTime <= autoStart) {
+        setError("root.serverError", { type: "manual", message: `Khung giờ ${i + 1}: Giờ kết thúc phải sau ${autoStart}.` });
+        return;
+      }
+      if (latestCloseTime && latestCloseTime !== "00:00" && rule.endTime > latestCloseTime) {
+        setError("root.serverError", { type: "manual", message: `Khung giờ ${i + 1}: Giờ kết thúc (${rule.endTime}) vượt giờ đóng cửa (${latestCloseTime})!` });
+        return;
+      }
     }
 
     // Save station-level pricing
@@ -698,7 +732,11 @@ export default function CreateChargingStation() {
                 <div className="space-y-2">
                   {pricing.map((rule, rIdx) => {
                     const autoStart = rIdx === 0 ? "00:00" : (pricing[rIdx - 1]?.endTime || "");
-                    const hasError = rule.endTime && autoStart && rule.endTime <= autoStart;
+                    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+                    const isValidFormat = !rule.endTime || timeRegex.test(rule.endTime);
+                    const isAfterStart = !rule.endTime || !autoStart || rule.endTime > autoStart;
+                    const exceedsClose = isValidFormat && rule.endTime && latestCloseTime && latestCloseTime !== "00:00" && rule.endTime > latestCloseTime;
+                    const hasError = rule.endTime && (!isValidFormat || !isAfterStart || exceedsClose);
                     return (
                       <div key={rIdx} className="bg-slate-50 rounded-xl p-3 border border-slate-200">
                         <div className="flex items-center gap-2">
@@ -762,7 +800,12 @@ export default function CreateChargingStation() {
                         </div>
                         {hasError && (
                           <p className="text-xs text-red-500 mt-1 font-medium">
-                            ⚠ Giờ kết thúc phải sau {autoStart}
+                            {!isValidFormat
+                              ? "⚠ Thời gian không hợp lệ! Giờ từ 00–23, phút từ 00–59."
+                              : exceedsClose
+                              ? `⚠ Giờ kết thúc vượt giờ đóng cửa (${latestCloseTime})!`
+                              : `⚠ Giờ kết thúc phải sau ${autoStart}`
+                            }
                           </p>
                         )}
                       </div>

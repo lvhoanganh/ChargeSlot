@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { stationApi, extraServiceApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+import { showConfirm } from "@/components/ConfirmDialog";
 
 const emptyForm = { serviceName: "", description: "", price: "", totalStock: "", isActive: true };
 
@@ -90,7 +91,7 @@ export default function OwnerExtraServices() {
   }
 
   async function handleDelete(id) {
-    if (!confirm("Xóa dịch vụ này?")) return;
+    if (!(await showConfirm("Bạn có chắc muốn xóa dịch vụ này?", "Xác nhận xóa dịch vụ"))) return;
     try {
       await extraServiceApi.delete(selectedStation, id);
       showToast.success("Đã xóa dịch vụ!");

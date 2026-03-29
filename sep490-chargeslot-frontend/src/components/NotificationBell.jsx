@@ -104,8 +104,16 @@ export default function NotificationBell() {
 
   async function markAllRead() {
     try {
-      await notificationApi.markAllAsRead();
+      const unread = notifications.filter(n => !n.isRead);
+      if (unread.length === 0) return;
+      
+      // Update locally immediately for snappy UI
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      
+      // Bắn toàn bộ unread ID lên backend qua API /Notification/{id}/read
+      await Promise.all(
+        unread.map(n => notificationApi.markAsRead(n.id).catch(() => {}))
+      );
     } catch {}
   }
 

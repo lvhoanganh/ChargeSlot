@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { showConfirm } from "@/components/ConfirmDialog";
 import { stationApi, slotApi, stationPricingApi } from "@/services/api";
 import { QRCodeSVG } from "qrcode.react";
 import { showToast } from "@/components/Toast";
@@ -40,7 +41,7 @@ export default function OwnerPage() {
   useEffect(() => { fetchStations(); }, []);
 
   async function handleSubmitForApproval(id) {
-    if (!confirm("Gửi trạm sạc để Admin duyệt?")) return;
+    if (!(await showConfirm("Gửi trạm sạc để Admin duyệt?", "Xác nhận gửi duyệt"))) return;
     setActionLoading(id);
     try {
       await stationApi.submitForApproval(id);
@@ -164,7 +165,7 @@ export default function OwnerPage() {
                           <button
                             onClick={async () => {
                               const newStatus = s.operationalStatus === "Active" ? "Inactive" : "Active";
-                              if (!confirm(`${newStatus === "Inactive" ? "Tắt" : "Bật"} trạm sạc "${s.name}"?`)) return;
+                              if (!(await showConfirm(`${newStatus === "Inactive" ? "Tắt" : "Bật"} trạm sạc "${s.name}"?`, "Xác nhận trạng thái"))) return;
                               setActionLoading(s.id);
                               try {
                                 await stationApi.updateStatus(s.id, newStatus);
@@ -341,7 +342,7 @@ export default function OwnerPage() {
                                   <div className="pt-2 border-t border-slate-200">
                                     <p className="text-xs font-medium text-slate-600 mb-2">Đổi trạng thái</p>
                                     <div className="flex gap-1.5 flex-wrap">
-                                      {[{ key: "Active", value: 0 }, { key: "Inactive", value: 1 }, { key: "Maintenance", value: 2 }].map(({ key, value }) => {
+                                      {["Active", "Inactive", "Maintenance"].map((key) => {
                                         const isCurrentStatus = slot.status === key;
                                         const labels = { Active: "Hoạt động", Inactive: "Ngưng", Maintenance: "Bảo trì" };
                                         const colors = { Active: "#22c55e", Inactive: "#94a3b8", Maintenance: "#f97316" };
@@ -352,7 +353,7 @@ export default function OwnerPage() {
                                             onClick={async () => {
                                               setActionLoading(slot.id);
                                               try {
-                                                await slotApi.updateStatus(s.id, slot.id, { status: value });
+                                                await slotApi.updateStatus(s.id, slot.id, { status: key });
                                                 fetchStations();
                                               } catch (err) {
                                                 showToast.error("Lỗi: " + (err.message || "Không rõ"));
@@ -377,7 +378,7 @@ export default function OwnerPage() {
                                   {/* Delete slot */}
                                   <button
                                     onClick={async () => {
-                                      if (!confirm(`Xóa trụ sạc ${slot.slotName}?`)) return;
+                                      if (!(await showConfirm(`Xóa trụ sạc ${slot.slotName}?`, "Xác nhận xóa trụ sạc"))) return;
                                       setActionLoading(slot.id);
                                       try {
                                         await slotApi.delete(s.id, slot.id);
@@ -532,13 +533,27 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
     setPricingError("");
     if (!newTier.startTime || !newTier.endTime) { setPricingError("Vui lòng chọn giờ bắt đầu và kết thúc!"); return; }
     if (!newTier.pricePerHour) { setPricingError("Vui lòng nhập giá!"); return; }
+
+    // Validate định dạng giờ hợp lệ: HH:MM với giờ 00-23 và phút 00-59
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(newTier.startTime) || !timeRegex.test(newTier.endTime)) {
+      setPricingError("Thời gian không hợp lệ! Giờ từ 00–23, phút từ 00–59.");
+      return;
+    }
+
     if (newTier.endTime <= newTier.startTime) { setPricingError("Giờ kết thúc phải sau giờ bắt đầu!"); return; }
 
     const lastEnd = getLastEndTime();
     if (newTier.startTime < lastEnd) { setPricingError(`Giờ bắt đầu phải từ ${lastEnd} trở đi!`); return; }
 
+    // Validate end time không vượt 23:59
+    if (newTier.endTime > "23:59") {
+      setPricingError("Giờ kết thúc không hợp lệ (tối đa 23:59)!");
+      return;
+    }
+
     // Validate không vượt quá giờ đóng cửa
-    if (openHours.length > 0 && newTier.endTime > latestClose && latestClose !== "00:00") {
+    if (openHours.length > 0 && latestClose && latestClose !== "00:00" && newTier.endTime > latestClose) {
       setPricingError(`Giờ kết thúc vượt quá giờ đóng cửa (${latestClose})!`);
       return;
     }
@@ -564,7 +579,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
   }
 
   async function handleDeletePricing(pricingId) {
-    if (!confirm("Xóa khung giờ giá này?")) return;
+    if (!(await showConfirm("Xóa khung giờ giá này?", "Xác nhận xóa khung giờ"))) return;
     try {
       await stationPricingApi.delete(stationId, pricingId);
       await reloadPricing();

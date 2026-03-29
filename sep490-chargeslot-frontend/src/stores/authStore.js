@@ -50,6 +50,7 @@ export const useAuthStore = create((set) => ({
       throw rawMessage;
     }
   },
+
   logout: () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");

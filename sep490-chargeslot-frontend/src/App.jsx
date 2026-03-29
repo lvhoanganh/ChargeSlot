@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { ToastContainer } from "./components/Toast";
+import { ConfirmDialogContainer } from "./components/ConfirmDialog";
 import HomePage from "./pages/common/HomePage";
 import MainLayout from "./layouts/MainLayout";
 import AdminLayout from "./layouts/AdminLayout";
@@ -10,10 +11,7 @@ import About from "./pages/common/About";
 import Login from "./pages/common/Login";
 import NotFound from "./pages/common/NotFound";
 import Register from "./pages/common/Register";
-import VerifyOtp from "./pages/common/VerifyOtp";
-import SetPassword from "./pages/common/SetPassword";
 import ForgotPassword from "./pages/common/ForgotPassword";
-import ResetPassword from "./pages/common/ResetPassword";
 import ManageUser from "./pages/admin/ManageUser";
 import ApproveStation from "./pages/admin/ApproveStation";
 import AdminProfile from "./pages/admin/AdminProfile";
@@ -28,8 +26,7 @@ import CreateChargingStation from "./pages/owner/CreateChargingStation";
 import PublicMiddleware from "./middlewares/PublicMiddleware";
 import AuthOwnerMiddleware from "./middlewares/AuthOwnerMiddleware";
 import AuthDriverMiddleware from "./middlewares/AuthDriverMiddleware";
-import RegisterVerifyOtp from "./pages/common/RegisterVerifyOtp";
-import RegisterCreateAccount from "./pages/common/RegisterCreateAccount";
+
 import DriverProfile from "./pages/driver/DriverProfile";
 import DriverEditProfile from "./pages/driver/EditDriverProfile";
 import ScanQR from "./pages/driver/ScanQR";
@@ -44,6 +41,7 @@ import BookingForm from "./pages/driver/BookingForm";
 import MyBookings from "./pages/driver/MyBookings";
 import BookingStatus from "./pages/driver/BookingStatus";
 import PaymentResult from "./pages/driver/PaymentResult";
+import WalletTopUpResult from "./pages/driver/WalletTopUpResult";
 import DriverWallet from "./pages/driver/DriverWallet";
 import BookingRequests from "./pages/owner/BookingRequests";
 import BookingRequestDetail from "./pages/owner/BookingRequestDetail";
@@ -80,18 +78,11 @@ export default function App() {
           <Route path="driver/station/:id" element={<StationDetailDriver />} />
           <Route path="driver/station/:stationId/book" element={<BookingForm />} />
           <Route path="payment/result" element={<PaymentResult />} />
-          <Route path="setPassword" element={<SetPassword />} />
+          <Route path="wallet/top-up/result" element={<WalletTopUpResult />} />
           <Route path="forgotPassword" element={<ForgotPassword />} />
-          <Route path="verifyOtp" element={<VerifyOtp />} />
-          <Route path="reset-password" element={<ResetPassword />} />
           <Route element={<PublicMiddleware />}>
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
-            <Route path="register/verify-otp" element={<RegisterVerifyOtp />} />
-            <Route
-              path="register/create-account"
-              element={<RegisterCreateAccount />}
-            />
           </Route>
         </Route>
         <Route element={<AuthOwnerMiddleware />}>
@@ -159,6 +150,7 @@ export default function App() {
           <Route path="/stations/create" element={<CreateStation />} />
           <Route path="/stations/:id" element={<StationDetail />} />
           <Route path="/stations/:id/edit" element={<EditStation />} /> */}
+      <ConfirmDialogContainer />
       <ToastContainer />
     </div>
   );
