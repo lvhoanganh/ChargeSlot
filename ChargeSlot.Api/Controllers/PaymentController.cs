@@ -49,7 +49,10 @@ namespace ChargeSlot.Api.Controllers
         public async Task<IActionResult> SePayWebhook([FromBody] SePayWebhookRequest request, [FromServices] IConfiguration configuration)
         {
             // Kiểm tra bảo mật Webhook (chống fake API call)
-            var providedToken = Request.Headers["Authorization"].FirstOrDefault()?.Replace("Bearer ", "").Trim();
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            var providedToken = authHeader?.Replace("Bearer ", "", StringComparison.OrdinalIgnoreCase)
+                                          .Replace("Apikey ", "", StringComparison.OrdinalIgnoreCase)
+                                          .Trim();
             var expectedToken = configuration["SePay:WebhookToken"];
 
             if (string.IsNullOrEmpty(expectedToken) || providedToken != expectedToken)
