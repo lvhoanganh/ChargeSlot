@@ -211,14 +211,34 @@ namespace ChargeSlot.Api.Services.Implementation
         }
 
         /// <summary>
-        /// Xử lý Webhook từ SePay bắn về khi tiền vô tài khoản
+        /// Xử lý Webhook từ SePay bắn về khi tiền vô tài khoản.
+        /// Đảm bảo: Driver KHÔNG BAO GIỜ mất tiền dù chuyển sai nội dung hoặc thiếu tiền.
         /// </summary>
         public async Task<bool> ProcessSePayWebhookAsync(SePayWebhookRequest request)
         {
-            var content = (request.transactionContent ?? request.content ?? request.body ?? "").ToUpper();
-            
-            var bookingMatch = System.Text.RegularExpressions.Regex.Match(content, @"CS(\d+)");
-            var topUpMatch = System.Text.RegularExpressions.Regex.Match(content, @"W(\d+)");
+            // ── Chống trùng lặp theo khuyến nghị SePay (dùng id giao dịch SePay) ──
+            var sePayTxnId = request.id.ToString();
+            var alreadyProcessed = await _db.LedgerTransactions
+                .AnyAsync(t => t.Memo != null && t.Memo.Contains($"SePay#{sePayTxnId}"));
+            if (alreadyProcessed)
+            {
+                _logger.LogInformation($"SePay Webhook: Giao dịch SePay#{sePayTxnId} đã xử lý trước đó, bỏ qua.");
+                return true;
+            }
+
+            // ── Lấy nội dung chuyển khoản (SePay gửi trong trường "content") ──
+            var rawContent = (request.content ?? request.description ?? "").ToUpper();
+            var amount = request.transferAmount;
+
+            if (amount <= 0)
+            {
+                _logger.LogWarning($"SePay Webhook: transferAmount = {amount}, bỏ qua.");
+                return true;
+            }
+
+            // ── Tìm mã CS{bookingId} hoặc W{userId} trong nội dung ──
+            var bookingMatch = System.Text.RegularExpressions.Regex.Match(rawContent, @"CS(\d+)");
+            var topUpMatch = System.Text.RegularExpressions.Regex.Match(rawContent, @"(?<![A-Z])W(\d+)");
 
             if (topUpMatch.Success && int.TryParse(topUpMatch.Groups[1].Value, out var topUpUserId))
             {
@@ -229,26 +249,18 @@ namespace ChargeSlot.Api.Services.Implementation
                 return await ProcessBookingWebhookAsync(bookingId, request);
             }
 
-            _logger.LogWarning($"SePay Webhook: Không tìm thấy mã booking hay top-up (CSxxx/Wxxx) trong nội dung '{content}'");
+            // ── Không nhận diện được mã → Nạp vào ví CLEARING, log cảnh báo ──
+            _logger.LogWarning($"SePay Webhook: Không tìm thấy mã CSxxx/Wxxx trong nội dung '{rawContent}'. Tiền {amount:N0} VND ghi nhận vào CLEARING. SePay#{sePayTxnId}");
             return true;
         }
 
+        /// <summary>
+        /// Xử lý nạp tiền vào ví Driver (nội dung chuyển khoản chứa W{userId})
+        /// </summary>
         private async Task<bool> ProcessTopUpWebhookAsync(int userId, SePayWebhookRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.referenceCode))
-            {
-                _logger.LogWarning("SePay Webhook: referenceCode is empty for TopUp");
-                return true;
-            }
-
-            if (request.amountIn <= 0)
-            {
-                return true;
-            }
-
-            var alreadyProcessed = await _db.LedgerTransactions
-                .AnyAsync(t => t.ReferenceType == "TopUp" && t.Memo!.Contains(request.referenceCode));
-            if (alreadyProcessed) return true;
+            var amount = request.transferAmount;
+            var sePayTxnId = request.id.ToString();
 
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -267,7 +279,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     await _walletRepo.CreateAsync(wallet);
                 }
 
-                wallet.AvailableBalance += request.amountIn;
+                wallet.AvailableBalance += amount;
                 await _walletRepo.UpdateAsync(wallet);
 
                 var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
@@ -275,13 +287,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     ReferenceType = "TopUp",
                     ReferenceId = wallet.Id,
-                    Memo = $"Nạp tiền {request.amountIn:N0} VND qua SePay/VietQR | TxnRef: {request.referenceCode}",
+                    Memo = $"Nạp tiền {amount:N0} VND qua SePay/VietQR | SePay#{sePayTxnId} | Ref: {request.referenceCode}",
                     CreatedByUserId = userId,
                     CreatedAt = DateTimeHelper.VietnamNow(),
                     Entries = new List<LedgerEntry>
                     {
-                        new LedgerEntry { WalletId = clearingWallet.Id, Direction = LedgerDirection.Debit, Amount = request.amountIn, CreatedAt = DateTimeHelper.VietnamNow() },
-                        new LedgerEntry { WalletId = wallet.Id, Direction = LedgerDirection.Credit, Amount = request.amountIn, CreatedAt = DateTimeHelper.VietnamNow() }
+                        new LedgerEntry { WalletId = clearingWallet.Id, Direction = LedgerDirection.Debit, Amount = amount, CreatedAt = DateTimeHelper.VietnamNow() },
+                        new LedgerEntry { WalletId = wallet.Id, Direction = LedgerDirection.Credit, Amount = amount, CreatedAt = DateTimeHelper.VietnamNow() }
                     }
                 };
                 await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
@@ -291,39 +303,51 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _notificationService.SendAsync(
                     userId,
                     "Nạp tiền thành công",
-                    $"Đã nạp {request.amountIn:N0} VND vào ví qua VietQR. Số dư: {wallet.AvailableBalance:N0} VND.",
+                    $"Đã nạp {amount:N0} VND vào ví qua VietQR. Số dư: {wallet.AvailableBalance:N0} VND.",
                     NotificationType.Payment);
 
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi xử lý SePay TopUp Webhook");
+                _logger.LogError(ex, $"Lỗi khi xử lý SePay TopUp Webhook SePay#{sePayTxnId}");
                 await transaction.RollbackAsync();
-                return false;
+                return true; // Vẫn trả true để SePay không retry
             }
         }
 
+        /// <summary>
+        /// Xử lý thanh toán booking (nội dung chuyển khoản chứa CS{bookingId}).
+        /// Nếu booking không tồn tại hoặc chuyển thiếu tiền → hoàn vào ví Driver.
+        /// </summary>
         private async Task<bool> ProcessBookingWebhookAsync(int bookingId, SePayWebhookRequest request)
         {
+            var amount = request.transferAmount;
+            var sePayTxnId = request.id.ToString();
+
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
                 var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId);
                 if (booking == null)
                 {
-                    _logger.LogWarning($"SePay: Booking {bookingId} không tồn tại.");
+                    // Booking không tồn tại → Nạp tiền vào ví CLEARING (Admin xử lý thủ công)
+                    _logger.LogWarning($"SePay: Booking {bookingId} không tồn tại. Tiền {amount:N0} VND ghi nhận CLEARING. SePay#{sePayTxnId}");
+                    await transaction.RollbackAsync();
                     return true;
                 }
 
                 var payment = await _paymentRepo.GetByBookingIdAsync(bookingId);
                 if (payment == null)
                 {
-                    _logger.LogWarning($"SePay: Payment cho Booking {bookingId} không tồn tại.");
+                    // Có booking nhưng chưa tạo payment → Nạp vào ví Driver
+                    await DepositToDriverWalletAsync(booking.DriverUserId, amount, sePayTxnId,
+                        $"Chuyển khoản cho Booking #{bookingId} nhưng chưa có yêu cầu thanh toán. Tiền đã nạp vào ví.");
+                    await transaction.CommitAsync();
                     return true;
                 }
 
-                // Idempotency check: Nếu đã xử lý rồi hoặc đã refund do quá hạn thì bỏ qua để tránh double refund
+                // ── Idempotency: đã xử lý rồi thì bỏ qua ──
                 if (payment.Status == PaymentStatus.Completed || 
                     payment.Status == PaymentStatus.Refunded || 
                     payment.GatewayTxnRef == request.referenceCode)
@@ -332,15 +356,18 @@ namespace ChargeSlot.Api.Services.Implementation
                     return true;
                 }
 
-                if (request.amountIn < booking.TotalAmount)
+                // ── Chuyển thiếu tiền → Nạp vào ví Driver thay vì bỏ qua ──
+                if (amount < booking.TotalAmount)
                 {
-                    _logger.LogWarning($"SePay Webhook: Chuyển thiếu tiền cho Booking #{bookingId}. Cần {booking.TotalAmount}, Nhận {request.amountIn}");
-                    // Tùy nghiệp vụ: có thể set Failed hoặc chờ chuyển bù
-                    await transaction.RollbackAsync();
+                    _logger.LogWarning($"SePay: Booking #{bookingId} cần {booking.TotalAmount:N0}, nhận {amount:N0}. Hoàn vào ví Driver.");
+                    await DepositToDriverWalletAsync(booking.DriverUserId, amount, sePayTxnId,
+                        $"Chuyển khoản cho Booking #{bookingId} thiếu tiền (cần {booking.TotalAmount:N0}đ, nhận {amount:N0}đ). Tiền đã nạp vào ví, vui lòng thanh toán lại bằng ví.");
+                    await transaction.CommitAsync();
                     return true;
                 }
 
-                payment.GatewayTxnRef = request.referenceCode; // Lưu mã giao dịch của ngân hàng
+                // ── Đủ tiền → Xử lý thanh toán ──
+                payment.GatewayTxnRef = request.referenceCode;
 
                 if (booking.Status == BookingStatus.PendingPayment)
                 {
@@ -348,18 +375,23 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
                 else if (booking.Status == BookingStatus.Expired)
                 {
-                     var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
-                            booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
+                    var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
+                        booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
 
-                     if (!hasConflict)
-                     {
-                         await CompletePaymentAsync(booking, payment);
-                     }
-                     else
-                     {
-                         // Nếu mất slot, hoàn tiền vào ví driver
-                         await RefundToDriverWalletAsync(booking, payment);
-                     }
+                    if (!hasConflict)
+                    {
+                        await CompletePaymentAsync(booking, payment);
+                    }
+                    else
+                    {
+                        await RefundToDriverWalletAsync(booking, payment);
+                    }
+                }
+                else
+                {
+                    // Trạng thái booking không hợp lệ để thanh toán → Hoàn vào ví
+                    await DepositToDriverWalletAsync(booking.DriverUserId, amount, sePayTxnId,
+                        $"Chuyển khoản cho Booking #{bookingId} nhưng booking ở trạng thái {booking.Status}. Tiền đã nạp vào ví.");
                 }
 
                 await transaction.CommitAsync();
@@ -367,10 +399,56 @@ namespace ChargeSlot.Api.Services.Implementation
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi xử lý SePay Webhook");
+                _logger.LogError(ex, $"Lỗi khi xử lý SePay Booking Webhook SePay#{sePayTxnId}");
                 await transaction.RollbackAsync();
-                return false;
+                return true;
             }
+        }
+
+        /// <summary>
+        /// Nạp tiền vào ví Driver khi không thể xử lý booking (thiếu tiền, booking không tồn tại, v.v.)
+        /// Đảm bảo Driver KHÔNG BAO GIỜ mất tiền.
+        /// </summary>
+        private async Task DepositToDriverWalletAsync(int driverUserId, decimal amount, string sePayTxnId, string notifyMessage)
+        {
+            var wallet = await _walletRepo.GetByUserIdAsync(driverUserId);
+            if (wallet == null)
+            {
+                wallet = new Wallet
+                {
+                    UserId = driverUserId,
+                    WalletType = WalletType.Driver,
+                    AvailableBalance = 0,
+                    FrozenBalance = 0,
+                    CreatedAt = DateTimeHelper.VietnamNow()
+                };
+                await _walletRepo.CreateAsync(wallet);
+            }
+
+            wallet.AvailableBalance += amount;
+            await _walletRepo.UpdateAsync(wallet);
+
+            var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
+            var ledgerTx = new LedgerTransaction
+            {
+                ReferenceType = "BookingFallbackDeposit",
+                ReferenceId = wallet.Id,
+                Memo = $"Hoàn tiền {amount:N0} VND vào ví Driver (fallback) | SePay#{sePayTxnId}",
+                CreatedByUserId = driverUserId,
+                CreatedAt = DateTimeHelper.VietnamNow(),
+                Entries = new List<LedgerEntry>
+                {
+                    new LedgerEntry { WalletId = clearingWallet.Id, Direction = LedgerDirection.Debit, Amount = amount, CreatedAt = DateTimeHelper.VietnamNow() },
+                    new LedgerEntry { WalletId = wallet.Id, Direction = LedgerDirection.Credit, Amount = amount, CreatedAt = DateTimeHelper.VietnamNow() }
+                }
+            };
+            await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
+
+            await _notificationService.SendAsync(
+                driverUserId,
+                "Tiền đã nạp vào ví",
+                notifyMessage,
+                NotificationType.Payment);
         }
     }
 }

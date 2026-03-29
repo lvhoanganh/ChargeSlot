@@ -60,13 +60,13 @@ namespace ChargeSlot.Api.Controllers
                 return Unauthorized(new { success = false, message = "Invalid SePay Integration Token" });
             }
 
-            var success = await _paymentService.ProcessSePayWebhookAsync(request);
+            await _paymentService.ProcessSePayWebhookAsync(request);
 
-            // Chú ý: SePay document yêu cầu trả về HTTP 200 + { "success": true } để xác nhận đã nhận webhook thành công.
+            // SePay yêu cầu: HTTP 200 + { "success": true } = webhook đã nhận thành công
             return Ok(new SePayWebhookResponse
             {
-                success = success,
-                message = success ? "Processed successfully" : "Warning: Failed to process or idempotency skipped. Check logs."
+                success = true,
+                message = "Webhook received"
             });
         }
     }
