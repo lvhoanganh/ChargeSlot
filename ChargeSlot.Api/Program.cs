@@ -210,6 +210,7 @@ builder.Services.AddScoped<IPayoutService, PayoutService>();
 builder.Services.AddHostedService<PaymentExpiryJob>();
 builder.Services.AddHostedService<InvoiceAutoConfirmJob>();
 builder.Services.AddHostedService<DisputeAutoResolveJob>();
+builder.Services.AddHostedService<NoShowJob>();
 
 // =======================
 // CONTROLLERS & SWAGGER

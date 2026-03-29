@@ -434,6 +434,8 @@ namespace ChargeSlot.Api.Services.Implementation
 
         private static BookingDto MapToBookingDto(Booking b)
         {
+            var serviceAmount = b.BookingExtraServices?.Sum(e => e.TotalPrice) ?? 0;
+
             return new BookingDto
             {
                 Id = b.Id,
@@ -447,12 +449,24 @@ namespace ChargeSlot.Api.Services.Implementation
                 EndTime = b.EndTime,
                 DurationHours = b.DurationHours,
                 TotalAmount = b.TotalAmount,
+                ServiceAmount = serviceAmount,
+                PointsUsed = b.PointsUsed,
+                PointsDiscountAmount = b.PointsDiscountAmount,
+                PointsEarned = b.PointsEarned,
                 Note = b.Note,
                 Status = b.Status.ToString(),
                 RejectionReason = b.RejectionReason,
                 CancelReason = b.CancelReason,
                 PaymentExpiresAt = b.PaymentExpiresAt,
-                CreatedAt = b.CreatedAt
+                CreatedAt = b.CreatedAt,
+                ExtraServices = b.BookingExtraServices?.Select(e => new BookingExtraServiceDto
+                {
+                    ServiceId = e.ServiceId,
+                    ServiceName = e.ExtraService?.ServiceName ?? "",
+                    Quantity = e.Quantity,
+                    UnitPrice = e.UnitPrice,
+                    TotalPrice = e.TotalPrice
+                }).ToList()
             };
         }
 

@@ -56,6 +56,12 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<string> GetSePayTopUpQrUrlAsync(int userId, decimal amount)
         {
+            // BUG-3 FIX: Validate amount
+            if (amount < 10_000)
+                throw new InvalidOperationException("Số tiền nạp tối thiểu là 10,000 VND.");
+            if (amount > 50_000_000)
+                throw new InvalidOperationException("Số tiền nạp tối đa là 50,000,000 VND.");
+
             var wallet = await GetOrCreateWalletInternalAsync(userId);
             
             var accountNumber = _configuration["SePay:AccountNumber"] ?? "YOUR_BANK_ACCOUNT";
@@ -97,9 +103,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException(
                     $"Số dư ví không đủ. Cần {booking.TotalAmount:N0} VND, hiện có {wallet.AvailableBalance:N0} VND.");
 
-            // Trừ tiền ví Driver
-            wallet.AvailableBalance -= booking.TotalAmount;
-            await _walletRepo.UpdateAsync(wallet);
+            // BUG-1 FIX: Atomic SQL update tránh race condition
+            var rowsAffected = await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallets SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1} AND AvailableBalance >= {0}",
+                booking.TotalAmount, wallet.Id);
+            if (rowsAffected == 0)
+                throw new InvalidOperationException("Số dư ví không đủ hoặc đã bị thay đổi. Vui lòng thử lại.");
+            await _db.Entry(wallet).ReloadAsync(); // Reload để có balance mới
 
             // Cộng tiền vào ESCROW (query by SystemCode thay vì hardcode ID)
             var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
@@ -221,6 +231,12 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<WithdrawRequestDto> WithdrawAsync(int userId, WithdrawDto dto)
         {
+            // BUG-7 FIX: Validate withdraw amount
+            if (dto.Amount < 50_000)
+                throw new InvalidOperationException("Số tiền rút tối thiểu là 50,000 VND.");
+            if (dto.Amount > 100_000_000)
+                throw new InvalidOperationException("Số tiền rút tối đa là 100,000,000 VND.");
+
             var wallet = await GetOrCreateWalletInternalAsync(userId);
 
             if (wallet.AvailableBalance < dto.Amount)

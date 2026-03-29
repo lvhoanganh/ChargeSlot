@@ -37,9 +37,11 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<BookingDto> CreateBookingAsync(int driverUserId, CreateBookingDto dto)
         {
-            // Validate: DurationHours phải > 0
+            // Validate: DurationHours phải > 0 và <= 24
             if (dto.DurationHours <= 0)
                 throw new InvalidOperationException("Thời lượng sạc phải lớn hơn 0.");
+            if (dto.DurationHours > 24)
+                throw new InvalidOperationException("Thời lượng sạc tối đa là 24 giờ.");
 
             // Validate: StartTime phải trong tương lai và cách hiện tại ít nhất 30 phút
             var minutesUntilStart = (dto.StartTime - DateTimeHelper.VietnamNow()).TotalMinutes;
@@ -634,26 +636,6 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             var bookings = await _bookingRepo.GetByOwnerAsync(ownerUserId);
             return bookings.Select(MapToDto).ToList();
-        }
-
-        /// <summary>
-        /// Xem lịch đặt chỗ tại 1 slot trong ngày cụ thể.
-        /// Driver dùng để xem giờ nào đã bị đặt trước khi tạo booking.
-        /// Chỉ trả thời gian + trạng thái, không lộ danh tính driver khác.
-        /// </summary>
-        public async Task<List<SlotScheduleDto>> GetSlotScheduleAsync(int slotId, DateTime? date)
-        {
-            var targetDate = date ?? DateTimeHelper.VietnamNow();
-            var bookings = await _bookingRepo.GetActiveBookingsForSlotAsync(slotId, targetDate);
-
-            return bookings.Select(b => new SlotScheduleDto
-            {
-                BookingId = b.Id,
-                StartTime = b.StartTime,
-                EndTime = b.EndTime,
-                DurationHours = b.DurationHours ?? 0,
-                Status = b.Status.ToString()
-            }).ToList();
         }
 
         private static BookingDto MapToDto(Booking b)

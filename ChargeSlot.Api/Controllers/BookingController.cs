@@ -95,23 +95,33 @@ namespace ChargeSlot.Api.Controllers
 
         /// <summary>
         /// Driver xem danh sách booking của mình (filter theo status nếu cần)
+        /// BUG-8 FIX: Có phân trang (page, pageSize)
         /// </summary>
         [HttpGet("driver")]
         [Authorize(Roles = "Driver")]
-        public async Task<IActionResult> GetDriverBookings([FromQuery] string? status = null)
+        public async Task<IActionResult> GetDriverBookings(
+            [FromQuery] string? status = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var result = await _bookingService.GetByDriverAsync(GetUserId());
             if (!string.IsNullOrEmpty(status))
                 result = result.Where(b => b.Status.Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
-            return Ok(result);
+
+            var total = result.Count;
+            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new { total, page, pageSize, items });
         }
 
         /// <summary>
         /// Driver xem lịch sử booking đã hoàn thành
+        /// BUG-8 FIX: Có phân trang
         /// </summary>
         [HttpGet("driver/history")]
         [Authorize(Roles = "Driver")]
-        public async Task<IActionResult> GetDriverBookingHistory()
+        public async Task<IActionResult> GetDriverBookingHistory(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var result = await _bookingService.GetByDriverAsync(GetUserId());
             var history = result.Where(b =>
@@ -120,30 +130,32 @@ namespace ChargeSlot.Api.Controllers
                 b.Status.Equals("DriverCancelled", StringComparison.OrdinalIgnoreCase) ||
                 b.Status.Equals("OwnerCancelled", StringComparison.OrdinalIgnoreCase) ||
                 b.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase) ||
-                b.Status.Equals("Expired", StringComparison.OrdinalIgnoreCase)
+                b.Status.Equals("Expired", StringComparison.OrdinalIgnoreCase) ||
+                b.Status.Equals("NoShow", StringComparison.OrdinalIgnoreCase)
             ).ToList();
-            return Ok(history);
+
+            var total = history.Count;
+            var items = history.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new { total, page, pageSize, items });
         }
 
         /// <summary>
-        /// Xem lịch đặt chỗ tại 1 slot trong ngày (để Driver né giờ đã bị đặt).
-        /// Mặc định: ngày hôm nay. Query param: ?date=2026-03-30
-        /// </summary>
-        [HttpGet("slot/{slotId}/schedule")]
-        public async Task<IActionResult> GetSlotSchedule(int slotId, [FromQuery] DateTime? date)
-        {
-            var result = await _bookingService.GetSlotScheduleAsync(slotId, date);
-            return Ok(result);
-        }
-
-        /// <summary>
-        /// Xem chi tiết booking
+        /// Xem chi tiết booking (chỉ Driver sở hữu, Owner trạm, hoặc Admin)
         /// </summary>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetBooking(int id)
         {
             var result = await _bookingService.GetByIdAsync(id);
             if (result == null) return NotFound();
+
+            // BUG-4 FIX: Kiểm tra quyền xem
+            var userId = GetUserId();
+            var isDriver = result.DriverUserId == userId;
+            var isOwner = User.IsInRole("Owner"); // Owner có thể xem booking trên trạm mình
+            var isAdmin = User.IsInRole("Admin");
+            if (!isDriver && !isOwner && !isAdmin)
+                return Forbid();
+
             return Ok(result);
         }
 

@@ -13,6 +13,5 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<CancelPreviewDto> GetCancelPreviewAsync(int driverUserId, int bookingId);
         Task<List<BookingDto>> GetByDriverAsync(int driverUserId);
         Task<List<BookingDto>> GetByOwnerAsync(int ownerUserId);
-        Task<List<SlotScheduleDto>> GetSlotScheduleAsync(int slotId, DateTime? date);
     }
 }
