@@ -584,7 +584,7 @@ export default function StationDetailDriver() {
               {station.images.map((img) => (
                 <img
                   key={img.id}
-                  src={img.imageUrl?.startsWith("http") ? img.imageUrl : `http://localhost:5162${img.imageUrl}`}
+                  src={img.imageUrl?.startsWith("http") ? img.imageUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${img.imageUrl}`}
                   alt="Station"
                   className="w-full h-40 object-cover rounded-xl"
                 />
@@ -625,7 +625,7 @@ export default function StationDetailDriver() {
                 <div key={r.id} className="border-b border-gray-50 pb-3 last:border-0">
                   <div className="flex items-center gap-2 mb-1">
                     {r.driverAvatarUrl ? (
-                      <img src={r.driverAvatarUrl.startsWith("/") ? `http://localhost:5162${r.driverAvatarUrl}` : r.driverAvatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                      <img src={r.driverAvatarUrl.startsWith("/") ? `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${r.driverAvatarUrl}` : r.driverAvatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
                     ) : (
                       <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs">👤</div>
                     )}

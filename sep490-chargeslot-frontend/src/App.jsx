@@ -40,8 +40,6 @@ import StationDetailDriver from "./pages/driver/StationDetailDriver";
 import BookingForm from "./pages/driver/BookingForm";
 import MyBookings from "./pages/driver/MyBookings";
 import BookingStatus from "./pages/driver/BookingStatus";
-import PaymentResult from "./pages/driver/PaymentResult";
-import WalletTopUpResult from "./pages/driver/WalletTopUpResult";
 import DriverWallet from "./pages/driver/DriverWallet";
 import BookingRequests from "./pages/owner/BookingRequests";
 import BookingRequestDetail from "./pages/owner/BookingRequestDetail";
@@ -77,8 +75,6 @@ export default function App() {
           <Route path="driver/map" element={<StationMap />} />
           <Route path="driver/station/:id" element={<StationDetailDriver />} />
           <Route path="driver/station/:stationId/book" element={<BookingForm />} />
-          <Route path="payment/result" element={<PaymentResult />} />
-          <Route path="wallet/top-up/result" element={<WalletTopUpResult />} />
           <Route path="forgotPassword" element={<ForgotPassword />} />
           <Route element={<PublicMiddleware />}>
             <Route path="login" element={<Login />} />

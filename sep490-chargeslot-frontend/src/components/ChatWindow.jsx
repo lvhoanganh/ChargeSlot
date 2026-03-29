@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as signalR from "@microsoft/signalr";
 
-const API_BASE = "http://localhost:5162";
+const API_BASE = "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net";
 
 /**
  * Reusable ChatWindow component — used by both Driver and Owner

@@ -1,6 +1,6 @@
 import axios from "axios";
 export const instance = axios.create({
-  baseURL: "http://localhost:5162/api",
+  baseURL: import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api",
 });
 
 instance.interceptors.request.use((config) => {

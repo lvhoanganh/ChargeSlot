@@ -122,7 +122,8 @@ export default function ScanQR() {
     const timeout = setTimeout(() => controller.abort(), 15000);
 
     try {
-      const res = await fetch("http://localhost:5162/api/charging/check-in", {
+      const API_URL = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
+      const res = await fetch(`${API_URL}/charging/check-in`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

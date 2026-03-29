@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { bookingApi, paymentApi, walletApi, disputeApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+import QRCodeModal from "@/components/QRCodeModal";
 
 const statusStyles = {
   WaitingOwner: { label: "Chờ chủ trạm duyệt", color: "#f59e0b", bg: "#fffbeb", bgGrad: "linear-gradient(135deg, #fef3c7, #fde68a)", icon: "⏳" },
@@ -37,6 +38,8 @@ export default function BookingStatus() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [sepayOpen, setSepayOpen] = useState(false);
+  const [sepayUrl, setSepayUrl] = useState("");
 
   function fetchBooking() {
     bookingApi.getById(Number(id))
@@ -51,13 +54,35 @@ export default function BookingStatus() {
     return () => clearInterval(interval);
   }, [id]);
 
-  async function handlePayVNPay() {
+  useEffect(() => {
+    if (!sepayOpen) return;
+    const timer = setInterval(() => {
+      bookingApi.getById(Number(id))
+        .then((data) => {
+          setBooking(data);
+          if (data && data.status === "Paid") {
+            setSepayOpen(false);
+            showToast.success("🎉 Thanh toán thành công!");
+          }
+        })
+        .catch(() => { });
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [sepayOpen, id]);
+
+  async function handlePaySepay() {
     setPayLoading(true);
     try {
-      const res = await paymentApi.createPaymentUrl(Number(id));
-      if (res.paymentUrl) window.location.href = res.paymentUrl;
+      const res = await paymentApi.createSepayUrl(Number(id));
+      if (res.qrUrl) {
+        setSepayUrl(res.qrUrl);
+        setSepayOpen(true);
+      } else if (typeof res === 'string') {
+        setSepayUrl(res);
+        setSepayOpen(true);
+      }
     } catch (err) {
-      showToast.error(err.message || "Lỗi tạo link thanh toán");
+      showToast.error(err.message || "Lỗi tạo link thanh toán VietQR");
     } finally { setPayLoading(false); }
   }
 
@@ -254,12 +279,12 @@ export default function BookingStatus() {
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <ActionButton
-                onClick={handlePayVNPay}
+                onClick={handlePaySepay}
                 disabled={payLoading}
-                bg="linear-gradient(135deg, #3b82f6, #2563eb)"
-                shadow="rgba(59,130,246,0.25)"
+                bg="linear-gradient(135deg, #0284c7, #0369a1)"
+                shadow="rgba(2,132,199,0.25)"
               >
-                {payLoading ? "Đang xử lý..." : "💳 Thanh toán VNPay"}
+                {payLoading ? "Đang xử lý..." : "📱 Thanh toán VietQR"}
               </ActionButton>
               <ActionButton
                 onClick={handlePayWallet}
@@ -371,6 +396,14 @@ export default function BookingStatus() {
           <DisputeLink bookingId={booking.id} navigate={navigate} />
         )}
       </div>
+
+      <QRCodeModal
+        isOpen={sepayOpen}
+        onClose={() => setSepayOpen(false)}
+        qrUrl={sepayUrl}
+        title="Thanh toán VietQR"
+        amount={booking.totalAmount}
+      />
     </div>
   );
 }

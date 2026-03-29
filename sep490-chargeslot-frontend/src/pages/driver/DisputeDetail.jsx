@@ -167,7 +167,7 @@ function TimelineStep({ icon, title, time, isActive, isLast, children }) {
 }
 
 function EvidenceGallery({ evidences }) {
-  const toUrl = (url) => url?.startsWith("http") ? url : `http://localhost:5162${url}`;
+  const toUrl = (url) => url?.startsWith("http") ? url : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${url}`;
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
       {evidences.map((ev) => (

@@ -176,7 +176,7 @@ export default function AdminDisputeDetail() {
               <span className="cs-dispute-detail__field-label">Bằng chứng ({dispute.evidences.length})</span>
               <div className="cs-dispute-detail__evidences">
                 {dispute.evidences.map((ev) => {
-                  const url = ev.fileUrl?.startsWith("http") ? ev.fileUrl : `http://localhost:5162${ev.fileUrl}`;
+                  const url = ev.fileUrl?.startsWith("http") ? ev.fileUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${ev.fileUrl}`;
                   return (
                     <a key={ev.id} href={url} target="_blank" rel="noopener noreferrer" className="cs-dispute-detail__evidence">
                       {ev.fileType === "image" ? (

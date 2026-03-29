@@ -34,10 +34,10 @@ export default function HomePage() {
     {
       icon: "💰",
       title: "Thanh toán tiện lợi",
-      desc: "Ví điện tử tích hợp, nạp tiền qua VNPay và thanh toán tự động.",
+      desc: "Ví điện tử tích hợp, nạp tiền nhanh chóng qua VietQR.",
       detail: [
         "Vào mục \"Ví tiền\" từ thanh điều hướng để xem số dư và số tiền đang giữ",
-        "Nạp tiền vào ví qua cổng thanh toán VNPay",
+        "Nạp tiền vào ví qua hình thức quét mã VietQR",
         "Khi booking được duyệt, tiền tự động trừ từ ví (BookingPayment)",
         "Nếu hủy booking, tiền được hoàn lại vào ví (BookingCancel/Refund)",
         "Xem toàn bộ lịch sử giao dịch: nạp tiền, thanh toán, hoàn tiền với thời gian chi tiết",

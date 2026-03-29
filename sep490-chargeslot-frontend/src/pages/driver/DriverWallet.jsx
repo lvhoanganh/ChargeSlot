@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { walletApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+import QRCodeModal from "@/components/QRCodeModal";
 
 const txTypeLabels = {
   TopUp: { label: "Nạp tiền", icon: "💰", color: "#22c55e" },
@@ -40,6 +41,9 @@ export default function DriverWallet() {
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [topUpLoading, setTopUpLoading] = useState(false);
+  const [sepayOpen, setSepayOpen] = useState(false);
+  const [sepayUrl, setSepayUrl] = useState("");
+  const [initialBalance, setInitialBalance] = useState(0);
 
   // Withdraw
   const [showWithdraw, setShowWithdraw] = useState(false);
@@ -62,6 +66,24 @@ export default function DriverWallet() {
 
   useEffect(() => { fetchAll(); }, []);
 
+  useEffect(() => {
+    if (!sepayOpen) return;
+    const timer = setInterval(() => {
+      walletApi.getWallet()
+        .then((data) => {
+          if (data && data.availableBalance > initialBalance) {
+            setSepayOpen(false);
+            showToast.success("🎉 Nạp tiền thành công!");
+            setShowTopUp(false);
+            setTopUpAmount("");
+            fetchAll();
+          }
+        })
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [sepayOpen, initialBalance]);
+
   async function handleTopUp() {
     const amt = Number(topUpAmount);
     if (!amt || amt < 10000) {
@@ -69,9 +91,16 @@ export default function DriverWallet() {
       return;
     }
     setTopUpLoading(true);
+    setInitialBalance(wallet?.availableBalance || 0);
     try {
       const res = await walletApi.topUp(amt);
-      if (res?.paymentUrl) {
+      if (res?.qrUrl) {
+         setSepayUrl(res.qrUrl);
+         setSepayOpen(true);
+      } else if (typeof res === 'string') {
+         setSepayUrl(res);
+         setSepayOpen(true);
+      } else if (res?.paymentUrl) {
         window.location.href = res.paymentUrl;
       } else {
         showToast.success("Nạp tiền thành công!");
@@ -189,7 +218,7 @@ export default function DriverWallet() {
             />
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <ActionButton onClick={handleTopUp} disabled={topUpLoading} bg="linear-gradient(135deg, #f97316, #ea580c)">
-                {topUpLoading ? "Đang xử lý..." : "Nạp tiền qua VNPay"}
+                {topUpLoading ? "Đang xử lý..." : "Nạp tiền qua VietQR"}
               </ActionButton>
               <button
                 onClick={() => { setShowTopUp(false); setTopUpAmount(""); }}

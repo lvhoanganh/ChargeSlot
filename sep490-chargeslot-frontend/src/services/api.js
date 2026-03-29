@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:5162/api";
+const API_BASE_URL = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
 
 /**
  * Lấy token từ localStorage
@@ -360,6 +360,10 @@ export const bookingApi = {
 export const paymentApi = {
     createPaymentUrl: (bookingId) =>
         apiFetch(`/Payment/${bookingId}/create-payment-url`, { method: "POST" }),
+
+    /** Thanh toán chuyển khoản (SePay) */
+    createSepayUrl: (bookingId) =>
+        apiFetch(`/Payment/${bookingId}/sepay-qr`, { method: "GET" }),
 
     /** Thanh toán bằng ví */
     payWithWallet: (bookingId) =>

@@ -25,7 +25,7 @@ export default function FavoriteStations() {
 
   function getImg(f) {
     if (imgErrors[f.stationId] || !f.imageUrl) return null;
-    return f.imageUrl.startsWith("http") ? f.imageUrl : `http://localhost:5162${f.imageUrl}`;
+    return f.imageUrl.startsWith("http") ? f.imageUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${f.imageUrl}`;
   }
 
   if (loading) {

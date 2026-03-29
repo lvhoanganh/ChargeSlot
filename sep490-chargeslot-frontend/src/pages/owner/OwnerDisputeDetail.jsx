@@ -282,7 +282,7 @@ export default function OwnerDisputeDetail() {
 }
 
 function EvidenceGallery({ evidences }) {
-  const API_BASE = "http://localhost:5162";
+  const API_BASE = "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net";
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
       {evidences.map((ev) => {
