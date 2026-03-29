@@ -41,9 +41,19 @@ namespace ChargeSlot.Api.Services.Implementation
             if (dto.DurationHours <= 0)
                 throw new InvalidOperationException("Thời lượng sạc phải lớn hơn 0.");
 
-            // Validate: StartTime phải trong tương lai
-            if (dto.StartTime <= DateTimeHelper.VietnamNow())
+            // Validate: StartTime phải trong tương lai và cách hiện tại ít nhất 30 phút
+            var minutesUntilStart = (dto.StartTime - DateTimeHelper.VietnamNow()).TotalMinutes;
+            if (minutesUntilStart <= 0)
                 throw new InvalidOperationException("Thời gian bắt đầu phải trong tương lai.");
+            if (minutesUntilStart < 30)
+                throw new InvalidOperationException("Phải đặt trước ít nhất 30 phút trước giờ sạc.");
+
+            // Validate: Driver chỉ được có tối đa 3 booking đang chờ xử lý
+            var pendingCount = await _context.Bookings
+                .CountAsync(b => b.DriverUserId == driverUserId
+                    && (b.Status == BookingStatus.WaitingOwner || b.Status == BookingStatus.PendingPayment));
+            if (pendingCount >= 3)
+                throw new InvalidOperationException("Bạn đang có 3 booking chờ xử lý. Vui lòng hoàn tất hoặc hủy bớt trước khi đặt mới.");
 
             // Step 5: Compute end time
             var endTime = dto.StartTime.AddHours((double)dto.DurationHours);
@@ -552,6 +562,66 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId);
             return booking == null ? null : MapToDto(booking);
+        }
+
+        /// <summary>
+        /// Preview phí hủy booking trước khi Driver xác nhận.
+        /// Giúp FE hiện popup cảnh báo "Bạn sẽ mất X% tiền nếu hủy ngay".
+        /// </summary>
+        public async Task<CancelPreviewDto> GetCancelPreviewAsync(int driverUserId, int bookingId)
+        {
+            var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
+                ?? throw new InvalidOperationException("Booking không tồn tại.");
+
+            if (booking.DriverUserId != driverUserId)
+                throw new UnauthorizedAccessException("Booking này không thuộc về bạn.");
+
+            var result = new CancelPreviewDto
+            {
+                BookingId = bookingId,
+                TotalAmount = booking.TotalAmount,
+                Status = booking.Status.ToString()
+            };
+
+            if (booking.Status == BookingStatus.WaitingOwner || booking.Status == BookingStatus.PendingPayment)
+            {
+                result.RefundPercent = 100;
+                result.RefundAmount = 0; // Chưa trả tiền nên 0
+                result.PenaltyAmount = 0;
+                result.Message = "Hủy miễn phí (chưa thanh toán).";
+            }
+            else if (booking.Status == BookingStatus.Paid)
+            {
+                var hoursBeforeStart = (booking.StartTime - DateTimeHelper.VietnamNow()).TotalHours;
+
+                if (hoursBeforeStart >= 2)
+                {
+                    result.RefundPercent = 100;
+                    result.RefundAmount = booking.TotalAmount;
+                    result.PenaltyAmount = 0;
+                    result.Message = "Hoàn 100% vào ví (hủy trước ≥2 giờ).";
+                }
+                else if (hoursBeforeStart >= 1)
+                {
+                    result.RefundPercent = 50;
+                    result.RefundAmount = Math.Round(booking.TotalAmount * 0.5m, 0);
+                    result.PenaltyAmount = booking.TotalAmount - result.RefundAmount;
+                    result.Message = $"Hoàn 50% ({result.RefundAmount:N0}đ) vào ví. Mất {result.PenaltyAmount:N0}đ phí hủy muộn.";
+                }
+                else
+                {
+                    result.RefundPercent = 0;
+                    result.RefundAmount = 0;
+                    result.PenaltyAmount = booking.TotalAmount;
+                    result.Message = $"⚠️ Không hoàn tiền! Bạn sẽ mất toàn bộ {booking.TotalAmount:N0}đ vì hủy dưới 1 giờ trước giờ sạc.";
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException("Không thể hủy booking ở trạng thái hiện tại.");
+            }
+
+            return result;
         }
 
         public async Task<List<BookingDto>> GetByDriverAsync(int driverUserId)

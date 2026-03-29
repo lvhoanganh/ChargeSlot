@@ -137,6 +137,29 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
+        /// Preview phí hủy trước khi Driver xác nhận hủy.
+        /// FE gọi API này trước → hiện popup cảnh báo → Driver xác nhận → FE gọi driver-cancel.
+        /// </summary>
+        [HttpGet("{id}/cancel-preview")]
+        [Authorize(Roles = "Driver")]
+        public async Task<IActionResult> GetCancelPreview(int id)
+        {
+            try
+            {
+                var result = await _bookingService.GetCancelPreviewAsync(GetUserId(), id);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+        }
+
+        /// <summary>
         /// Driver hủy booking (WaitingOwner / PendingPayment / Paid)
         /// Paid: hoàn tiền theo chính sách (≥2h=100%, 1-2h=50%, &lt;1h=0%)
         /// </summary>
