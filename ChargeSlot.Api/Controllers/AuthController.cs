@@ -114,5 +114,22 @@ namespace ChargeSlot.Api.Controllers
             }
         }
 
+        /// <summary>Kiểm tra SĐT đã được đăng ký chưa (dùng trước khi gửi OTP để tránh lãng phí).</summary>
+        [HttpGet("check-phone")]
+        public async Task<IActionResult> CheckPhoneExists([FromQuery] string phoneNumber)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(phoneNumber))
+                    return BadRequest(new { message = "Vui lòng cung cấp số điện thoại." });
+
+                var exists = await _authService.CheckPhoneExistsAsync(phoneNumber);
+                return Ok(new { exists });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }

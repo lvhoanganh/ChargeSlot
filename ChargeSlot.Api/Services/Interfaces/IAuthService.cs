@@ -10,5 +10,6 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task RevokeTokenAsync(string refreshToken, int userId);
         Task ResetPasswordAsync(string phoneNumber, string newPassword, string firebaseIdToken);
         Task ChangePasswordAsync(int userId, string currentPassword, string newPassword);
+        Task<bool> CheckPhoneExistsAsync(string phoneNumber);
     }
 }

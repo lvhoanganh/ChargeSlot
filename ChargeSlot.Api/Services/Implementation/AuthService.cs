@@ -321,5 +321,11 @@ namespace ChargeSlot.Api.Services.Implementation
                     string.Join("; ", result.Errors.Select(e => e.Description)));
         }
 
+        public async Task<bool> CheckPhoneExistsAsync(string phoneNumber)
+        {
+            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.PhoneNumber == phoneNumber);
+            return user != null;
+        }
+
     }
 }
