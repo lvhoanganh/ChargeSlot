@@ -121,12 +121,12 @@ export default function StationDetailDriver() {
   // Fetch reviews
   useEffect(() => {
     if (!id) return;
-    reviewApi.getSummary(Number(id)).then(setReviewSummary).catch(() => {});
+    reviewApi.getSummary(Number(id)).then(setReviewSummary).catch(() => { });
     reviewApi.getByStation(Number(id), 1, 5).then((data) => {
       const list = Array.isArray(data) ? data : (data?.items || []);
       setReviews(list);
       setHasMoreReviews(list.length >= 5);
-    }).catch(() => {});
+    }).catch(() => { });
   }, [id]);
 
   // Check favorite status
@@ -134,7 +134,7 @@ export default function StationDetailDriver() {
     if (!id || !token) return;
     favoriteApi.check(Number(id))
       .then(data => setIsFavorite(data?.isFavorite || false))
-      .catch(() => {});
+      .catch(() => { });
   }, [id, token]);
 
   async function toggleFavorite() {
@@ -491,7 +491,7 @@ export default function StationDetailDriver() {
                 <div className="space-y-1">
                   {tiers.map((tier, idx) => (
                     <div key={idx} className="flex justify-between text-xs bg-gray-50 rounded-lg px-3 py-2">
-                      <span className="text-gray-500">{String(tier.startTime).substring(0,5)}–{String(tier.endTime).substring(0,5)}</span>
+                      <span className="text-gray-500">{String(tier.startTime).substring(0, 5)}–{String(tier.endTime).substring(0, 5)}</span>
                       <span className="font-bold text-amber-600">{tier.pricePerHour?.toLocaleString("vi-VN")}đ/h</span>
                     </div>
                   ))}
@@ -527,16 +527,14 @@ export default function StationDetailDriver() {
               return (
                 <div
                   key={day}
-                  className={`flex justify-between text-sm px-3 py-2 rounded-lg ${
-                    isToday
+                  className={`flex justify-between text-sm px-3 py-2 rounded-lg ${isToday
                       ? "bg-orange-50 border border-orange-100"
                       : ""
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`font-medium ${
-                      isToday ? "text-orange-600" : "text-gray-700"
-                    }`}
+                    className={`font-medium ${isToday ? "text-orange-600" : "text-gray-700"
+                      }`}
                   >
                     {dayNames[day]}
                     {isToday && (
@@ -685,7 +683,7 @@ export default function StationDetailDriver() {
           className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ${loginToast
             ? "opacity-100 translate-y-0"
             : "opacity-0 -translate-y-4 pointer-events-none"
-          }`}
+            }`}
         >
           <div className="flex items-center gap-3 bg-white border border-orange-200 shadow-2xl rounded-xl px-5 py-4 min-w-[360px]">
             <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
