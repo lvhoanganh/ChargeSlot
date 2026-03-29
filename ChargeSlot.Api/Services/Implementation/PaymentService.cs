@@ -216,36 +216,21 @@ namespace ChargeSlot.Api.Services.Implementation
         public async Task<bool> ProcessSePayWebhookAsync(SePayWebhookRequest request)
         {
             var content = (request.transactionContent ?? request.content ?? request.body ?? "").ToUpper();
-            var words = content.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
             
-            int bookingId = 0;
-            int topUpUserId = 0;
+            var bookingMatch = System.Text.RegularExpressions.Regex.Match(content, @"CS(\d+)");
+            var topUpMatch = System.Text.RegularExpressions.Regex.Match(content, @"W(\d+)");
 
-            foreach (var word in words)
-            {
-                if (word.StartsWith("CS") && int.TryParse(word.Substring(2), out var bId))
-                {
-                    bookingId = bId;
-                    break;
-                }
-                if (word.StartsWith("W") && int.TryParse(word.Substring(1), out var uId))
-                {
-                    topUpUserId = uId;
-                    break;
-                }
-            }
-
-            if (topUpUserId > 0)
+            if (topUpMatch.Success && int.TryParse(topUpMatch.Groups[1].Value, out var topUpUserId))
             {
                 return await ProcessTopUpWebhookAsync(topUpUserId, request);
             }
-            if (bookingId > 0)
+            if (bookingMatch.Success && int.TryParse(bookingMatch.Groups[1].Value, out var bookingId))
             {
                 return await ProcessBookingWebhookAsync(bookingId, request);
             }
 
-            _logger.LogWarning($"SePay Webhook: Không tìm thấy mã booking hay top-up (CSxxx/Wxxx) trong nội dung '{request.transactionContent}'");
-            return false;
+            _logger.LogWarning($"SePay Webhook: Không tìm thấy mã booking hay top-up (CSxxx/Wxxx) trong nội dung '{content}'");
+            return true;
         }
 
         private async Task<bool> ProcessTopUpWebhookAsync(int userId, SePayWebhookRequest request)
@@ -253,12 +238,12 @@ namespace ChargeSlot.Api.Services.Implementation
             if (string.IsNullOrWhiteSpace(request.referenceCode))
             {
                 _logger.LogWarning("SePay Webhook: referenceCode is empty for TopUp");
-                return false;
+                return true;
             }
 
             if (request.amountIn <= 0)
             {
-                return false;
+                return true;
             }
 
             var alreadyProcessed = await _db.LedgerTransactions
@@ -325,10 +310,18 @@ namespace ChargeSlot.Api.Services.Implementation
             try
             {
                 var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId);
-                if (booking == null) return false;
+                if (booking == null)
+                {
+                    _logger.LogWarning($"SePay: Booking {bookingId} không tồn tại.");
+                    return true;
+                }
 
                 var payment = await _paymentRepo.GetByBookingIdAsync(bookingId);
-                if (payment == null) return false;
+                if (payment == null)
+                {
+                    _logger.LogWarning($"SePay: Payment cho Booking {bookingId} không tồn tại.");
+                    return true;
+                }
 
                 // Idempotency check: Nếu đã xử lý rồi hoặc đã refund do quá hạn thì bỏ qua để tránh double refund
                 if (payment.Status == PaymentStatus.Completed || 
@@ -344,7 +337,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     _logger.LogWarning($"SePay Webhook: Chuyển thiếu tiền cho Booking #{bookingId}. Cần {booking.TotalAmount}, Nhận {request.amountIn}");
                     // Tùy nghiệp vụ: có thể set Failed hoặc chờ chuyển bù
                     await transaction.RollbackAsync();
-                    return false;
+                    return true;
                 }
 
                 payment.GatewayTxnRef = request.referenceCode; // Lưu mã giao dịch của ngân hàng
