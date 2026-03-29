@@ -5,8 +5,7 @@ namespace ChargeSlot.Api.Services.Interfaces
     public interface IWalletService
     {
         Task<WalletDto> GetOrCreateWalletAsync(int userId);
-        Task<string> TopUpViaVnPayAsync(int userId, decimal amount, HttpContext context);
-        Task ProcessTopUpCallbackAsync(IQueryCollection query);
+        Task<string> GetSePayTopUpQrUrlAsync(int userId, decimal amount);
         Task<WalletDto> PayBookingByWalletAsync(int userId, int bookingId);
         Task<WithdrawRequestDto> WithdrawAsync(int userId, WithdrawDto dto);
         Task<List<TransactionHistoryDto>> GetTransactionHistoryAsync(int userId);

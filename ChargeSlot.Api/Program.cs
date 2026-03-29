@@ -179,10 +179,9 @@ builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 
-// Payment & VNPay
-builder.Services.AddHttpClient(); // Needed for VnPay QueryDR API
+// Payment & SePay
+builder.Services.AddHttpClient(); // Needed for general API calls
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
-builder.Services.AddScoped<IVnPayService, VnPayService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 // Wallet

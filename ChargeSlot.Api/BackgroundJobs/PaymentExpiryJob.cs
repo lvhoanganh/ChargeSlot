@@ -32,7 +32,6 @@ namespace ChargeSlot.Api.BackgroundJobs
                     var bookingRepo = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
                     var slotRepo = scope.ServiceProvider.GetRequiredService<IChargingSlotRepository>();
                     var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
-                    var vnPayService = scope.ServiceProvider.GetRequiredService<IVnPayService>();
 
                     // Lấy các booking hết hạn thanh toán (đã include Payment)
                     var expiredBookings = await bookingRepo.GetExpiredPendingPaymentsAsync();
@@ -52,47 +51,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                             continue;
                         }
 
-                        // ── SAFE-CHECK 2: Gọi VNPay QueryDR nếu có GatewayTxnRef ──
-                        if (booking.Payment != null &&
-                            !string.IsNullOrEmpty(booking.Payment.GatewayTxnRef) &&
-                            booking.Payment.Status == PaymentStatus.Pending)
-                        {
-                            var (isPaid, queryResponseCode) = await vnPayService.QueryTransactionAsync(
-                                booking.Payment.GatewayTxnRef,
-                                booking.Payment.Amount,
-                                booking.Payment.CreatedAt);
-
-                            if (isPaid)
-                            {
-                                _logger.LogWarning(
-                                    "VNPay QueryDR confirms Booking {BookingId} was PAID (callback missed). Recovering...",
-                                    booking.Id);
-
-                                booking.Payment.Status = PaymentStatus.Completed;
-                                booking.Payment.PaidAt = Helpers.DateTimeHelper.VietnamNow();
-                                booking.Status = BookingStatus.Paid;
-                                await bookingRepo.UpdateAsync(booking);
-                                await LockSlotIfNeeded(slotRepo, booking);
-
-                                await notificationService.SendAsync(
-                                    booking.DriverUserId,
-                                    "Thanh toán đã xác nhận",
-                                    $"Thanh toán {booking.TotalAmount:N0}đ cho slot {booking.ChargingSlot?.SlotName} đã được xác nhận thành công.",
-                                    NotificationType.Payment);
-                                continue;
-                            }
-
-                            if (queryResponseCode == "QUERY_ERROR")
-                            {
-                                // Query thất bại → KHÔNG expire, đợi cycle sau
-                                _logger.LogWarning(
-                                    "VNPay QueryDR failed for Booking {BookingId}. Skipping expire, will retry next cycle.",
-                                    booking.Id);
-                                continue;
-                            }
-                        }
-
-                        // ── EXPIRE: Chắc chắn chưa thanh toán → hủy ──
+                        // ── EXPIRE: Chắc chắn chưa thanh toán (tại thời điểm này) → hủy ──
                         booking.Status = BookingStatus.Expired;
                         await bookingRepo.UpdateAsync(booking);
 

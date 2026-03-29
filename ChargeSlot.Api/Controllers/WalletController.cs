@@ -31,36 +31,20 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
-        /// Nạp tiền vào ví qua VNPay → trả về URL redirect
+        /// Nạp tiền vào ví qua mã VietQR (SePay)
         /// </summary>
         [HttpPost("top-up")]
         public async Task<IActionResult> TopUp([FromBody] TopUpDto dto)
         {
             try
             {
-                var paymentUrl = await _walletService.TopUpViaVnPayAsync(GetUserId(), dto.Amount, HttpContext);
-                return Ok(new { paymentUrl });
+                var qrUrl = await _walletService.GetSePayTopUpQrUrlAsync(GetUserId(), dto.Amount);
+                return Ok(new { qrUrl });
             }
             catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
-        }
-
-        /// <summary>
-        /// VNPay callback cho nạp tiền ví
-        /// </summary>
-        [HttpGet("top-up/vnpay-return")]
-        [AllowAnonymous]
-        public async Task<IActionResult> TopUpVnPayReturn()
-        {
-            await _walletService.ProcessTopUpCallbackAsync(Request.Query);
-            var responseCode = Request.Query["vnp_ResponseCode"].ToString();
-            var success = responseCode == "00";
-
-            // Redirect về frontend với kết quả (giống PaymentController)
-            var frontendUrl = $"http://localhost:5173/wallet/top-up/result?success={success}&responseCode={responseCode}";
-            return Redirect(frontendUrl);
         }
 
         /// <summary>

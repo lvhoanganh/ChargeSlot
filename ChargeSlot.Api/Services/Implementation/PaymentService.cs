@@ -5,6 +5,8 @@ using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using ChargeSlot.Api.Helpers;
+using Microsoft.Extensions.Configuration;
+using ChargeSlot.Api.DTOs.Payment;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class PaymentService : IPaymentService
@@ -12,159 +14,30 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IBookingRepository _bookingRepo;
         private readonly IPaymentRepository _paymentRepo;
         private readonly IChargingSlotRepository _slotRepo;
-        private readonly IVnPayService _vnPayService;
         private readonly INotificationService _notificationService;
         private readonly IWalletRepository _walletRepo;
         private readonly ChargeSlotDbContext _db;
         private readonly ILogger<PaymentService> _logger;
+        private readonly IConfiguration _configuration;
 
         public PaymentService(
             IBookingRepository bookingRepo,
             IPaymentRepository paymentRepo,
             IChargingSlotRepository slotRepo,
-            IVnPayService vnPayService,
             INotificationService notificationService,
             IWalletRepository walletRepo,
             ChargeSlotDbContext db,
-            ILogger<PaymentService> logger)
+            ILogger<PaymentService> logger,
+            IConfiguration configuration)
         {
             _bookingRepo = bookingRepo;
             _paymentRepo = paymentRepo;
             _slotRepo = slotRepo;
-            _vnPayService = vnPayService;
             _notificationService = notificationService;
             _walletRepo = walletRepo;
             _db = db;
             _logger = logger;
-        }
-
-        /// <summary>
-        /// Step 17: Create payment request → Generate VNPay URL
-        /// Step 21: Driver Make payment (redirect to VNPay)
-        /// </summary>
-        public async Task<string> CreatePaymentUrlAsync(int bookingId, int driverUserId, HttpContext context)
-        {
-            var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
-                ?? throw new InvalidOperationException("Booking không tồn tại.");
-
-            if (booking.DriverUserId != driverUserId)
-                throw new UnauthorizedAccessException("Bạn không có quyền thanh toán booking này.");
-
-            if (booking.Status != BookingStatus.PendingPayment)
-                throw new InvalidOperationException("Booking không ở trạng thái chờ thanh toán.");
-
-            // Kiểm tra đã hết hạn chưa
-            if (booking.PaymentExpiresAt.HasValue && booking.PaymentExpiresAt.Value <= DateTimeHelper.VietnamNow())
-                throw new InvalidOperationException("Đã hết thời gian thanh toán.");
-
-            // Tạo hoặc lấy Payment record
-            var payment = await _paymentRepo.GetByBookingIdAsync(bookingId);
-            if (payment == null)
-            {
-                payment = new Payment
-                {
-                    BookingId = bookingId,
-                    Amount = booking.TotalAmount,
-                    PaymentMethod = PaymentMethod.BankTransfer,
-                    Status = PaymentStatus.Pending,
-                    CreatedAt = DateTimeHelper.VietnamNow()
-                };
-                await _paymentRepo.CreateAsync(payment);
-            }
-
-            var orderInfo = $"Thanh toan dat cho sac #{bookingId}";
-            var paymentUrl = _vnPayService.CreatePaymentUrl(bookingId, booking.TotalAmount, orderInfo, context);
-
-            return paymentUrl;
-        }
-
-        /// <summary>
-        /// Step 22-27: Process payment callback from VNPay
-        /// Handles race condition: if booking expired during VNPay processing,
-        /// recover booking to Paid status or refund to driver wallet.
-        /// </summary>
-        public async Task<bool> ProcessVnPayCallbackAsync(IQueryCollection query)
-        {
-            var (isValid, responseCode, txnRef) = _vnPayService.ValidateCallback(query);
-
-            if (!isValid) return false;
-
-            // Parse bookingId from txnRef (format: {bookingId}_{ticks})
-            var bookingIdStr = txnRef.Split('_').FirstOrDefault();
-            if (!int.TryParse(bookingIdStr, out var bookingId))
-                return false;
-
-            // FIX: Wrap trong transaction để đảm bảo atomicity
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId);
-                if (booking == null) return false;
-
-                var payment = await _paymentRepo.GetByBookingIdAsync(bookingId);
-                if (payment == null) return false;
-
-                // Idempotency check (bên trong transaction để tránh race condition)
-                if (payment.Status == PaymentStatus.Completed || payment.Status == PaymentStatus.Refunded)
-                {
-                    await transaction.RollbackAsync();
-                    return true;
-                }
-
-                payment.GatewayTxnRef = txnRef;
-
-                if (responseCode == "00") // Thanh toán thành công
-                {
-                    if (booking.Status == BookingStatus.PendingPayment)
-                    {
-                        await CompletePaymentAsync(booking, payment);
-                    }
-                    else if (booking.Status == BookingStatus.Expired)
-                    {
-                        _logger.LogWarning(
-                            "Payment race condition detected: Booking {BookingId} expired but VNPay succeeded. Recovering...",
-                            bookingId);
-
-                        var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
-                            booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
-
-                        if (!hasConflict)
-                        {
-                            await CompletePaymentAsync(booking, payment);
-                            _logger.LogInformation(
-                                "Booking {BookingId} recovered from Expired → Paid successfully.", bookingId);
-                        }
-                        else
-                        {
-                            await RefundToDriverWalletAsync(booking, payment);
-                            _logger.LogWarning(
-                                "Booking {BookingId} cannot be recovered (slot conflict). Refunded {Amount} to driver wallet.",
-                                bookingId, booking.TotalAmount);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogWarning(
-                            "VNPay callback for booking {BookingId} in unexpected status {Status}. Skipping.",
-                            bookingId, booking.Status);
-                    }
-
-                    await transaction.CommitAsync();
-                    return true;
-                }
-                else // Thanh toán thất bại
-                {
-                    payment.Status = PaymentStatus.Failed;
-                    await _paymentRepo.UpdateAsync(payment);
-                    await transaction.CommitAsync();
-                    return false;
-                }
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -190,7 +63,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 ReferenceType = "BookingPayment",
                 ReferenceId = booking.Id,
-                Memo = $"Thanh toán booking #{booking.Id} qua VNPay - {booking.TotalAmount:N0}đ → ESCROW",
+                Memo = $"Thanh toán booking #{booking.Id} qua SePay (VietQR) - {booking.TotalAmount:N0}đ → ESCROW",
                 CreatedByUserId = booking.DriverUserId,
                 CreatedAt = DateTimeHelper.VietnamNow(),
                 Entries = new List<LedgerEntry>
@@ -262,7 +135,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 ReferenceType = "PaymentRaceRefund",
                 ReferenceId = booking.Id,
-                Memo = $"Hoàn tiền booking #{booking.Id} do hết hạn thanh toán nhưng VNPay đã trừ tiền - {booking.TotalAmount:N0}đ → Ví Driver",
+                Memo = $"Hoàn tiền booking #{booking.Id} do hết hạn thanh toán nhưng chuyển khoản đã thành công - {booking.TotalAmount:N0}đ → Ví Driver",
                 CreatedByUserId = null,
                 CreatedAt = DateTimeHelper.VietnamNow(),
                 Entries = new List<LedgerEntry>
@@ -289,8 +162,222 @@ namespace ChargeSlot.Api.Services.Implementation
             await _notificationService.SendAsync(
                 booking.DriverUserId,
                 "Hoàn tiền tự động",
-                $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã hết hạn nhưng VNPay đã trừ tiền. {booking.TotalAmount:N0}đ đã hoàn vào ví của bạn.",
+                $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã hết hạn nhưng bạn đã chuyển khoản thành công. {booking.TotalAmount:N0}đ đã hoàn vào ví của bạn.",
                 NotificationType.Payment);
+        }
+
+        /// <summary>
+        /// Tạo link thanh toán VietQR (qua SePay)
+        /// </summary>
+        public async Task<string> CreateSePayQrUrlAsync(int bookingId, int driverUserId)
+        {
+            var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
+                ?? throw new InvalidOperationException("Booking không tồn tại.");
+
+            if (booking.DriverUserId != driverUserId)
+                throw new UnauthorizedAccessException("Bạn không có quyền thanh toán booking này.");
+
+            if (booking.Status != BookingStatus.PendingPayment)
+                throw new InvalidOperationException("Booking không ở trạng thái chờ thanh toán.");
+
+            if (booking.PaymentExpiresAt.HasValue && booking.PaymentExpiresAt.Value <= DateTimeHelper.VietnamNow())
+                throw new InvalidOperationException("Đã hết thời gian thanh toán.");
+
+            var payment = await _paymentRepo.GetByBookingIdAsync(bookingId);
+            if (payment == null)
+            {
+                payment = new Payment
+                {
+                    BookingId = bookingId,
+                    Amount = booking.TotalAmount,
+                    PaymentMethod = PaymentMethod.BankTransfer,
+                    Status = PaymentStatus.Pending,
+                    CreatedAt = DateTimeHelper.VietnamNow()
+                };
+                await _paymentRepo.CreateAsync(payment);
+            }
+
+            var accountNumber = _configuration["SePay:AccountNumber"] ?? "YOUR_BANK_ACCOUNT";
+            var bankCode = _configuration["SePay:BankCode"] ?? "YOUR_BANK_CODE"; // VD: MB, VCB
+            var amount = (int)booking.TotalAmount;
+            
+            // Format: CS{bookingId}
+            var description = $"CS{bookingId}";
+
+            // URL tạo ảnh QR bằng vietqr.io (miễn phí, nhanh chóng)
+            var qrUrl = $"https://img.vietqr.io/image/{bankCode}-{accountNumber}-compact.png?amount={amount}&addInfo={description}";
+
+            return qrUrl;
+        }
+
+        /// <summary>
+        /// Xử lý Webhook từ SePay bắn về khi tiền vô tài khoản
+        /// </summary>
+        public async Task<bool> ProcessSePayWebhookAsync(SePayWebhookRequest request)
+        {
+            var content = request.transactionContent.ToUpper();
+            var words = content.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
+            
+            int bookingId = 0;
+            int topUpUserId = 0;
+
+            foreach (var word in words)
+            {
+                if (word.StartsWith("CS") && int.TryParse(word.Substring(2), out var bId))
+                {
+                    bookingId = bId;
+                    break;
+                }
+                if (word.StartsWith("W") && int.TryParse(word.Substring(1), out var uId))
+                {
+                    topUpUserId = uId;
+                    break;
+                }
+            }
+
+            if (topUpUserId > 0)
+            {
+                return await ProcessTopUpWebhookAsync(topUpUserId, request);
+            }
+            if (bookingId > 0)
+            {
+                return await ProcessBookingWebhookAsync(bookingId, request);
+            }
+
+            _logger.LogWarning($"SePay Webhook: Không tìm thấy mã booking hay top-up (CSxxx/Wxxx) trong nội dung '{request.transactionContent}'");
+            return false;
+        }
+
+        private async Task<bool> ProcessTopUpWebhookAsync(int userId, SePayWebhookRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.referenceCode))
+            {
+                _logger.LogWarning("SePay Webhook: referenceCode is empty for TopUp");
+                return false;
+            }
+
+            if (request.amountIn <= 0)
+            {
+                return false;
+            }
+
+            var alreadyProcessed = await _db.LedgerTransactions
+                .AnyAsync(t => t.ReferenceType == "TopUp" && t.Memo!.Contains(request.referenceCode));
+            if (alreadyProcessed) return true;
+
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var wallet = await _walletRepo.GetByUserIdAsync(userId);
+                if (wallet == null)
+                {
+                    wallet = new Wallet
+                    {
+                        UserId = userId,
+                        WalletType = WalletType.Driver,
+                        AvailableBalance = 0,
+                        FrozenBalance = 0,
+                        CreatedAt = DateTimeHelper.VietnamNow()
+                    };
+                    await _walletRepo.CreateAsync(wallet);
+                }
+
+                wallet.AvailableBalance += request.amountIn;
+                await _walletRepo.UpdateAsync(wallet);
+
+                var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
+                var ledgerTx = new LedgerTransaction
+                {
+                    ReferenceType = "TopUp",
+                    ReferenceId = wallet.Id,
+                    Memo = $"Nạp tiền {request.amountIn:N0} VND qua SePay/VietQR | TxnRef: {request.referenceCode}",
+                    CreatedByUserId = userId,
+                    CreatedAt = DateTimeHelper.VietnamNow(),
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = clearingWallet.Id, Direction = LedgerDirection.Debit, Amount = request.amountIn, CreatedAt = DateTimeHelper.VietnamNow() },
+                        new LedgerEntry { WalletId = wallet.Id, Direction = LedgerDirection.Credit, Amount = request.amountIn, CreatedAt = DateTimeHelper.VietnamNow() }
+                    }
+                };
+                await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
+
+                await transaction.CommitAsync();
+
+                await _notificationService.SendAsync(
+                    userId,
+                    "Nạp tiền thành công",
+                    $"Đã nạp {request.amountIn:N0} VND vào ví qua VietQR. Số dư: {wallet.AvailableBalance:N0} VND.",
+                    NotificationType.Payment);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi xử lý SePay TopUp Webhook");
+                await transaction.RollbackAsync();
+                return false;
+            }
+        }
+
+        private async Task<bool> ProcessBookingWebhookAsync(int bookingId, SePayWebhookRequest request)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId);
+                if (booking == null) return false;
+
+                var payment = await _paymentRepo.GetByBookingIdAsync(bookingId);
+                if (payment == null) return false;
+
+                // Idempotency check: Nếu đã xử lý rồi hoặc đã refund do quá hạn thì bỏ qua để tránh double refund
+                if (payment.Status == PaymentStatus.Completed || 
+                    payment.Status == PaymentStatus.Refunded || 
+                    payment.GatewayTxnRef == request.referenceCode)
+                {
+                    await transaction.RollbackAsync();
+                    return true;
+                }
+
+                if (request.amountIn < booking.TotalAmount)
+                {
+                    _logger.LogWarning($"SePay Webhook: Chuyển thiếu tiền cho Booking #{bookingId}. Cần {booking.TotalAmount}, Nhận {request.amountIn}");
+                    // Tùy nghiệp vụ: có thể set Failed hoặc chờ chuyển bù
+                    await transaction.RollbackAsync();
+                    return false;
+                }
+
+                payment.GatewayTxnRef = request.referenceCode; // Lưu mã giao dịch của ngân hàng
+
+                if (booking.Status == BookingStatus.PendingPayment)
+                {
+                    await CompletePaymentAsync(booking, payment);
+                }
+                else if (booking.Status == BookingStatus.Expired)
+                {
+                     var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
+                            booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
+
+                     if (!hasConflict)
+                     {
+                         await CompletePaymentAsync(booking, payment);
+                     }
+                     else
+                     {
+                         // Nếu mất slot, hoàn tiền vào ví driver
+                         await RefundToDriverWalletAsync(booking, payment);
+                     }
+                }
+
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi xử lý SePay Webhook");
+                await transaction.RollbackAsync();
+                return false;
+            }
         }
     }
 }
