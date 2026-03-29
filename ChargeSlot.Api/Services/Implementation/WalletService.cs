@@ -1,10 +1,14 @@
+using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Wallet;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using ChargeSlot.Api.Helpers;
+using Microsoft.Extensions.Configuration;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class WalletService : IWalletService
@@ -13,23 +17,29 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IBookingRepository _bookingRepo;
         private readonly IPaymentRepository _paymentRepo;
         private readonly IChargingSlotRepository _slotRepo;
-        private readonly IVnPayService _vnPayService;
         private readonly INotificationService _notificationService;
+        private readonly ChargeSlotDbContext _db;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IConfiguration _configuration;
 
         public WalletService(
             IWalletRepository walletRepo,
             IBookingRepository bookingRepo,
             IPaymentRepository paymentRepo,
             IChargingSlotRepository slotRepo,
-            IVnPayService vnPayService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            ChargeSlotDbContext db,
+            UserManager<ApplicationUser> userManager,
+            IConfiguration configuration)
         {
             _walletRepo = walletRepo;
             _bookingRepo = bookingRepo;
             _paymentRepo = paymentRepo;
             _slotRepo = slotRepo;
-            _vnPayService = vnPayService;
             _notificationService = notificationService;
+            _db = db;
+            _userManager = userManager;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -42,77 +52,22 @@ namespace ChargeSlot.Api.Services.Implementation
         }
 
         /// <summary>
-        /// Nạp tiền vào ví qua VNPay → trả về URL redirect
+        /// Trả về URL ảnh VietQR để nạp tiền vào ví
         /// </summary>
-        public async Task<string> TopUpViaVnPayAsync(int userId, decimal amount, HttpContext context)
+        public async Task<string> GetSePayTopUpQrUrlAsync(int userId, decimal amount)
         {
             var wallet = await GetOrCreateWalletInternalAsync(userId);
-            var orderInfo = $"Nap tien vi ChargeSlot - {amount:N0} VND";
-            // Dùng walletId + prefix "TOPUP" để phân biệt với payment booking
-            var paymentUrl = _vnPayService.CreatePaymentUrl(
-                wallet.Id * -1, // dùng số âm để phân biệt top-up vs booking payment
-                amount,
-                orderInfo,
-                context);
-            return paymentUrl;
-        }
+            
+            var accountNumber = _configuration["SePay:AccountNumber"] ?? "YOUR_BANK_ACCOUNT";
+            var bankCode = _configuration["SePay:BankCode"] ?? "YOUR_BANK_CODE"; 
+            var intAmount = (int)amount;
+            
+            // Format nạp tiền ví: W{userId}
+            var description = $"W{userId}";
 
-        /// <summary>
-        /// Xử lý callback VNPay cho top-up
-        /// </summary>
-        public async Task ProcessTopUpCallbackAsync(IQueryCollection query)
-        {
-            var (isValid, responseCode, txnRef) = _vnPayService.ValidateCallback(query);
-            if (!isValid || responseCode != "00") return;
+            var qrUrl = $"https://img.vietqr.io/image/{bankCode}-{accountNumber}-compact.png?amount={intAmount}&addInfo={description}";
 
-            // Parse walletId from txnRef (format: {walletId * -1}_{ticks})
-            var walletIdStr = txnRef.Split('_').FirstOrDefault();
-            if (!int.TryParse(walletIdStr, out var negativeWalletId)) return;
-            var walletId = negativeWalletId * -1;
-            if (walletId <= 0) return;
-
-            var wallet = await _walletRepo.GetByIdAsync(walletId);
-            if (wallet == null) return;
-
-            // Parse amount từ VNPay (vnp_Amount / 100)
-            var amountStr = query["vnp_Amount"].ToString();
-            if (!long.TryParse(amountStr, out var vnpAmount)) return;
-            var amount = vnpAmount / 100m;
-
-            // Cộng tiền vào ví
-            wallet.AvailableBalance += amount;
-            await _walletRepo.UpdateAsync(wallet);
-
-            // Ghi ledger: CREDIT vào ví
-            var ledgerTx = new LedgerTransaction
-            {
-                ReferenceType = "TopUp",
-                ReferenceId = wallet.Id,
-                Memo = $"Nạp tiền {amount:N0} VND qua VNPay",
-                CreatedByUserId = wallet.UserId,
-                CreatedAt = DateTimeHelper.VietnamNow(),
-                Entries = new List<LedgerEntry>
-                {
-                    new LedgerEntry
-                    {
-                        WalletId = wallet.Id,
-                        Direction = LedgerDirection.Credit,
-                        Amount = amount,
-                        CreatedAt = DateTimeHelper.VietnamNow()
-                    }
-                }
-            };
-            await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
-
-            // Notify user
-            if (wallet.UserId.HasValue)
-            {
-                await _notificationService.SendAsync(
-                    wallet.UserId.Value,
-                    "Nạp tiền thành công",
-                    $"Đã nạp {amount:N0} VND vào ví. Số dư hiện tại: {wallet.AvailableBalance:N0} VND.",
-                    NotificationType.Payment);
-            }
+            return qrUrl;
         }
 
         /// <summary>
@@ -120,6 +75,10 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<WalletDto> PayBookingByWalletAsync(int userId, int bookingId)
         {
+            // Dùng transaction để đảm bảo tính nhất quán tài chính
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
             var wallet = await GetOrCreateWalletInternalAsync(userId);
 
             var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
@@ -142,13 +101,10 @@ namespace ChargeSlot.Api.Services.Implementation
             wallet.AvailableBalance -= booking.TotalAmount;
             await _walletRepo.UpdateAsync(wallet);
 
-            // Cộng tiền vào ESCROW
-            var escrowWallet = await _walletRepo.GetByIdAsync(1); // ESCROW wallet ID = 1
-            if (escrowWallet != null)
-            {
-                escrowWallet.AvailableBalance += booking.TotalAmount;
-                await _walletRepo.UpdateAsync(escrowWallet);
-            }
+            // Cộng tiền vào ESCROW (query by SystemCode thay vì hardcode ID)
+            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
+            escrowWallet.AvailableBalance += booking.TotalAmount;
+            await _walletRepo.UpdateAsync(escrowWallet);
 
             // Ghi ledger: DEBIT từ ví Driver, CREDIT vào ESCROW
             var ledgerTx = new LedgerTransaction
@@ -206,6 +162,23 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.Status = BookingStatus.Paid;
             await _bookingRepo.UpdateAsync(booking);
 
+            // Trừ stock cho ExtraServices (nếu có)
+            if (booking.BookingExtraServices != null && booking.BookingExtraServices.Count > 0)
+            {
+                foreach (var bes in booking.BookingExtraServices)
+                {
+                    var svc = await _db.Set<ExtraService>().FindAsync(bes.ServiceId);
+                    if (svc != null && svc.TotalStock.HasValue)
+                    {
+                        if (svc.TotalStock.Value < bes.Quantity)
+                            throw new InvalidOperationException(
+                                $"Dịch vụ '{svc.ServiceName}' đã hết hàng.");
+                        svc.TotalStock -= bes.Quantity;
+                    }
+                }
+                await _db.SaveChangesAsync();
+            }
+
             // Lock slot
             var slot = await _slotRepo.GetByIdAsync(booking.SlotId, tracking: true);
             if (slot != null)
@@ -233,31 +206,55 @@ namespace ChargeSlot.Api.Services.Implementation
                     NotificationType.Payment);
             }
 
+            await transaction.CommitAsync();
             return MapToDto(wallet);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         /// <summary>
-        /// Rút tiền từ ví (tạo yêu cầu)
+        /// Rút tiền từ ví (tạo yêu cầu + freeze tiền)
         /// </summary>
-        public async Task<WalletDto> WithdrawAsync(int userId, decimal amount)
+        public async Task<WithdrawRequestDto> WithdrawAsync(int userId, WithdrawDto dto)
         {
             var wallet = await GetOrCreateWalletInternalAsync(userId);
 
-            if (wallet.AvailableBalance < amount)
+            if (wallet.AvailableBalance < dto.Amount)
                 throw new InvalidOperationException(
                     $"Số dư không đủ. Hiện có {wallet.AvailableBalance:N0} VND.");
 
             // Freeze tiền → chờ Admin duyệt
-            wallet.AvailableBalance -= amount;
-            wallet.FrozenBalance += amount;
+            wallet.AvailableBalance -= dto.Amount;
+            wallet.FrozenBalance += dto.Amount;
             await _walletRepo.UpdateAsync(wallet);
 
-            // Ghi ledger
+            // Tạo WithdrawRequest với snapshot thông tin ngân hàng
+            var request = new WithdrawRequest
+            {
+                UserId = userId,
+                WalletId = wallet.Id,
+                Amount = dto.Amount,
+                BankName = dto.BankName,
+                BankAccountNumber = dto.BankAccountNumber,
+                BankAccountHolder = dto.BankAccountHolder,
+                UserNote = dto.UserNote,
+                Status = WithdrawStatus.Pending,
+                RequestedAt = DateTimeHelper.VietnamNow()
+            };
+            _db.Set<WithdrawRequest>().Add(request);
+            await _db.SaveChangesAsync();
+
+            // Ghi ledger double-entry: DEBIT từ ví user (available → frozen)
+            var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
             var ledgerTx = new LedgerTransaction
             {
-                ReferenceType = "Withdraw",
-                ReferenceId = 0,
-                Memo = $"Yêu cầu rút {amount:N0} VND",
+                ReferenceType = "WithdrawRequest",
+                ReferenceId = request.Id,
+                Memo = $"Yêu cầu rút {dto.Amount:N0} VND → {dto.BankName} - {dto.BankAccountNumber}",
                 CreatedByUserId = userId,
                 CreatedAt = DateTimeHelper.VietnamNow(),
                 Entries = new List<LedgerEntry>
@@ -266,20 +263,150 @@ namespace ChargeSlot.Api.Services.Implementation
                     {
                         WalletId = wallet.Id,
                         Direction = LedgerDirection.Debit,
-                        Amount = amount,
+                        Amount = dto.Amount,
+                        CreatedAt = DateTimeHelper.VietnamNow()
+                    },
+                    new LedgerEntry
+                    {
+                        WalletId = clearingWallet.Id,
+                        Direction = LedgerDirection.Credit,
+                        Amount = dto.Amount,
                         CreatedAt = DateTimeHelper.VietnamNow()
                     }
                 }
             };
             await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
 
+            // Load user name
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+
             await _notificationService.SendAsync(
                 userId,
                 "Yêu cầu rút tiền",
-                $"Yêu cầu rút {amount:N0} VND đã được gửi. Vui lòng chờ Admin xử lý.",
-                NotificationType.System);
+                $"Yêu cầu rút {dto.Amount:N0} VND → {dto.BankName} ({dto.BankAccountNumber}) đã được gửi. Vui lòng chờ Admin xử lý.",
+                NotificationType.Wallet);
 
-            return MapToDto(wallet);
+            // Notify all Admins về yêu cầu rút tiền mới
+            var adminUsers = await _userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
+            foreach (var admin in adminUsers)
+            {
+                await _notificationService.SendAsync(
+                    admin.Id,
+                    "Yêu cầu rút tiền mới",
+                    $"User {user?.FullName ?? userId.ToString()} yêu cầu rút {dto.Amount:N0} VND → {dto.BankName} ({dto.BankAccountNumber}). Vui lòng xử lý.",
+                    NotificationType.Wallet);
+            }
+
+            // Load user name for DTO
+            return MapToWithdrawDto(request, user?.FullName);
+        }
+
+        /// <summary>
+        /// User xem danh sách yêu cầu rút tiền của mình
+        /// </summary>
+        public async Task<List<WithdrawRequestDto>> GetUserWithdrawRequestsAsync(int userId)
+        {
+            var requests = await _db.Set<WithdrawRequest>()
+                .Where(r => r.UserId == userId)
+                .OrderByDescending(r => r.RequestedAt)
+                .ToListAsync();
+
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            return requests.Select(r => MapToWithdrawDto(r, user?.FullName)).ToList();
+        }
+
+        /// <summary>
+        /// Admin xem tất cả yêu cầu rút tiền pending
+        /// </summary>
+        public async Task<List<WithdrawRequestDto>> GetAllPendingWithdrawsAsync()
+        {
+            var requests = await _db.Set<WithdrawRequest>()
+                .Include(r => r.User)
+                .Where(r => r.Status == WithdrawStatus.Pending)
+                .OrderBy(r => r.RequestedAt)
+                .ToListAsync();
+
+            return requests.Select(r => MapToWithdrawDto(r, r.User?.FullName)).ToList();
+        }
+
+        /// <summary>
+        /// Admin duyệt / từ chối yêu cầu rút tiền
+        /// </summary>
+        public async Task<WithdrawRequestDto> ProcessWithdrawAsync(int adminUserId, int requestId, ProcessWithdrawDto dto)
+        {
+            var request = await _db.Set<WithdrawRequest>()
+                .Include(r => r.User)
+                .Include(r => r.Wallet)
+                .FirstOrDefaultAsync(r => r.Id == requestId)
+                ?? throw new InvalidOperationException("Yêu cầu rút tiền không tồn tại.");
+
+            if (request.Status != WithdrawStatus.Pending)
+                throw new InvalidOperationException("Yêu cầu đã được xử lý trước đó.");
+
+            var wallet = request.Wallet;
+
+            if (dto.Approve)
+            {
+                // Approve: trừ frozen, tiền đã được chuyển thực tế (ngoài hệ thống)
+                wallet.FrozenBalance -= request.Amount;
+                request.Status = WithdrawStatus.Approved;
+
+                // Ghi ledger: DEBIT CLEARING → out (tiền rời hệ thống)
+                var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
+                clearingWallet.AvailableBalance -= request.Amount;
+
+                var ledgerTx = new LedgerTransaction
+                {
+                    ReferenceType = "WithdrawApproved",
+                    ReferenceId = request.Id,
+                    Memo = $"Admin duyệt rút {request.Amount:N0} VND → {request.BankName} - {request.BankAccountNumber}",
+                    CreatedByUserId = adminUserId,
+                    CreatedAt = DateTimeHelper.VietnamNow(),
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry
+                        {
+                            WalletId = clearingWallet.Id,
+                            Direction = LedgerDirection.Debit,
+                            Amount = request.Amount,
+                            CreatedAt = DateTimeHelper.VietnamNow()
+                        }
+                    }
+                };
+                _db.LedgerTransactions.Add(ledgerTx);
+                _db.Wallets.Update(clearingWallet);
+
+                await _notificationService.SendAsync(
+                    request.UserId,
+                    "Rút tiền thành công",
+                    $"Yêu cầu rút {request.Amount:N0} VND → {request.BankName} ({request.BankAccountNumber}) đã được duyệt." +
+                    (string.IsNullOrEmpty(dto.AdminNote) ? "" : $" Ghi chú: {dto.AdminNote}"),
+                    NotificationType.Payment);
+            }
+            else
+            {
+                // Reject: trả lại tiền frozen → available
+                wallet.FrozenBalance -= request.Amount;
+                wallet.AvailableBalance += request.Amount;
+                request.Status = WithdrawStatus.Rejected;
+
+                await _notificationService.SendAsync(
+                    request.UserId,
+                    "Yêu cầu rút tiền bị từ chối",
+                    $"Yêu cầu rút {request.Amount:N0} VND đã bị từ chối. Tiền đã được hoàn lại ví." +
+                    (string.IsNullOrEmpty(dto.AdminNote) ? "" : $" Lý do: {dto.AdminNote}"),
+                    NotificationType.System);
+            }
+
+            request.ProcessedAt = DateTimeHelper.VietnamNow();
+            request.ProcessedByUserId = adminUserId;
+            request.AdminNote = dto.AdminNote;
+
+            _db.Wallets.Update(wallet);
+            _db.Set<WithdrawRequest>().Update(request);
+            await _db.SaveChangesAsync();
+
+            return MapToWithdrawDto(request, request.User?.FullName);
         }
 
         /// <summary>
@@ -306,10 +433,20 @@ namespace ChargeSlot.Api.Services.Implementation
             var wallet = await _walletRepo.GetByUserIdAsync(userId);
             if (wallet == null)
             {
+                // Detect WalletType từ role thực tế của user
+                var user = await _userManager.FindByIdAsync(userId.ToString());
+                var walletType = WalletType.Driver;
+                if (user != null)
+                {
+                    var roles = await _userManager.GetRolesAsync(user);
+                    if (roles.Contains(Constants.RoleConstants.Owner))
+                        walletType = WalletType.Owner;
+                }
+
                 wallet = new Wallet
                 {
                     UserId = userId,
-                    WalletType = WalletType.Driver, // Default, sẽ detect từ role sau
+                    WalletType = walletType,
                     AvailableBalance = 0,
                     FrozenBalance = 0,
                     CreatedAt = DateTimeHelper.VietnamNow()
@@ -328,6 +465,25 @@ namespace ChargeSlot.Api.Services.Implementation
                 FrozenBalance = w.FrozenBalance,
                 WalletType = w.WalletType.ToString(),
                 CreatedAt = w.CreatedAt
+            };
+        }
+
+        private static WithdrawRequestDto MapToWithdrawDto(WithdrawRequest r, string? userFullName)
+        {
+            return new WithdrawRequestDto
+            {
+                Id = r.Id,
+                UserId = r.UserId,
+                UserFullName = userFullName,
+                Amount = r.Amount,
+                BankName = r.BankName,
+                BankAccountNumber = r.BankAccountNumber,
+                BankAccountHolder = r.BankAccountHolder,
+                Status = r.Status.ToString(),
+                RequestedAt = r.RequestedAt,
+                ProcessedAt = r.ProcessedAt,
+                AdminNote = r.AdminNote,
+                UserNote = r.UserNote
             };
         }
     }

@@ -1,8 +1,10 @@
 using ChargeSlot.Api.DTOs.Dispute;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 using ChargeSlot.Api.Helpers;
@@ -12,13 +14,19 @@ namespace ChargeSlot.Api.Services.Implementation
     {
         private readonly INotificationService _notificationService;
         private readonly Data.ChargeSlotDbContext _db;
+        private readonly UserManager<ApplicationUser> _userManager;
+
+        private static readonly string[] AllowedFileExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".mp4", ".avi", ".mov", ".webm", ".pdf" };
+        private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
 
         public DisputeService(
             INotificationService notificationService,
-            Data.ChargeSlotDbContext db)
+            Data.ChargeSlotDbContext db,
+            UserManager<ApplicationUser> userManager)
         {
             _notificationService = notificationService;
             _db = db;
+            _userManager = userManager;
         }
 
         /// <summary>
@@ -64,6 +72,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 Reason = dto.Reason,
                 Description = dto.Description,
                 Status = DisputeStatus.WaitingOwnerEvidence,
+                StatusChangedAt = DateTimeHelper.VietnamNow(),
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
 
@@ -104,16 +113,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 $"{booking.Driver?.User?.FullName ?? "Driver"} khiếu nại về phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name}. Lý do: {dto.Reason}. Bạn có 24h để nộp bằng chứng phản hồi.",
                 NotificationType.Dispute);
 
-            // Notify Admin
-            var adminUsers = await _db.UserRoles
-                .Where(ur => ur.RoleId == 1)
-                .Select(ur => ur.UserId)
-                .ToListAsync();
+            // Notify Admin (dùng UserManager thay vì hardcode RoleId)
+            var adminUsers = await _userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
 
-            foreach (var adminId in adminUsers)
+            foreach (var admin in adminUsers)
             {
                 await _notificationService.SendAsync(
-                    adminId,
+                    admin.Id,
                     "Khiếu nại mới cần xử lý",
                     $"Khiếu nại mới tại trạm {booking.ChargingSlot?.ChargingStation?.Name} từ {booking.Driver?.User?.FullName ?? "Driver"}. Chờ Owner phản hồi.",
                     NotificationType.Dispute);
@@ -147,6 +153,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // Update response
             dispute.OwnerResponse = dto.Response;
             dispute.Status = DisputeStatus.PendingReview;
+            dispute.StatusChangedAt = DateTimeHelper.VietnamNow();
 
             // Upload evidence files
             if (dto.Files?.Length > 0)
@@ -163,16 +170,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 $"Chủ trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} đã nộp bằng chứng phản hồi khiếu nại của bạn. Chờ Admin xem xét.",
                 NotificationType.Dispute);
 
-            // Notify Admin
-            var adminUsers = await _db.UserRoles
-                .Where(ur => ur.RoleId == 1)
-                .Select(ur => ur.UserId)
-                .ToListAsync();
+            // Notify Admin (dùng UserManager thay vì hardcode RoleId)
+            var adminUsers2 = await _userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
 
-            foreach (var adminId in adminUsers)
+            foreach (var admin in adminUsers2)
             {
                 await _notificationService.SendAsync(
-                    adminId,
+                    admin.Id,
                     "Owner đã phản hồi khiếu nại",
                     $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} đã có phản hồi từ Owner. Sẵn sàng xem xét.",
                     NotificationType.Dispute);
@@ -453,7 +457,16 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 if (file.Length <= 0) continue;
 
+                // Validate file size
+                if (file.Length > MaxFileSizeBytes)
+                    throw new InvalidOperationException($"File '{file.FileName}' vượt quá giới hạn {MaxFileSizeBytes / 1024 / 1024}MB.");
+
                 var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+                // Validate file extension
+                if (!AllowedFileExtensions.Contains(ext))
+                    throw new InvalidOperationException($"Loại file '{ext}' không được cho phép. Chỉ chấp nhận: {string.Join(", ", AllowedFileExtensions)}");
+
                 var fileName = $"{Guid.NewGuid():N}{ext}";
                 var filePath = Path.Combine(uploadDir, fileName);
 

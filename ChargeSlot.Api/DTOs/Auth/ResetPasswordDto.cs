@@ -12,5 +12,11 @@ namespace ChargeSlot.Api.DTOs.Auth
         [MinLength(6)]
         [MaxLength(100)]
         public string NewPassword { get; set; } = null!;
+
+        /// <summary>
+        /// Firebase ID Token để xác thực SĐT.
+        /// </summary>
+        [Required]
+        public string FirebaseIdToken { get; set; } = null!;
     }
 }

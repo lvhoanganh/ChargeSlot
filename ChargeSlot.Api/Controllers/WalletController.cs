@@ -31,33 +31,20 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
-        /// Nạp tiền vào ví qua VNPay → trả về URL redirect
+        /// Nạp tiền vào ví qua mã VietQR (SePay)
         /// </summary>
         [HttpPost("top-up")]
         public async Task<IActionResult> TopUp([FromBody] TopUpDto dto)
         {
             try
             {
-                var paymentUrl = await _walletService.TopUpViaVnPayAsync(GetUserId(), dto.Amount, HttpContext);
-                return Ok(new { paymentUrl });
+                var qrUrl = await _walletService.GetSePayTopUpQrUrlAsync(GetUserId(), dto.Amount);
+                return Ok(new { qrUrl });
             }
             catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
-        }
-
-        /// <summary>
-        /// VNPay callback cho nạp tiền ví
-        /// </summary>
-        [HttpGet("top-up/vnpay-return")]
-        [AllowAnonymous]
-        public async Task<IActionResult> TopUpVnPayReturn()
-        {
-            await _walletService.ProcessTopUpCallbackAsync(Request.Query);
-            var responseCode = Request.Query["vnp_ResponseCode"].ToString();
-            var success = responseCode == "00";
-            return Ok(new { success, message = success ? "Nạp tiền thành công" : "Nạp tiền thất bại" });
         }
 
         /// <summary>
@@ -90,13 +77,23 @@ namespace ChargeSlot.Api.Controllers
         {
             try
             {
-                var result = await _walletService.WithdrawAsync(GetUserId(), dto.Amount);
-                return Ok(new { message = "Yêu cầu rút tiền đã được gửi", wallet = result });
+                var result = await _walletService.WithdrawAsync(GetUserId(), dto);
+                return Ok(new { message = "Yêu cầu rút tiền đã được gửi", withdrawRequest = result });
             }
             catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// Xem danh sách yêu cầu rút tiền của mình
+        /// </summary>
+        [HttpGet("withdraw-requests")]
+        public async Task<IActionResult> GetWithdrawRequests()
+        {
+            var result = await _walletService.GetUserWithdrawRequestsAsync(GetUserId());
+            return Ok(result);
         }
 
         /// <summary>

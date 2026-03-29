@@ -7,6 +7,9 @@ namespace ChargeSlot.Api.Enums
         Payment = 2,
         Charging = 3,
         Dispute = 4,
-        StationApproval = 5
+        StationApproval = 5,
+        Wallet = 6,
+        Review = 7,
+        Payout = 8
     }
 }

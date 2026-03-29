@@ -8,7 +8,8 @@ namespace ChargeSlot.Api.BackgroundJobs
     /// Step 23-26: Payment confirmed within deadline?
     /// No → Set booking status = Expired → Release slot → END
     /// Chạy mỗi 30 giây check các booking hết hạn thanh toán.
-    /// Safe-check: nếu payment đã Completed (VNPay callback đã xử lý) → recover booking thay vì expire.
+    /// Safe-check 1: nếu payment đã Completed (VNPay callback đã xử lý) → recover.
+    /// Safe-check 2: nếu VNPay QueryDR xác nhận đã thanh toán → recover (callback bị mất/trễ).
     /// </summary>
     public class PaymentExpiryJob : BackgroundService
     {
@@ -37,7 +38,7 @@ namespace ChargeSlot.Api.BackgroundJobs
 
                     foreach (var booking in expiredBookings)
                     {
-                        // Safe-check: nếu payment đã Completed → VNPay callback đã đến trước
+                        // ── SAFE-CHECK 1: Payment.Status đã Completed (callback đến kịp) ──
                         if (booking.Payment?.Status == PaymentStatus.Completed)
                         {
                             _logger.LogInformation(
@@ -46,23 +47,15 @@ namespace ChargeSlot.Api.BackgroundJobs
 
                             booking.Status = BookingStatus.Paid;
                             await bookingRepo.UpdateAsync(booking);
-
-                            // Lock slot (nếu chưa)
-                            if (booking.ChargingSlot != null && booking.ChargingSlot.Status != SlotStatus.Booked)
-                            {
-                                booking.ChargingSlot.Status = SlotStatus.Booked;
-                                slotRepo.Update(booking.ChargingSlot);
-                                await slotRepo.SaveChangesAsync();
-                            }
-
+                            await LockSlotIfNeeded(slotRepo, booking);
                             continue;
                         }
 
-                        // Step 24: Set booking status = Expired
+                        // ── EXPIRE: Chắc chắn chưa thanh toán (tại thời điểm này) → hủy ──
                         booking.Status = BookingStatus.Expired;
                         await bookingRepo.UpdateAsync(booking);
 
-                        // Step 26: Release slot
+                        // Release slot
                         if (booking.ChargingSlot != null && booking.ChargingSlot.Status == SlotStatus.Booked)
                         {
                             booking.ChargingSlot.Status = SlotStatus.Active;
@@ -77,7 +70,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                             $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã bị hủy do không thanh toán kịp thời hạn.",
                             NotificationType.Booking);
 
-                        // Notify Owner: booking bị hết hạn thanh toán
+                        // Notify Owner
                         var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
                         if (ownerUserId.HasValue)
                         {
@@ -97,6 +90,16 @@ namespace ChargeSlot.Api.BackgroundJobs
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            }
+        }
+
+        private static async Task LockSlotIfNeeded(IChargingSlotRepository slotRepo, Models.Booking booking)
+        {
+            if (booking.ChargingSlot != null && booking.ChargingSlot.Status != SlotStatus.Booked)
+            {
+                booking.ChargingSlot.Status = SlotStatus.Booked;
+                slotRepo.Update(booking.ChargingSlot);
+                await slotRepo.SaveChangesAsync();
             }
         }
     }

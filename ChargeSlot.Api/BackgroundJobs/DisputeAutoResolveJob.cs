@@ -1,7 +1,9 @@
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 using ChargeSlot.Api.Helpers;
@@ -36,9 +38,10 @@ namespace ChargeSlot.Api.BackgroundJobs
                     using var scope = _serviceProvider.CreateScope();
                     var db = scope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
                     var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
-                    await AutoResolveOwnerNoEvidenceAsync(db, notificationService, stoppingToken);
-                    await AutoResolveAdminNoActionAsync(db, notificationService, stoppingToken);
+                    await AutoResolveOwnerNoEvidenceAsync(db, notificationService, userManager, stoppingToken);
+                    await AutoResolveAdminNoActionAsync(db, notificationService, userManager, stoppingToken);
                 }
                 catch (Exception ex)
                 {
@@ -53,7 +56,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         /// Owner không nộp evidence sau 24h → Driver thắng → hoàn tiền.
         /// </summary>
         private async Task AutoResolveOwnerNoEvidenceAsync(
-            ChargeSlotDbContext db, INotificationService notificationService, CancellationToken ct)
+            ChargeSlotDbContext db, INotificationService notificationService, UserManager<ApplicationUser> userManager, CancellationToken ct)
         {
             var deadline = DateTimeHelper.VietnamNow() - OwnerEvidenceDeadline;
 
@@ -62,7 +65,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
                 .Include(d => d.Invoice)
                 .Where(d => d.Status == DisputeStatus.WaitingOwnerEvidence
-                    && d.CreatedAt <= deadline)
+                    && (d.StatusChangedAt ?? d.CreatedAt) <= deadline)
                 .ToListAsync(ct);
 
             foreach (var dispute in expiredDisputes)
@@ -111,13 +114,12 @@ namespace ChargeSlot.Api.BackgroundJobs
                     "Dispute {DisputeId} auto-resolved: Owner no evidence after 24h. Driver refunded {Amount}.",
                     dispute.Id, dispute.Booking.TotalAmount);
 
-                // Notify Admin
-                var adminUsers = await db.UserRoles
-                    .Where(ur => ur.RoleId == 1).Select(ur => ur.UserId).ToListAsync(ct);
-                foreach (var adminId in adminUsers)
+                // Notify Admin (dùng UserManager thay vì hardcode RoleId)
+                var adminUsers = await userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
+                foreach (var admin in adminUsers)
                 {
                     await notificationService.SendAsync(
-                        adminId,
+                        admin.Id,
                         "Khiếu nại tự động xử lý",
                         $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Owner không phản hồi 24h → Driver được hoàn tiền {dispute.Booking.TotalAmount:N0}đ.",
                         NotificationType.Dispute);
@@ -129,19 +131,17 @@ namespace ChargeSlot.Api.BackgroundJobs
         /// Admin không xử lý sau 48h (từ khi Owner nộp evidence) → Owner thắng → settle payment.
         /// </summary>
         private async Task AutoResolveAdminNoActionAsync(
-            ChargeSlotDbContext db, INotificationService notificationService, CancellationToken ct)
+            ChargeSlotDbContext db, INotificationService notificationService, UserManager<ApplicationUser> userManager, CancellationToken ct)
         {
             var deadline = DateTimeHelper.VietnamNow() - AdminReviewDeadline;
 
-            // PendingReview disputes: tìm theo thời gian Owner nộp evidence
-            // Vì không có trường riêng, dùng heuristic: dispute nào PendingReview quá 48h
-            // (Status chuyển sang PendingReview khi Owner nộp evidence)
+            // PendingReview disputes: dùng StatusChangedAt (thời điểm Owner nộp evidence)
             var expiredDisputes = await db.Disputes
                 .Include(d => d.Booking)
                     .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
                 .Include(d => d.Invoice)
                 .Where(d => d.Status == DisputeStatus.PendingReview
-                    && d.CreatedAt <= deadline)  // fallback: dùng CreatedAt + tổng thời gian (24h owner + 48h admin = 72h)
+                    && (d.StatusChangedAt ?? d.CreatedAt) <= deadline)
                 .ToListAsync(ct);
 
             foreach (var dispute in expiredDisputes)
@@ -193,13 +193,12 @@ namespace ChargeSlot.Api.BackgroundJobs
                     "Dispute {DisputeId} auto-resolved: Admin no action after 48h. Owner wins.",
                     dispute.Id);
 
-                // Notify Admin
-                var adminUsers = await db.UserRoles
-                    .Where(ur => ur.RoleId == 1).Select(ur => ur.UserId).ToListAsync(ct);
-                foreach (var adminId in adminUsers)
+                // Notify Admin (dùng UserManager thay vì hardcode RoleId)
+                var adminUsers = await userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
+                foreach (var admin in adminUsers)
                 {
                     await notificationService.SendAsync(
-                        adminId,
+                        admin.Id,
                         "Khiếu nại tự động xử lý",
                         $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Quá hạn 48h không phân xử → Owner nhận tiền {dispute.Invoice?.ChargingAmount:N0}đ.",
                         NotificationType.Dispute);

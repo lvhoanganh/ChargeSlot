@@ -140,6 +140,15 @@ namespace ChargeSlot.Api.Controllers
                     IsActive = p.IsActive,
                     CreatedAt = p.CreatedAt
                 }).OrderBy(p => p.StartTime).ToList() ?? new(),
+                ExtraServices = station.ExtraServices?.Where(es => es.IsActive).Select(es => new ExtraServiceDto
+                {
+                    Id = es.Id,
+                    ServiceName = es.ServiceName,
+                    Description = es.Description,
+                    Price = es.Price,
+                    TotalStock = es.TotalStock,
+                    IsActive = es.IsActive
+                }).ToList() ?? new(),
                 AverageRating = station.AverageRating,
                 TotalReviews = station.TotalReviews
             };

@@ -22,7 +22,7 @@ namespace ChargeSlot.Api.Models
         /// <summary>The new token that replaced this one (token rotation).</summary>
         public string? ReplacedByToken { get; set; }
 
-        public bool IsExpired => DateTimeHelper.VietnamNow() >= ExpiresAt;
+        public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
         public bool IsRevoked => RevokedAt != null;
         public bool IsActive => !IsRevoked && !IsExpired;
     }

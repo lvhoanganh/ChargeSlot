@@ -18,3 +18,9 @@ Thumbs.db
 
 # ASP.NET
 appsettings.Development.json
+
+# Firebase credentials
+firebase-service-account.json
+
+appsettings.json
+firebase-service-account.json

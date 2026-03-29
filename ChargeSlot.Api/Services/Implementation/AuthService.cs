@@ -25,6 +25,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IConfiguration _config;
         private readonly IUserOtpRepository _otpRepository;
+        private readonly IFirebaseAuthService _firebaseAuthService;
         private readonly ChargeSlotDbContext _context;
 
         public AuthService(
@@ -33,6 +34,7 @@ namespace ChargeSlot.Api.Services.Implementation
             SignInManager<ApplicationUser> signInManager,
             IConfiguration config,
             IUserOtpRepository otpRepository,
+            IFirebaseAuthService firebaseAuthService,
             ChargeSlotDbContext context)
         {
             _userManager = userManager;
@@ -40,6 +42,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _signInManager = signInManager;
             _config = config;
             _otpRepository = otpRepository;
+            _firebaseAuthService = firebaseAuthService;
             _context = context;
         }
 
@@ -47,15 +50,12 @@ namespace ChargeSlot.Api.Services.Implementation
         public async Task RegisterAsync(RegisterDto dto)
         {
             var phone = NormalizePhone(dto.PhoneNumber);
-            var canRegister = await _otpRepository.HasRecentlyVerifiedOtpAsync(
-                phone,
-                OtpPurpose.Register,
-                TimeSpan.FromMinutes(5)
-            );
 
-            if (!canRegister)
+            // Verify Firebase token → confirm SĐT đã được xác thực qua OTP của Google
+            var verifiedPhone = await _firebaseAuthService.VerifyTokenAndGetPhoneAsync(dto.FirebaseIdToken);
+            if (verifiedPhone != phone)
                 throw new InvalidOperationException(
-                    "OTP verification required before registration."
+                    "SĐT trong Firebase token không khớp với SĐT đăng ký."
                 );
 
             var existing = await _userManager.FindByNameAsync(phone);
@@ -221,7 +221,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 Token = GenerateRefreshTokenString(),
                 UserId = userId,
-                ExpiresAt = DateTimeHelper.VietnamNow().AddDays(refreshDays),
+                ExpiresAt = DateTime.UtcNow.AddDays(refreshDays),
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
 
@@ -250,7 +250,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
             var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 
-            var expiresAtUtc = DateTimeHelper.VietnamNow().AddMinutes(expiresMinutes);
+            var expiresAtUtc = DateTime.UtcNow.AddMinutes(expiresMinutes);
 
             var token = new JwtSecurityToken(
                 issuer: issuer,
@@ -278,19 +278,15 @@ namespace ChargeSlot.Api.Services.Implementation
             return PhoneNumberHelper.NormalizeAndValidate(phone);
         }
 
-        public async Task ResetPasswordAsync(string phoneNumber, string newPassword)
+        public async Task ResetPasswordAsync(string phoneNumber, string newPassword, string firebaseIdToken)
         {
             var phone = NormalizePhone(phoneNumber);
 
-            var canReset = await _otpRepository.HasRecentlyVerifiedOtpAsync(
-                phone,
-                OtpPurpose.ResetPassword,
-                TimeSpan.FromMinutes(5)
-            );
-
-            if (!canReset)
+            // Verify Firebase token → confirm SĐT đã được xác thực qua OTP của Google
+            var verifiedPhone = await _firebaseAuthService.VerifyTokenAndGetPhoneAsync(firebaseIdToken);
+            if (verifiedPhone != phone)
                 throw new InvalidOperationException(
-                    "OTP verification required before resetting password."
+                    "SĐT trong Firebase token không khớp."
                 );
 
             var user = await _userManager.FindByNameAsync(phone);

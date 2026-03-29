@@ -19,5 +19,12 @@ namespace ChargeSlot.Api.DTOs.Auth
 
         [MaxLength(50)]
         public string? Role { get; set; }
+
+        /// <summary>
+        /// Firebase ID Token để xác thực SĐT (thay thế OTP cũ).
+        /// Frontend gửi OTP qua Firebase → verify → lấy token → gửi kèm khi register.
+        /// </summary>
+        [Required]
+        public string FirebaseIdToken { get; set; } = null!;
     }
 }

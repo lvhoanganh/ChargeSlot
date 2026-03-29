@@ -6,16 +6,22 @@ using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 
+using System.Net.Http.Json;
+using Microsoft.Extensions.Configuration;
+
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class OtpService : IOtpService
     {
         private readonly IUserOtpRepository _otpRepository;
         private readonly UserManager<ApplicationUser> _userManager;
-        public OtpService(IUserOtpRepository otpRepository, UserManager<ApplicationUser> userManager)
+        private readonly IConfiguration _config;
+        
+        public OtpService(IUserOtpRepository otpRepository, UserManager<ApplicationUser> userManager, IConfiguration config)
         {
             _otpRepository = otpRepository;
             _userManager = userManager;
+            _config = config;
         }
 
         public async Task SendOtpAsync(string phoneNumber, OtpPurpose purpose)
@@ -23,7 +29,9 @@ namespace ChargeSlot.Api.Services.Implementation
         {
 
             var phone = PhoneNumberHelper.NormalizeAndValidate(phoneNumber);
-
+            var existing = await _userManager.FindByNameAsync(phone);
+            if (existing == null)
+                throw new InvalidOperationException("Phone number not exist.");
             // ⏱️ CHẶN SPAM OTP (30s)
             var remainingSeconds =
                 await _otpRepository.GetRemainingCooldownSecondsAsync(
@@ -57,16 +65,17 @@ namespace ChargeSlot.Api.Services.Implementation
             await _otpRepository.AddAsync(entity);
             await _otpRepository.SaveChangesAsync();
 
-            // 5️⃣ MOCK GỬI OTP (BÂY GIỜ)
-            Console.WriteLine($"[OTP MOCK] Phone: {phone} | OTP: {otp}");
+            // 5️⃣ GỬI OTP QUA SPEEDSMS (Hoặc Console Mock nếu chưa có API key)
+            await SendSpeedSmsAsync(phone, otp);
         }
         public async Task SendOtpRegister(string phoneNumber, OtpPurpose purpose)
 
         {
-            var existing = await _userManager.FindByNameAsync(phoneNumber);
+            var phone = PhoneNumberHelper.NormalizeAndValidate(phoneNumber);
+            var existing = await _userManager.FindByNameAsync(phone);
             if (existing != null)
                 throw new InvalidOperationException("Phone number already registered.");
-            var phone = PhoneNumberHelper.NormalizeAndValidate(phoneNumber);
+            
 
             // ⏱️ CHẶN SPAM OTP (30s)
             var remainingSeconds =
@@ -101,8 +110,8 @@ namespace ChargeSlot.Api.Services.Implementation
             await _otpRepository.AddAsync(entity);
             await _otpRepository.SaveChangesAsync();
 
-            // 5️⃣ MOCK GỬI OTP (BÂY GIỜ)
-            Console.WriteLine($"[OTP MOCK] Phone: {phone} | OTP: {otp}");
+            // 5️⃣ GỬI OTP QUA SPEEDSMS (Hoặc Console Mock nếu chưa có API key)
+            await SendSpeedSmsAsync(phone, otp);
         }
         public async Task VerifyOtpAsync(string phoneNumber, string otp, OtpPurpose purpose)
         {
@@ -142,5 +151,45 @@ namespace ChargeSlot.Api.Services.Implementation
 
         private static bool VerifyOtp(string otp, string hash) =>
             BCrypt.Net.BCrypt.Verify(otp, hash);
+
+        private async Task SendSpeedSmsAsync(string phone, string otp)
+        {
+            var apiKey = _config["SpeedSms:ApiKey"];
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                // Fallback to console mock if no API key is provided
+                Console.WriteLine($"[OTP MOCK] Phone: {phone} | OTP: {otp}");
+                return;
+            }
+
+            // SpeedSMS uses Basic Auth with Access Token as username and 'x' as password
+            using var client = new HttpClient();
+            var authBytes = System.Text.Encoding.ASCII.GetBytes($"{apiKey}:x");
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(authBytes));
+
+            var payload = new
+            {
+                to = phone,
+                content = $"Ma xac thuc cua ban tren ChargeSlot la {otp}",
+                sms_type = 2,
+                sender = "" // Empty for default brandname (e.g., Verify)
+            };
+
+            var response = await client.PostAsJsonAsync("https://api.speedsms.vn/index.php/sms/send", payload);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new InvalidOperationException($"Lỗi kết nối tới SpeedSMS: {errorContent}");
+            }
+
+            // SpeedSMS luôn trả về HTTP 200, kết quả thực sự nằm trong body JSON
+            var result = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+            if (result.TryGetProperty("status", out var statusProp) && statusProp.GetString() == "error")
+            {
+                var code = result.TryGetProperty("code", out var codeProp) ? codeProp.GetInt32().ToString() : "Unknown";
+                var message = result.TryGetProperty("message", out var msgProp) ? msgProp.GetString() : "Unknown error";
+                throw new InvalidOperationException($"Lỗi từ SpeedSMS - Code: {code}, Message: {message}");
+            }
+        }
     }
 }

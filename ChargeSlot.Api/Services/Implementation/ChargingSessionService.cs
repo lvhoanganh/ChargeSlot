@@ -136,7 +136,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (!isTimeUp && !isDriverRequestedEarlyEnd)
                 throw new InvalidOperationException(
-                    $"Chưa thể kết thúc phiên sạc. Thời gian sạc kết thúc lúc {booking.EndTime:HH:mm dd/MM/yyyy} UTC. " +
+                    $"Chưa thể kết thúc phiên sạc. Thời gian sạc kết thúc lúc {booking.EndTime:HH:mm dd/MM/yyyy}. " +
                     "Driver cần yêu cầu kết thúc sớm trước khi Owner có thể dừng.");
 
             // Update session
@@ -227,48 +227,86 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<BookingDto> ConfirmCompletionAsync(int driverUserId, int sessionId)
         {
-            var session = await _sessionRepo.GetByIdWithDetailsAsync(sessionId)
-                ?? throw new InvalidOperationException("Session không tồn tại.");
-
-            var booking = session.Booking;
-
-            if (booking.DriverUserId != driverUserId)
-                throw new InvalidOperationException("Booking này không thuộc về bạn.");
-
-            if (booking.Status != BookingStatus.CompletedPendingInvoice)
-                throw new InvalidOperationException("Booking không ở trạng thái chờ xác nhận.");
-
-            // Confirm invoice
-            var invoice = await _invoiceRepo.GetByBookingIdAsync(booking.Id);
-            if (invoice != null)
+            // FIX: Transaction bảo vệ settlement flow (ESCROW → Owner + Platform)
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
             {
-                invoice.Status = InvoiceStatus.Confirmed;
-                await _invoiceRepo.UpdateAsync(invoice);
+                var session = await _sessionRepo.GetByIdWithDetailsAsync(sessionId)
+                    ?? throw new InvalidOperationException("Session không tồn tại.");
+
+                var booking = session.Booking;
+
+                if (booking.DriverUserId != driverUserId)
+                    throw new InvalidOperationException("Booking này không thuộc về bạn.");
+
+                if (booking.Status != BookingStatus.CompletedPendingInvoice)
+                    throw new InvalidOperationException("Booking không ở trạng thái chờ xác nhận.");
+
+                // Confirm invoice
+                var invoice = await _invoiceRepo.GetByBookingIdAsync(booking.Id);
+                if (invoice != null)
+                {
+                    invoice.Status = InvoiceStatus.Confirmed;
+                    await _invoiceRepo.UpdateAsync(invoice);
+                }
+
+                // Complete booking
+                booking.Status = BookingStatus.Completed;
+                await _bookingRepo.UpdateAsync(booking);
+
+                // ── LOYALTY POINTS: tích điểm ──
+                var earnRateConfig = await _db.SystemConfigs.FindAsync("LoyaltyEarnRate");
+                var earnRate = decimal.TryParse(earnRateConfig?.Value, out var er) ? er : 0.05m;
+                var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
+
+                if (pointsEarned > 0)
+                {
+                    var driver = await _db.Set<Driver>().FirstOrDefaultAsync(d => d.UserId == booking.DriverUserId);
+                    if (driver != null)
+                    {
+                        driver.LoyaltyPoints += pointsEarned;
+                        booking.PointsEarned = pointsEarned;
+                        await _bookingRepo.UpdateAsync(booking);
+
+                        _db.LoyaltyTransactions.Add(new LoyaltyTransaction
+                        {
+                            DriverUserId = booking.DriverUserId,
+                            BookingId = booking.Id,
+                            Type = "Earn",
+                            Points = pointsEarned,
+                            Description = $"Tích {pointsEarned:N0} điểm từ booking #{booking.Id} ({booking.TotalAmount:N0}đ × {earnRate * 100:N0}%)",
+                            CreatedAt = DateTimeHelper.VietnamNow()
+                        });
+                        await _db.SaveChangesAsync();
+                    }
+                }
+
+                // ── WALLET SETTLEMENT ──
+                if (invoice != null)
+                {
+                    await SettlePaymentToOwnerAsync(booking, invoice);
+                }
+
+                await transaction.CommitAsync();
+
+                // Notify Owner (ngoài transaction)
+                var station = booking.ChargingSlot?.ChargingStation;
+                if (station != null)
+                {
+                    await _notificationService.SendAsync(
+                        station.OwnerUserId,
+                        "Driver đã xác nhận hoàn thành",
+                        $"Phiên sạc tại slot {booking.ChargingSlot?.SlotName} — trạm {station.Name} đã hoàn thành. {invoice?.ChargingAmount:N0}đ đã chuyển vào ví của bạn.",
+                        NotificationType.Payment);
+                }
+
+                return MapToBookingDto(booking);
             }
-
-            // Complete booking
-            booking.Status = BookingStatus.Completed;
-            await _bookingRepo.UpdateAsync(booking);
-
-            // ── WALLET SETTLEMENT ──
-            // ESCROW → Owner (net amount) + ESCROW → PLATFORM_REVENUE (fee)
-            if (invoice != null)
+            catch
             {
-                await SettlePaymentToOwnerAsync(booking, invoice);
+                await transaction.RollbackAsync();
+                throw;
             }
-
-            // Notify Owner
-            var station = booking.ChargingSlot?.ChargingStation;
-            if (station != null)
-            {
-                await _notificationService.SendAsync(
-                    station.OwnerUserId,
-                    "Driver đã xác nhận hoàn thành",
-                    $"Phiên sạc tại slot {booking.ChargingSlot?.SlotName} — trạm {station.Name} đã hoàn thành. {invoice?.ChargingAmount:N0}đ đã chuyển vào ví của bạn.",
-                    NotificationType.Payment);
-            }
-
-            return MapToBookingDto(booking);
         }
 
         /// <summary>

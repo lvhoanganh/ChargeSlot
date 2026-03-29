@@ -3,6 +3,7 @@ using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Microsoft.Extensions.Configuration;
 
 namespace ChargeSlot.Api.Controllers
 {
@@ -18,17 +19,17 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
-        /// Driver tạo payment URL để redirect sang VNPay (Step 17, 21)
+        /// Driver tạo mã QR thanh toán (SePay/VietQR)
         /// </summary>
-        [HttpPost("{bookingId}/create-payment-url")]
+        [HttpGet("{bookingId}/sepay-qr")]
         [Authorize(Roles = "Driver")]
-        public async Task<IActionResult> CreatePaymentUrl(int bookingId)
+        public async Task<IActionResult> CreateSePayQr(int bookingId)
         {
             try
             {
                 var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-                var paymentUrl = await _paymentService.CreatePaymentUrlAsync(bookingId, userId, HttpContext);
-                return Ok(new { paymentUrl });
+                var qrUrl = await _paymentService.CreateSePayQrUrlAsync(bookingId, userId);
+                return Ok(new { qrUrl });
             }
             catch (InvalidOperationException ex)
             {
@@ -41,34 +42,29 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
-        /// VNPay redirect về frontend sau khi thanh toán — frontend gọi API này để verify
+        /// Webhook nhận thông báo kết quả chuyển khoản từ SePay
         /// </summary>
-        [HttpGet("vnpay-return")]
+        [HttpPost("sepay-webhook")]
         [AllowAnonymous]
-        public async Task<IActionResult> VnPayReturn()
+        public async Task<IActionResult> SePayWebhook([FromBody] SePayWebhookRequest request, [FromServices] IConfiguration configuration)
         {
-            var success = await _paymentService.ProcessVnPayCallbackAsync(Request.Query);
-            var responseCode = Request.Query["vnp_ResponseCode"].ToString();
+            // Kiểm tra bảo mật Webhook (chống fake API call)
+            var providedToken = Request.Headers["Authorization"].FirstOrDefault()?.Replace("Bearer ", "").Trim();
+            var expectedToken = configuration["SePay:WebhookToken"];
 
-            // Redirect về frontend với kết quả
-            var frontendUrl = $"http://localhost:5173/payment/result?success={success}&responseCode={responseCode}";
-            return Redirect(frontendUrl);
-        }
-
-        /// <summary>
-        /// VNPay IPN (server-to-server callback) — VNPay gọi trực tiếp
-        /// </summary>
-        [HttpGet("vnpay-ipn")]
-        [AllowAnonymous]
-        public async Task<IActionResult> VnPayIpn()
-        {
-            var success = await _paymentService.ProcessVnPayCallbackAsync(Request.Query);
-
-            if (success)
+            if (string.IsNullOrEmpty(expectedToken) || providedToken != expectedToken)
             {
-                return Ok(new { RspCode = "00", Message = "Confirm Success" });
+                return Unauthorized(new { success = false, message = "Invalid SePay Integration Token" });
             }
-            return Ok(new { RspCode = "99", Message = "Confirm Fail" });
+
+            var success = await _paymentService.ProcessSePayWebhookAsync(request);
+
+            // Chú ý: SePay document yêu cầu trả về HTTP 200 + { "success": true } để xác nhận đã nhận webhook thành công.
+            return Ok(new SePayWebhookResponse
+            {
+                success = success,
+                message = success ? "Processed successfully" : "Warning: Failed to process or idempotency skipped. Check logs."
+            });
         }
     }
 }

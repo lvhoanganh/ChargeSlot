@@ -252,6 +252,123 @@ namespace ChargeSlot.Api.Controllers
                 CreatedAt = p.CreatedAt
             };
         }
+
+        // ─────────────── EXTRA SERVICES (dịch vụ bổ sung) ───────────────
+
+        /// <summary>List all extra services for a station.</summary>
+        [HttpGet("{stationId:int}/extra-services")]
+        public async Task<IActionResult> GetExtraServices(int stationId)
+        {
+            var userId = GetUserId();
+            var station = await _db.ChargingStations.FindAsync(stationId);
+            if (station == null) return NotFound();
+            if (station.OwnerUserId != userId) return Forbid();
+
+            var services = await _db.Set<ExtraService>()
+                .Where(s => s.StationId == stationId)
+                .OrderBy(s => s.ServiceName)
+                .ToListAsync();
+
+            return Ok(services.Select(MapExtraServiceDto));
+        }
+
+        /// <summary>Create a new extra service for a station.</summary>
+        [HttpPost("{stationId:int}/extra-services")]
+        public async Task<IActionResult> CreateExtraService(int stationId, [FromBody] CreateExtraServiceDto dto)
+        {
+            var userId = GetUserId();
+            var station = await _db.ChargingStations.FindAsync(stationId);
+            if (station == null) return NotFound();
+            if (station.OwnerUserId != userId) return Forbid();
+
+            if (string.IsNullOrWhiteSpace(dto.ServiceName))
+                return BadRequest(new { message = "Tên dịch vụ không được để trống." });
+
+            if (dto.Price < 0)
+                return BadRequest(new { message = "Giá dịch vụ không được âm." });
+
+            var service = new ExtraService
+            {
+                StationId = stationId,
+                ServiceName = dto.ServiceName.Trim(),
+                Description = dto.Description?.Trim(),
+                Price = dto.Price,
+                TotalStock = dto.TotalStock,
+                IsActive = true,
+                CreatedAt = DateTimeHelper.VietnamNow()
+            };
+
+            _db.Set<ExtraService>().Add(service);
+            await _db.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetExtraServices), new { stationId }, MapExtraServiceDto(service));
+        }
+
+        /// <summary>Update an extra service.</summary>
+        [HttpPut("{stationId:int}/extra-services/{serviceId:int}")]
+        public async Task<IActionResult> UpdateExtraService(int stationId, int serviceId, [FromBody] UpdateExtraServiceDto dto)
+        {
+            var userId = GetUserId();
+            var station = await _db.ChargingStations.FindAsync(stationId);
+            if (station == null) return NotFound();
+            if (station.OwnerUserId != userId) return Forbid();
+
+            var service = await _db.Set<ExtraService>()
+                .FirstOrDefaultAsync(s => s.Id == serviceId && s.StationId == stationId);
+            if (service == null) return NotFound(new { message = "Dịch vụ không tồn tại." });
+
+            if (string.IsNullOrWhiteSpace(dto.ServiceName))
+                return BadRequest(new { message = "Tên dịch vụ không được để trống." });
+
+            if (dto.Price < 0)
+                return BadRequest(new { message = "Giá dịch vụ không được âm." });
+
+            service.ServiceName = dto.ServiceName.Trim();
+            service.Description = dto.Description?.Trim();
+            service.Price = dto.Price;
+            service.TotalStock = dto.TotalStock;
+            service.IsActive = dto.IsActive;
+
+            await _db.SaveChangesAsync();
+            return Ok(MapExtraServiceDto(service));
+        }
+
+        /// <summary>Delete an extra service (hard delete).</summary>
+        [HttpDelete("{stationId:int}/extra-services/{serviceId:int}")]
+        public async Task<IActionResult> DeleteExtraService(int stationId, int serviceId)
+        {
+            var userId = GetUserId();
+            var station = await _db.ChargingStations.FindAsync(stationId);
+            if (station == null) return NotFound();
+            if (station.OwnerUserId != userId) return Forbid();
+
+            var service = await _db.Set<ExtraService>()
+                .FirstOrDefaultAsync(s => s.Id == serviceId && s.StationId == stationId);
+            if (service == null) return NotFound();
+
+            // Kiểm tra có booking nào đang dùng dịch vụ này không
+            var hasBookings = await _db.Set<BookingExtraService>()
+                .AnyAsync(bes => bes.ServiceId == serviceId);
+            if (hasBookings)
+                return BadRequest(new { message = "Không thể xóa dịch vụ đã có booking sử dụng. Hãy tắt (IsActive = false) thay vì xóa." });
+
+            _db.Set<ExtraService>().Remove(service);
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+
+        private static ExtraServiceDto MapExtraServiceDto(ExtraService s)
+        {
+            return new ExtraServiceDto
+            {
+                Id = s.Id,
+                ServiceName = s.ServiceName,
+                Description = s.Description,
+                Price = s.Price,
+                TotalStock = s.TotalStock,
+                IsActive = s.IsActive
+            };
+        }
     }
 }
 

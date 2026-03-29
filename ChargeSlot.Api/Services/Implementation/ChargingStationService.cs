@@ -347,6 +347,18 @@ namespace ChargeSlot.Api.Services.Implementation
                     $"Cannot delete station in '{station.ApprovalStatus}' status.");
             }
 
+            // Check for active bookings on any slot
+            var slotIds = station.ChargingSlots.Select(s => s.Id).ToList();
+            var activeStatuses = new[]
+            {
+                BookingStatus.WaitingOwner, BookingStatus.PendingPayment,
+                BookingStatus.Paid, BookingStatus.CheckedIn, BookingStatus.InProgress
+            };
+            var hasActiveBookings = await _context.Bookings
+                .AnyAsync(b => slotIds.Contains(b.SlotId) && activeStatuses.Contains(b.Status));
+            if (hasActiveBookings)
+                throw new InvalidOperationException("Không thể xóa trạm có booking đang hoạt động.");
+
             // Remove child entities
             _context.StationOperatingHours.RemoveRange(station.OperatingHours);
             _context.StationImages.RemoveRange(station.Images);
