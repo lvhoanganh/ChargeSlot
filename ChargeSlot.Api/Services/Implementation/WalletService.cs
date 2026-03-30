@@ -105,7 +105,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // BUG-1 FIX: Atomic SQL update tránh race condition
             var rowsAffected = await _db.Database.ExecuteSqlRawAsync(
-                "UPDATE Wallets SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1} AND AvailableBalance >= {0}",
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1} AND AvailableBalance >= {0}",
                 booking.TotalAmount, wallet.Id);
             if (rowsAffected == 0)
                 throw new InvalidOperationException("Số dư ví không đủ hoặc đã bị thay đổi. Vui lòng thử lại.");
