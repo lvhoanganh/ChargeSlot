@@ -13,5 +13,11 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<CancelPreviewDto> GetCancelPreviewAsync(int driverUserId, int bookingId);
         Task<List<BookingDto>> GetByDriverAsync(int driverUserId);
         Task<List<BookingDto>> GetByOwnerAsync(int ownerUserId);
+        
+        /// <summary>
+        /// Dùng cho hệ thống gỡ/huỷ Booking khi tài khoản bị khóa (Admin).
+        /// Trả Stock, nhả Slot, hoàn tiền 100% nếu đã Paid.
+        /// </summary>
+        Task CancelSystemBookingAsync(int bookingId, string systemReason);
     }
 }

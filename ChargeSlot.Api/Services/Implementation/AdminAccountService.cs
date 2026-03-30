@@ -1,4 +1,4 @@
-﻿using ChargeSlot.Api.Models.Identity;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.DTOs.Admin;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
@@ -11,10 +11,20 @@ namespace ChargeSlot.Api.Services.Implementation
     public class AdminAccountService : IAdminAccountService
     {
         private readonly IAdminAccountRepository _adminAccountRepository;
+        private readonly ChargeSlot.Api.Data.ChargeSlotDbContext _db;
+        private readonly IBookingService _bookingService;
+        private readonly INotificationService _notificationService;
 
-        public AdminAccountService(IAdminAccountRepository adminAccountRepository)
+        public AdminAccountService(
+            IAdminAccountRepository adminAccountRepository,
+            ChargeSlot.Api.Data.ChargeSlotDbContext db,
+            IBookingService bookingService,
+            INotificationService notificationService)
         {
             _adminAccountRepository = adminAccountRepository;
+            _db = db;
+            _bookingService = bookingService;
+            _notificationService = notificationService;
         }
 
         public async Task<PagedResultDto<AccountListItemDto>> GetAccountsAsync(
@@ -139,7 +149,74 @@ namespace ChargeSlot.Api.Services.Implementation
             if (!updated)
                 throw new InvalidOperationException("Failed to update user status.");
 
+            // Cascading Cancel
+            if (user.Status == UserStatusConstants.Banned)
+            {
+                await ProcessCascadingCancelAsync(user.Id, roles.FirstOrDefault() ?? "");
+            }
+
             return user.Status;
+        }
+
+        private async Task ProcessCascadingCancelAsync(int userId, string role)
+        {
+            var targetStatuses = new[] { 
+                ChargeSlot.Api.Enums.BookingStatus.WaitingOwner, 
+                ChargeSlot.Api.Enums.BookingStatus.PendingPayment, 
+                ChargeSlot.Api.Enums.BookingStatus.Paid 
+            };
+
+            if (role == RoleConstants.Driver)
+            {
+                var bookings = await _db.Bookings
+                    .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                    .Where(b => b.DriverUserId == userId && targetStatuses.Contains(b.Status))
+                    .ToListAsync();
+                    
+                foreach (var b in bookings)
+                {
+                    await _bookingService.CancelSystemBookingAsync(b.Id, "Tài xế bị hệ thống khóa tài khoản.");
+                    
+                    var ownerId = b.ChargingSlot?.ChargingStation?.OwnerUserId;
+                    if (ownerId.HasValue)
+                    {
+                        await _notificationService.SendAsync(
+                            ownerId.Value, 
+                            "Lịch đặt đã bị hủy", 
+                            $"Tài xế đặt slot {b.ChargingSlot?.SlotName} tại trạm {b.ChargingSlot?.ChargingStation?.Name} vừa bị khóa tài khoản hệ thống. Lịch đã tự động hủy.", 
+                            ChargeSlot.Api.Enums.NotificationType.System);
+                    }
+                }
+            }
+            else if (role == RoleConstants.Owner)
+            {
+                var stations = await _db.ChargingStations
+                    .Where(s => s.OwnerUserId == userId)
+                    .ToListAsync();
+                    
+                foreach(var s in stations)
+                {
+                    s.OperationalStatus = ChargeSlot.Api.Enums.OperationalStatus.Inactive;
+                }
+                await _db.SaveChangesAsync();
+
+                var stationIds = stations.Select(s => s.Id).ToList();
+                var bookings = await _db.Bookings
+                    .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                    .Where(b => stationIds.Contains(b.ChargingSlot!.StationId) && targetStatuses.Contains(b.Status))
+                    .ToListAsync();
+                    
+                foreach (var b in bookings)
+                {
+                    await _bookingService.CancelSystemBookingAsync(b.Id, "Trạm sạc bị hệ thống khóa do vi phạm.");
+                    
+                    await _notificationService.SendAsync(
+                        b.DriverUserId, 
+                        "Lịch đặt đã bị hủy hệ thống", 
+                        $"Trạm sạc {b.ChargingSlot?.ChargingStation?.Name} do vi phạm nên đã bị hệ thống khóa. Lịch đặt của bạn tại slot {b.ChargingSlot?.SlotName} bị hủy, tiền cọc (nếu có) đã hoàn 100% vào ví.", 
+                        ChargeSlot.Api.Enums.NotificationType.System);
+                }
+            }
         }
 
         public async Task<AccountStatisticsDto> GetAccountStatisticsAsync()

@@ -16,19 +16,22 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly INotificationService _notificationService;
         private readonly IWalletRepository _walletRepo;
         private readonly ChargeSlotDbContext _context;
+        private readonly ILogger<BookingService> _logger;
 
         public BookingService(
             IBookingRepository bookingRepo,
             IChargingSlotRepository slotRepo,
             INotificationService notificationService,
             IWalletRepository walletRepo,
-            ChargeSlotDbContext context)
+            ChargeSlotDbContext context,
+            ILogger<BookingService> logger)
         {
             _bookingRepo = bookingRepo;
             _slotRepo = slotRepo;
             _notificationService = notificationService;
             _walletRepo = walletRepo;
             _context = context;
+            _logger = logger;
         }
 
         /// <summary>
@@ -481,34 +484,128 @@ namespace ChargeSlot.Api.Services.Implementation
             }
         }
 
+        /// <summary>
+        /// Admin huỷ booking (khi Driver/Owner bị Ban).
+        /// Luôn hoàn 100% tiền cho Driver nếu đã Paid.
+        /// </summary>
+        public async Task CancelSystemBookingAsync(int bookingId, string systemReason)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
+                    ?? throw new InvalidOperationException("Booking không tồn tại.");
+
+                var allowedStatuses = new[] { BookingStatus.WaitingOwner, BookingStatus.PendingPayment, BookingStatus.Paid };
+                if (!allowedStatuses.Contains(booking.Status))
+                    throw new InvalidOperationException("Không thể hủy booking ở trạng thái hiện tại.");
+
+                var wasPaid = booking.Status == BookingStatus.Paid;
+
+                booking.Status = BookingStatus.Cancelled;
+                booking.CancelledAt = DateTimeHelper.VietnamNow();
+                booking.CancelReason = $"Hệ thống hủy: {systemReason}";
+                await _bookingRepo.UpdateAsync(booking);
+
+                if (wasPaid)
+                {
+                    // Hoàn tiền 100% cho Driver
+                    await ProcessRefundAsync(booking, 1.0m, booking.CancelReason);
+                    await RestoreExtraServiceStockAsync(booking);
+                    await RefundLoyaltyPointsAsync(booking);
+                }
+
+                await ReleaseSlotIfBooked(booking.SlotId);
+
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Lỗi khi CancelSystemBookingAsync cho booking {BookingId}", bookingId);
+                throw;
+            }
+        }
+
         // ─── CANCEL HELPERS ───
 
-        /// <summary>Hoàn tiền từ ESCROW về ví Driver (và Owner nếu có phần bồi thường).</summary>
         private async Task ProcessRefundAsync(Booking booking, decimal refundPercent, string memo)
         {
             if (refundPercent == 0)
             {
-                // 0% refund → toàn bộ ESCROW → Owner
+                // 0% refund → toàn bộ ESCROW → Owner (trừ phí sàn + VAT)
                 var ownerUserId2 = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
-                await TransferFromEscrow(booking, booking.TotalAmount, ownerUserId2, WalletType.Owner, $"{memo} — {booking.TotalAmount:N0}đ → Owner");
+                await SettleCompensationToOwner(booking, booking.TotalAmount, ownerUserId2, $"{memo} — phạt 100%");
                 return;
             }
 
             var refundAmount = booking.TotalAmount * refundPercent;
             var ownerAmount = booking.TotalAmount - refundAmount;
 
-            // Refund → Driver
+            // Refund → Driver (hoàn trả trực tiếp, không tính phí)
             if (refundAmount > 0)
             {
                 await TransferFromEscrow(booking, refundAmount, booking.DriverUserId, WalletType.Driver, $"{memo} — {refundAmount:N0}đ → Driver");
             }
 
-            // Bồi thường → Owner
+            // Bồi thường → Owner (trừ phí sàn + VAT giống như settlement)
             if (ownerAmount > 0)
             {
                 var ownerUserId3 = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
-                await TransferFromEscrow(booking, ownerAmount, ownerUserId3, WalletType.Owner, $"{memo} — {ownerAmount:N0}đ → Owner");
+                await SettleCompensationToOwner(booking, ownerAmount, ownerUserId3, $"{memo} — phạt {ownerAmount:N0}đ");
             }
+        }
+
+        private async Task SettleCompensationToOwner(Booking booking, decimal grossAmount, int ownerUserId, string memo)
+        {
+            // Tính toán phí giống hệt NoShowJob và ChargingSessionService
+            var vatAmount = Math.Round(grossAmount * 0.08m, 0);
+            var platformFee = Math.Round(grossAmount * 0.05m, 0);
+            var ownerNet = grossAmount - vatAmount - platformFee;
+
+            var escrowWallet = await _context.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
+            var platformWallet = await _context.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");
+            var ownerWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == ownerUserId);
+
+            if (ownerWallet == null)
+            {
+                ownerWallet = new Wallet
+                {
+                    UserId = ownerUserId,
+                    WalletType = WalletType.Owner,
+                    AvailableBalance = 0,
+                    FrozenBalance = 0,
+                    CreatedAt = DateTimeHelper.VietnamNow()
+                };
+                _context.Wallets.Add(ownerWallet);
+                await _context.SaveChangesAsync();
+            }
+
+            // Chuyển tiền nét cho Owner
+            escrowWallet.AvailableBalance -= ownerNet;
+            ownerWallet.AvailableBalance += ownerNet;
+
+            // Chuyển phí nền tảng
+            escrowWallet.AvailableBalance -= platformFee;
+            platformWallet.AvailableBalance += platformFee;
+
+            var now = DateTimeHelper.VietnamNow();
+
+            _context.Set<LedgerTransaction>().Add(new LedgerTransaction
+            {
+                ReferenceType = "BookingCancelCompensation",
+                ReferenceId = booking.Id,
+                Memo = $"{memo} (Owner nhận thực {ownerNet:N0}đ, Sàn thu {platformFee:N0}đ phí bồi thường)",
+                CreatedAt = now,
+                Entries = new List<LedgerEntry>
+                {
+                    new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = ownerNet + platformFee, CreatedAt = now },
+                    new LedgerEntry { WalletId = ownerWallet.Id, Direction = LedgerDirection.Credit, Amount = ownerNet, CreatedAt = now },
+                    new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
+                }
+            });
+
+            await _context.SaveChangesAsync();
         }
 
         private async Task TransferFromEscrow(Booking booking, decimal amount, int userId, WalletType walletType, string memo)
@@ -535,7 +632,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             _context.Set<LedgerTransaction>().Add(new LedgerTransaction
             {
-                ReferenceType = "BookingCancel",
+                ReferenceType = "BookingCancelRefund",
                 ReferenceId = booking.Id,
                 Memo = memo,
                 CreatedAt = DateTimeHelper.VietnamNow(),

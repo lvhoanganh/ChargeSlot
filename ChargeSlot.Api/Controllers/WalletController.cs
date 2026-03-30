@@ -47,6 +47,21 @@ namespace ChargeSlot.Api.Controllers
             }
         }
 
+        [HttpGet("test-pay/{bookingId}/{userId}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> TestPay(int bookingId, int userId)
+        {
+            try
+            {
+                var result = await _walletService.PayBookingByWalletAsync(userId, bookingId);
+                return Ok(new { message = "Thanh toán thành công", wallet = result });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message, stackTrace = ex.StackTrace, innerException = ex.InnerException?.Message });
+            }
+        }
+
         /// <summary>
         /// Thanh toán booking bằng số dư ví
         /// </summary>
@@ -66,6 +81,10 @@ namespace ChargeSlot.Api.Controllers
             catch (UnauthorizedAccessException)
             {
                 return Forbid();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message, stackTrace = ex.StackTrace, innerException = ex.InnerException?.Message });
             }
         }
 
