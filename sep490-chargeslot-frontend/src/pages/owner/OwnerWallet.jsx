@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { walletApi, payoutApi, bankAccountApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 import { showConfirm } from "@/components/ConfirmDialog";
+import BankCombobox from "@/components/BankCombobox";
 
 const txTypeLabels = {
   TopUp: { label: "Nạp tiền", icon: "💰", color: "#22c55e" },
@@ -247,8 +248,10 @@ export default function OwnerWallet() {
           }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}>🏦 Thêm tài khoản ngân hàng</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <FormInput label="Tên ngân hàng" placeholder="VD: Vietcombank"
-                value={bankForm.bankName} onChange={v => setBankForm(f => ({ ...f, bankName: v }))} />
+              <BankCombobox 
+                value={bankForm.bankName} 
+                onChange={v => setBankForm(f => ({ ...f, bankName: v }))} 
+              />
               <FormInput label="Số tài khoản" placeholder="VD: 1234567890"
                 value={bankForm.bankAccountNumber} onChange={v => setBankForm(f => ({ ...f, bankAccountNumber: v }))} />
               <FormInput label="Chủ tài khoản" placeholder="VD: NGUYEN VAN A"

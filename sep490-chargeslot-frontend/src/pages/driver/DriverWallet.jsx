@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { walletApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 import QRCodeModal from "@/components/QRCodeModal";
+import BankCombobox from "@/components/BankCombobox";
 
 const txTypeLabels = {
   TopUp: { label: "Nạp tiền", icon: "💰", color: "#22c55e" },
@@ -239,8 +240,10 @@ export default function DriverWallet() {
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <FormInput label="Số tiền rút" type="number" placeholder="VD: 100000"
                 value={withdrawForm.amount} onChange={v => setWithdrawForm(f => ({ ...f, amount: v }))} />
-              <FormInput label="Tên ngân hàng" placeholder="VD: Vietcombank"
-                value={withdrawForm.bankName} onChange={v => setWithdrawForm(f => ({ ...f, bankName: v }))} />
+              <BankCombobox 
+                value={withdrawForm.bankName} 
+                onChange={v => setWithdrawForm(f => ({ ...f, bankName: v }))} 
+              />
               <FormInput label="Số tài khoản" placeholder="VD: 1234567890"
                 value={withdrawForm.bankAccountNumber} onChange={v => setWithdrawForm(f => ({ ...f, bankAccountNumber: v }))} />
               <FormInput label="Chủ tài khoản" placeholder="VD: NGUYEN VAN A"

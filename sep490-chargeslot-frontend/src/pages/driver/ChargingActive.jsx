@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { chargingApi } from "@/services/api";
+import { showConfirm } from "@/components/ConfirmDialog";
 
 const toLocal = (dt) => {
   if (!dt) return "";
@@ -93,7 +94,7 @@ export default function ChargingActive() {
 
   async function handleRequestEarlyEnd() {
     if (!sessionData || earlyEndRequested) return;
-    if (!confirm("Bạn muốn yêu cầu kết thúc sạc sớm? Owner sẽ nhận được thông báo.")) return;
+    if (!(await showConfirm("Bạn muốn yêu cầu kết thúc sạc sớm? Owner sẽ nhận được thông báo.", "Yêu cầu kết thúc sớm"))) return;
     setRequestingEarlyEnd(true);
     setError("");
     try {

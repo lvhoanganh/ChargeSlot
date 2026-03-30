@@ -3,6 +3,8 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { stationApi } from "@/services/api";
 import { formatVN } from "@/utils/dateVN";
+import { showToast } from "@/components/Toast";
+import { showConfirm } from "@/components/ConfirmDialog";
 
 export default function StationDetail() {
   const { id } = useParams();
@@ -38,7 +40,7 @@ export default function StationDetail() {
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Bạn có chắc muốn xóa trạm "${station.name}"?`)) return;
+    if (!(await showConfirm(`Bạn có chắc muốn xóa trạm "${station.name}"?`, "Xóa trạm sạc"))) return;
 
     try {
       await stationApi.delete(id);
@@ -50,7 +52,7 @@ export default function StationDetail() {
   };
 
   const handleSubmitForApproval = async () => {
-    if (!confirm(`Gửi trạm "${station.name}" đi phê duyệt?`)) return;
+    if (!(await showConfirm(`Gửi trạm "${station.name}" đi phê duyệt?`, "Gửi phê duyệt"))) return;
 
     try {
       await stationApi.submitForApproval(id);
