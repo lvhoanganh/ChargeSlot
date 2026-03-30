@@ -354,6 +354,12 @@ export default function ManageUser() {
           margin: 0 auto;
           padding: 88px 0 40px;
         }
+        @media (max-width: 768px) {
+          .cs-admin-page {
+            width: 100%;
+            padding: 80px 16px 40px;
+          }
+        }
         .cs-admin-page__header { margin-bottom: 28px; }
         .cs-admin-page__title {
           font-size: 26px;
@@ -375,6 +381,9 @@ export default function ManageUser() {
           margin-bottom: 24px;
         }
         @media (max-width: 640px) {
+          .cs-admin-stats { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 400px) {
           .cs-admin-stats { grid-template-columns: 1fr; }
         }
         .cs-admin-stat-card {
@@ -417,6 +426,15 @@ export default function ManageUser() {
           gap: 12px;
           align-items: center;
           flex-wrap: wrap;
+        }
+        @media (max-width: 600px) {
+          .cs-admin-filter {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .cs-admin-filter__search { min-width: unset; }
+          .cs-admin-filter__select,
+          .cs-admin-filter__reset { width: 100%; }
         }
         .cs-admin-filter__search {
           flex: 1;
@@ -480,8 +498,10 @@ export default function ManageUser() {
           background: white;
           border: 1px solid rgba(0,0,0,0.06);
           border-radius: 16px;
-          overflow: hidden;
+          overflow-x: auto;
+          overflow-y: hidden;
           position: relative;
+          -webkit-overflow-scrolling: touch;
         }
         .cs-admin-table__loading {
           position: absolute;

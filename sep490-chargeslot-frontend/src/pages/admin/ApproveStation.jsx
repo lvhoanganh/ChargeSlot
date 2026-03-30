@@ -353,6 +353,9 @@ const styles = `
     margin: 0 auto;
     padding: 88px 0 40px;
   }
+  @media (max-width: 768px) {
+    .cs-admin-page { width: 100%; padding: 80px 16px 40px; }
+  }
   .cs-admin-page__header { margin-bottom: 28px; }
   .cs-admin-page__title {
     font-size: 26px;
@@ -423,6 +426,11 @@ const styles = `
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
+  }
+  @media (max-width: 600px) {
+    .cs-admin-filter { flex-direction: column; align-items: stretch; }
+    .cs-admin-filter__search { min-width: unset; }
+    .cs-admin-filter__select, .cs-admin-filter__reset { width: 100%; }
   }
   .cs-admin-filter__search {
     flex: 1;

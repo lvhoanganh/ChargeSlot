@@ -46,6 +46,51 @@ if (!document.getElementById("station-map-styles")) {
       border-radius: 16px !important;
       box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
     }
+
+    /* ── RESPONSIVE MAP LAYOUT ── */
+    .station-map-root {
+      display: flex;
+      width: 100%;
+      height: calc(100vh - 64px);
+      margin-top: 64px;
+      overflow: hidden;
+      flex-direction: row;
+    }
+    .station-map-panel {
+      width: 400px;
+      min-width: 360px;
+      height: 100%;
+      background: #fafbfc;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.06);
+      z-index: 2;
+    }
+    .station-map-view {
+      flex: 1;
+      position: relative;
+    }
+
+    @media (max-width: 768px) {
+      .station-map-root {
+        flex-direction: column;
+        height: calc(100vh - 64px);
+      }
+      .station-map-panel {
+        width: 100%;
+        min-width: unset;
+        height: 50vh;
+        min-height: 280px;
+        max-height: 50vh;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .station-map-view {
+        height: 50vh;
+        min-height: 240px;
+      }
+    }
   `;
   document.head.appendChild(style);
 }
@@ -247,26 +292,10 @@ export default function StationMap() {
   }
 
   return (
-    <div style={{
-      display: "flex",
-      width: "100%",
-      height: "calc(100vh - 80px)",
-      marginTop: 80,
-      overflow: "hidden",
-    }}>
+    <div className="station-map-root">
 
       {/* ══════════ LEFT PANEL ══════════ */}
-      <div style={{
-        width: 400,
-        minWidth: 360,
-        height: "100%",
-        background: "#fafbfc",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        boxShadow: "4px 0 24px rgba(0,0,0,0.06)",
-        zIndex: 2,
-      }}>
+      <div className="station-map-panel">
 
         {/* Header + Search */}
         <div style={{
@@ -655,7 +684,7 @@ export default function StationMap() {
       </div>
 
       {/* ══════════ RIGHT PANEL — Map ══════════ */}
-      <div style={{ flex: 1, position: "relative" }}>
+      <div className="station-map-view">
 
         {/* Locate me */}
         <button

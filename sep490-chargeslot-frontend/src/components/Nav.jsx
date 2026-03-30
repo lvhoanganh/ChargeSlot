@@ -42,6 +42,7 @@ export default function Nav() {
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
   const [walletBalance, setWalletBalance] = useState(null);
@@ -52,6 +53,7 @@ export default function Nav() {
     || location.pathname.startsWith("/driver/charging");
   const dropdownRef = useRef(null);
   const moreRef = useRef(null);
+  const mobileMenuRef = useRef(null);
   const toastTimer = useRef(null);
 
   const normalizedRole = (role || "").toLowerCase();
@@ -78,6 +80,16 @@ export default function Nav() {
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownOpen, moreOpen]);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileMenuOpen]);
 
   // Fetch wallet balance cho driver — re-fetch khi mở dropdown
   useEffect(() => {
@@ -220,6 +232,19 @@ export default function Nav() {
       to: "/driver/reviews",
       loginMsg: "đánh giá trạm sạc",
     },
+  ];
+
+  // All nav items for mobile menu
+  const allNavItems = [
+    { to: "/", icon: "🏠", label: "Trang chủ" },
+    { to: "/driver/map", icon: "🗺️", label: "Tìm trạm" },
+    ...(token ? [{ to: "/driver/my-bookings", icon: "📅", label: "Booking" }] : []),
+    { to: token ? "/driver/scan-qr" : null, icon: "📷", label: "Check-in", requireLogin: !token },
+    { to: "/driver/favorites", icon: "❤️", label: "Yêu thích", requireLogin: !token },
+    { to: "/driver/loyalty", icon: "🏆", label: "Điểm thưởng", requireLogin: !token },
+    { to: "/driver/chat-list", icon: "💬", label: "Chat", requireLogin: !token },
+    { to: "/driver/reviews", icon: "⭐", label: "Đánh giá", requireLogin: !token },
+    ...(token ? [{ to: "/driver/wallet", icon: "💰", label: "Ví tiền" }] : []),
   ];
 
   return (
@@ -466,8 +491,140 @@ export default function Nav() {
               </div>
             )}
           </div>
+
+          {/* Hamburger button (mobile only) */}
+          <button
+            className="cs-hamburger"
+            onClick={() => setMobileMenuOpen(prev => !prev)}
+            aria-label="Mở menu"
+          >
+            {mobileMenuOpen ? (
+              <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
       </nav>
+
+      {/* Mobile Menu Overlay */}
+      <div
+        className={`cs-mobile-overlay ${mobileMenuOpen ? "cs-mobile-overlay--open" : ""}`}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+
+      {/* Mobile Menu Drawer */}
+      <div
+        ref={mobileMenuRef}
+        className={`cs-mobile-menu ${mobileMenuOpen ? "cs-mobile-menu--open" : ""}`}
+      >
+        {/* Mobile menu header */}
+        <div className="cs-mobile-menu__header">
+          <ChargeSlotLogo size={30} showText />
+          <button
+            className="cs-mobile-menu__close"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* User info (if logged in) */}
+        {token && (
+          <div className="cs-mobile-menu__user">
+            <img
+              src={getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR}
+              alt="Avatar"
+              className="cs-mobile-menu__avatar"
+            />
+            <div>
+              <p className="cs-mobile-menu__phone">{maskPhone(phoneNumber) || "Người dùng"}</p>
+              <span className="cs-mobile-menu__role">{roleLabels[(role || "").toLowerCase()] || role}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Nav Items */}
+        <div className="cs-mobile-menu__nav">
+          {allNavItems.map((item, i) => {
+            if (item.requireLogin) {
+              return (
+                <button
+                  key={i}
+                  className="cs-mobile-nav-item"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    requireLogin(item.label);
+                  }}
+                >
+                  <span className="cs-mobile-nav-item__icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                  <svg className="cs-mobile-nav-item__arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              );
+            }
+            return (
+              <NavLink
+                key={i}
+                to={item.to}
+                className={({ isActive }) =>
+                  `cs-mobile-nav-item ${isActive ? "cs-mobile-nav-item--active" : ""}`
+                }
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <span className="cs-mobile-nav-item__icon">{item.icon}</span>
+                <span>{item.label}</span>
+                <svg className="cs-mobile-nav-item__arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </NavLink>
+            );
+          })}
+        </div>
+
+        {/* Auth actions */}
+        <div className="cs-mobile-menu__footer">
+          {!token ? (
+            <>
+              <button
+                className="cs-mobile-menu__btn cs-mobile-menu__btn--primary"
+                onClick={() => { setMobileMenuOpen(false); navigate("/login"); }}
+              >
+                🔑 Đăng nhập
+              </button>
+              <button
+                className="cs-mobile-menu__btn cs-mobile-menu__btn--secondary"
+                onClick={() => { setMobileMenuOpen(false); navigate("/register"); }}
+              >
+                📝 Đăng ký miễn phí
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="cs-mobile-menu__btn cs-mobile-menu__btn--secondary"
+                onClick={() => { setMobileMenuOpen(false); navigate(profilePath); }}
+              >
+                👤 Xem hồ sơ
+              </button>
+              <button
+                className="cs-mobile-menu__btn cs-mobile-menu__btn--danger"
+                onClick={() => { setMobileMenuOpen(false); logout(); navigate("/login"); }}
+              >
+                🚪 Đăng xuất
+              </button>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Login toast */}
       <div
@@ -813,7 +970,8 @@ export default function Nav() {
           box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
           border-radius: 14px;
           padding: 14px 18px;
-          min-width: 380px;
+          min-width: min(380px, calc(100vw - 32px));
+          max-width: calc(100vw - 32px);
         }
         .cs-toast__icon-wrap {
           width: 40px;
@@ -881,6 +1039,247 @@ export default function Nav() {
         /* ===== ANIMATIONS ===== */
         @keyframes cs-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
         @keyframes cs-pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+        @keyframes cs-slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* ===== HAMBURGER BUTTON ===== */
+        .cs-hamburger {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          border: none;
+          background: none;
+          border-radius: 10px;
+          color: #4b5563;
+          cursor: pointer;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+        .cs-hamburger:hover {
+          background: #f3f4f6;
+          color: #ea580c;
+        }
+
+        /* ===== MOBILE OVERLAY ===== */
+        .cs-mobile-overlay {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 40;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+        .cs-mobile-overlay--open {
+          opacity: 1;
+        }
+
+        /* ===== MOBILE MENU DRAWER ===== */
+        .cs-mobile-menu {
+          display: none;
+          position: fixed;
+          top: 0;
+          right: 0;
+          width: min(320px, 100vw);
+          height: 100vh;
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          z-index: 45;
+          flex-direction: column;
+          transform: translateX(100%);
+          transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: -8px 0 40px rgba(0, 0, 0, 0.15);
+          overflow-y: auto;
+        }
+        .cs-mobile-menu--open {
+          transform: translateX(0);
+        }
+        .cs-mobile-menu__header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 16px 20px;
+          border-bottom: 1px solid #f1f5f9;
+          flex-shrink: 0;
+        }
+        .cs-mobile-menu__close {
+          width: 36px;
+          height: 36px;
+          border: none;
+          background: #f8fafc;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #64748b;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .cs-mobile-menu__close:hover {
+          background: #fff7ed;
+          color: #ea580c;
+        }
+        .cs-mobile-menu__user {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 16px 20px;
+          background: linear-gradient(135deg, #fff7ed, #fed7aa);
+          margin: 12px 16px;
+          border-radius: 16px;
+        }
+        .cs-mobile-menu__avatar {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid rgba(249, 115, 22, 0.3);
+          flex-shrink: 0;
+        }
+        .cs-mobile-menu__phone {
+          font-size: 14px;
+          font-weight: 600;
+          color: #1e293b;
+          margin: 0 0 2px;
+        }
+        .cs-mobile-menu__role {
+          font-size: 12px;
+          color: #ea580c;
+          font-weight: 500;
+        }
+        .cs-mobile-menu__nav {
+          flex: 1;
+          padding: 8px 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .cs-mobile-nav-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 13px 16px;
+          border-radius: 12px;
+          font-size: 15px;
+          font-weight: 500;
+          color: #374151;
+          text-decoration: none;
+          transition: all 0.15s;
+          border: none;
+          background: none;
+          width: 100%;
+          text-align: left;
+          cursor: pointer;
+        }
+        .cs-mobile-nav-item:hover {
+          background: #fff7ed;
+          color: #ea580c;
+        }
+        .cs-mobile-nav-item--active {
+          background: #fff7ed;
+          color: #ea580c;
+          font-weight: 600;
+        }
+        .cs-mobile-nav-item__icon {
+          font-size: 18px;
+          width: 28px;
+          text-align: center;
+          flex-shrink: 0;
+        }
+        .cs-mobile-nav-item__arrow {
+          margin-left: auto;
+          color: #cbd5e1;
+          flex-shrink: 0;
+        }
+        .cs-mobile-menu__footer {
+          padding: 16px;
+          border-top: 1px solid #f1f5f9;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          flex-shrink: 0;
+        }
+        .cs-mobile-menu__btn {
+          width: 100%;
+          padding: 13px 20px;
+          border-radius: 12px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          border: none;
+          transition: all 0.2s;
+          text-align: center;
+        }
+        .cs-mobile-menu__btn--primary {
+          background: linear-gradient(135deg, #f97316, #ea580c);
+          color: white;
+          box-shadow: 0 4px 16px rgba(249, 115, 22, 0.3);
+        }
+        .cs-mobile-menu__btn--primary:hover {
+          box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
+          transform: translateY(-1px);
+        }
+        .cs-mobile-menu__btn--secondary {
+          background: #f8fafc;
+          color: #374151;
+          border: 1.5px solid #e2e8f0;
+        }
+        .cs-mobile-menu__btn--secondary:hover {
+          background: #fff7ed;
+          color: #ea580c;
+          border-color: #fed7aa;
+        }
+        .cs-mobile-menu__btn--danger {
+          background: #fef2f2;
+          color: #dc2626;
+          border: 1.5px solid #fecaca;
+        }
+        .cs-mobile-menu__btn--danger:hover {
+          background: #fee2e2;
+        }
+
+        /* ===== RESPONSIVE BREAKPOINTS ===== */
+        @media (max-width: 768px) {
+          .cs-nav__links {
+            display: none !important;
+          }
+          .cs-nav__right .cs-btn,
+          .cs-nav__right > div > *:not(.cs-avatar-btn):not(.notification-bell-wrapper) {
+            display: none;
+          }
+          /* On mobile, only show notification bell + avatar, not the register/login buttons */
+          .cs-nav__right .flex.items-center.gap-2 {
+            display: none !important;
+          }
+          .cs-hamburger {
+            display: flex;
+          }
+          .cs-mobile-overlay {
+            display: block;
+            pointer-events: none;
+          }
+          .cs-mobile-overlay--open {
+            pointer-events: auto;
+          }
+          .cs-mobile-menu {
+            display: flex;
+          }
+          .cs-charging-banner {
+            bottom: 12px;
+            font-size: 12px;
+            padding: 10px 16px;
+            gap: 8px;
+            max-width: calc(100vw - 24px);
+          }
+          .cs-charging-banner__label {
+            font-size: 12px;
+          }
+          .cs-charging-banner__timer {
+            font-size: 13px;
+          }
+        }
       `}</style>
     </>
   );
