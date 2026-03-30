@@ -171,11 +171,22 @@ export default function StationMap() {
   const [nearbyMode, setNearbyMode] = useState(false);
   const [maxRadius, setMaxRadius] = useState(10); // km
   const [favorites, setFavorites] = useState({});
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768);
   const { token } = useAuthStore();
   const markerRefs = useRef({});
   const searchTimer = useRef(null);
 
   const defaultCenter = [21.0285, 105.8542];
+
+  // Detect screen size changes — works on iOS Safari unlike CSS media query injection
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 768);
+    }
+    window.addEventListener('resize', handleResize);
+    handleResize(); // run once immediately
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
@@ -292,10 +303,31 @@ export default function StationMap() {
   }
 
   return (
-    <div className="station-map-root">
+    <div style={{
+      display: "flex",
+      flexDirection: isMobile ? "column" : "row",
+      width: "100%",
+      height: isMobile ? "calc(100vh - 64px)" : "calc(100vh - 64px)",
+      marginTop: 64,
+      overflow: "hidden",
+    }}>
 
       {/* ══════════ LEFT PANEL ══════════ */}
-      <div className="station-map-panel">
+      <div style={{
+        width: isMobile ? "100%" : 400,
+        minWidth: isMobile ? "unset" : 360,
+        height: isMobile ? "50%" : "100%",
+        maxHeight: isMobile ? "50%" : "none",
+        minHeight: isMobile ? 260 : "unset",
+        background: "#fafbfc",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        boxShadow: isMobile ? "0 4px 16px rgba(0,0,0,0.08)" : "4px 0 24px rgba(0,0,0,0.06)",
+        zIndex: 2,
+        borderBottom: isMobile ? "1px solid #e5e7eb" : "none",
+        flexShrink: 0,
+      }}>
 
         {/* Header + Search */}
         <div style={{
@@ -684,7 +716,12 @@ export default function StationMap() {
       </div>
 
       {/* ══════════ RIGHT PANEL — Map ══════════ */}
-      <div className="station-map-view">
+      <div style={{
+        flex: isMobile ? "none" : 1,
+        height: isMobile ? "50%" : "100%",
+        minHeight: isMobile ? 200 : "unset",
+        position: "relative",
+      }}>
 
         {/* Locate me */}
         <button
