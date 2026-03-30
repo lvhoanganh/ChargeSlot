@@ -182,7 +182,8 @@ export default function ScanQR() {
 
       // Save bookingId to localStorage for persistence
       if (data?.bookingId) {
-        localStorage.setItem("activeChargingBookingId", String(data.bookingId));
+        const uId = localStorage.getItem("userId") || "guest";
+        localStorage.setItem(`activeChargingBooking_${uId}`, String(data.bookingId));
       }
 
       // Navigate to charging page with session data

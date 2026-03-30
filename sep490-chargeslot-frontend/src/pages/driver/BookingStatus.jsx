@@ -109,12 +109,19 @@ export default function BookingStatus() {
   }
 
   async function handlePayWallet() {
+    if (payLoading) return; // Prevent double-click spam
     setPayLoading(true);
     try {
       await walletApi.payBooking(Number(id));
-      fetchBooking();
+      await fetchBooking();
+      setShowPaymentSuccess(true); // Hiện overlay thành công
     } catch (err) {
-      showToast.error(err.message || "Lỗi thanh toán bằng ví");
+      const msg = err?.message || "";
+      if (msg.includes("500") || msg.includes("Internal")) {
+        showToast.error("⚠️ Hệ thống đang bảo trì thanh toán bằng ví. Vui lòng dùng VietQR hoặc thử lại sau.");
+      } else {
+        showToast.error(msg || "Lỗi thanh toán bằng ví");
+      }
     } finally { setPayLoading(false); }
   }
 
@@ -468,7 +475,8 @@ export default function BookingStatus() {
         {(booking.status === "CheckedIn" || booking.status === "InProgress") && (
           <ActionButton
             onClick={() => {
-              localStorage.setItem("activeChargingBookingId", String(booking.id));
+              const uId = localStorage.getItem("userId") || "guest";
+              localStorage.setItem(`activeChargingBooking_${uId}`, String(booking.id));
               navigate("/driver/charging");
             }}
             bg="linear-gradient(135deg, #3b82f6, #2563eb)"

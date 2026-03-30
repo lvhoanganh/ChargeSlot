@@ -5,6 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { publicStationApi, reviewApi, favoriteApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
+import { formatDateVN } from "@/utils/dateVN";
 
 /* ─── Inject pulse animation (same as StationMap) ─── */
 if (!document.getElementById("station-marker-pulse")) {
@@ -629,7 +630,7 @@ export default function StationDetailDriver() {
                     )}
                     <span className="text-sm font-semibold text-gray-800">{r.driverName || "Driver"}</span>
                     <span className="text-xs text-amber-500">{"⭐".repeat(r.rating)}</span>
-                    <span className="text-xs text-gray-400 ml-auto">{new Date(r.createdAt).toLocaleDateString("vi-VN")}</span>
+                    <span className="text-xs text-gray-400 ml-auto">{formatDateVN(r.createdAt)}</span>
                   </div>
                   {r.comment && <p className="text-sm text-gray-600 ml-9">{r.comment}</p>}
                   {r.ownerReply && (

@@ -359,6 +359,10 @@ export default function OwnerPage() {
                                         const isCurrentStatus = slot.status === key;
                                         const labels = { Active: "Hoạt động", Inactive: "Ngưng", Maintenance: "Bảo trì" };
                                         const colors = { Active: "#22c55e", Inactive: "#94a3b8", Maintenance: "#f97316" };
+                                        
+                                        // BE Enum mapping
+                                        const statusValues = { Active: 0, Inactive: 1, Maintenance: 2 };
+
                                         return (
                                           <button
                                             key={key}
@@ -366,7 +370,7 @@ export default function OwnerPage() {
                                             onClick={async () => {
                                               setActionLoading(slot.id);
                                               try {
-                                                await slotApi.updateStatus(s.id, slot.id, { status: key });
+                                                await slotApi.updateStatus(s.id, slot.id, { status: statusValues[key] });
                                                 fetchStations();
                                               } catch (err) {
                                                 showToast.error("Lỗi: " + (err.message || "Không rõ"));

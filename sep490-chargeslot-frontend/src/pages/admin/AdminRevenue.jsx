@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { adminRevenueApi } from "../../services/api";
+import { formatVN } from "../../utils/dateVN";
 
 const fmt = (n) => (n || 0).toLocaleString("vi-VN") + "đ";
-const toLocal = (dt) => new Date(dt).toLocaleString("vi-VN");
+const toLocal = (dt) => formatVN(dt);
 
 export default function AdminRevenue() {
   const [period, setPeriod] = useState("all");

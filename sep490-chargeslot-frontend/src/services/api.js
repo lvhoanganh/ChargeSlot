@@ -31,7 +31,11 @@ export function clearAuth() {
     localStorage.removeItem("role");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("expiresAtUtc");
-    localStorage.removeItem("activeChargingBookingId"); // Xóa cache phiên sạc
+    Object.keys(localStorage).forEach(k => {
+        if (k.startsWith("activeChargingBooking_") || k === "activeChargingBookingId") {
+            localStorage.removeItem(k);
+        }
+    });
 }
 
 /**
@@ -439,20 +443,23 @@ export const bookingApi = {
 // ============================
 
 export const paymentApi = {
+    /**
+     * Tạo URL thanh toán VNPay (nếu có)
+     * POST /api/Payment/{bookingId}/create-payment-url
+     */
     createPaymentUrl: (bookingId) =>
         apiFetch(`/Payment/${bookingId}/create-payment-url`, { method: "POST" }),
 
     /**
-     * Thanh toán SePay VietQR
-     * POST /api/Payment/sepay/{bookingId}
-     * Response: { qrUrl, bookingId, amount, description }
+     * Tạo QR VietQR (SePay) để thanh toán booking
+     * GET /api/Payment/{bookingId}/sepay-qr
+     * Response: { qrUrl }
      */
     createSepayUrl: (bookingId) =>
-        apiFetch(`/Payment/sepay/${bookingId}`, { method: "POST" }),
+        apiFetch(`/Payment/${bookingId}/sepay-qr`), // GET — không cần method
 
-    /** Thanh toán bằng ví */
-    payWithWallet: (bookingId) =>
-        apiFetch(`/Payment/pay-wallet?bookingId=${bookingId}`, { method: "POST" }),
+    // NOTE: Thanh toán bằng ví → dùng walletApi.payBooking(bookingId)
+    // POST /api/Wallet/pay-booking/{bookingId} (KHÔNG phải /Payment/pay-wallet)
 };
 
 
@@ -517,9 +524,11 @@ export const walletApi = {
 // ============================
 
 export const notificationApi = {
+    /** GET /api/Notification */
     getAll: () => apiFetch("/Notification"),
+    /** PUT /api/Notification/{id}/read */
     markAsRead: (id) => apiFetch(`/Notification/${id}/read`, { method: "PUT" }),
-    // markAllAsRead: chưa có endpoint trên BE — cần bổ sung sau
+    // markAllAsRead: BE chưa có endpoint này (chỉ có mark 1 cái)
 };
 
 // ============================

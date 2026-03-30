@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { stationApi } from "@/services/api";
+import { formatVN } from "@/utils/dateVN";
 
 export default function StationDetail() {
   const { id } = useParams();
@@ -250,7 +251,7 @@ export default function StationDetail() {
                 <div className="grid grid-cols-3 gap-4">
                   <span className="text-gray-600 font-medium">Tạo lúc:</span>
                   <span className="col-span-2 text-gray-900">
-                    {new Date(station.createdAt).toLocaleString("vi-VN")}
+                    {formatVN(station.createdAt)}
                   </span>
                 </div>
 
@@ -258,7 +259,7 @@ export default function StationDetail() {
                   <div className="grid grid-cols-3 gap-4">
                     <span className="text-gray-600 font-medium">Cập nhật:</span>
                     <span className="col-span-2 text-gray-900">
-                      {new Date(station.updatedAt).toLocaleString("vi-VN")}
+                      {formatVN(station.updatedAt)}
                     </span>
                   </div>
                 )}

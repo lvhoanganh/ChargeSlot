@@ -107,14 +107,16 @@ export default function Nav() {
   useEffect(() => {
     if (!token || normalizedRole !== "driver") return;
     function checkSession() {
-      const bookingId = localStorage.getItem("activeChargingBookingId");
+      const uId = localStorage.getItem("userId") || "guest";
+      const key = `activeChargingBooking_${uId}`;
+      const bookingId = localStorage.getItem(key);
       if (bookingId) {
         chargingApi.getByBookingId(Number(bookingId))
           .then(data => {
             if (data && !data.actualEndTime) {
               setActiveSession(data);
             } else {
-              localStorage.removeItem("activeChargingBookingId");
+              localStorage.removeItem(key);
               setActiveSession(null);
             }
           })
@@ -126,7 +128,7 @@ export default function Nav() {
             const list = Array.isArray(bookings) ? bookings : (bookings?.items ?? []);
             const active = list.find(b => b.status === "CheckedIn" || b.status === "InProgress");
             if (active) {
-              localStorage.setItem("activeChargingBookingId", String(active.id));
+              localStorage.setItem(key, String(active.id));
               chargingApi.getByBookingId(active.id)
                 .then(data => {
                   if (data && !data.actualEndTime) setActiveSession(data);

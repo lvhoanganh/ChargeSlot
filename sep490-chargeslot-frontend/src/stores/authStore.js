@@ -72,7 +72,11 @@ export const useAuthStore = create((set) => ({
     localStorage.removeItem("role");
     localStorage.removeItem("phoneNumber");
     localStorage.removeItem("expiresAtUtc");
-    localStorage.removeItem("activeChargingBookingId");
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith("activeChargingBooking_") || k === "activeChargingBookingId") {
+        localStorage.removeItem(k);
+      }
+    });
     set({ token: null, refreshToken: null, userId: null, role: null, phoneNumber: null });
   },
 

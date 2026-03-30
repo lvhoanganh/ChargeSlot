@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAdminAccountStore } from "@/stores/adminAccountStore";
 import { showToast } from "@/components/Toast";
+import { formatDateVN } from "@/utils/dateVN";
 
 const ROLE_OPTIONS = [
   { label: "Tất cả", value: "ALL" },
@@ -16,11 +17,7 @@ const STATUS_OPTIONS = [
 ];
 
 function formatDate(dateStr) {
-  const d = new Date(dateStr);
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
+  return formatDateVN(dateStr) || "—";
 }
 
 function maskPhone(phone) {

@@ -20,6 +20,7 @@ export default function ChargingActive() {
   const location = useLocation();
   const session = location.state?.session;
 
+  const lsKey = `activeChargingBooking_${localStorage.getItem("userId") || "guest"}`;
   const [sessionData, setSessionData] = useState(session || null);
   const [elapsed, setElapsed] = useState(0);
   const [loading, setLoading] = useState(!session);
@@ -31,15 +32,11 @@ export default function ChargingActive() {
   // If no session from state, try to load from bookingId in URL or localStorage
   useEffect(() => {
     if (session) {
-      // Save bookingId to localStorage for persistence
-      if (session.bookingId) {
-        localStorage.setItem("activeChargingBookingId", String(session.bookingId));
-      }
+      if (session.bookingId) localStorage.setItem(lsKey, String(session.bookingId));
       if (session.earlyEndRequestedAt) setEarlyEndRequested(true);
       return;
     }
-    // Fallback — try bookingId from state or localStorage
-    const bookingId = location.state?.bookingId || localStorage.getItem("activeChargingBookingId");
+    const bookingId = location.state?.bookingId || localStorage.getItem(lsKey);
     if (!bookingId) {
       navigate("/driver/my-bookings");
       return;
@@ -47,8 +44,7 @@ export default function ChargingActive() {
     chargingApi.getByBookingId(Number(bookingId))
       .then(data => {
         if (!data || data.actualEndTime) {
-          // Session already ended
-          localStorage.removeItem("activeChargingBookingId");
+          localStorage.removeItem(lsKey);
           navigate("/driver/my-bookings");
           return;
         }
@@ -57,7 +53,7 @@ export default function ChargingActive() {
         setLoading(false);
       })
       .catch(() => {
-        localStorage.removeItem("activeChargingBookingId");
+        localStorage.removeItem(lsKey);
         navigate("/driver/my-bookings");
       });
   }, []);
@@ -86,7 +82,7 @@ export default function ChargingActive() {
           if (updated.earlyEndRequestedAt) setEarlyEndRequested(true);
           // If session was stopped by owner or completed
           if (updated.actualEndTime || updated.bookingStatus === "Completed") {
-            localStorage.removeItem("activeChargingBookingId");
+            localStorage.removeItem(lsKey);
             navigate("/driver/charging-complete", { state: { session: updated } });
           }
         }
@@ -117,7 +113,7 @@ export default function ChargingActive() {
     setError("");
     try {
       await chargingApi.confirmCompletion(sessionData.id);
-      localStorage.removeItem("activeChargingBookingId");
+      localStorage.removeItem(lsKey);
       navigate("/driver/charging-complete", { state: { session: { ...sessionData, bookingStatus: "Completed" } } });
     } catch (err) {
       setError(err?.message || "Lỗi xác nhận, vui lòng thử lại!");

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { instance } from "@/lib/httpRequest";
 import { showToast } from "@/components/Toast";
+import { formatDateVN } from "@/utils/dateVN";
 
 /* ─── API helpers ─── */
 const adminStationApi = {
@@ -16,9 +17,7 @@ const adminStationApi = {
 };
 
 function formatDate(dateStr) {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  return formatDateVN(dateStr) || "—";
 }
 
 function getStatusLabel(status) {

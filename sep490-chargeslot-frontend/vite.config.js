@@ -25,4 +25,19 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // Tăng giới hạn cảnh báo chunk size lên 800 KB (mặc định là 500 KB)
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        // Tách các thư viện lớn thành chunk riêng để tối ưu load
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-map": ["leaflet", "react-leaflet"],
+          "vendor-chart": ["recharts"],
+          "vendor-ui": ["zustand", "qrcode.react"],
+        },
+      },
+    },
+  },
 });
