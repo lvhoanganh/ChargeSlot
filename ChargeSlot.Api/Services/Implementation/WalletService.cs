@@ -112,7 +112,8 @@ namespace ChargeSlot.Api.Services.Implementation
             await _db.Entry(wallet).ReloadAsync(); // Reload để có balance mới
 
             // Cộng tiền vào ESCROW (query by SystemCode thay vì hardcode ID)
-            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
+            var escrowWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.SystemCode == "ESCROW") 
+                ?? throw new InvalidOperationException("Ví hệ thống ESCROW chưa được cấu hình. Vui lòng liên hệ Admin.");
             escrowWallet.AvailableBalance += booking.TotalAmount;
             await _walletRepo.UpdateAsync(escrowWallet);
 
@@ -268,7 +269,8 @@ namespace ChargeSlot.Api.Services.Implementation
             await _db.SaveChangesAsync();
 
             // Ghi ledger double-entry: DEBIT từ ví user (available → frozen)
-            var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
+            var clearingWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.SystemCode == "CLEARING") 
+                ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "WithdrawRequest",
@@ -379,7 +381,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 request.Status = WithdrawStatus.Approved;
 
                 // Ghi ledger: DEBIT CLEARING → out (tiền rời hệ thống)
-                var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
+                var clearingWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.SystemCode == "CLEARING")
+                    ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
                 clearingWallet.AvailableBalance -= request.Amount;
 
                 var ledgerTx = new LedgerTransaction

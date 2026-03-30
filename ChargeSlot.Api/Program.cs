@@ -293,6 +293,33 @@ app.UseHttpsRedirection();
 
 app.UseCors("AllowFrontend");
 
+// Global Exception Handler - Returns 500 JSON without dropping CORS headers
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        if (context.Response.HasStarted)
+        {
+            throw;
+        }
+
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+
+        var response = new 
+        {
+            message = "Lỗi hệ thống ngoài ý muốn.",
+            detail = ex.Message
+        };
+
+        await context.Response.WriteAsJsonAsync(response);
+    }
+});
+
 app.UseStaticFiles(); // Serve wwwroot/uploads/stations images
 
 app.UseAuthentication();
