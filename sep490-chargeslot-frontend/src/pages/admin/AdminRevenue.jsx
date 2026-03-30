@@ -112,14 +112,14 @@ export default function AdminRevenue() {
         </div>
 
         {/* Summary Cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+        <div className="rev-grid-4">
           <SummaryCard icon="💰" label="Tổng doanh thu" value={fmt(data.totalRevenue)} color="#16a34a" bg="linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)" />
           <SummaryCard icon="🏦" label="Phí nền tảng (5%)" value={fmt(data.platformFee)} color="#8b5cf6" bg="linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)" />
           <SummaryCard icon="📋" label="Tổng booking" value={data.totalBookings} sub={`${data.completedBookings} hoàn thành`} color="#3b82f6" bg="linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)" />
           <SummaryCard icon="⚠️" label="Tranh chấp" value={data.disputedBookings} sub={`VAT thu: ${fmt(data.vatCollected)}`} color="#f59e0b" bg="linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)" />
         </div>
         {/* Charts Row */}
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 24 }}>
+        <div className="rev-grid-2-1">
           {/* Bar chart */}
           <div style={{ background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 20 }}>📈 Doanh thu theo tháng</h3>
@@ -179,7 +179,7 @@ export default function AdminRevenue() {
         </div>
 
         {/* Bottom Row */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className="rev-grid-2">
           {/* Top Stations */}
           <div style={{ background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}>🏆 Top trạm doanh thu cao</h3>
@@ -230,6 +230,19 @@ export default function AdminRevenue() {
         </div>
 
       </div>
+      <style>{`
+        .rev-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+        .rev-grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+        .rev-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+        @media (max-width: 900px) {
+          .rev-grid-4 { grid-template-columns: repeat(2, 1fr); }
+          .rev-grid-2-1 { grid-template-columns: 1fr; }
+          .rev-grid-2 { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 600px) {
+          .rev-grid-4 { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </div>
   );
 }

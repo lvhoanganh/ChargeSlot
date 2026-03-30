@@ -47,7 +47,7 @@ export default function AdminSystemConfig() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 pt-20 px-8 pb-8">
+    <div className="min-h-screen bg-slate-100 pt-20 px-4 md:px-8 pb-8">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-6 rounded-2xl bg-white px-6 py-5 shadow-sm ring-1 ring-slate-200">
@@ -64,7 +64,8 @@ export default function AdminSystemConfig() {
           </div>
         ) : (
           <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
-            <table className="w-full">
+            <div className="overflow-x-auto">
+              <table className="w-full">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="text-left px-5 py-3 text-xs font-bold uppercase tracking-wide text-slate-500">Tham số</th>
@@ -127,6 +128,7 @@ export default function AdminSystemConfig() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>
