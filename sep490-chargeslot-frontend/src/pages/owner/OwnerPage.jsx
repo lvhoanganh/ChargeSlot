@@ -165,13 +165,26 @@ export default function OwnerPage() {
                           <button
                             onClick={async () => {
                               const newStatus = s.operationalStatus === "Active" ? "Inactive" : "Active";
-                              if (!(await showConfirm(`${newStatus === "Inactive" ? "Tắt" : "Bật"} trạm sạc "${s.name}"?`, "Xác nhận trạng thái"))) return;
+                              const actionLabel = newStatus === "Inactive" ? "Tắt" : "Bật";
+                              if (!(await showConfirm(
+                                newStatus === "Inactive"
+                                  ? `Tắt trạm sạc "${s.name}"?\n\n⚠️ Nếu còn booking chưa phục vụ, hệ thống sẽ báo lỗi.`
+                                  : `Bật lại trạm sạc "${s.name}"?`,
+                                `Xác nhận ${actionLabel} trạm`
+                              ))) return;
                               setActionLoading(s.id);
                               try {
                                 await stationApi.updateStatus(s.id, newStatus);
                                 fetchStations();
+                                showToast.success(`${actionLabel} trạm thành công!`);
                               } catch (err) {
-                                showToast.error(err.message || "Lỗi đổi trạng thái");
+                                // 400 means active bookings exist
+                                const msg = err.message || "Lỗi đổi trạng thái";
+                                if (msg.toLowerCase().includes("booking") || msg.includes("400")) {
+                                  showToast.error("⚠️ Không thể tắt trạm! Vẫn còn booking chưa hoàn thành tại trạm này. Vui lòng chờ hết booking rồi thử lại.");
+                                } else {
+                                  showToast.error(msg);
+                                }
                               } finally {
                                 setActionLoading(null);
                               }

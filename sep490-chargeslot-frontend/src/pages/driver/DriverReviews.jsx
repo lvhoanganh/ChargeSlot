@@ -8,7 +8,7 @@ export default function DriverReviews() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [reviewForm, setReviewForm] = useState(null); // { bookingId, rating, comment }
+  const [reviewForm, setReviewForm] = useState(null); // { bookingId, rating, comment, isAnonymous }
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -29,7 +29,7 @@ export default function DriverReviews() {
   );
 
   const handleOpenReview = (bookingId) => {
-    setReviewForm({ bookingId, rating: 5, comment: "" });
+    setReviewForm({ bookingId, rating: 5, comment: "", isAnonymous: false });
     setErrorMsg("");
     setSuccessMsg("");
   };
@@ -43,6 +43,7 @@ export default function DriverReviews() {
         bookingId: reviewForm.bookingId,
         rating: reviewForm.rating,
         comment: reviewForm.comment || undefined,
+        isAnonymous: reviewForm.isAnonymous || false,
       });
       setSuccessMsg("Đánh giá thành công! Cảm ơn bạn ⭐");
       setReviewForm(null);
@@ -165,6 +166,17 @@ export default function DriverReviews() {
                     rows={3}
                     style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }}
                   />
+
+                  {/* Anonymous checkbox */}
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer", fontSize: 13, color: "#374151" }}>
+                    <input
+                      type="checkbox"
+                      checked={reviewForm.isAnonymous || false}
+                      onChange={(e) => setReviewForm({ ...reviewForm, isAnonymous: e.target.checked })}
+                      style={{ width: 16, height: 16, accentColor: "#f97316", cursor: "pointer" }}
+                    />
+                    <span>Đánh giá <strong>ẩn danh</strong> (giấu tên của bạn)</span>
+                  </label>
 
                   {errorMsg && (
                     <div style={{ color: "#dc2626", fontSize: 12, marginTop: 8 }}>⚠️ {errorMsg}</div>

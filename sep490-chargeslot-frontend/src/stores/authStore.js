@@ -1,6 +1,8 @@
 import { instance } from "@/lib/httpRequest";
 import { create } from "zustand";
 
+const API_BASE = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
+
 export const useAuthStore = create((set) => ({
   token: localStorage.getItem("accessToken"),
   refreshToken: localStorage.getItem("refreshToken"),
@@ -51,12 +53,45 @@ export const useAuthStore = create((set) => ({
     }
   },
 
-  logout: () => {
+  logout: async () => {
+    // Revoke token trên BE để vô hiệu hoá ngay lập tức (Immediate Invalidation)
+    try {
+      const token = localStorage.getItem("accessToken");
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (token) {
+        await fetch(`${API_BASE}/auth/revoke-token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ refreshToken: refreshToken || "" }),
+        }).catch(() => {}); // Bỏ qua lỗi mạng — vẫn logout local
+      }
+    } catch { /* silent */ }
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("userId");
     localStorage.removeItem("role");
     localStorage.removeItem("phoneNumber");
+    localStorage.removeItem("expiresAtUtc");
+    localStorage.removeItem("activeChargingBookingId");
     set({ token: null, refreshToken: null, userId: null, role: null, phoneNumber: null });
+  },
+
+  /** Refresh access token silently dùng refreshToken */
+  refreshAccessToken: async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    const accessToken = localStorage.getItem("accessToken");
+    if (!refreshToken || !accessToken) throw new Error("No tokens");
+    const res = await fetch(`${API_BASE}/auth/refresh-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken, refreshToken }),
+    });
+    if (!res.ok) throw new Error("Refresh failed");
+    const data = await res.json();
+    localStorage.setItem("accessToken", data.accessToken);
+    if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
+    if (data.expiresAtUtc) localStorage.setItem("expiresAtUtc", data.expiresAtUtc);
+    set({ token: data.accessToken, refreshToken: data.refreshToken || refreshToken });
+    return data.accessToken;
   },
 }));

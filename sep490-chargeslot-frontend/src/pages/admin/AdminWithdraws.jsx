@@ -17,7 +17,9 @@ export default function AdminWithdraws() {
   const [withdraws, setWithdraws] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(null);
-  const [noteInput, setNoteInput] = useState({});
+  // Reject modal state
+  const [rejectModal, setRejectModal] = useState(null); // { id }
+  const [rejectNote, setRejectNote] = useState("");
 
   function fetchWithdraws() {
     setLoading(true);
@@ -29,14 +31,33 @@ export default function AdminWithdraws() {
 
   useEffect(() => { fetchWithdraws(); }, []);
 
-  async function handleProcess(id, approve) {
+  async function handleApprove(id) {
     setProcessing(id);
     try {
-      await adminWithdrawApi.process(id, approve, noteInput[id] || "");
-      showToast.success(approve ? "Đã duyệt yêu cầu rút tiền" : "Đã từ chối yêu cầu");
+      await adminWithdrawApi.process(id, true, "");
+      showToast.success("✅ Đã duyệt yêu cầu rút tiền — nhớ chuyển khoản thủ công cho tài xế!");
       fetchWithdraws();
     } catch (err) {
-      showToast.error(err.message || "Lỗi xử lý yêu cầu");
+      showToast.error(err.message || "Lỗi duyệt yêu cầu");
+    } finally {
+      setProcessing(null);
+    }
+  }
+
+  async function handleRejectSubmit() {
+    if (!rejectNote.trim()) {
+      showToast.error("Vui lòng nhập lý do từ chối!");
+      return;
+    }
+    setProcessing(rejectModal.id);
+    try {
+      await adminWithdrawApi.process(rejectModal.id, false, rejectNote);
+      showToast.success("Đã từ chối yêu cầu và hoàn tiền về ví Driver.");
+      setRejectModal(null);
+      setRejectNote("");
+      fetchWithdraws();
+    } catch (err) {
+      showToast.error(err.message || "Lỗi từ chối yêu cầu");
     } finally {
       setProcessing(null);
     }
@@ -52,6 +73,68 @@ export default function AdminWithdraws() {
           </p>
         </div>
       </div>
+
+      {/* Reject Reason Modal */}
+      {rejectModal && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 20, padding: "32px 28px",
+            maxWidth: 440, width: "100%",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+          }}>
+            <div style={{ fontSize: 36, textAlign: "center", marginBottom: 12 }}>❌</div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#dc2626", textAlign: "center", marginBottom: 6 }}>
+              Từ chối yêu cầu rút tiền
+            </h2>
+            <p style={{ fontSize: 13, color: "#64748b", textAlign: "center", marginBottom: 20 }}>
+              Tiền sẽ được <strong>hoàn về ví</strong> của Driver. Vui lòng nhập lý do.
+            </p>
+            <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
+              Lý do từ chối <span style={{ color: "#ef4444" }}>*</span>
+            </label>
+            <textarea
+              value={rejectNote}
+              onChange={e => setRejectNote(e.target.value)}
+              placeholder="Ví dụ: Thông tin ngân hàng không chính xác..."
+              rows={3}
+              style={{
+                width: "100%", padding: "10px 14px", borderRadius: 10,
+                border: "1.5px solid #fca5a5", fontSize: 13, outline: "none",
+                resize: "vertical", boxSizing: "border-box", marginBottom: 16,
+              }}
+            />
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={handleRejectSubmit}
+                disabled={processing === rejectModal.id}
+                style={{
+                  flex: 1, padding: "12px 0", borderRadius: 12, border: "none",
+                  background: processing ? "#d1d5db" : "linear-gradient(135deg, #ef4444, #dc2626)",
+                  color: "#fff", fontWeight: 700, fontSize: 14,
+                  cursor: processing ? "not-allowed" : "pointer",
+                }}
+              >
+                {processing ? "Đang xử lý..." : "Xác nhận từ chối"}
+              </button>
+              <button
+                onClick={() => { setRejectModal(null); setRejectNote(""); }}
+                disabled={!!processing}
+                style={{
+                  flex: 1, padding: "12px 0", borderRadius: 12,
+                  border: "1.5px solid #e5e7eb", background: "#f8fafc",
+                  color: "#64748b", fontWeight: 600, fontSize: 14, cursor: "pointer",
+                }}
+              >
+                Hủy bỏ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign: "center", padding: 60 }}>
@@ -92,46 +175,34 @@ export default function AdminWithdraws() {
                 <div style={{ fontSize: 13, color: "#64748b", display: "flex", flexDirection: "column", gap: 4, marginBottom: 16 }}>
                   <div>🏦 {w.bankName} · {w.bankAccountNumber}</div>
                   <div>👤 {w.bankAccountHolder}</div>
-                  {w.userNote && <div>📝 {w.userNote}</div>}
+                  {w.userNote && <div>📝 Ghi chú người dùng: {w.userNote}</div>}
+                  {w.adminNote && <div style={{ color: "#ef4444" }}>⚠️ Lý do từ chối: {w.adminNote}</div>}
                   <div style={{ fontSize: 11, color: "#cbd5e1" }}>{toLocal(w.createdAt)}</div>
                 </div>
 
                 {w.status === "Pending" && (
-                  <>
-                    <input
-                      type="text"
-                      placeholder="Ghi chú admin (tùy chọn)..."
-                      value={noteInput[w.id] || ""}
-                      onChange={e => setNoteInput(prev => ({ ...prev, [w.id]: e.target.value }))}
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                      onClick={() => handleApprove(w.id)}
+                      disabled={processing === w.id}
                       style={{
-                        width: "100%", padding: "10px 14px", borderRadius: 10,
-                        border: "1.5px solid #e5e7eb", fontSize: 13, outline: "none",
-                        boxSizing: "border-box", marginBottom: 12,
+                        flex: 1, padding: "12px 0", borderRadius: 12, border: "none",
+                        background: processing === w.id ? "#d1d5db" : "linear-gradient(135deg, #22c55e, #16a34a)",
+                        color: "#fff", fontWeight: 700, fontSize: 14,
+                        cursor: processing === w.id ? "not-allowed" : "pointer",
                       }}
-                    />
-                    <div style={{ display: "flex", gap: 10 }}>
-                      <button
-                        onClick={() => handleProcess(w.id, true)}
-                        disabled={processing === w.id}
-                        style={{
-                          flex: 1, padding: "12px 0", borderRadius: 12, border: "none",
-                          background: processing === w.id ? "#d1d5db" : "linear-gradient(135deg, #22c55e, #16a34a)",
-                          color: "#fff", fontWeight: 700, fontSize: 14,
-                          cursor: processing === w.id ? "not-allowed" : "pointer",
-                        }}
-                      >✅ Duyệt</button>
-                      <button
-                        onClick={() => handleProcess(w.id, false)}
-                        disabled={processing === w.id}
-                        style={{
-                          flex: 1, padding: "12px 0", borderRadius: 12, border: "none",
-                          background: processing === w.id ? "#d1d5db" : "linear-gradient(135deg, #ef4444, #dc2626)",
-                          color: "#fff", fontWeight: 700, fontSize: 14,
-                          cursor: processing === w.id ? "not-allowed" : "pointer",
-                        }}
-                      >❌ Từ chối</button>
-                    </div>
-                  </>
+                    >✅ Duyệt — Chuyển khoản</button>
+                    <button
+                      onClick={() => { setRejectModal({ id: w.id }); setRejectNote(""); }}
+                      disabled={processing === w.id}
+                      style={{
+                        flex: 1, padding: "12px 0", borderRadius: 12, border: "none",
+                        background: processing === w.id ? "#d1d5db" : "linear-gradient(135deg, #ef4444, #dc2626)",
+                        color: "#fff", fontWeight: 700, fontSize: 14,
+                        cursor: processing === w.id ? "not-allowed" : "pointer",
+                      }}
+                    >❌ Từ chối — Hoàn ví</button>
+                  </div>
                 )}
               </div>
             );

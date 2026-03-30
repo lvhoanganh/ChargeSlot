@@ -68,8 +68,31 @@ export async function apiFetch(endpoint, options = {}) {
         headers,
     });
 
-    // 401 → token hết hạn → logout
+    // 401 → thử refresh token 1 lần trước khi logout
     if (response.status === 401) {
+        const refreshToken = localStorage.getItem("refreshToken");
+        const oldToken = localStorage.getItem("accessToken");
+        if (refreshToken && oldToken) {
+            try {
+                const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ accessToken: oldToken, refreshToken }),
+                });
+                if (refreshRes.ok) {
+                    const refreshData = await refreshRes.json();
+                    localStorage.setItem("accessToken", refreshData.accessToken);
+                    if (refreshData.refreshToken) localStorage.setItem("refreshToken", refreshData.refreshToken);
+                    // Retry original request with new token
+                    const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
+                        ...options,
+                        headers: { ...headers, Authorization: `Bearer ${refreshData.accessToken}` },
+                    });
+                    if (retryResponse.status === 204) return null;
+                    if (retryResponse.ok) return retryResponse.json();
+                }
+            } catch { /* refresh failed */ }
+        }
         clearAuth();
         window.location.href = "/login";
         throw new Error("Phiên đăng nhập hết hạn");
