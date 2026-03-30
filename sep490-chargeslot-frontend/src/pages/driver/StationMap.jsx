@@ -15,85 +15,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-/* ─── Inject animations ─── */
-if (!document.getElementById("station-map-styles")) {
-  const style = document.createElement("style");
-  style.id = "station-map-styles";
-  style.textContent = `
-    @keyframes stationPulse {
-      0%   { transform:scale(1);   opacity:.6; }
-      50%  { transform:scale(1.8); opacity:0;  }
-      100% { transform:scale(1);   opacity:0;  }
-    }
-    .station-card {
-      transition: all .2s ease;
-    }
-    .station-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
-    }
-    .station-card:hover .station-card-img {
-      transform: scale(1.05);
-    }
-    .station-card-img {
-      transition: transform .3s ease;
-    }
-    .search-input:focus {
-      box-shadow: 0 0 0 3px rgba(249,115,22,0.15);
-      border-color: #f97316;
-    }
-    .leaflet-popup-content-wrapper {
-      border-radius: 16px !important;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
-    }
 
-    /* ── RESPONSIVE MAP LAYOUT ── */
-    .station-map-root {
-      display: flex;
-      width: 100%;
-      height: calc(100vh - 64px);
-      margin-top: 64px;
-      overflow: hidden;
-      flex-direction: row;
-    }
-    .station-map-panel {
-      width: 400px;
-      min-width: 360px;
-      height: 100%;
-      background: #fafbfc;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      box-shadow: 4px 0 24px rgba(0,0,0,0.06);
-      z-index: 2;
-    }
-    .station-map-view {
-      flex: 1;
-      position: relative;
-    }
 
-    @media (max-width: 768px) {
-      .station-map-root {
-        flex-direction: column-reverse;
-        height: calc(100dvh - 64px);
-      }
-      .station-map-panel {
-        width: 100%;
-        min-width: unset;
-        height: 45%;
-        min-height: 240px;
-        max-height: 45%;
-        box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
-        border-top: 1px solid #e5e7eb;
-      }
-      .station-map-view {
-        height: 55%;
-        min-height: 280px;
-      }
-    }
-  `;
-  document.head.appendChild(style);
-}
 
 /* ─── Custom marker icons ─── */
 function makeIcon(gradient, pulseColor) {

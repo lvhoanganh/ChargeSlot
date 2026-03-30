@@ -230,19 +230,6 @@ export default function AdminRevenue() {
         </div>
 
       </div>
-      <style>{`
-        .rev-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
-        .rev-grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
-        .rev-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-        @media (max-width: 900px) {
-          .rev-grid-4 { grid-template-columns: repeat(2, 1fr); }
-          .rev-grid-2-1 { grid-template-columns: 1fr; }
-          .rev-grid-2 { grid-template-columns: 1fr; }
-        }
-        @media (max-width: 600px) {
-          .rev-grid-4 { grid-template-columns: 1fr; }
-        }
-      `}</style>
     </div>
   );
 }
