@@ -127,8 +127,6 @@ namespace ChargeSlot.Api.Controllers
             var history = result.Where(b =>
                 b.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase) ||
                 b.Status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase) ||
-                b.Status.Equals("DriverCancelled", StringComparison.OrdinalIgnoreCase) ||
-                b.Status.Equals("OwnerCancelled", StringComparison.OrdinalIgnoreCase) ||
                 b.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase) ||
                 b.Status.Equals("Expired", StringComparison.OrdinalIgnoreCase) ||
                 b.Status.Equals("NoShow", StringComparison.OrdinalIgnoreCase)

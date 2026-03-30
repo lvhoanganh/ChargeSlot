@@ -707,7 +707,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 DriverUserId = booking.DriverUserId,
                 BookingId = booking.Id,
-                Type = "Earn",
+                Type = "Refund",
                 Points = booking.PointsUsed,
                 Description = $"Hoàn {booking.PointsUsed:N0} điểm do hủy booking #{booking.Id}",
                 CreatedAt = DateTimeHelper.VietnamNow()

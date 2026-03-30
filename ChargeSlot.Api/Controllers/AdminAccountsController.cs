@@ -1,4 +1,4 @@
-﻿using ChargeSlot.Api.Helpers;
+using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -34,9 +34,13 @@ namespace ChargeSlot.Api.Controllers
 
                 return Ok(result);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi tải danh sách tài khoản." });
             }
         }
 
@@ -58,9 +62,13 @@ namespace ChargeSlot.Api.Controllers
                     status = newStatus
                 });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi thay đổi trạng thái tài khoản." });
             }
         }
 
@@ -73,11 +81,11 @@ namespace ChargeSlot.Api.Controllers
                 var result = await _adminAccountService.GetAccountStatisticsAsync();
                 return Ok(result);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return BadRequest(new { message = ex.Message });
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi tải thống kê." });
             }
         }
 
     }
-}
+}

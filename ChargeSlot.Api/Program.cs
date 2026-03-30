@@ -14,6 +14,7 @@ using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
@@ -97,6 +98,19 @@ builder.Services
                 if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
                     context.Token = accessToken;
                 return Task.CompletedTask;
+            },
+            OnTokenValidated = async context =>
+            {
+                var userManager = context.HttpContext.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+                var userIdStr = context.Principal?.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+                if (!string.IsNullOrEmpty(userIdStr) && int.TryParse(userIdStr, out var userId))
+                {
+                    var user = await userManager.FindByIdAsync(userIdStr);
+                    if (user == null || user.Status != ChargeSlot.Api.Constants.UserStatusConstants.Active)
+                    {
+                        context.Fail("User account is banned or inactive.");
+                    }
+                }
             }
         };
     });

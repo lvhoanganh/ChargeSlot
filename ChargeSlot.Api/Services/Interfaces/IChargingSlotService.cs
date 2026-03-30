@@ -11,5 +11,6 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task DeleteAsync(int stationId, int slotId, int ownerUserId);
         Task UpdateStatusAsync(int stationId, int slotId, int ownerUserId, UpdateSlotStatusDto dto);
         Task<SlotAvailabilityDto> GetSlotAvailabilityAsync(int slotId, DateTime date);
+        Task<string> RegenerateQrCodeAsync(int stationId, int slotId, int ownerUserId);
     }
 }

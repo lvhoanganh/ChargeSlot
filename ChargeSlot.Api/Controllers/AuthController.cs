@@ -26,9 +26,13 @@ namespace ChargeSlot.Api.Controllers
                 await _authService.RegisterAsync(dto);
                 return Ok(new { message = "Register success" });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi đăng ký." });
             }
         }
 
@@ -40,9 +44,17 @@ namespace ChargeSlot.Api.Controllers
                 var result = await _authService.LoginAsync(dto);
                 return Ok(result);
             }
-            catch (Exception ex)
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi đăng nhập." });
             }
         }
 
@@ -55,9 +67,17 @@ namespace ChargeSlot.Api.Controllers
                 var result = await _authService.RefreshTokenAsync(dto.RefreshToken);
                 return Ok(result);
             }
-            catch (Exception ex)
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi refresh token." });
             }
         }
 
@@ -72,9 +92,13 @@ namespace ChargeSlot.Api.Controllers
                 await _authService.RevokeTokenAsync(dto.RefreshToken, userId);
                 return Ok(new { message = "Token revoked." });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi revoke token." });
             }
         }
 
@@ -91,9 +115,13 @@ namespace ChargeSlot.Api.Controllers
 
                 return Ok(new { message = "Password reset successful" });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi reset mật khẩu." });
             }
         }
 
@@ -108,9 +136,13 @@ namespace ChargeSlot.Api.Controllers
                 await _authService.ChangePasswordAsync(userId, dto.CurrentPassword, dto.NewPassword);
                 return Ok(new { message = "Đổi mật khẩu thành công." });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi đổi mật khẩu." });
             }
         }
 
@@ -126,9 +158,9 @@ namespace ChargeSlot.Api.Controllers
                 var exists = await _authService.CheckPhoneExistsAsync(phoneNumber);
                 return Ok(new { exists });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return BadRequest(new { message = ex.Message });
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi kiểm tra số điện thoại." });
             }
         }
     }

@@ -237,7 +237,10 @@ namespace ChargeSlot.Api.Services.Implementation
             if (dto.Amount > 100_000_000)
                 throw new InvalidOperationException("Số tiền rút tối đa là 100,000,000 VND.");
 
-            var wallet = await GetOrCreateWalletInternalAsync(userId);
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var wallet = await GetOrCreateWalletInternalAsync(userId);
 
             if (wallet.AvailableBalance < dto.Amount)
                 throw new InvalidOperationException(
@@ -293,6 +296,8 @@ namespace ChargeSlot.Api.Services.Implementation
             };
             await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
 
+            await transaction.CommitAsync();
+
             // Load user name
             var user = await _userManager.FindByIdAsync(userId.ToString());
 
@@ -315,6 +320,12 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Load user name for DTO
             return MapToWithdrawDto(request, user?.FullName);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         /// <summary>

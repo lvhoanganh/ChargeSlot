@@ -14,6 +14,7 @@ namespace ChargeSlot.Api.Controllers
     /// <summary>
     /// REST API cho chat — lịch sử, danh sách, và fallback gửi tin nhắn.
     /// </summary>
+    // TODO: Refactor – move business logic to a dedicated ChatService
     [ApiController]
     [Route("api/chat")]
     [Authorize]
@@ -49,24 +50,35 @@ namespace ChargeSlot.Api.Controllers
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
 
-            var result = new List<ChatConversationDto>();
+            if (!conversations.Any())
+                return Ok(new List<ChatConversationDto>());
 
-            foreach (var conv in conversations)
+            var convIds = conversations.Select(c => c.Id).ToList();
+
+            // Batch query: last message per conversation
+            var lastMessages = await _db.ChatMessages
+                .Where(m => convIds.Contains(m.ConversationId))
+                .GroupBy(m => m.ConversationId)
+                .Select(g => g.OrderByDescending(m => m.CreatedAt).First())
+                .ToDictionaryAsync(m => m.ConversationId);
+
+            // Batch query: unread count per conversation
+            var unreadCounts = await _db.ChatMessages
+                .Where(m => convIds.Contains(m.ConversationId)
+                         && m.SenderUserId != userId
+                         && !m.IsRead)
+                .GroupBy(m => m.ConversationId)
+                .Select(g => new { ConversationId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.ConversationId, x => x.Count);
+
+            var result = conversations.Select(conv =>
             {
                 var isDriver = conv.DriverUserId == userId;
                 var otherUser = isDriver ? conv.Owner : conv.Driver;
+                lastMessages.TryGetValue(conv.Id, out var lastMsg);
+                unreadCounts.TryGetValue(conv.Id, out var unread);
 
-                var lastMsg = await _db.ChatMessages
-                    .Where(m => m.ConversationId == conv.Id)
-                    .OrderByDescending(m => m.CreatedAt)
-                    .FirstOrDefaultAsync();
-
-                var unread = await _db.ChatMessages
-                    .CountAsync(m => m.ConversationId == conv.Id
-                                  && m.SenderUserId != userId
-                                  && !m.IsRead);
-
-                result.Add(new ChatConversationDto
+                return new ChatConversationDto
                 {
                     Id = conv.Id,
                     BookingId = conv.BookingId,
@@ -76,8 +88,8 @@ namespace ChargeSlot.Api.Controllers
                     LastMessage = lastMsg?.Content,
                     LastMessageAt = lastMsg?.CreatedAt,
                     UnreadCount = unread
-                });
-            }
+                };
+            }).ToList();
 
             return Ok(result);
         }
@@ -161,7 +173,7 @@ namespace ChargeSlot.Api.Controllers
             {
                 ConversationId = conv.Id,
                 SenderUserId = userId,
-                Content = dto.Content.Trim(),
+                Content = dto.Content?.Trim() ?? "",
                 IsRead = false,
                 CreatedAt = DateTimeHelper.VietnamNow()
             };

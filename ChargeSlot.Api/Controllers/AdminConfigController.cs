@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.Data;
+using ChargeSlot.Api.DTOs.Admin;
 using ChargeSlot.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +12,7 @@ namespace ChargeSlot.Api.Controllers
     /// <summary>
     /// Admin: quản lý cấu hình hệ thống (SystemConfig).
     /// </summary>
+    // TODO: Refactor – move business logic to a dedicated AdminConfigService
     [ApiController]
     [Route("api/admin/config")]
     [Authorize(Roles = RoleConstants.Admin)]
@@ -55,10 +57,5 @@ namespace ChargeSlot.Api.Controllers
 
             return Ok(new { config.Key, config.Value, config.Description, config.UpdatedAt });
         }
-    }
-
-    public class UpdateConfigDto
-    {
-        public string Value { get; set; } = null!;
     }
 }

@@ -13,6 +13,7 @@ namespace ChargeSlot.Api.Controllers
     /// <summary>
     /// Driver quản lý trạm yêu thích (kiểu Be).
     /// </summary>
+    // TODO: Refactor – move business logic to a dedicated FavoriteService
     [ApiController]
     [Route("api/favorites")]
     [Authorize(Roles = "Driver")]
@@ -79,7 +80,6 @@ namespace ChargeSlot.Api.Controllers
 
             var favorites = await _db.FavoriteStations
                 .Where(f => f.DriverUserId == userId)
-                .Include(f => f.Station).ThenInclude(s => s.Images)
                 .OrderByDescending(f => f.CreatedAt)
                 .Select(f => new FavoriteStationDto
                 {
@@ -153,31 +153,5 @@ namespace ChargeSlot.Api.Controllers
                 .AnyAsync(f => f.DriverUserId == userId && f.StationId == stationId);
             return Ok(new { isFavorite });
         }
-    }
-
-    // ─────────────── DTOs ───────────────
-
-    public class FavoriteStationDto
-    {
-        public int StationId { get; set; }
-        public string Name { get; set; } = null!;
-        public string Address { get; set; } = null!;
-        public string? ImageUrl { get; set; }
-        public decimal AverageRating { get; set; }
-        public int TotalReviews { get; set; }
-        public bool IsFavorite { get; set; }
-        public DateTime FavoritedAt { get; set; }
-    }
-
-    public class TopFavoriteStationDto
-    {
-        public int Rank { get; set; }
-        public int StationId { get; set; }
-        public string Name { get; set; } = null!;
-        public string Address { get; set; } = null!;
-        public string? ImageUrl { get; set; }
-        public decimal AverageRating { get; set; }
-        public int TotalReviews { get; set; }
-        public int FavoriteCount { get; set; }
     }
 }

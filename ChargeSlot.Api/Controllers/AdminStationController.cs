@@ -55,7 +55,7 @@ namespace ChargeSlot.Api.Controllers
                 return Ok(new { message = $"Station {action} successfully." });
             }
             catch (KeyNotFoundException) { return NotFound(); }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
     }
 }

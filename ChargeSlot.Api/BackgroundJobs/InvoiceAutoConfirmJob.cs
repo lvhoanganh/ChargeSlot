@@ -32,59 +32,81 @@ namespace ChargeSlot.Api.BackgroundJobs
             {
                 try
                 {
-                    using var scope = _serviceProvider.CreateScope();
-                    var db = scope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
-                    var walletRepo = scope.ServiceProvider.GetRequiredService<IWalletRepository>();
-                    var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
-
+                    List<int> expiredInvoiceIds;
                     var deadline = DateTimeHelper.VietnamNow() - AutoConfirmDeadline;
 
-                    // Tìm invoices PendingConfirm quá 24h
-                    var expiredInvoices = await db.Invoices
-                        .Include(i => i.Booking)
-                            .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                        .Where(i => i.Status == InvoiceStatus.PendingConfirm
-                            && i.CreatedAt <= deadline)
-                        .ToListAsync(stoppingToken);
-
-                    foreach (var invoice in expiredInvoices)
+                    // 1. Chỉ lấy danh sách ID (tránh nạp nguyên object khổng lồ vào tracking của outer_scope)
+                    using (var outerScope = _serviceProvider.CreateScope())
                     {
-                        var booking = invoice.Booking;
+                        var outerDb = outerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+                        expiredInvoiceIds = await outerDb.Invoices
+                            .Where(i => i.Status == InvoiceStatus.PendingConfirm && i.CreatedAt <= deadline)
+                            .Select(i => i.Id)
+                            .ToListAsync(stoppingToken);
+                    }
 
-                        // Auto-confirm invoice
-                        invoice.Status = InvoiceStatus.Confirmed;
-                        invoice.UpdatedAt = DateTimeHelper.VietnamNow();
+                    // 2. Xử lý từng ID trong 1 scope biệt lập
+                    foreach (var invoiceId in expiredInvoiceIds)
+                    {
+                        using var innerScope = _serviceProvider.CreateScope();
+                        var db = innerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+                        var walletRepo = innerScope.ServiceProvider.GetRequiredService<IWalletRepository>();
+                        var notificationService = innerScope.ServiceProvider.GetRequiredService<INotificationService>();
 
-                        // Complete booking
-                        booking.Status = BookingStatus.Completed;
-                        booking.UpdatedAt = DateTimeHelper.VietnamNow();
-
-                        await db.SaveChangesAsync(stoppingToken);
-
-                        // Settle payment: ESCROW → Owner + PLATFORM_REVENUE
-                        await SettlePaymentAsync(db, walletRepo, booking, invoice);
-
-                        // Notify Driver
-                        await notificationService.SendAsync(
-                            booking.DriverUserId,
-                            "Hóa đơn tự động xác nhận",
-                            $"Hóa đơn phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name} ({invoice.TotalAmount:N0}đ) đã được tự động xác nhận sau 24h.",
-                            NotificationType.Payment);
-
-                        // Notify Owner
-                        var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
-                        if (ownerUserId.HasValue)
+                        using var transaction = await db.Database.BeginTransactionAsync(stoppingToken);
+                        try
                         {
-                            await notificationService.SendAsync(
-                                ownerUserId.Value,
-                                "Thanh toán đã chuyển",
-                                $"Phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name} đã tự động xác nhận. {invoice.ChargingAmount:N0}đ đã chuyển vào ví của bạn.",
-                                NotificationType.Payment);
-                        }
+                            var invoice = await db.Invoices
+                                .Include(i => i.Booking)
+                                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                                .FirstOrDefaultAsync(i => i.Id == invoiceId, stoppingToken);
 
-                        _logger.LogInformation(
-                            "Invoice {InvoiceId} (Booking {BookingId}) auto-confirmed after 24h.",
-                            invoice.Id, booking.Id);
+                            if (invoice == null || invoice.Status != InvoiceStatus.PendingConfirm)
+                                continue;
+
+                            var booking = invoice.Booking;
+
+                            // Auto-confirm invoice
+                            invoice.Status = InvoiceStatus.Confirmed;
+                            invoice.UpdatedAt = DateTimeHelper.VietnamNow();
+
+                            // Complete booking
+                            booking.Status = BookingStatus.Completed;
+                            booking.UpdatedAt = DateTimeHelper.VietnamNow();
+
+                            await db.SaveChangesAsync(stoppingToken);
+
+                            // Settle payment: ESCROW → Owner + PLATFORM_REVENUE
+                            await SettlePaymentAsync(db, walletRepo, booking, invoice);
+
+                            await transaction.CommitAsync(stoppingToken);
+
+                            // Notifications (ngoài transaction)
+                            await notificationService.SendAsync(
+                                booking.DriverUserId,
+                                "Hóa đơn tự động xác nhận",
+                                $"Hóa đơn phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name} ({invoice.TotalAmount:N0}đ) đã được tự động xác nhận sau 24h.",
+                                NotificationType.Payment);
+
+                            var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
+                            if (ownerUserId.HasValue)
+                            {
+                                await notificationService.SendAsync(
+                                    ownerUserId.Value,
+                                    "Thanh toán đã chuyển",
+                                    $"Phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name} đã tự động xác nhận. {invoice.ChargingAmount:N0}đ đã chuyển vào ví của bạn.",
+                                    NotificationType.Payment);
+                            }
+
+                            _logger.LogInformation(
+                                "Invoice {InvoiceId} (Booking {BookingId}) auto-confirmed after 24h.",
+                                invoice.Id, booking.Id);
+                        }
+                        catch (Exception ex)
+                        {
+                            await transaction.RollbackAsync(stoppingToken);
+                            _logger.LogError(ex, "Error auto-confirming invoice {InvoiceId}", invoiceId);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -96,9 +118,8 @@ namespace ChargeSlot.Api.BackgroundJobs
             }
         }
 
-        /// <summary>
-        /// Giống SettlePaymentToOwnerAsync trong ChargingSessionService
-        /// </summary>
+        // TODO: L5 — This settlement logic is duplicated from ChargingSessionService.SettlePaymentToOwnerAsync.
+        // Refactor into a shared ISettlementService to avoid divergence.
         private async Task SettlePaymentAsync(ChargeSlotDbContext db, IWalletRepository walletRepo, Booking booking, Invoice invoice)
         {
             var ownerUserId = booking.ChargingSlot!.ChargingStation!.OwnerUserId;

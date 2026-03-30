@@ -75,7 +75,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>Update a slot.</summary>
@@ -90,7 +90,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>Change slot status (Active, Inactive, Maintenance).</summary>
@@ -105,7 +105,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>Delete a slot.</summary>
@@ -120,7 +120,22 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        /// <summary>Regenerate QR Code for a slot.</summary>
+        [HttpPost("{id:int}/qr/regenerate")]
+        public async Task<IActionResult> RegenerateQrCode(int stationId, int id)
+        {
+            var userId = GetUserId();
+            try
+            {
+                var newToken = await _slotService.RegenerateQrCodeAsync(stationId, id, userId);
+                return Ok(new { message = "Mã QR mới đã được tạo thành công.", qrCodeToken = newToken });
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>

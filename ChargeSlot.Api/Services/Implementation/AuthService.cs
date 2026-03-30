@@ -323,7 +323,8 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<bool> CheckPhoneExistsAsync(string phoneNumber)
         {
-            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.PhoneNumber == phoneNumber);
+            var phone = NormalizePhone(phoneNumber);
+            var user = await _userManager.FindByNameAsync(phone);
             return user != null;
         }
 

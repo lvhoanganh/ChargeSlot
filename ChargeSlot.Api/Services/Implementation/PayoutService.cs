@@ -120,6 +120,25 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     wallet.FrozenBalance -= request.Amount;
                     request.Status = PayoutStatus.Processed;
+                    
+                    // Create Ledger Transaction for withdrawal
+                    _db.Set<LedgerTransaction>().Add(new LedgerTransaction
+                    {
+                        ReferenceType = "Withdrawal",
+                        ReferenceId = request.Id,
+                        Memo = $"Rút {request.Amount:N0}đ về ngân hàng {request.BankAccount?.BankName}",
+                        CreatedAt = DateTimeHelper.VietnamNow(),
+                        Entries = new List<LedgerEntry>
+                        {
+                            new LedgerEntry 
+                            { 
+                                WalletId = wallet.Id, 
+                                Direction = LedgerDirection.Debit, 
+                                Amount = request.Amount, 
+                                CreatedAt = DateTimeHelper.VietnamNow() 
+                            }
+                        }
+                    });
                 }
                 else
                 {

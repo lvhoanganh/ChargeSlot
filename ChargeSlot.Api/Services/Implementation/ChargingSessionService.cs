@@ -55,6 +55,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 .FirstOrDefaultAsync(s => s.QrCodeToken == qrCodeToken)
                 ?? throw new InvalidOperationException("QR code không hợp lệ.");
 
+            // 1.5 Validate if station/slot is operational
+            if (slot.Status == SlotStatus.Inactive || slot.Status == SlotStatus.Maintenance)
+                throw new InvalidOperationException("Slot hiện đang ngừng hoạt động hoặc bảo trì, không thể check-in.");
+            
+            if (slot.ChargingStation.OperationalStatus == OperationalStatus.Inactive)
+                throw new InvalidOperationException("Trạm sạc hiện đang ngừng hoạt động, không thể check-in.");
+
             // 2. Find Paid booking for this driver on this slot
             var now = DateTimeHelper.VietnamNow();
             var booking = await _db.Bookings
@@ -70,7 +77,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var earliestCheckin = booking.StartTime.AddMinutes(-CheckInWindowMinutes);
             var latestCheckin = booking.StartTime.AddMinutes(CheckInWindowMinutes);
             if (now < earliestCheckin)
-                throw new InvalidOperationException($"Chưa đến giờ check-in. Vui lòng quay lại lúc {earliestCheckin:HH:mm dd/MM/yyyy} UTC.");
+                throw new InvalidOperationException($"Chưa đến giờ check-in. Vui lòng quay lại lúc {earliestCheckin:HH:mm dd/MM/yyyy}.");
             if (now > latestCheckin)
                 throw new InvalidOperationException("Đã quá thời gian check-in cho booking này.");
 

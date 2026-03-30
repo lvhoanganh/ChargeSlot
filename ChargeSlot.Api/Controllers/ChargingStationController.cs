@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Controllers
 {
+    // TODO: Refactor – move direct DB access (pricing, extra services, status) to ChargingStationService
     [ApiController]
     [Route("api/stations")]
     [Authorize(Roles = RoleConstants.Owner)]
@@ -63,7 +64,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { error = ex.Message });
+                return BadRequest(new { message = ex.Message });
             }
         }
 
@@ -79,7 +80,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>Delete station (only when Draft or Rejected).</summary>
@@ -94,7 +95,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>Submit station for admin approval (Draft/Rejected → PendingApproval).</summary>
@@ -109,7 +110,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>
@@ -125,10 +126,29 @@ namespace ChargeSlot.Api.Controllers
             if (station.OwnerUserId != userId) return Forbid();
 
             if (station.ApprovalStatus != Enums.ApprovalStatus.Approved)
-                return BadRequest(new { error = "Chỉ có thể thay đổi trạng thái hoạt động khi station đã được Approved." });
+                return BadRequest(new { message = "Chỉ có thể thay đổi trạng thái hoạt động khi station đã được Approved." });
 
             if (!Enum.TryParse<Enums.OperationalStatus>(dto.OperationalStatus, true, out var newStatus))
-                return BadRequest(new { error = "OperationalStatus không hợp lệ. Sử dụng: Active, Inactive." });
+                return BadRequest(new { message = "OperationalStatus không hợp lệ. Sử dụng: Active, Inactive." });
+
+            if (newStatus == Enums.OperationalStatus.Inactive)
+            {
+                var activeStatuses = new[]
+                {
+                    Enums.BookingStatus.WaitingOwner, Enums.BookingStatus.PendingPayment,
+                    Enums.BookingStatus.Paid, Enums.BookingStatus.CheckedIn, Enums.BookingStatus.InProgress
+                };
+                var now = DateTimeHelper.VietnamNow();
+                
+                var hasActiveBookings = await _db.Bookings
+                    .AnyAsync(b => b.ChargingSlot != null 
+                                && b.ChargingSlot.StationId == id 
+                                && b.EndTime > now
+                                && activeStatuses.Contains(b.Status));
+                                
+                if (hasActiveBookings)
+                    return BadRequest(new { message = "Không thể tắt trạm (Inactive) vì đang có booking sắp tới hoặc đang sạc. Vui lòng hủy các booking này trước." });
+            }
 
             station.OperationalStatus = newStatus;
             station.UpdatedAt = DateTimeHelper.VietnamNow();

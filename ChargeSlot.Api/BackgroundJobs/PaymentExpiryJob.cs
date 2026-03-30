@@ -1,6 +1,7 @@
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
+using ChargeSlot.Api.Data;
 
 namespace ChargeSlot.Api.BackgroundJobs
 {
@@ -28,60 +29,85 @@ namespace ChargeSlot.Api.BackgroundJobs
             {
                 try
                 {
-                    using var scope = _serviceProvider.CreateScope();
-                    var bookingRepo = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
-                    var slotRepo = scope.ServiceProvider.GetRequiredService<IChargingSlotRepository>();
-                    var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                    List<int> expiredBookingIds;
 
-                    // Lấy các booking hết hạn thanh toán (đã include Payment)
-                    var expiredBookings = await bookingRepo.GetExpiredPendingPaymentsAsync();
-
-                    foreach (var booking in expiredBookings)
+                    // 1. Chỉ lấy danh sách ID từ repo (scope ngoài)
+                    using (var outerScope = _serviceProvider.CreateScope())
                     {
-                        // ── SAFE-CHECK 1: Payment.Status đã Completed (callback đến kịp) ──
-                        if (booking.Payment?.Status == PaymentStatus.Completed)
-                        {
-                            _logger.LogInformation(
-                                "Booking {BookingId} has payment completed. Recovering to Paid instead of expiring.",
-                                booking.Id);
+                        var outerRepo = outerScope.ServiceProvider.GetRequiredService<IBookingRepository>();
+                        var expiredBookings = await outerRepo.GetExpiredPendingPaymentsAsync();
+                        expiredBookingIds = expiredBookings.Select(b => b.Id).ToList();
+                    }
 
-                            booking.Status = BookingStatus.Paid;
+                    // 2. Xử lý từng ID trong 1 scope biệt lập
+                    foreach (var bookingId in expiredBookingIds)
+                    {
+                        using var innerScope = _serviceProvider.CreateScope();
+                        var db = innerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+                        var bookingRepo = innerScope.ServiceProvider.GetRequiredService<IBookingRepository>();
+                        var slotRepo = innerScope.ServiceProvider.GetRequiredService<IChargingSlotRepository>();
+                        var notificationService = innerScope.ServiceProvider.GetRequiredService<INotificationService>();
+
+                        using var transaction = await db.Database.BeginTransactionAsync(stoppingToken);
+                        try
+                        {
+                            var booking = await bookingRepo.GetByIdAsync(bookingId);
+                            if (booking == null || booking.Status != BookingStatus.PendingPayment)
+                                continue;
+
+                            // ── SAFE-CHECK 1: Payment.Status đã Completed (callback đến kịp) ──
+                            if (booking.Payment?.Status == PaymentStatus.Completed)
+                            {
+                                _logger.LogInformation(
+                                    "Booking {BookingId} has payment completed. Recovering to Paid instead of expiring.",
+                                    booking.Id);
+
+                                booking.Status = BookingStatus.Paid;
+                                await bookingRepo.UpdateAsync(booking);
+                                await LockSlotIfNeeded(slotRepo, booking);
+                                await transaction.CommitAsync(stoppingToken);
+                                continue;
+                            }
+
+                            // ── EXPIRE: Chắc chắn chưa thanh toán (tại thời điểm này) → hủy ──
+                            booking.Status = BookingStatus.Expired;
                             await bookingRepo.UpdateAsync(booking);
-                            await LockSlotIfNeeded(slotRepo, booking);
-                            continue;
-                        }
 
-                        // ── EXPIRE: Chắc chắn chưa thanh toán (tại thời điểm này) → hủy ──
-                        booking.Status = BookingStatus.Expired;
-                        await bookingRepo.UpdateAsync(booking);
+                            // Release slot
+                            if (booking.ChargingSlot != null && booking.ChargingSlot.Status == SlotStatus.Booked)
+                            {
+                                booking.ChargingSlot.Status = SlotStatus.Active;
+                                slotRepo.Update(booking.ChargingSlot);
+                                await slotRepo.SaveChangesAsync();
+                            }
 
-                        // Release slot
-                        if (booking.ChargingSlot != null && booking.ChargingSlot.Status == SlotStatus.Booked)
-                        {
-                            booking.ChargingSlot.Status = SlotStatus.Active;
-                            slotRepo.Update(booking.ChargingSlot);
-                            await slotRepo.SaveChangesAsync();
-                        }
+                            await transaction.CommitAsync(stoppingToken);
 
-                        // Notify Driver
-                        await notificationService.SendAsync(
-                            booking.DriverUserId,
-                            "Đặt chỗ đã hết hạn",
-                            $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã bị hủy do không thanh toán kịp thời hạn.",
-                            NotificationType.Booking);
-
-                        // Notify Owner
-                        var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
-                        if (ownerUserId.HasValue)
-                        {
+                            // Notifications (ngoài transaction)
                             await notificationService.SendAsync(
-                                ownerUserId.Value,
-                                "Đặt chỗ bị hủy",
-                                $"Slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}): Khách không thanh toán kịp, slot đã được mở lại.",
+                                booking.DriverUserId,
+                                "Đặt chỗ đã hết hạn",
+                                $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã bị hủy do không thanh toán kịp thời hạn.",
                                 NotificationType.Booking);
-                        }
 
-                        _logger.LogInformation("Booking {BookingId} expired due to payment timeout.", booking.Id);
+                            // Notify Owner
+                            var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
+                            if (ownerUserId.HasValue)
+                            {
+                                await notificationService.SendAsync(
+                                    ownerUserId.Value,
+                                    "Đặt chỗ bị hủy",
+                                    $"Slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}): Khách không thanh toán kịp, slot đã được mở lại.",
+                                    NotificationType.Booking);
+                            }
+
+                            _logger.LogInformation("Booking {BookingId} expired due to payment timeout.", booking.Id);
+                        }
+                        catch (Exception ex)
+                        {
+                            await transaction.RollbackAsync(stoppingToken);
+                            _logger.LogError(ex, "Error processing expired booking {BookingId}", bookingId);
+                        }
                     }
                 }
                 catch (Exception ex)

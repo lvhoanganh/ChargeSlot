@@ -4,6 +4,7 @@ using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ChargeSlot.Api.Constants;
 
 namespace ChargeSlot.Api.Controllers
 {
@@ -46,7 +47,8 @@ namespace ChargeSlot.Api.Controllers
                 .Include(s => s.StationPricings)
                 .Include(s => s.ExtraServices)
                 .Where(s => s.ApprovalStatus == ApprovalStatus.Approved
-                    && s.OperationalStatus == OperationalStatus.Active);
+                    && s.OperationalStatus == OperationalStatus.Active
+                    && s.Owner.User.Status == UserStatusConstants.Active);
 
             // Filter by keyword (tên hoặc địa chỉ)
             if (!string.IsNullOrWhiteSpace(keyword))
@@ -176,7 +178,8 @@ namespace ChargeSlot.Api.Controllers
                 .Include(s => s.ExtraServices)
                 .FirstOrDefaultAsync(s => s.Id == id
                     && s.ApprovalStatus == ApprovalStatus.Approved
-                    && s.OperationalStatus == OperationalStatus.Active);
+                    && s.OperationalStatus == OperationalStatus.Active
+                    && s.Owner.User.Status == UserStatusConstants.Active);
 
             if (station == null) return NotFound(new { message = "Trạm sạc không tồn tại hoặc chưa hoạt động." });
 

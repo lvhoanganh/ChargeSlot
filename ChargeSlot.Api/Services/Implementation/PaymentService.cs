@@ -82,24 +82,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 _slotRepo.Update(slot);
                 await _slotRepo.SaveChangesAsync();
             }
-
-            // Notify Driver
-            await _notificationService.SendAsync(
-                booking.DriverUserId,
-                "Thanh toán thành công",
-                $"Thanh toán {booking.TotalAmount:N0}đ cho slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) thành công. Slot đã được giữ cho bạn.",
-                NotificationType.Payment);
-
-            // Notify Owner: Driver đã thanh toán
-            var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
-            if (ownerUserId.HasValue)
-            {
-                await _notificationService.SendAsync(
-                    ownerUserId.Value,
-                    "Khách đã thanh toán",
-                    $"Slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) đã được thanh toán {booking.TotalAmount:N0}đ. Chờ Driver check-in.",
-                    NotificationType.Payment);
-            }
+            // Notifications được gửi từ caller (ngoài transaction)
         }
 
         /// <summary>
@@ -157,13 +140,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             };
             await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
-
-            // Notify Driver
-            await _notificationService.SendAsync(
-                booking.DriverUserId,
-                "Hoàn tiền tự động",
-                $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã hết hạn nhưng bạn đã chuyển khoản thành công. {booking.TotalAmount:N0}đ đã hoàn vào ví của bạn.",
-                NotificationType.Payment);
+            // Notifications được gửi từ caller (ngoài transaction)
         }
 
         /// <summary>
@@ -325,6 +302,9 @@ namespace ChargeSlot.Api.Services.Implementation
             var amount = request.transferAmount;
             var sePayTxnId = request.id.ToString();
 
+            // Track which path was taken for notifications after commit
+            string? notifyPath = null;
+
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
@@ -366,12 +346,12 @@ namespace ChargeSlot.Api.Services.Implementation
                     return true;
                 }
 
-                // ── Đủ tiền → Xử lý thanh toán ──
                 payment.GatewayTxnRef = request.referenceCode;
 
                 if (booking.Status == BookingStatus.PendingPayment)
                 {
                     await CompletePaymentAsync(booking, payment);
+                    notifyPath = "completed";
                 }
                 else if (booking.Status == BookingStatus.Expired)
                 {
@@ -381,10 +361,12 @@ namespace ChargeSlot.Api.Services.Implementation
                     if (!hasConflict)
                     {
                         await CompletePaymentAsync(booking, payment);
+                        notifyPath = "completed";
                     }
                     else
                     {
                         await RefundToDriverWalletAsync(booking, payment);
+                        notifyPath = "refunded";
                     }
                 }
                 else
@@ -395,6 +377,35 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
 
                 await transaction.CommitAsync();
+
+                // Notifications (ngoài transaction)
+                if (notifyPath == "completed")
+                {
+                    await _notificationService.SendAsync(
+                        booking.DriverUserId,
+                        "Thanh toán thành công",
+                        $"Thanh toán {booking.TotalAmount:N0}đ cho slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) thành công. Slot đã được giữ cho bạn.",
+                        NotificationType.Payment);
+
+                    var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
+                    if (ownerUserId.HasValue)
+                    {
+                        await _notificationService.SendAsync(
+                            ownerUserId.Value,
+                            "Khách đã thanh toán",
+                            $"Slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) đã được thanh toán {booking.TotalAmount:N0}đ. Chờ Driver check-in.",
+                            NotificationType.Payment);
+                    }
+                }
+                else if (notifyPath == "refunded")
+                {
+                    await _notificationService.SendAsync(
+                        booking.DriverUserId,
+                        "Hoàn tiền tự động",
+                        $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã hết hạn nhưng bạn đã chuyển khoản thành công. {booking.TotalAmount:N0}đ đã hoàn vào ví của bạn.",
+                        NotificationType.Payment);
+                }
+
                 return true;
             }
             catch (Exception ex)

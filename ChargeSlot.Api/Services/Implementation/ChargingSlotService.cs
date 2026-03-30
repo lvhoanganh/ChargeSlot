@@ -129,8 +129,33 @@ namespace ChargeSlot.Api.Services.Implementation
             if (slot == null || slot.StationId != stationId)
                 throw new KeyNotFoundException($"Slot {slotId} not found in station {stationId}.");
 
-            if (slot.Status == SlotStatus.Booked)
+            // Check if changing to Inactive or Maintenance while there are upcoming bookings
+            if (dto.Status == SlotStatus.Inactive || dto.Status == SlotStatus.Maintenance)
             {
+                var activeStatuses = new[]
+                {
+                    BookingStatus.WaitingOwner, BookingStatus.PendingPayment,
+                    BookingStatus.Paid, BookingStatus.CheckedIn, BookingStatus.InProgress
+                };
+                var now = DateTimeHelper.VietnamNow();
+                
+                var hasActiveBookings = await _db.Bookings
+                    .AnyAsync(b => b.SlotId == slotId 
+                                && b.EndTime > now
+                                && activeStatuses.Contains(b.Status));
+                                
+                if (hasActiveBookings)
+                {
+                    throw new InvalidOperationException(
+                        $"Không thể chuyển slot sang {dto.Status} vì đang có booking sắp tới hoặc đang sạc. Vui lòng hủy các booking này trước.");
+                }
+            }
+            else if (slot.Status == SlotStatus.Booked)
+            {
+                // If not changing to Inactive/Maintenance, but it is currently Booked (means currently charging or paid check-in), 
+                // we probably shouldn't allow manually turning it to Active if someone is using it.
+                // Well, if they want to override, they can if it's not Maintenance.
+                // Let's just keep the old basic lock if they try to bypass.
                 throw new InvalidOperationException(
                     "Cannot change status of a slot that is currently Booked. Wait for the booking to complete or expire.");
             }
@@ -139,6 +164,31 @@ namespace ChargeSlot.Api.Services.Implementation
             slot.UpdatedAt = DateTimeHelper.VietnamNow();
 
             await _slotRepo.SaveChangesAsync();
+        }
+
+        public async Task<string> RegenerateQrCodeAsync(int stationId, int slotId, int ownerUserId)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId, includeDetails: false);
+            if (station == null)
+                throw new KeyNotFoundException($"Station {stationId} not found.");
+            if (station.OwnerUserId != ownerUserId)
+                throw new UnauthorizedAccessException("You do not own this station.");
+
+            if (station.ApprovalStatus != ApprovalStatus.Approved)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot regenerate QR code when station is in '{station.ApprovalStatus}' status. Station must be Approved.");
+            }
+
+            var slot = await _slotRepo.GetByIdAsync(slotId, tracking: true);
+            if (slot == null || slot.StationId != stationId)
+                throw new KeyNotFoundException($"Slot {slotId} not found in station {stationId}.");
+
+            slot.QrCodeToken = Guid.NewGuid().ToString("N");
+            slot.UpdatedAt = DateTimeHelper.VietnamNow();
+
+            await _slotRepo.SaveChangesAsync();
+            return slot.QrCodeToken;
         }
 
         /// <summary>

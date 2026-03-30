@@ -48,7 +48,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 DriverUserId = driverUserId,
                 Score = dto.Rating,
                 Comment = dto.Comment,
-                IsAnonymous = false,
+                IsAnonymous = dto.IsAnonymous,
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
 
@@ -102,17 +102,27 @@ namespace ChargeSlot.Api.Services.Implementation
         /// <summary>
         /// Danh sách đánh giá của 1 trạm (mới nhất trước, phân trang).
         /// </summary>
-        public async Task<List<ReviewDto>> GetByStationAsync(int stationId, int page = 1, int pageSize = 10)
+        public async Task<object> GetByStationAsync(int stationId, int page = 1, int pageSize = 10)
         {
-            var ratings = await _db.Ratings
+            var query = _db.Ratings
                 .Include(r => r.DriverUser)
-                .Where(r => r.StationId == stationId)
+                .Where(r => r.StationId == stationId);
+
+            var totalCount = await query.CountAsync();
+
+            var ratings = await query
                 .OrderByDescending(r => r.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
-            return ratings.Select(MapToDto).ToList();
+            return new
+            {
+                items = ratings.Select(MapToDto).ToList(),
+                totalCount,
+                page,
+                pageSize
+            };
         }
 
         /// <summary>
@@ -219,16 +229,5 @@ namespace ChargeSlot.Api.Services.Implementation
                 CreatedAt = r.CreatedAt
             };
         }
-    }
-
-    public class RankedStationDto
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = null!;
-        public string Address { get; set; } = null!;
-        public string? ImageUrl { get; set; }
-        public decimal AverageRating { get; set; }
-        public int TotalReviews { get; set; }
-        public int TotalSlots { get; set; }
     }
 }

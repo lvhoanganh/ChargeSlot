@@ -148,13 +148,16 @@ namespace ChargeSlot.Api.Services.Implementation
 
             return transactions.Select(t =>
             {
-                // Amount = Credit entry amount (positive), negative for refunds
-                var creditEntry = t.Entries.FirstOrDefault(e => e.Direction == LedgerDirection.Credit);
-                var amount = creditEntry?.Amount ?? 0;
+                // Withdrawal has only Debit, some have Credit. Pick the first entry's amount.
+                var entry = t.Entries.FirstOrDefault();
+                var amount = entry?.Amount ?? 0;
 
-                // If refund type, show as negative
-                if (t.ReferenceType.Contains("Refund", StringComparison.OrdinalIgnoreCase))
+                // If refund or withdrawal, show as negative
+                if (t.ReferenceType.Contains("Refund", StringComparison.OrdinalIgnoreCase) || 
+                    t.ReferenceType.Equals("Withdrawal", StringComparison.OrdinalIgnoreCase))
+                {
                     amount = -amount;
+                }
 
                 return new RecentTransactionDto
                 {
