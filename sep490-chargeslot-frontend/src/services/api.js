@@ -178,6 +178,24 @@ export const authApi = {
             method: "POST",
             body: JSON.stringify({ currentPassword, newPassword }),
         }),
+
+    /**
+     * Kiểm tra số điện thoại đã đăng ký chưa (trước khi gửi OTP Firebase)
+     * GET /api/Auth/check-phone?phoneNumber=...
+     * Response: { exists: boolean }
+     * ⚠️ Dùng fetch thuần — endpoint PUBLIC, không cần token.
+     *    KHÔNG dùng apiFetch vì sẽ bị redirect /login nếu nhận 401.
+     */
+    checkPhone: async (phoneNumber) => {
+        const res = await fetch(
+            `${API_BASE_URL}/Auth/check-phone?phoneNumber=${encodeURIComponent(phoneNumber)}`
+        );
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || `Lỗi ${res.status}`);
+        }
+        return res.json();
+    },
 };
 
 // ============================

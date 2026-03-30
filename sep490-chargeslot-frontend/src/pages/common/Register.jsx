@@ -70,12 +70,29 @@ export default function Register() {
 
     setIsLoading(true);
     try {
+      // ✅ BƯỚC 1: Kiểm tra SĐT đã tồn tại chưa — TUYỆT ĐỐI không gọi Firebase nếu đã có
+      const checkResult = await authApi.checkPhone(phone);
+      if (checkResult?.exists === true) {
+        showToast.error("Số điện thoại đã được đăng ký. Vui lòng dùng số khác hoặc đăng nhập.");
+        setIsLoading(false);
+        return; // ❌ Dừng lại, không gọi Firebase
+      }
+
+      // ✅ BƯỚC 2: SĐT chưa tồn tại → mới gọi Firebase gửi OTP
       const appVerifier = window.recaptchaVerifier;
       const result = await signInWithPhoneNumber(auth, phone, appVerifier);
       setConfirmationResult(result);
       setStep(2);
       showToast.success("Mã OTP đã được gửi đến điện thoại (Bởi Firebase)!");
     } catch (error) {
+      // Nếu lỗi từ checkPhone (lỗi mạng/server), báo lỗi chung
+      if (!error.code) {
+        console.error("Lỗi kiểm tra SĐT:", error);
+        showToast.error("Không thể kiểm tra số điện thoại. Vui lòng thử lại.");
+        setIsLoading(false);
+        return;
+      }
+      // Lỗi từ Firebase
       console.error("Lỗi gửi OTP Firebase:", error);
       // Reset reCAPTCHA sau khi lỗi để cho phép gửi lại
       initRecaptcha();
