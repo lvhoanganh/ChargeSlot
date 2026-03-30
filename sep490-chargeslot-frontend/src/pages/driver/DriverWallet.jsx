@@ -379,6 +379,16 @@ export default function DriverWallet() {
           </>
         )}
       </div>
+
+      {/* QR Payment Modal */}
+      <QRCodeModal
+        isOpen={sepayOpen}
+        onClose={() => setSepayOpen(false)}
+        qrUrl={sepayUrl}
+        title="Nạp tiền qua VietQR"
+        amount={Number(topUpAmount)}
+        description="Quét mã QR để nạp tiền vào ví ChargeSlot"
+      />
     </div>
   );
 }
