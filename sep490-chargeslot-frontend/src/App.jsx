@@ -1,151 +1,179 @@
+import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 import { ToastContainer } from "./components/Toast";
 import { ConfirmDialogContainer } from "./components/ConfirmDialog";
-import HomePage from "./pages/common/HomePage";
+
+// Layouts & Middlewares — load eagerly (needed on every route)
 import MainLayout from "./layouts/MainLayout";
 import AdminLayout from "./layouts/AdminLayout";
-import AuthAdminMiddleware from "./middlewares/AuthAdminMiddleware";
-import Service from "./pages/common/Service";
-import News from "./pages/common/News";
-import About from "./pages/common/About";
-import Login from "./pages/common/Login";
-import NotFound from "./pages/common/NotFound";
-import Register from "./pages/common/Register";
-import ForgotPassword from "./pages/common/ForgotPassword";
-import ManageUser from "./pages/admin/ManageUser";
-import ApproveStation from "./pages/admin/ApproveStation";
-import AdminProfile from "./pages/admin/AdminProfile";
-import EditAdminProfile from "./pages/admin/EditAdminProfile";
-import ChargingStations from "./pages/ChargingStations";
-import CreateStation from "./pages/CreateStation";
-import EditStation from "./pages/EditStation";
-import StationDetail from "./pages/StationDetail";
-import OwnerPage from "./pages/owner/OwnerPage";
 import OwnerLayout from "./layouts/OwnerLayout";
-import CreateChargingStation from "./pages/owner/CreateChargingStation";
-import PublicMiddleware from "./middlewares/PublicMiddleware";
+import AuthAdminMiddleware from "./middlewares/AuthAdminMiddleware";
 import AuthOwnerMiddleware from "./middlewares/AuthOwnerMiddleware";
 import AuthDriverMiddleware from "./middlewares/AuthDriverMiddleware";
+import PublicMiddleware from "./middlewares/PublicMiddleware";
 
-import DriverProfile from "./pages/driver/DriverProfile";
-import DriverEditProfile from "./pages/driver/EditDriverProfile";
-import ScanQR from "./pages/driver/ScanQR";
-import CheckInResult from "./pages/driver/CheckInResult";
-import ChargingActive from "./pages/driver/ChargingActive";
-import ChargingComplete from "./pages/driver/ChargingComplete";
-import OwnerProfile from "./pages/owner/OwnerProfile";
-import OwnerEditProfile from "./pages/owner/EditOwnerProfile";
-import StationMap from "./pages/driver/StationMap";
-import StationDetailDriver from "./pages/driver/StationDetailDriver";
-import BookingForm from "./pages/driver/BookingForm";
-import MyBookings from "./pages/driver/MyBookings";
-import BookingStatus from "./pages/driver/BookingStatus";
-import DriverWallet from "./pages/driver/DriverWallet";
-import BookingRequests from "./pages/owner/BookingRequests";
-import BookingRequestDetail from "./pages/owner/BookingRequestDetail";
-import SubmitDispute from "./pages/driver/SubmitDispute";
-import DisputeDetail from "./pages/driver/DisputeDetail";
-import OwnerDisputeDetail from "./pages/owner/OwnerDisputeDetail";
-import OwnerActiveSessions from "./pages/owner/OwnerActiveSessions";
-import OwnerWallet from "./pages/owner/OwnerWallet";
-import OwnerReviews from "./pages/owner/OwnerReviews";
-import DisputeList from "./pages/admin/DisputeList";
-import AdminDisputeDetail from "./pages/admin/AdminDisputeDetail";
-import AdminRevenue from "./pages/admin/AdminRevenue";
-import ChangePassword from "./pages/common/ChangePassword";
-import DriverReviews from "./pages/driver/DriverReviews";
-import FavoriteStations from "./pages/driver/FavoriteStations";
-import DriverLoyalty from "./pages/driver/DriverLoyalty";
-import OwnerExtraServices from "./pages/owner/OwnerExtraServices";
-import AdminSystemConfig from "./pages/admin/AdminSystemConfig";
-import AdminPayouts from "./pages/admin/AdminPayouts";
-import AdminWithdraws from "./pages/admin/AdminWithdraws";
-import ChatList from "./pages/common/ChatList";
-import ChatPage from "./pages/common/ChatPage";
+// ── Common pages ──────────────────────────────────────────────
+const HomePage        = lazy(() => import("./pages/common/HomePage"));
+const Service         = lazy(() => import("./pages/common/Service"));
+const News            = lazy(() => import("./pages/common/News"));
+const About           = lazy(() => import("./pages/common/About"));
+const Login           = lazy(() => import("./pages/common/Login"));
+const Register        = lazy(() => import("./pages/common/Register"));
+const ForgotPassword  = lazy(() => import("./pages/common/ForgotPassword"));
+const ChangePassword  = lazy(() => import("./pages/common/ChangePassword"));
+const NotFound        = lazy(() => import("./pages/common/NotFound"));
+const ChatList        = lazy(() => import("./pages/common/ChatList"));
+const ChatPage        = lazy(() => import("./pages/common/ChatPage"));
+
+// ── Admin pages ───────────────────────────────────────────────
+const ManageUser        = lazy(() => import("./pages/admin/ManageUser"));
+const ApproveStation    = lazy(() => import("./pages/admin/ApproveStation"));
+const AdminProfile      = lazy(() => import("./pages/admin/AdminProfile"));
+const EditAdminProfile  = lazy(() => import("./pages/admin/EditAdminProfile"));
+const DisputeList       = lazy(() => import("./pages/admin/DisputeList"));
+const AdminDisputeDetail = lazy(() => import("./pages/admin/AdminDisputeDetail"));
+const AdminRevenue      = lazy(() => import("./pages/admin/AdminRevenue"));
+const AdminSystemConfig = lazy(() => import("./pages/admin/AdminSystemConfig"));
+const AdminPayouts      = lazy(() => import("./pages/admin/AdminPayouts"));
+const AdminWithdraws    = lazy(() => import("./pages/admin/AdminWithdraws"));
+
+// ── Driver pages ──────────────────────────────────────────────
+const DriverProfile       = lazy(() => import("./pages/driver/DriverProfile"));
+const DriverEditProfile   = lazy(() => import("./pages/driver/EditDriverProfile"));
+const ScanQR              = lazy(() => import("./pages/driver/ScanQR"));
+const CheckInResult       = lazy(() => import("./pages/driver/CheckInResult"));
+const ChargingActive      = lazy(() => import("./pages/driver/ChargingActive"));
+const ChargingComplete    = lazy(() => import("./pages/driver/ChargingComplete"));
+const StationMap          = lazy(() => import("./pages/driver/StationMap"));
+const StationDetailDriver = lazy(() => import("./pages/driver/StationDetailDriver"));
+const BookingForm         = lazy(() => import("./pages/driver/BookingForm"));
+const MyBookings          = lazy(() => import("./pages/driver/MyBookings"));
+const BookingStatus       = lazy(() => import("./pages/driver/BookingStatus"));
+const DriverWallet        = lazy(() => import("./pages/driver/DriverWallet"));
+const SubmitDispute       = lazy(() => import("./pages/driver/SubmitDispute"));
+const DisputeDetail       = lazy(() => import("./pages/driver/DisputeDetail"));
+const DriverReviews       = lazy(() => import("./pages/driver/DriverReviews"));
+const FavoriteStations    = lazy(() => import("./pages/driver/FavoriteStations"));
+const DriverLoyalty       = lazy(() => import("./pages/driver/DriverLoyalty"));
+
+// ── Owner pages ───────────────────────────────────────────────
+const OwnerPage             = lazy(() => import("./pages/owner/OwnerPage"));
+const CreateChargingStation = lazy(() => import("./pages/owner/CreateChargingStation"));
+const OwnerProfile          = lazy(() => import("./pages/owner/OwnerProfile"));
+const OwnerEditProfile      = lazy(() => import("./pages/owner/EditOwnerProfile"));
+const BookingRequests       = lazy(() => import("./pages/owner/BookingRequests"));
+const BookingRequestDetail  = lazy(() => import("./pages/owner/BookingRequestDetail"));
+const OwnerDisputeDetail    = lazy(() => import("./pages/owner/OwnerDisputeDetail"));
+const OwnerActiveSessions   = lazy(() => import("./pages/owner/OwnerActiveSessions"));
+const OwnerWallet           = lazy(() => import("./pages/owner/OwnerWallet"));
+const OwnerReviews          = lazy(() => import("./pages/owner/OwnerReviews"));
+const OwnerExtraServices    = lazy(() => import("./pages/owner/OwnerExtraServices"));
+
+// Loading fallback
+const PageLoader = () => (
+  <div style={{
+    minHeight: "60vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }}>
+    <div style={{
+      width: 40,
+      height: 40,
+      border: "3px solid #fed7aa",
+      borderTop: "3px solid #f97316",
+      borderRadius: "50%",
+      animation: "spin 0.8s linear infinite",
+    }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
 
 export default function App() {
   return (
     <div>
-      <Routes>
-        <Route element={<MainLayout />}>
-          <Route index element={<HomePage />} />
-          <Route path="service" element={<Service />} />
-          <Route path="news" element={<News />} />
-          <Route path="about" element={<About />} />
-          <Route path="driver/map" element={<StationMap />} />
-          <Route path="driver/station/:id" element={<StationDetailDriver />} />
-          <Route path="driver/station/:stationId/book" element={<BookingForm />} />
-          <Route path="forgotPassword" element={<ForgotPassword />} />
-          <Route element={<PublicMiddleware />}>
-            <Route path="login" element={<Login />} />
-            <Route path="register" element={<Register />} />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route element={<MainLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="service" element={<Service />} />
+            <Route path="news" element={<News />} />
+            <Route path="about" element={<About />} />
+            <Route path="driver/map" element={<StationMap />} />
+            <Route path="driver/station/:id" element={<StationDetailDriver />} />
+            <Route path="driver/station/:stationId/book" element={<BookingForm />} />
+            <Route path="forgotPassword" element={<ForgotPassword />} />
+            <Route element={<PublicMiddleware />}>
+              <Route path="login" element={<Login />} />
+              <Route path="register" element={<Register />} />
+            </Route>
           </Route>
-        </Route>
-        <Route element={<AuthOwnerMiddleware />}>
-          <Route element={<OwnerLayout />}>
-            <Route path="stations" element={<OwnerPage />} />
-            <Route path="stations/add" element={<CreateChargingStation />} />
+
+          <Route element={<AuthOwnerMiddleware />}>
+            <Route element={<OwnerLayout />}>
+              <Route path="stations" element={<OwnerPage />} />
+              <Route path="stations/add" element={<CreateChargingStation />} />
+            </Route>
           </Route>
-        </Route>
-        <Route element={<AuthAdminMiddleware />}>
-          <Route path="admin" element={<AdminLayout />}>
-            <Route path="manage-users" element={<ManageUser />} />
-            <Route path="approve-station" element={<ApproveStation />} />
-            <Route path="disputes" element={<DisputeList />} />
-            <Route path="disputes/:disputeId" element={<AdminDisputeDetail />} />
-            <Route path="admin-profile" element={<AdminProfile />} />
-            <Route path="edit-admin-profile" element={<EditAdminProfile />} />
-            <Route path="view-financial-report" element={<AdminRevenue />} />
-            <Route path="system-config" element={<AdminSystemConfig />} />
-            <Route path="payouts" element={<AdminPayouts />} />
-            <Route path="withdraws" element={<AdminWithdraws />} />
-            <Route path="change-password" element={<ChangePassword />} />
+
+          <Route element={<AuthAdminMiddleware />}>
+            <Route path="admin" element={<AdminLayout />}>
+              <Route path="manage-users" element={<ManageUser />} />
+              <Route path="approve-station" element={<ApproveStation />} />
+              <Route path="disputes" element={<DisputeList />} />
+              <Route path="disputes/:disputeId" element={<AdminDisputeDetail />} />
+              <Route path="admin-profile" element={<AdminProfile />} />
+              <Route path="edit-admin-profile" element={<EditAdminProfile />} />
+              <Route path="view-financial-report" element={<AdminRevenue />} />
+              <Route path="system-config" element={<AdminSystemConfig />} />
+              <Route path="payouts" element={<AdminPayouts />} />
+              <Route path="withdraws" element={<AdminWithdraws />} />
+              <Route path="change-password" element={<ChangePassword />} />
+            </Route>
           </Route>
-        </Route>
-        <Route element={<AuthDriverMiddleware />}>
-          <Route path="driver" element={<MainLayout />}>
-            <Route path="driver-profile" element={<DriverProfile />} />
-            <Route path="update-driver-profile" element={<DriverEditProfile />} />
-            <Route path="scan-qr" element={<ScanQR />} />
-            <Route path="check-in-result" element={<CheckInResult />} />
-            <Route path="charging" element={<ChargingActive />} />
-            <Route path="charging-complete" element={<ChargingComplete />} />
-            <Route path="my-bookings" element={<MyBookings />} />
-            <Route path="booking/:id" element={<BookingStatus />} />
-            <Route path="dispute/submit/:bookingId" element={<SubmitDispute />} />
-            <Route path="dispute/:disputeId" element={<DisputeDetail />} />
-            <Route path="wallet" element={<DriverWallet />} />
-            <Route path="reviews" element={<DriverReviews />} />
-            <Route path="favorites" element={<FavoriteStations />} />
-            <Route path="loyalty" element={<DriverLoyalty />} />
-            <Route path="chat-list" element={<ChatList />} />
-            <Route path="chat/:bookingId" element={<ChatPage />} />
-            <Route path="change-password" element={<ChangePassword />} />
+
+          <Route element={<AuthDriverMiddleware />}>
+            <Route path="driver" element={<MainLayout />}>
+              <Route path="driver-profile" element={<DriverProfile />} />
+              <Route path="update-driver-profile" element={<DriverEditProfile />} />
+              <Route path="scan-qr" element={<ScanQR />} />
+              <Route path="check-in-result" element={<CheckInResult />} />
+              <Route path="charging" element={<ChargingActive />} />
+              <Route path="charging-complete" element={<ChargingComplete />} />
+              <Route path="my-bookings" element={<MyBookings />} />
+              <Route path="booking/:id" element={<BookingStatus />} />
+              <Route path="dispute/submit/:bookingId" element={<SubmitDispute />} />
+              <Route path="dispute/:disputeId" element={<DisputeDetail />} />
+              <Route path="wallet" element={<DriverWallet />} />
+              <Route path="reviews" element={<DriverReviews />} />
+              <Route path="favorites" element={<FavoriteStations />} />
+              <Route path="loyalty" element={<DriverLoyalty />} />
+              <Route path="chat-list" element={<ChatList />} />
+              <Route path="chat/:bookingId" element={<ChatPage />} />
+              <Route path="change-password" element={<ChangePassword />} />
+            </Route>
           </Route>
-        </Route>
-        <Route element={<AuthOwnerMiddleware />}>
-          <Route path="owner" element={<OwnerLayout />}>
-            <Route path="owner-profile" element={<OwnerProfile />} />
-            <Route path="update-owner-profile" element={<OwnerEditProfile />} />
-            <Route path="booking-requests" element={<BookingRequests />} />
-            <Route path="booking/:id" element={<BookingRequestDetail />} />
-            <Route path="dispute/:disputeId" element={<OwnerDisputeDetail />} />
-            <Route path="active-sessions" element={<OwnerActiveSessions />} />
-            <Route path="wallet" element={<OwnerWallet />} />
-            <Route path="reviews" element={<OwnerReviews />} />
-            <Route path="extra-services" element={<OwnerExtraServices />} />
-            <Route path="chat-list" element={<ChatList />} />
-            <Route path="chat/:bookingId" element={<ChatPage />} />
-            <Route path="change-password" element={<ChangePassword />} />
+
+          <Route element={<AuthOwnerMiddleware />}>
+            <Route path="owner" element={<OwnerLayout />}>
+              <Route path="owner-profile" element={<OwnerProfile />} />
+              <Route path="update-owner-profile" element={<OwnerEditProfile />} />
+              <Route path="booking-requests" element={<BookingRequests />} />
+              <Route path="booking/:id" element={<BookingRequestDetail />} />
+              <Route path="dispute/:disputeId" element={<OwnerDisputeDetail />} />
+              <Route path="active-sessions" element={<OwnerActiveSessions />} />
+              <Route path="wallet" element={<OwnerWallet />} />
+              <Route path="reviews" element={<OwnerReviews />} />
+              <Route path="extra-services" element={<OwnerExtraServices />} />
+              <Route path="chat-list" element={<ChatList />} />
+              <Route path="chat/:bookingId" element={<ChatPage />} />
+              <Route path="change-password" element={<ChangePassword />} />
+            </Route>
           </Route>
-        </Route>
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      {/* Charging Stations Routes */}
-      {/* <Route path="/stations" element={<ChargingStations />} />
-          <Route path="/stations/create" element={<CreateStation />} />
-          <Route path="/stations/:id" element={<StationDetail />} />
-          <Route path="/stations/:id/edit" element={<EditStation />} /> */}
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
       <ConfirmDialogContainer />
       <ToastContainer />
     </div>
