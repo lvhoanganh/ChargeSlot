@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
@@ -21,6 +21,12 @@ export default function Register() {
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [idToken, setIdToken] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // OTP countdown
+  const OTP_TTL = 60;
+  const [otpCountdown, setOtpCountdown] = useState(OTP_TTL);
+  const [resendLoading, setResendLoading] = useState(false);
+  const countdownRef = useRef(null);
 
   const navigate = useNavigate();
 
@@ -48,9 +54,43 @@ export default function Register() {
         try { window.recaptchaVerifier.clear(); } catch (_) {}
         window.recaptchaVerifier = null;
       }
+      clearInterval(countdownRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Hàm gửi lại OTP (Register)
+  const handleResendOtp = async () => {
+    if (otpCountdown > 0 || resendLoading) return;
+    setResendLoading(true);
+    try {
+      initRecaptcha();
+      await new Promise(r => setTimeout(r, 300));
+      const appVerifier = window.recaptchaVerifier;
+      const result = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+      setConfirmationResult(result);
+      setOtp("");
+      setOtpCountdown(OTP_TTL);
+      clearInterval(countdownRef.current);
+      countdownRef.current = setInterval(() => {
+        setOtpCountdown(prev => {
+          if (prev <= 1) { clearInterval(countdownRef.current); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
+      showToast.success("Đã gửi lại mã OTP!");
+    } catch (error) {
+      console.error("Lỗi gửi lại OTP:", error);
+      initRecaptcha();
+      if (error.code === 'auth/too-many-requests') {
+        showToast.error("Quá nhiều lần thử. Vui lòng chờ 15-30 phút.");
+      } else {
+        showToast.error("Không thể gửi lại OTP. Thử lại sau.");
+      }
+    } finally {
+      setResendLoading(false);
+    }
+  };
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
@@ -83,6 +123,15 @@ export default function Register() {
       const result = await signInWithPhoneNumber(auth, phone, appVerifier);
       setConfirmationResult(result);
       setStep(2);
+      // Khởi động đếm ngược
+      setOtpCountdown(OTP_TTL);
+      clearInterval(countdownRef.current);
+      countdownRef.current = setInterval(() => {
+        setOtpCountdown(prev => {
+          if (prev <= 1) { clearInterval(countdownRef.current); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
       showToast.success("Mã OTP đã được gửi đến điện thoại (Bởi Firebase)!");
     } catch (error) {
       // Nếu lỗi từ checkPhone (lỗi mạng/server), báo lỗi chung
@@ -271,21 +320,53 @@ export default function Register() {
               {isLoading ? "Đang xác thực..." : "Tiếp tục"}
             </button>
 
-            <p style={{ textAlign: "center", marginTop: 24, fontSize: 14 }}>
-              <button 
-                type="button" 
-                className="cs-auth-link" 
-                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: "#64748b" }}
+            {/* Countdown + Resend */}
+            <div style={{ textAlign: "center", marginTop: 20, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
+
+              {/* Vòng tròn đếm ngược */}
+              <div className="cs-otp-countdown">
+                <div className={`cs-otp-countdown__circle${otpCountdown === 0 ? ' cs-otp-countdown__circle--expired' : ''}`}>
+                  <svg className="cs-otp-countdown__svg" viewBox="0 0 36 36">
+                    <circle className="cs-otp-countdown__track" cx="18" cy="18" r="16" />
+                    <circle
+                      className="cs-otp-countdown__progress"
+                      cx="18" cy="18" r="16"
+                      strokeDasharray="100.53"
+                      strokeDashoffset={100.53 - (otpCountdown / OTP_TTL) * 100.53}
+                    />
+                  </svg>
+                  <span className="cs-otp-countdown__time">{otpCountdown}s</span>
+                </div>
+                <span className="cs-otp-countdown__label">
+                  {otpCountdown > 0 ? "Mã OTP còn hiệu lực" : "Mã OTP đã hết hạn"}
+                </span>
+              </div>
+
+              {/* Nút gửi lại */}
+              <button
+                type="button"
+                className="cs-otp-resend-btn"
+                disabled={otpCountdown > 0 || resendLoading}
+                onClick={handleResendOtp}
+                style={{ opacity: otpCountdown > 0 ? 0.45 : 1 }}
+              >
+                {resendLoading ? "Đang gửi lại..." : "🔄 Gửi lại mã OTP"}
+              </button>
+
+              {/* Chỉnh sửa SĐT */}
+              <button
+                type="button"
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: "#94a3b8", fontSize: 13 }}
                 onClick={() => {
+                  clearInterval(countdownRef.current);
                   setStep(1);
                   setOtp("");
-                  // Reset reCAPTCHA để có thể gửi OTP lại
                   initRecaptcha();
                 }}
               >
-                 Chỉnh sửa số điện thoại
+                Chỉnh sửa số điện thoại
               </button>
-            </p>
+            </div>
           </form>
         )}
 

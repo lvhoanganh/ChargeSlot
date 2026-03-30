@@ -79,8 +79,21 @@ function haversine([lat1, lon1], [lat2, lon2]) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+/* ─── useIsMobile ─── */
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return isMobile;
+}
+
 export default function StationMap() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState("list"); // "list" | "map"
   const [userPos, setUserPos] = useState(null);
   const [search, setSearch] = useState("");
   const [flyTarget, setFlyTarget] = useState(null);
@@ -92,7 +105,8 @@ export default function StationMap() {
   const [minRating, setMinRating] = useState("");
   const [sortBy, setSortBy] = useState("");
   const [nearbyMode, setNearbyMode] = useState(false);
-  const [maxRadius, setMaxRadius] = useState(10); // km
+  const [maxRadius, setMaxRadius] = useState(10);
+  const [showFilters, setShowFilters] = useState(false);
   const [favorites, setFavorites] = useState({});
   const { token } = useAuthStore();
   const markerRefs = useRef({});
@@ -108,7 +122,6 @@ export default function StationMap() {
     );
   }, []);
 
-  // Fetch stations from API (server-side filter + GPS sort)
   function fetchStations(kw, rating, sort, pos) {
     setLoading(true);
     const opts = { keyword: kw || undefined, minRating: rating || undefined, sortBy: sort || undefined };
@@ -120,7 +133,6 @@ export default function StationMap() {
     }
     publicStationApi.getAll(opts)
       .then((data) => {
-        // Response: { total, page, pageSize, items } OR legacy array
         const list = Array.isArray(data) ? data : (data?.items ?? []);
         setStations(list);
         setError(null);
@@ -131,15 +143,12 @@ export default function StationMap() {
 
   useEffect(() => { fetchStations(search, minRating, sortBy, nearbyMode ? userPos : null); }, [minRating, sortBy, nearbyMode, maxRadius]);
 
-  // Debounced search
   useEffect(() => {
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => fetchStations(search, minRating, sortBy, nearbyMode ? userPos : null), 400);
     return () => clearTimeout(searchTimer.current);
   }, [search]);
 
-
-  // Load favorites
   useEffect(() => {
     if (!token) return;
     favoriteApi.getMyFavorites()
@@ -167,8 +176,6 @@ export default function StationMap() {
 
   const filtered = useMemo(() => {
     let result = stations;
-
-    // Text search filter
     if (search.trim()) {
       const q = removeDiacritics(search.toLowerCase());
       result = result.filter(
@@ -177,8 +184,6 @@ export default function StationMap() {
           removeDiacritics((s.address || "").toLowerCase()).includes(q)
       );
     }
-
-    // Nearby filter + sort by distance
     if (nearbyMode && userPos) {
       result = result
         .map((s) => ({
@@ -188,10 +193,8 @@ export default function StationMap() {
         .filter((s) => s._distance <= maxRadius)
         .sort((a, b) => a._distance - b._distance);
     } else {
-      // Remove _distance if not in nearby mode
       result = result.map(({ _distance, ...s }) => s);
     }
-
     return result;
   }, [search, stations, nearbyMode, userPos, maxRadius]);
 
@@ -202,6 +205,7 @@ export default function StationMap() {
   function handleStationClick(station) {
     setFlyTarget([station.latitude, station.longitude]);
     setSelectedStation(station.id);
+    if (isMobile) setActiveTab("map");
     setTimeout(() => {
       markerRefs.current[station.id]?.openPopup();
     }, 1300);
@@ -214,552 +218,474 @@ export default function StationMap() {
     return url.startsWith("http") ? url : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${url}`;
   }
 
-  return (
-    <div className="station-map-root">
+  const hasActiveFilters = minRating || sortBy || nearbyMode;
 
-      {/* ══════════ LEFT PANEL (Station List) ══════════ */}
-      <div className="station-map-panel">
+  /* ══════ MAP PANEL (shared between mobile & desktop) ══════ */
+  const MapPanel = (
+    <div className="sm-map-view">
+      {/* Locate me btn */}
+      <button
+        onClick={() => {
+          if (userPos) setFlyTarget(userPos);
+          else
+            navigator.geolocation?.getCurrentPosition(
+              (pos) => {
+                const p = [pos.coords.latitude, pos.coords.longitude];
+                setUserPos(p);
+                setFlyTarget(p);
+              },
+              () => showToast.error("Không thể lấy vị trí của bạn"),
+              { enableHighAccuracy: true, timeout: 8000 }
+            );
+        }}
+        className="sm-locate-btn"
+        title="Vị trí của tôi"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+        </svg>
+      </button>
 
-        {/* Header + Search */}
-        <div style={{
-          padding: "20px 16px 16px",
-          background: "#fff",
-          borderBottom: "1px solid #f0f0f0",
-        }}>
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 14,
-          }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 12,
-              background: "linear-gradient(135deg, #f97316, #ea580c)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
+      <MapContainer
+        center={userPos || defaultCenter}
+        zoom={13}
+        style={{ width: "100%", height: "100%", zIndex: 1 }}
+        zoomControl={false}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+        />
+        {flyTarget && <FlyTo center={flyTarget} zoom={15} />}
+        {userPos && <Marker position={userPos} icon={userIcon} />}
+
+        {filtered.map((station) => {
+          const available = getAvailableSlots(station);
+          const st = statusConfig[station.operationalStatus] || statusConfig.Open;
+          const icon = station.operationalStatus === "Maintenance" ? maintenanceIcon : stationIcon;
+
+          return (
+            <Marker
+              key={station.id}
+              position={[station.latitude, station.longitude]}
+              icon={icon}
+              ref={(ref) => { if (ref) markerRefs.current[station.id] = ref; }}
+            >
+              <Popup maxWidth={300} minWidth={260}>
+                <div style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: "#1f2937", lineHeight: 1.3 }}>
+                        {station.name}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: st.dot }} />
+                        <span style={{ fontSize: 11, fontWeight: 600, color: st.color }}>{st.label}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 10, lineHeight: 1.4 }}>
+                    📍 {station.address}
+                  </div>
+
+                  <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                    <div style={{ flex: 1, background: "#f0fdf4", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: "#22c55e" }}>{available}</div>
+                      <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>Slot trống</div>
+                    </div>
+                    <div style={{ flex: 1, background: "#eff6ff", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: "#3b82f6" }}>{station.chargingSlots.length}</div>
+                      <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>Tổng slot</div>
+                    </div>
+                    {station.chargingSlots.length > 0 && (
+                      <div style={{ flex: 1, background: "#fef3c7", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#d97706" }}>
+                          {(() => {
+                            const prices = (station.pricingTiers || []).filter(t => t.isActive !== false).map(t => t.pricePerHour);
+                            return prices.length > 0 ? Math.min(...prices).toLocaleString("vi-VN") : "---";
+                          })()}đ
+                        </div>
+                        <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>Giá từ/h</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={() => {
+                        const url = userPos
+                          ? `https://www.google.com/maps/dir/${userPos[0]},${userPos[1]}/${station.latitude},${station.longitude}`
+                          : `https://www.google.com/maps/dir/Current+Location/${station.latitude},${station.longitude}`;
+                        window.open(url, "_blank");
+                      }}
+                      style={{
+                        flex: 1, padding: "10px 12px",
+                        background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                        color: "#fff", border: "none", borderRadius: 10,
+                        fontWeight: 600, fontSize: 13, cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                      }}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M3 11l19-9-9 19-2-8-8-2z" />
+                      </svg>
+                      Chỉ đường
+                    </button>
+                    <button
+                      onClick={() => navigate(`/driver/station/${station.id}`)}
+                      style={{
+                        flex: 1, padding: "10px 12px",
+                        background: "linear-gradient(135deg, #f97316, #ea580c)",
+                        color: "#fff", border: "none", borderRadius: 10,
+                        fontWeight: 600, fontSize: 13, cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                      }}
+                    >
+                      Chi tiết
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
+    </div>
+  );
+
+  /* ══════ LIST PANEL (header + cards) ══════ */
+  const ListPanel = (
+    <div className="sm-list-panel">
+      {/* ── Header ── */}
+      <div className="sm-list-header">
+        <div className="sm-list-header__top">
+          <div className="sm-list-header__title-group">
+            <div className="sm-list-header__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
                 <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
               </svg>
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 17, color: "#1e293b", letterSpacing: -0.3 }}>
-                Danh sách trạm sạc
-              </div>
-              <div style={{ fontSize: 12, color: "#94a3b8" }}>
+              <div className="sm-list-header__title">Trạm sạc</div>
+              <div className="sm-list-header__subtitle">
                 {filtered.length} trạm
                 {search && ` · "${search}"`}
-                {nearbyMode && userPos && ` · trong ${maxRadius}km`}
+                {nearbyMode && userPos && ` · ${maxRadius}km`}
                 {nearbyMode && !userPos && ` · đang lấy vị trí...`}
               </div>
             </div>
           </div>
 
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            background: "#f8f9fb",
-            border: "1.5px solid #e5e7eb",
-            borderRadius: 14,
-            padding: "0 14px",
-            gap: 8,
-            transition: "all .2s",
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
+          {/* Filter toggle btn */}
+          <button
+            className={`sm-filter-toggle ${hasActiveFilters ? "active" : ""}`}
+            onClick={() => setShowFilters(v => !v)}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
             </svg>
-            <input
-              className="search-input"
-              type="text"
-              placeholder="Tìm theo tên, địa chỉ..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                flex: 1, border: "none", outline: "none",
-                fontSize: 14, background: "transparent",
-                color: "#1f2937", padding: "11px 0",
-              }}
-            />
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                style={{
-                  background: "#e5e7eb", border: "none", borderRadius: "50%",
-                  width: 22, height: 22, cursor: "pointer", display: "flex",
-                  alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="3">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-
-          {/* Filter row */}
-          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <select
-              value={minRating}
-              onChange={(e) => setMinRating(e.target.value)}
-              style={{
-                flex: 1, padding: "8px 10px", borderRadius: 10,
-                border: "1.5px solid #e5e7eb", fontSize: 13,
-                color: minRating ? "#1f2937" : "#9ca3af",
-                background: "#f8f9fb", cursor: "pointer", outline: "none",
-              }}
-            >
-              <option value="">⭐ Đánh giá</option>
-              <option value="1">≥ 1 ⭐</option>
-              <option value="2">≥ 2 ⭐</option>
-              <option value="3">≥ 3 ⭐</option>
-              <option value="4">≥ 4 ⭐</option>
-              <option value="4.5">≥ 4.5 ⭐</option>
-            </select>
-            <select
-              value={sortBy}
-              onChange={(e) => { setSortBy(e.target.value); setNearbyMode(false); }}
-              style={{
-                flex: 1, padding: "8px 10px", borderRadius: 10,
-                border: "1.5px solid #e5e7eb", fontSize: 13,
-                color: sortBy ? "#1f2937" : "#9ca3af",
-                background: "#f8f9fb", cursor: "pointer", outline: "none",
-              }}
-            >
-              <option value="">Sắp xếp</option>
-              <option value="rating">Đánh giá cao nhất</option>
-              <option value="reviews">Nhiều đánh giá nhất</option>
-            </select>
-          </div>
-
-          {/* Nearby row */}
-          <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
-            <button
-              onClick={() => {
-                if (!userPos) {
-                  navigator.geolocation?.getCurrentPosition(
-                    (pos) => {
-                      setUserPos([pos.coords.latitude, pos.coords.longitude]);
-                      setNearbyMode(true);
-                      setSortBy("");
-                    },
-                    () => showToast.error("Không thể lấy vị trí. Vui lòng cho phép truy cập GPS."),
-                    { enableHighAccuracy: true, timeout: 8000 }
-                  );
-                } else {
-                  setNearbyMode((v) => {
-                    if (!v) setSortBy("");
-                    return !v;
-                  });
-                }
-              }}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "8px 14px", borderRadius: 10, border: "none",
-                cursor: "pointer", fontWeight: 600, fontSize: 13,
-                transition: "all 0.2s",
-                background: nearbyMode
-                  ? "linear-gradient(135deg, #3b82f6, #2563eb)"
-                  : "#f0f4ff",
-                color: nearbyMode ? "#fff" : "#3b82f6",
-                boxShadow: nearbyMode ? "0 2px 10px rgba(59,130,246,0.35)" : "none",
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-              </svg>
-              {nearbyMode ? "Đang xem gần tôi" : "Gần tôi"}
-            </button>
-
-            {nearbyMode && (
-              <select
-                value={maxRadius}
-                onChange={(e) => setMaxRadius(Number(e.target.value))}
-                style={{
-                  flex: 1, padding: "8px 10px", borderRadius: 10,
-                  border: "1.5px solid #3b82f6", fontSize: 13,
-                  background: "#eff6ff", color: "#2563eb",
-                  cursor: "pointer", outline: "none", fontWeight: 600,
-                }}
-              >
-                <option value={2}>Trong 2 km</option>
-                <option value={5}>Trong 5 km</option>
-                <option value={10}>Trong 10 km</option>
-                <option value={20}>Trong 20 km</option>
-                <option value={50}>Trong 50 km</option>
-              </select>
-            )}
-          </div>
+            Lọc
+            {hasActiveFilters && <span className="sm-filter-badge" />}
+          </button>
         </div>
 
-        {/* Station cards */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px" }}>
-          {loading ? (
-            <div style={{ padding: 40, textAlign: "center" }}>
-              <div style={{ fontSize: 32, marginBottom: 8, animation: "spin 1s linear infinite" }}>⚡</div>
-              <div style={{ fontSize: 14, color: "#6b7280" }}>Đang tải trạm sạc...</div>
-            </div>
-          ) : error ? (
-            <div style={{ padding: 40, textAlign: "center" }}>
-              <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.5 }}>⚠️</div>
-              <div style={{ fontSize: 14, color: "#ef4444", marginBottom: 8 }}>{error}</div>
-              <button
-                onClick={() => window.location.reload()}
-                style={{
-                  padding: "8px 16px", borderRadius: 8, border: "none",
-                  background: "#f97316", color: "#fff", fontWeight: 600,
-                  fontSize: 13, cursor: "pointer",
-                }}
-              >Thử lại</button>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center" }}>
-              <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.4 }}>🔍</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "#6b7280" }}>
-                Không tìm thấy trạm sạc
-              </div>
-              <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 4 }}>
-                Thử nhập từ khóa khác
-              </div>
-            </div>
-          ) : (
-            filtered.map((s) => {
-              const available = getAvailableSlots(s);
-              const st = statusConfig[s.operationalStatus] || statusConfig.Open;
-              const isSelected = selectedStation === s.id;
-              const img = getStationImage(s);
-
-              return (
-                <div
-                  key={s.id}
-                  className="station-card"
-                  onClick={() => handleStationClick(s)}
-                  style={{
-                    cursor: "pointer",
-                    background: "#fff",
-                    borderRadius: 16,
-                    overflow: "hidden",
-                    marginBottom: 12,
-                    border: isSelected ? "2px solid #f97316" : "2px solid transparent",
-                    boxShadow: isSelected
-                      ? "0 4px 20px rgba(249,115,22,0.15)"
-                      : "0 2px 8px rgba(0,0,0,0.04)",
-                  }}
-                >
-                  {/* Image */}
-                  <div style={{
-                    width: "100%", height: 140,
-                    overflow: "hidden", position: "relative",
-                  }}>
-                    {img ? (
-                      <img
-                        className="station-card-img"
-                        src={img}
-                        alt={s.name}
-                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                        onError={() => setImgErrors((prev) => ({ ...prev, [s.id]: true }))}
-                      />
-                    ) : (
-                      <div style={{
-                        width: "100%", height: "100%",
-                        background: "linear-gradient(135deg, #ecfdf5, #d1fae5, #a7f3d0)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>
-                        <div style={{
-                          width: 60, height: 60, borderRadius: 16,
-                          background: "rgba(34,197,94,0.15)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}>
-                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
-                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                          </svg>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Favorite heart */}
-                    <button
-                      onClick={(e) => toggleFavorite(e, s.id)}
-                      style={{
-                        position: "absolute", top: 10, left: 10,
-                        width: 32, height: 32, borderRadius: "50%",
-                        background: "rgba(255,255,255,0.92)",
-                        backdropFilter: "blur(8px)",
-                        border: "none", cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        transition: "transform .2s",
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.15)"}
-                      onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
-                      title={favorites[s.id] ? "Bỏ yêu thích" : "Thêm yêu thích"}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill={favorites[s.id] ? "#ef4444" : "none"} stroke={favorites[s.id] ? "#ef4444" : "#9ca3af"} strokeWidth="2">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                      </svg>
-                    </button>
-
-                    {/* Status badge on image */}
-                    <div style={{
-                      position: "absolute", top: 10, right: 10,
-                      display: "flex", alignItems: "center", gap: 5,
-                      background: "rgba(255,255,255,0.92)",
-                      backdropFilter: "blur(8px)",
-                      padding: "4px 10px", borderRadius: 20,
-                    }}>
-                      <div style={{
-                        width: 7, height: 7, borderRadius: "50%",
-                        background: st.dot,
-                        boxShadow: `0 0 6px ${st.dot}`,
-                      }} />
-                      <span style={{ fontSize: 11, fontWeight: 600, color: st.color }}>
-                        {st.label}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div style={{ padding: "12px 14px 14px" }}>
-                    <div style={{
-                      fontWeight: 700, fontSize: 15, color: "#1e293b",
-                      marginBottom: 4, lineHeight: 1.3,
-                    }}>
-                      {s.name}
-                    </div>
-
-                    <div style={{
-                      fontSize: 12, color: "#64748b", marginBottom: 10,
-                      display: "flex", alignItems: "center", gap: 4,
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                        <circle cx="12" cy="10" r="3" />
-                      </svg>
-                      {s.address}
-                    </div>
-
-                    {/* Distance badge when nearby mode is on */}
-                    {nearbyMode && s._distance !== undefined && (
-                      <div style={{
-                        display: "inline-flex", alignItems: "center", gap: 4,
-                        background: "#eff6ff", borderRadius: 8, padding: "4px 10px",
-                        fontSize: 12, fontWeight: 700, color: "#2563eb",
-                        marginBottom: 8,
-                      }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" strokeWidth="2.5">
-                          <circle cx="12" cy="12" r="3" />
-                          <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                        </svg>
-                        {s._distance < 1
-                          ? `${Math.round(s._distance * 1000)} m`
-                          : `${s._distance.toFixed(1)} km`}
-                      </div>
-                    )}
-
-                    {/* Stats row */}
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <div style={{
-                        flex: 1, background: "#fef9ee", borderRadius: 10,
-                        padding: "8px 0", textAlign: "center",
-                      }}>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
-                          ⭐ {s.totalReviews > 0 ? Number(s.averageRating).toFixed(1) : "—"}
-                        </div>
-                        <div style={{ fontSize: 10, color: "#6b7280", marginTop: 1 }}>{s.totalReviews > 0 ? `${s.totalReviews} đánh giá` : "Chưa có"}</div>
-                      </div>
-                      <div style={{
-                        flex: 1, background: "#f0fdf4", borderRadius: 10,
-                        padding: "8px 0", textAlign: "center",
-                      }}>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: "#22c55e" }}>{available}</div>
-                        <div style={{ fontSize: 10, color: "#6b7280", marginTop: 1 }}>Trống</div>
-                      </div>
-                      <div style={{
-                        flex: 1, background: "#eff6ff", borderRadius: 10,
-                        padding: "8px 0", textAlign: "center",
-                      }}>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: "#3b82f6" }}>{s.chargingSlots.length}</div>
-                        <div style={{ fontSize: 10, color: "#6b7280", marginTop: 1 }}>Tổng</div>
-                      </div>
-                      {s.chargingSlots.length > 0 && (
-                        <div style={{
-                          flex: 1.3, background: "#fffbeb", borderRadius: 10,
-                          padding: "8px 0", textAlign: "center",
-                        }}>
-                          <div style={{ fontSize: 13, fontWeight: 800, color: "#d97706" }}>
-                            {(() => {
-                              const prices = (s.pricingTiers || []).filter(t => t.isActive !== false).map(t => t.pricePerHour);
-                              return prices.length > 0 ? Math.min(...prices).toLocaleString("vi-VN") : "---";
-                            })()}đ
-                          </div>
-                          <div style={{ fontSize: 10, color: "#6b7280", marginTop: 1 }}>Giá/h</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+        {/* Search bar */}
+        <div className="sm-search-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            className="sm-search-input"
+            type="text"
+            placeholder="Tìm theo tên, địa chỉ..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="sm-search-clear" onClick={() => setSearch("")}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="3">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
           )}
         </div>
+
+        {/* ── Collapsible Filter Panel ── */}
+        {showFilters && (
+          <div className="sm-filter-panel">
+            <div className="sm-filter-row">
+              <select
+                value={minRating}
+                onChange={(e) => setMinRating(e.target.value)}
+                className="sm-select"
+              >
+                <option value="">⭐ Đánh giá</option>
+                <option value="1">≥ 1 ⭐</option>
+                <option value="2">≥ 2 ⭐</option>
+                <option value="3">≥ 3 ⭐</option>
+                <option value="4">≥ 4 ⭐</option>
+                <option value="4.5">≥ 4.5 ⭐</option>
+              </select>
+              <select
+                value={sortBy}
+                onChange={(e) => { setSortBy(e.target.value); setNearbyMode(false); }}
+                className="sm-select"
+              >
+                <option value="">Sắp xếp</option>
+                <option value="rating">Đánh giá cao nhất</option>
+                <option value="reviews">Nhiều đánh giá nhất</option>
+              </select>
+            </div>
+
+            <div className="sm-filter-nearby-row">
+              <button
+                className={`sm-nearby-btn ${nearbyMode ? "active" : ""}`}
+                onClick={() => {
+                  if (!userPos) {
+                    navigator.geolocation?.getCurrentPosition(
+                      (pos) => {
+                        setUserPos([pos.coords.latitude, pos.coords.longitude]);
+                        setNearbyMode(true);
+                        setSortBy("");
+                      },
+                      () => showToast.error("Không thể lấy vị trí. Vui lòng cho phép GPS."),
+                      { enableHighAccuracy: true, timeout: 8000 }
+                    );
+                  } else {
+                    setNearbyMode((v) => { if (!v) setSortBy(""); return !v; });
+                  }
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                </svg>
+                {nearbyMode ? "Đang xem gần tôi" : "Gần tôi"}
+              </button>
+
+              {nearbyMode && (
+                <select
+                  value={maxRadius}
+                  onChange={(e) => setMaxRadius(Number(e.target.value))}
+                  className="sm-select sm-select--blue"
+                >
+                  <option value={2}>Trong 2 km</option>
+                  <option value={5}>Trong 5 km</option>
+                  <option value={10}>Trong 10 km</option>
+                  <option value={20}>Trong 20 km</option>
+                  <option value={50}>Trong 50 km</option>
+                </select>
+              )}
+
+              {hasActiveFilters && (
+                <button
+                  className="sm-clear-filter"
+                  onClick={() => { setMinRating(""); setSortBy(""); setNearbyMode(false); }}
+                >
+                  Xóa lọc
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ══════════ RIGHT PANEL — Map ══════════ */}
-      <div className="station-map-view">
-
-        {/* Locate me */}
-        <button
-          onClick={() => {
-            if (userPos) setFlyTarget(userPos);
-            else
-              navigator.geolocation?.getCurrentPosition(
-                (pos) => {
-                  const p = [pos.coords.latitude, pos.coords.longitude];
-                  setUserPos(p);
-                  setFlyTarget(p);
-                },
-                () => showToast.error("Không thể lấy vị trí của bạn"),
-                { enableHighAccuracy: true, timeout: 8000 }
-              );
-          }}
-          style={{
-            position: "absolute", bottom: 24, right: 20, zIndex: 1000,
-            width: 48, height: 48, borderRadius: "50%",
-            background: "#fff", border: "none",
-            boxShadow: "0 2px 16px rgba(0,0,0,0.12)",
-            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#3b82f6", transition: "all .2s",
-          }}
-          title="Vị trí của tôi"
-          onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 20px rgba(59,130,246,0.25)"}
-          onMouseLeave={(e) => e.currentTarget.style.boxShadow = "0 2px 16px rgba(0,0,0,0.12)"}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-          </svg>
-        </button>
-
-        <MapContainer
-          center={userPos || defaultCenter}
-          zoom={13}
-          style={{ width: "100%", height: "100%", zIndex: 1 }}
-          zoomControl={false}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
-            url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-          />
-
-          {flyTarget && <FlyTo center={flyTarget} zoom={15} />}
-          {userPos && <Marker position={userPos} icon={userIcon} />}
-
-          {filtered.map((station) => {
-            const available = getAvailableSlots(station);
-            const st = statusConfig[station.operationalStatus] || statusConfig.Open;
-            const icon = station.operationalStatus === "Maintenance" ? maintenanceIcon : stationIcon;
+      {/* ── Cards ── */}
+      <div className="sm-card-list">
+        {loading ? (
+          <div className="sm-state-box">
+            <div style={{ fontSize: 32, marginBottom: 8, animation: "spin 1s linear infinite" }}>⚡</div>
+            <div style={{ fontSize: 14, color: "#6b7280" }}>Đang tải trạm sạc...</div>
+          </div>
+        ) : error ? (
+          <div className="sm-state-box">
+            <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.5 }}>⚠️</div>
+            <div style={{ fontSize: 14, color: "#ef4444", marginBottom: 8 }}>{error}</div>
+            <button className="sm-retry-btn" onClick={() => window.location.reload()}>Thử lại</button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="sm-state-box">
+            <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.4 }}>🔍</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#6b7280" }}>Không tìm thấy trạm sạc</div>
+            <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 4 }}>Thử nhập từ khóa khác</div>
+          </div>
+        ) : (
+          filtered.map((s) => {
+            const available = getAvailableSlots(s);
+            const st = statusConfig[s.operationalStatus] || statusConfig.Open;
+            const isSelected = selectedStation === s.id;
+            const img = getStationImage(s);
 
             return (
-              <Marker
-                key={station.id}
-                position={[station.latitude, station.longitude]}
-                icon={icon}
-                ref={(ref) => { if (ref) markerRefs.current[station.id] = ref; }}
+              <div
+                key={s.id}
+                className={`sm-card ${isSelected ? "sm-card--selected" : ""}`}
+                onClick={() => handleStationClick(s)}
               >
-                <Popup maxWidth={300} minWidth={260}>
-                  <div style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: 10,
-                        background: "linear-gradient(135deg, #22c55e, #16a34a)",
-                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                      }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
-                          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                        </svg>
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, fontSize: 15, color: "#1f2937", lineHeight: 1.3 }}>
-                          {station.name}
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
-                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: st.dot }} />
-                          <span style={{ fontSize: 11, fontWeight: 600, color: st.color }}>{st.label}</span>
-                        </div>
-                      </div>
+                {/* Image area */}
+                <div className="sm-card__img-wrap">
+                  {img ? (
+                    <img
+                      src={img}
+                      alt={s.name}
+                      className="sm-card__img"
+                      onError={() => setImgErrors((prev) => ({ ...prev, [s.id]: true }))}
+                    />
+                  ) : (
+                    <div className="sm-card__img-fallback">
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                      </svg>
                     </div>
+                  )}
 
-                    <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 10, lineHeight: 1.4 }}>
-                      📍 {station.address}
-                    </div>
+                  {/* Favorite */}
+                  <button
+                    className="sm-card__fav"
+                    onClick={(e) => toggleFavorite(e, s.id)}
+                    title={favorites[s.id] ? "Bỏ yêu thích" : "Thêm yêu thích"}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24"
+                      fill={favorites[s.id] ? "#ef4444" : "none"}
+                      stroke={favorites[s.id] ? "#ef4444" : "#9ca3af"} strokeWidth="2">
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg>
+                  </button>
 
-                    <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                      <div style={{ flex: 1, background: "#f0fdf4", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: "#22c55e" }}>{available}</div>
-                        <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>Slot trống</div>
-                      </div>
-                      <div style={{ flex: 1, background: "#eff6ff", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: "#3b82f6" }}>{station.chargingSlots.length}</div>
-                        <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>Tổng slot</div>
-                      </div>
-                      {station.chargingSlots.length > 0 && (
-                        <div style={{ flex: 1, background: "#fef3c7", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "#d97706" }}>
-                            {(() => {
-                              const prices = (station.pricingTiers || []).filter(t => t.isActive !== false).map(t => t.pricePerHour);
-                              return prices.length > 0 ? Math.min(...prices).toLocaleString("vi-VN") : "---";
-                            })()}đ
-                          </div>
-                          <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>Giá từ/h</div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        onClick={() => {
-                          const url = userPos
-                            ? `https://www.google.com/maps/dir/${userPos[0]},${userPos[1]}/${station.latitude},${station.longitude}`
-                            : `https://www.google.com/maps/dir/Current+Location/${station.latitude},${station.longitude}`;
-                          window.open(url, "_blank");
-                        }}
-                        style={{
-                          flex: 1, padding: "10px 12px",
-                          background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-                          color: "#fff", border: "none", borderRadius: 10,
-                          fontWeight: 600, fontSize: 13, cursor: "pointer",
-                          display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                        }}
-                      >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M3 11l19-9-9 19-2-8-8-2z" />
-                        </svg>
-                        Chỉ đường
-                      </button>
-                      <button
-                        onClick={() => navigate(`/driver/station/${station.id}`)}
-                        style={{
-                          flex: 1, padding: "10px 12px",
-                          background: "linear-gradient(135deg, #f97316, #ea580c)",
-                          color: "#fff", border: "none", borderRadius: 10,
-                          fontWeight: 600, fontSize: 13, cursor: "pointer",
-                          display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                        }}
-                      >
-                        Chi tiết
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M5 12h14M12 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    </div>
+                  {/* Status badge */}
+                  <div className="sm-card__status-badge">
+                    <div className="sm-card__status-dot" style={{ background: st.dot, boxShadow: `0 0 5px ${st.dot}` }} />
+                    <span style={{ color: st.color }}>{st.label}</span>
                   </div>
-                </Popup>
-              </Marker>
+                </div>
+
+                {/* Info */}
+                <div className="sm-card__body">
+                  <div className="sm-card__name">{s.name}</div>
+                  <div className="sm-card__address">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    <span>{s.address}</span>
+                  </div>
+
+                  {/* Distance badge */}
+                  {nearbyMode && s._distance !== undefined && (
+                    <div className="sm-card__distance-badge">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                      </svg>
+                      {s._distance < 1 ? `${Math.round(s._distance * 1000)} m` : `${s._distance.toFixed(1)} km`}
+                    </div>
+                  )}
+
+                  {/* Stats row */}
+                  <div className="sm-card__stats">
+                    <div className="sm-card__stat sm-card__stat--yellow">
+                      <div className="sm-card__stat-val">⭐ {s.totalReviews > 0 ? Number(s.averageRating).toFixed(1) : "—"}</div>
+                      <div className="sm-card__stat-lbl">{s.totalReviews > 0 ? `${s.totalReviews} đánh giá` : "Chưa có"}</div>
+                    </div>
+                    <div className="sm-card__stat sm-card__stat--green">
+                      <div className="sm-card__stat-val">{available}</div>
+                      <div className="sm-card__stat-lbl">Slot trống</div>
+                    </div>
+                    <div className="sm-card__stat sm-card__stat--blue">
+                      <div className="sm-card__stat-val">{s.chargingSlots.length}</div>
+                      <div className="sm-card__stat-lbl">Tổng slot</div>
+                    </div>
+                    {s.chargingSlots.length > 0 && (
+                      <div className="sm-card__stat sm-card__stat--amber">
+                        <div className="sm-card__stat-val" style={{ fontSize: 12 }}>
+                          {(() => {
+                            const prices = (s.pricingTiers || []).filter(t => t.isActive !== false).map(t => t.pricePerHour);
+                            return prices.length > 0 ? Math.min(...prices).toLocaleString("vi-VN") : "---";
+                          })()}đ
+                        </div>
+                        <div className="sm-card__stat-lbl">Giá/h</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             );
-          })}
-        </MapContainer>
+          })
+        )}
+      </div>
+    </div>
+  );
+
+  /* ══════════════════════════════════
+     DESKTOP LAYOUT (side by side)
+  ══════════════════════════════════ */
+  if (!isMobile) {
+    return (
+      <div className="sm-root sm-root--desktop">
+        {ListPanel}
+        {MapPanel}
+      </div>
+    );
+  }
+
+  /* ══════════════════════════════════
+     MOBILE LAYOUT (tab-based)
+  ══════════════════════════════════ */
+  return (
+    <div className="sm-root sm-root--mobile">
+      {/* Tab switcher */}
+      <div className="sm-tab-bar">
+        <button
+          className={`sm-tab-btn ${activeTab === "list" ? "sm-tab-btn--active" : ""}`}
+          onClick={() => setActiveTab("list")}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg>
+          Danh sách
+          {filtered.length > 0 && (
+            <span className="sm-tab-count">{filtered.length}</span>
+          )}
+        </button>
+        <button
+          className={`sm-tab-btn ${activeTab === "map" ? "sm-tab-btn--active" : ""}`}
+          onClick={() => setActiveTab("map")}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+            <line x1="9" y1="3" x2="9" y2="18" />
+            <line x1="15" y1="6" x2="15" y2="21" />
+          </svg>
+          Bản đồ
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="sm-mobile-content">
+        <div className={`sm-mobile-pane ${activeTab === "list" ? "sm-mobile-pane--active" : ""}`}>
+          {ListPanel}
+        </div>
+        <div className={`sm-mobile-pane ${activeTab === "map" ? "sm-mobile-pane--active" : ""}`}>
+          {MapPanel}
+        </div>
       </div>
     </div>
   );
