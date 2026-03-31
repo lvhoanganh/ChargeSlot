@@ -1247,11 +1247,7 @@ export default function Nav() {
           .cs-nav__links {
             display: none !important;
           }
-          .cs-nav__right .cs-btn,
-          .cs-nav__right > div > *:not(.cs-avatar-btn):not(.notification-bell-wrapper) {
-            display: none;
-          }
-          /* On mobile, only show notification bell + avatar, not the register/login buttons */
+          /* Ẩn nút Đăng nhập / Đăng ký (gap-2) trên mobile */
           .cs-nav__right .flex.items-center.gap-2 {
             display: none !important;
           }
