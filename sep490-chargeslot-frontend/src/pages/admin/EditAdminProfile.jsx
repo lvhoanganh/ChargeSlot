@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { useState } from "react";
+import { adminProfileApi } from "@/services/api";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
@@ -26,8 +27,25 @@ export default function EditAdminProfile() {
     if (!file) return;
 
     try {
+      // Preview ngay lập tức
       const dataUrl = await readFileAsDataUrl(file);
       setAvatar(dataUrl);
+
+      // Upload lên server (nếu BE có endpoint)
+      try {
+        const result = await adminProfileApi.uploadAvatar(file);
+        if (result?.avatarUrl) {
+          const fullUrl = result.avatarUrl.startsWith("/")
+            ? `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${result.avatarUrl}`
+            : result.avatarUrl;
+          setAvatar(fullUrl);
+          // Lưu server URL vào localStorage để đồng bộ
+          saveUserInfoByPhone(phoneNumber, { avatarDataUrl: fullUrl });
+          return;
+        }
+      } catch {
+        // BE chưa có endpoint avatar admin → dùng local preview
+      }
     } catch {
       // ignore
     }

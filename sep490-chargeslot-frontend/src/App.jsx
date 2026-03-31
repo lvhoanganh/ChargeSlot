@@ -59,6 +59,7 @@ const DriverLoyalty       = lazy(() => import("./pages/driver/DriverLoyalty"));
 // ── Owner pages ───────────────────────────────────────────────
 const OwnerPage             = lazy(() => import("./pages/owner/OwnerPage"));
 const CreateChargingStation = lazy(() => import("./pages/owner/CreateChargingStation"));
+const EditChargingStation   = lazy(() => import("./pages/owner/EditChargingStation"));
 const OwnerProfile          = lazy(() => import("./pages/owner/OwnerProfile"));
 const OwnerEditProfile      = lazy(() => import("./pages/owner/EditOwnerProfile"));
 const BookingRequests       = lazy(() => import("./pages/owner/BookingRequests"));
@@ -111,8 +112,9 @@ export default function App() {
 
           <Route element={<AuthOwnerMiddleware />}>
             <Route element={<OwnerLayout />}>
-              <Route path="stations" element={<OwnerPage />} />
+            <Route path="stations" element={<OwnerPage />} />
               <Route path="stations/add" element={<CreateChargingStation />} />
+              <Route path="stations/edit/:id" element={<EditChargingStation />} />
             </Route>
           </Route>
 

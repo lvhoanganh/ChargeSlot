@@ -139,6 +139,18 @@
   body {
     @apply bg-background text-foreground;
     font-family: "Inter", "Roboto", system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Prevent any element from causing horizontal overflow on mobile */
+  img, video, iframe, table {
+    max-width: 100%;
+  }
+
+  /* Khóa pinch-zoom trên iOS Safari (bỏ qua user-scalable=no trong viewport) */
+  html {
+    touch-action: pan-x pan-y;
   }
 }
 

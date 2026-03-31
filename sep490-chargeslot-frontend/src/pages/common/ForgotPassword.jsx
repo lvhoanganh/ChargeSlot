@@ -17,7 +17,7 @@ export default function ForgotPassword() {
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  
+
   // Flow states
   const [step, setStep] = useState(1); // 1: PHONE, 2: OTP, 3: NEW PASSWORD
   const [confirmationResult, setConfirmationResult] = useState(null);
@@ -33,7 +33,7 @@ export default function ForgotPassword() {
   // Khởi tạo hoặc tái tạo recaptchaVerifier
   const initRecaptcha = () => {
     if (window.recaptchaVerifier) {
-      try { window.recaptchaVerifier.clear(); } catch (_) {}
+      try { window.recaptchaVerifier.clear(); } catch (_) { }
       window.recaptchaVerifier = null;
     }
     try {
@@ -51,12 +51,12 @@ export default function ForgotPassword() {
     // Cleanup chống lỗi "removed: 0" khi Unmount
     return () => {
       if (window.recaptchaVerifier) {
-        try { window.recaptchaVerifier.clear(); } catch (_) {}
+        try { window.recaptchaVerifier.clear(); } catch (_) { }
         window.recaptchaVerifier = null;
       }
       clearInterval(countdownRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Hàm gửi lại OTP
@@ -155,11 +155,11 @@ export default function ForgotPassword() {
     try {
       // Xác nhận OTP với Firebase
       const userCredential = await confirmationResult.confirm(otp);
-      
+
       // Lấy ID Token và giữ lại để dùng cho step 3
       const token = await userCredential.user.getIdToken();
       setIdToken(token);
-      
+
       setStep(3);
       showToast.success("Xác thực SĐT thành công!");
     } catch (error) {
@@ -196,7 +196,7 @@ export default function ForgotPassword() {
         newPassword,
         firebaseIdToken: idToken,
       });
-      
+
       showToast.success("Đặt lại mật khẩu thành công!");
       if (role) {
         navigate(getBackPathByRole(role));
@@ -296,7 +296,7 @@ export default function ForgotPassword() {
             </div>
             <h2 className="cs-auth-form__title">Xác minh OTP</h2>
             <p className="cs-auth-form__subtitle">
-              Mã bảo mật Firebase đã gửi tới: <strong style={{color:"#f97316"}}>{phoneNumber}</strong>
+              Mã bảo mật Firebase đã gửi tới: <strong style={{ color: "#f97316" }}>{phoneNumber}</strong>
             </p>
 
             <div className="cs-auth-input-group">
@@ -337,18 +337,6 @@ export default function ForgotPassword() {
                   {otpCountdown > 0 ? "Mã OTP còn hiệu lực" : "Mã OTP đã hết hạn"}
                 </span>
               </div>
-
-              {/* Nút gửi lại */}
-              <button
-                type="button"
-                className="cs-otp-resend-btn"
-                disabled={otpCountdown > 0 || resendLoading}
-                onClick={handleResendOtp}
-                style={{ opacity: otpCountdown > 0 ? 0.45 : 1 }}
-              >
-                {resendLoading ? "Đang gửi lại..." : "🔄 Gửi lại mã OTP"}
-              </button>
-
               {/* Chỉnh sửa SĐT */}
               <button
                 type="button"

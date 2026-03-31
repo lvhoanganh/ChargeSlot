@@ -152,6 +152,14 @@ export default function OwnerPage() {
                     <div className="border-t border-slate-100 px-5 pb-5">
                       {/* Actions */}
                       <div className="flex gap-2 py-4 flex-wrap">
+                        {/* Edit station info button (always visible) */}
+                        <button
+                          onClick={() => navigate(`/stations/edit/${s.id}`)}
+                          className="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1.5"
+                        >
+                          ✏️ Chỉnh sửa trạm
+                        </button>
+
                         {(s.approvalStatus === "Draft" || s.approvalStatus === "Rejected") && (
                           <button
                             onClick={() => handleSubmitForApproval(s.id)}
@@ -178,7 +186,6 @@ export default function OwnerPage() {
                                 fetchStations();
                                 showToast.success(`${actionLabel} trạm thành công!`);
                               } catch (err) {
-                                // 400 means active bookings exist
                                 const msg = err.message || "Lỗi đổi trạng thái";
                                 if (msg.toLowerCase().includes("booking") || msg.includes("400")) {
                                   showToast.error("⚠️ Không thể tắt trạm! Vẫn còn booking chưa hoàn thành tại trạm này. Vui lòng chờ hết booking rồi thử lại.");
@@ -359,7 +366,7 @@ export default function OwnerPage() {
                                         const isCurrentStatus = slot.status === key;
                                         const labels = { Active: "Hoạt động", Inactive: "Ngưng", Maintenance: "Bảo trì" };
                                         const colors = { Active: "#22c55e", Inactive: "#94a3b8", Maintenance: "#f97316" };
-                                        
+
                                         // BE Enum mapping
                                         const statusValues = { Active: 0, Inactive: 1, Maintenance: 2 };
 

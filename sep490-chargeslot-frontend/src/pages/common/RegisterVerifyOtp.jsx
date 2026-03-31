@@ -143,19 +143,6 @@ export default function RegisterVerifyOtp() {
             {verifyOtpMutation.isPending ? "Đang xác thực..." : isExpired ? "Mã đã hết hạn" : "Xác thực OTP"}
           </button>
 
-          {isExpired && (
-            <div style={{ textAlign: "center", marginTop: 16 }}>
-              <button
-                type="button"
-                className="cs-otp-resend-btn"
-                onClick={() => resendOtpMutation.mutate(phoneNumber)}
-                disabled={resendOtpMutation.isPending}
-              >
-                {resendOtpMutation.isPending ? "Đang gửi..." : "🔄 Gửi lại mã OTP"}
-              </button>
-            </div>
-          )}
-
           <p style={{ textAlign: "center", marginTop: 24, fontSize: 14, color: "#64748b" }}>
             <Link to="/register" className="cs-auth-link">
               Quay lại trang đăng ký

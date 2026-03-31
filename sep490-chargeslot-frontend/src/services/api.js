@@ -234,17 +234,15 @@ export const stationApi = {
 
     getById: (id) => apiFetch(`/stations/${id}`),
 
-    create: (data) =>
-        apiFetch("/stations", {
-            method: "POST",
-            body: JSON.stringify(data),
-        }),
+    create: (formData) =>
+        apiFetchFormData("/stations", formData, "POST"),
 
-    update: (id, data) =>
-        apiFetch(`/stations/${id}`, {
-            method: "PUT",
-            body: JSON.stringify(data),
-        }),
+    /**
+     * Cập nhật trạm sạc — BE dùng [FromForm] UpdateStationFormDto
+     * Phải gửi multipart/form-data, không được gửi JSON
+     */
+    update: (id, formData) =>
+        apiFetchFormData(`/stations/${id}`, formData, "PUT"),
 
     delete: (id) =>
         apiFetch(`/stations/${id}`, { method: "DELETE" }),
@@ -647,6 +645,14 @@ export const ownerProfileApi = {
         const formData = new FormData();
         formData.append("file", file);
         return apiFetchFormData("/owner/profile/avatar", formData, "POST");
+    },
+};
+
+export const adminProfileApi = {
+    uploadAvatar: (file) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        return apiFetchFormData("/admin/profile/avatar", formData, "POST");
     },
 };
 

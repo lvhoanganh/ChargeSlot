@@ -17,11 +17,13 @@ export default function OwnerProfile() {
   const { phoneNumber: storedPhoneNumber } = useAuthStore();
   const phoneNumber =
     storedPhoneNumber || localStorage.getItem("phoneNumber") || "";
-  const avatarSrc = getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR;
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [avatarSrc, setAvatarSrc] = useState(
+    () => getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR
+  );
 
   const businessName = normalizeOptionalText(profile?.businessName);
   const taxCode = normalizeOptionalText(profile?.taxCode);
@@ -35,7 +37,20 @@ export default function OwnerProfile() {
       setError("");
       try {
         const data = await getOwnerProfile();
-        if (!cancelled) setProfile(data);
+        if (!cancelled) {
+          setProfile(data);
+          // Ưu tiên avatar từ server (đồng bộ qua mọi thiết bị)
+          if (data?.avatarUrl) {
+            const url = data.avatarUrl.startsWith("/")
+              ? `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${data.avatarUrl}`
+              : data.avatarUrl;
+            setAvatarSrc(url);
+          } else {
+            // Fallback: localStorage (chỉ có trên thiết bị đã upload)
+            const local = getStoredAvatarDataUrl(phoneNumber);
+            if (local) setAvatarSrc(local);
+          }
+        }
       } catch (e) {
         if (!cancelled) setError(getApiErrorMessage(e, "Không thể tải thông tin hồ sơ"));
       } finally {
@@ -47,7 +62,7 @@ export default function OwnerProfile() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [phoneNumber]);
 
   return (
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/authStore";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
@@ -13,7 +14,10 @@ export default function AdminProfile() {
   const { phoneNumber: storedPhoneNumber } = useAuthStore();
   const phoneNumber =
     storedPhoneNumber || localStorage.getItem("phoneNumber") || "";
-  const avatarSrc = getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR;
+  // Admin chưa có server-side avatar API — chỉ lưu localStorage
+  const [avatarSrc] = useState(
+    () => getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR
+  );
 
   return (
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
