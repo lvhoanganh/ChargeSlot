@@ -9,7 +9,7 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<List<ChargingStationDto>> GetAllByOwnerAsync(int ownerUserId);
         Task<ChargingStationDto> CreateAsync(int ownerUserId, CreateChargingStationDto dto);
         Task<ChargingStationDto> CreateFromFormAsync(int ownerUserId, CreateStationFormDto dto, HttpRequest request);
-        Task UpdateAsync(int id, int ownerUserId, UpdateChargingStationDto dto);
+        Task<ChargingStationDto> UpdateFromFormAsync(int id, int ownerUserId, UpdateStationFormDto dto, HttpRequest request);
         Task DeleteAsync(int id, int ownerUserId);
 
         // Approval Flow

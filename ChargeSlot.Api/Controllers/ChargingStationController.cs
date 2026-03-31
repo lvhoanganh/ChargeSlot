@@ -68,15 +68,16 @@ namespace ChargeSlot.Api.Controllers
             }
         }
 
-        /// <summary>Update station info (only when Draft or Rejected).</summary>
+        /// <summary>Update station info (multipart/form-data, cho phép sửa mọi lúc).</summary>
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] UpdateChargingStationDto dto)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<ChargingStationDto>> Update(int id, [FromForm] UpdateStationFormDto dto)
         {
             var userId = GetUserId();
             try
             {
-                await _stationService.UpdateAsync(id, userId, dto);
-                return NoContent();
+                var updated = await _stationService.UpdateFromFormAsync(id, userId, dto, HttpContext.Request);
+                return Ok(updated);
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }

@@ -266,7 +266,13 @@ namespace ChargeSlot.Api.Services.Implementation
             return MapToDto(created);
         }
 
-        public async Task UpdateAsync(int id, int ownerUserId, UpdateChargingStationDto dto)
+
+
+        /// <summary>
+        /// Cập nhật trạm từ multipart/form-data: upload ảnh mới, giữ ảnh cũ, thay đổi operating hours.
+        /// Cho phép sửa ở MỌI trạng thái (không hạn chế Draft/Rejected).
+        /// </summary>
+        public async Task<ChargingStationDto> UpdateFromFormAsync(int id, int ownerUserId, UpdateStationFormDto dto, HttpRequest request)
         {
             var station = await _stationRepo.GetByIdAsync(id, tracking: true, includeDetails: true);
             if (station == null)
@@ -274,25 +280,17 @@ namespace ChargeSlot.Api.Services.Implementation
             if (station.OwnerUserId != ownerUserId)
                 throw new UnauthorizedAccessException("You do not own this station.");
 
-            // Only allow edits when Draft or Rejected
-            if (station.ApprovalStatus != ApprovalStatus.Draft &&
-                station.ApprovalStatus != ApprovalStatus.Rejected)
-            {
-                throw new InvalidOperationException(
-                    $"Cannot edit station in '{station.ApprovalStatus}' status. Only Draft or Rejected stations can be edited.");
-            }
-
+            // Update basic info
             station.Name = dto.Name;
             station.Address = dto.Address;
             station.Description = dto.Description;
             station.Latitude = dto.Latitude;
             station.Longitude = dto.Longitude;
-            station.LayoutImageUrl = dto.LayoutImageUrl;
-            station.LayoutWidth = dto.LayoutWidth;
-            station.LayoutHeight = dto.LayoutHeight;
+            if (dto.LayoutWidth.HasValue) station.LayoutWidth = dto.LayoutWidth.Value;
+            if (dto.LayoutHeight.HasValue) station.LayoutHeight = dto.LayoutHeight.Value;
             station.UpdatedAt = DateTimeHelper.VietnamNow();
 
-            // Replace operating hours
+            // Replace operating hours (nếu có truyền)
             if (dto.OperatingHours != null)
             {
                 _context.StationOperatingHours.RemoveRange(station.OperatingHours);
@@ -303,32 +301,55 @@ namespace ChargeSlot.Api.Services.Implementation
                     station.OperatingHours.Add(new StationOperatingHours
                     {
                         StationId = station.Id,
-                        DayOfWeek = h.DayOfWeek,
+                        DayOfWeek = (byte)h.DayOfWeek,
                         IsClosed = h.IsClosed,
-                        OpenTime = h.OpenTime,
-                        CloseTime = h.CloseTime
+                        OpenTime = !string.IsNullOrEmpty(h.OpenTime) ? TimeOnly.Parse(h.OpenTime) : null,
+                        CloseTime = !string.IsNullOrEmpty(h.CloseTime) ? TimeOnly.Parse(h.CloseTime) : null
                     });
                 }
             }
 
-            // Replace images
-            if (dto.ImageUrls != null)
-            {
-                _context.StationImages.RemoveRange(station.Images);
-                station.Images.Clear();
+            // Handle images: keep existing + add new uploads
+            // 1. Xóa ảnh cũ không nằm trong danh sách giữ lại
+            var keepUrls = dto.ExistingImageUrls ?? new List<string>();
+            var imagesToRemove = station.Images.Where(i => !keepUrls.Contains(i.ImageUrl)).ToList();
+            _context.StationImages.RemoveRange(imagesToRemove);
 
-                foreach (var url in dto.ImageUrls)
+            // 2. Upload ảnh mới
+            if (dto.Images?.Length > 0)
+            {
+                var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "stations", station.Id.ToString());
+                Directory.CreateDirectory(uploadDir);
+
+                foreach (var file in dto.Images)
                 {
-                    station.Images.Add(new StationImage
+                    if (file.Length > 0)
                     {
-                        StationId = station.Id,
-                        ImageUrl = url,
-                        CreatedAt = DateTimeHelper.VietnamNow()
-                    });
+                        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                        var fileName = $"{Guid.NewGuid():N}{ext}";
+                        var filePath = Path.Combine(uploadDir, fileName);
+
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
+
+                        var imageUrl = $"/uploads/stations/{station.Id}/{fileName}";
+                        station.Images.Add(new StationImage
+                        {
+                            StationId = station.Id,
+                            ImageUrl = imageUrl,
+                            CreatedAt = DateTimeHelper.VietnamNow()
+                        });
+                    }
                 }
             }
 
             await _stationRepo.SaveChangesAsync();
+
+            // Reload to get full data
+            var updated = await _stationRepo.GetByIdAsync(station.Id) ?? station;
+            return MapToDto(updated);
         }
 
         public async Task DeleteAsync(int id, int ownerUserId)
