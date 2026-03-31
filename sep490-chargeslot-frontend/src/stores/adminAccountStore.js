@@ -54,4 +54,18 @@ export const useAdminAccountStore = create((set, get) => ({
     const res = await instance.patch(`/AdminAccounts/${id}/toggle-ban`);
     return res.data;
   },
+
+  /** Reset toàn bộ state về mặc định (gọi khi logout) */
+  reset: () => set({
+    users: [],
+    totalItems: 0,
+    summary: { total: 0, active: 0, banned: 0 },
+    loading: false,
+    error: "",
+  }),
 }));
+
+// Tự động reset khi logout (lắng nghe event từ authStore.logout())
+window.addEventListener("cs:logout", () => {
+  useAdminAccountStore.getState().reset();
+});

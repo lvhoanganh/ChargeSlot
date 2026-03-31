@@ -1,10 +1,10 @@
 import { Navigate, Outlet } from "react-router-dom";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function AuthAdminMiddleware() {
-  const token = localStorage.getItem("accessToken");
-  const role = localStorage.getItem("role");
+  const { token, role } = useAuthStore();
   if (!token || role !== "Admin") {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
   return <Outlet />;
 }

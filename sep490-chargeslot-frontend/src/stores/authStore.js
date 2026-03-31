@@ -66,18 +66,31 @@ export const useAuthStore = create((set) => ({
         }).catch(() => {}); // Bỏ qua lỗi mạng — vẫn logout local
       }
     } catch { /* silent */ }
+    // Clear tất cả auth keys
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("userId");
     localStorage.removeItem("role");
     localStorage.removeItem("phoneNumber");
     localStorage.removeItem("expiresAtUtc");
+    // Clear profile cache (avatar, tên, ...) của user cũ
+    localStorage.removeItem("userInfoByPhone");
+    // Clear charging session keys và các key user-specific khác
     Object.keys(localStorage).forEach(k => {
-      if (k.startsWith("activeChargingBooking_") || k === "activeChargingBookingId") {
+      if (
+        k.startsWith("activeChargingBooking_") ||
+        k === "activeChargingBookingId" ||
+        k.startsWith("cs_") ||
+        k.startsWith("wallet_") ||
+        k.startsWith("booking_") ||
+        k.startsWith("noti_")
+      ) {
         localStorage.removeItem(k);
       }
     });
     set({ token: null, refreshToken: null, userId: null, role: null, phoneNumber: null });
+    // Broadcast logout event → các store khác (admin, owner, ...) listen và reset
+    window.dispatchEvent(new Event("cs:logout"));
   },
 
   /** Refresh access token silently dùng refreshToken */
