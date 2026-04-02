@@ -260,29 +260,6 @@ namespace ChargeSlot.Api.Services.Implementation
                     }
                 }
 
-                await transaction.CommitAsync();
-
-                // Notifications (ngoài transaction)
-                var stationName = dispute.Booking.ChargingSlot?.ChargingStation?.Name ?? "";
-                var driverName = dispute.Booking.Driver?.User?.FullName ?? "Driver";
-
-                await _notificationService.SendAsync(
-                    dispute.Booking.DriverUserId,
-                    "Kết quả khiếu nại",
-                    dto.IsDriverWin
-                        ? $"Khiếu nại của bạn tại trạm {stationName} đã được chấp nhận. {dispute.Booking.TotalAmount:N0}đ đã hoàn vào ví. {dto.AdminNote}"
-                        : $"Khiếu nại của bạn tại trạm {stationName} không được chấp nhận. Tiền đã thanh toán cho chủ trạm. {dto.AdminNote}",
-                    NotificationType.Dispute);
-
-                var ownerUserId = dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId ?? 0;
-                await _notificationService.SendAsync(
-                    ownerUserId,
-                    "Kết quả khiếu nại",
-                    dto.IsDriverWin
-                        ? $"Khiếu nại từ {driverName} tại trạm {stationName}: Driver được hoàn tiền. {dto.AdminNote}"
-                        : $"Khiếu nại từ {driverName} tại trạm {stationName}: Bạn được thanh toán. {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví. {dto.AdminNote}",
-                    NotificationType.Dispute);
-
                 // ── CHECK BANNING RULES (Lũy tiến: lần 1 -> 30 ngày, lần 2 -> vĩnh viễn) ──
                 var startOfMonth = new DateTime(now.Year, now.Month, 1);
                 
@@ -359,6 +336,29 @@ namespace ChargeSlot.Api.Services.Implementation
                         }
                     }
                 }
+
+                await transaction.CommitAsync();
+
+                // Notifications (ngoài transaction)
+                var stationName = dispute.Booking.ChargingSlot?.ChargingStation?.Name ?? "";
+                var driverName = dispute.Booking.Driver?.User?.FullName ?? "Driver";
+
+                await _notificationService.SendAsync(
+                    dispute.Booking.DriverUserId,
+                    "Kết quả khiếu nại",
+                    dto.IsDriverWin
+                        ? $"Khiếu nại của bạn tại trạm {stationName} đã được chấp nhận. {dispute.Booking.TotalAmount:N0}đ đã hoàn vào ví. {dto.AdminNote}"
+                        : $"Khiếu nại của bạn tại trạm {stationName} không được chấp nhận. Tiền đã thanh toán cho chủ trạm. {dto.AdminNote}",
+                    NotificationType.Dispute);
+
+                var ownerUserId = dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId ?? 0;
+                await _notificationService.SendAsync(
+                    ownerUserId,
+                    "Kết quả khiếu nại",
+                    dto.IsDriverWin
+                        ? $"Khiếu nại từ {driverName} tại trạm {stationName}: Driver được hoàn tiền. {dto.AdminNote}"
+                        : $"Khiếu nại từ {driverName} tại trạm {stationName}: Bạn được thanh toán. {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví. {dto.AdminNote}",
+                    NotificationType.Dispute);
 
                 return MapToDto(dispute);
             }

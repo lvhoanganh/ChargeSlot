@@ -61,7 +61,7 @@ namespace ChargeSlot.Api.Controllers
         /// </summary>
         [HttpPut("{id}/confirm-transfer")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> ConfirmTransfer(int id, [FromForm] IFormFile receiptImage)
+        public async Task<IActionResult> ConfirmTransfer(int id, IFormFile receiptImage)
         {
             try
             {

@@ -82,11 +82,17 @@ namespace ChargeSlot.Api.Services.Implementation
             if (now > latestCheckin)
                 throw new InvalidOperationException("Đã quá thời gian check-in cho booking này.");
 
-            // 4. Chống double check-in: nếu đã có session cho booking này thì từ chối
+            // 4. Chống double check-in (cùng 1 booking)
             var existingSession = await _db.ChargingSessions
                 .AnyAsync(s => s.BookingId == booking.Id);
             if (existingSession)
                 throw new InvalidOperationException("Booking này đã được check-in trước đó.");
+
+            // 4.5. Chống 2 phiên sạc đè nhau trên cùng 1 slot (thực tế vật lý)
+            var hasOngoingSession = await _db.ChargingSessions
+                .AnyAsync(s => s.Booking.SlotId == slot.Id && s.ActualEndTime == null);
+            if (hasOngoingSession)
+                throw new InvalidOperationException("Trụ sạc hiện vẫn đang có xe cắm sạc. Vui lòng yêu cầu xe trước kết thúc trước khi check-in.");
 
             // 5. Update booking status
             booking.Status = BookingStatus.CheckedIn;
