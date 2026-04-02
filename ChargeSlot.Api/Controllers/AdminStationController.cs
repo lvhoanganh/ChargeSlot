@@ -70,5 +70,19 @@ namespace ChargeSlot.Api.Controllers
             catch (KeyNotFoundException) { return NotFound(); }
             catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
+
+        /// <summary>Toggle ban status of a station (Manual Ban/Unban).</summary>
+        [HttpPatch("{id:int}/toggle-ban")]
+        public async Task<IActionResult> ToggleBan(int id)
+        {
+            var adminUserId = GetUserId();
+            try
+            {
+                var newStatus = await _stationService.ToggleBanStationAsync(id, adminUserId);
+                return Ok(new { stationId = id, status = newStatus });
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (Exception ex) { return StatusCode(500, new { message = "Lỗi hệ thống.", details = ex.Message }); }
+        }
     }
 }

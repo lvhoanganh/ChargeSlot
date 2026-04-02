@@ -560,6 +560,27 @@ namespace ChargeSlot.Api.Services.Implementation
             await _stationRepo.SaveChangesAsync();
         }
 
+        public async Task<string> ToggleBanStationAsync(int id, int adminUserId)
+        {
+            var station = await _stationRepo.GetByIdAsync(id);
+            if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
+
+            if (station.BannedUntil == null)
+            {
+                station.OperationalStatus = Enums.StationOperationalStatus.Inactive;
+                station.BannedUntil = DateTimeHelper.VietnamNow().AddYears(100);
+            }
+            else
+            {
+                station.OperationalStatus = Enums.StationOperationalStatus.Active;
+                station.BannedUntil = null;
+                station.BanCount = 0; 
+            }
+
+            await _stationRepo.SaveChangesAsync();
+            return station.BannedUntil == null ? "Active" : "Banned";
+        }
+
         // ─────────────── VALIDATION ───────────────
 
         private static List<string> ValidateForSubmission(ChargingStation station)

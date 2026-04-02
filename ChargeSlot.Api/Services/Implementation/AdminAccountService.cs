@@ -133,18 +133,21 @@ namespace ChargeSlot.Api.Services.Implementation
             if (roles.Contains(RoleConstants.Admin))
                 throw new InvalidOperationException("Admin accounts cannot be banned.");
 
-            // Chỉ toggle ACTIVE <-> BANNED
+            // Chỉ toggle ACTIVE <-> BANNED / SUSPENDED
             if (user.Status == UserStatusConstants.Active)
             {
                 user.Status = UserStatusConstants.Banned;
+                user.BannedUntil = DateTimeHelper.VietnamNow().AddYears(100); // Vĩnh viễn mốc tượng trưng
             }
-            else if (user.Status == UserStatusConstants.Banned)
+            else if (user.Status == UserStatusConstants.Banned || user.Status == UserStatusConstants.Suspended)
             {
                 user.Status = UserStatusConstants.Active;
+                user.BannedUntil = null;
+                user.BanCount = 0; // Khi được Admin ân xá, xóa quota vi phạm
             }
             else
             {
-                throw new InvalidOperationException("Only ACTIVE or BANNED accounts can be toggled.");
+                throw new InvalidOperationException("Only ACTIVE, SUSPENDED or BANNED accounts can be toggled.");
             }
 
             var updated = await _adminAccountRepository.UpdateAsync(user);
