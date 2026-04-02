@@ -268,7 +268,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         : $"Khiếu nại của bạn tại trạm {stationName} không được chấp nhận. Tiền đã thanh toán cho chủ trạm. {dto.AdminNote}",
                     NotificationType.Dispute);
 
-                var ownerUserId = dispute.Booking.ChargingSlot.ChargingStation.OwnerUserId;
+                var ownerUserId = dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId ?? 0;
                 await _notificationService.SendAsync(
                     ownerUserId,
                     "Kết quả khiếu nại",
