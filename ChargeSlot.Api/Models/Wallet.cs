@@ -14,6 +14,7 @@ namespace ChargeSlot.Api.Models
         /// <summary>System wallets: ESCROW, PLATFORM_REVENUE, CLEARING.</summary>
         public string? SystemCode { get; set; }
 
+        [System.ComponentModel.DataAnnotations.ConcurrencyCheck]
         public decimal AvailableBalance { get; set; }
         public decimal FrozenBalance { get; set; }
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();

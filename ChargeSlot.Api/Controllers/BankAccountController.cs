@@ -128,10 +128,14 @@ namespace ChargeSlot.Api.Controllers
             var account = await _db.BankAccounts.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
             if (account == null) return NotFound(new { message = "Tài khoản ngân hàng không tồn tại." });
 
-            // Kiểm tra còn PayoutRequest pending không
-            var hasPending = await _db.PayoutRequests.AnyAsync(p => p.BankAccountId == id && p.Status == Enums.PayoutStatus.Pending);
+            // Kiểm tra còn WithdrawRequest pending không
+            var hasPending = await _db.Set<Models.WithdrawRequest>().AnyAsync(w =>
+                w.UserId == userId
+                && w.BankAccountNumber == account.BankAccountNumber
+                && w.BankName == account.BankName
+                && (w.Status == Enums.WithdrawStatus.Pending || w.Status == Enums.WithdrawStatus.Approved || w.Status == Enums.WithdrawStatus.TransferCompleted));
             if (hasPending)
-                return BadRequest(new { message = "Không thể xóa — đang có yêu cầu rút tiền chờ duyệt." });
+                return BadRequest(new { message = "Không thể xóa — đang có yêu cầu rút tiền chưa hoàn tất." });
 
             _db.BankAccounts.Remove(account);
             await _db.SaveChangesAsync();

@@ -17,6 +17,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IWalletRepository _walletRepo;
         private readonly ChargeSlotDbContext _context;
         private readonly ILogger<BookingService> _logger;
+        private readonly ISystemConfigService _configService;
 
         public BookingService(
             IBookingRepository bookingRepo,
@@ -24,7 +25,8 @@ namespace ChargeSlot.Api.Services.Implementation
             INotificationService notificationService,
             IWalletRepository walletRepo,
             ChargeSlotDbContext context,
-            ILogger<BookingService> logger)
+            ILogger<BookingService> logger,
+            ISystemConfigService configService)
         {
             _bookingRepo = bookingRepo;
             _slotRepo = slotRepo;
@@ -32,6 +34,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _walletRepo = walletRepo;
             _context = context;
             _logger = logger;
+            _configService = configService;
         }
 
         /// <summary>
@@ -40,49 +43,58 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<BookingDto> CreateBookingAsync(int driverUserId, CreateBookingDto dto)
         {
-            // Validate: DurationHours phải > 0 và <= 24
-            if (dto.DurationHours <= 0)
-                throw new InvalidOperationException("Thời lượng sạc phải lớn hơn 0.");
-            if (dto.DurationHours > 24)
-                throw new InvalidOperationException("Thời lượng sạc tối đa là 24 giờ.");
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Validate: DurationHours phải > 0 và <= 24
+                if (dto.DurationHours <= 0)
+                    throw new InvalidOperationException("Thời lượng sạc phải lớn hơn 0.");
+                if (dto.DurationHours > 24)
+                    throw new InvalidOperationException("Thời lượng sạc tối đa là 24 giờ.");
 
-            // Validate: StartTime phải trong tương lai và cách hiện tại ít nhất 30 phút
-            var minutesUntilStart = (dto.StartTime - DateTimeHelper.VietnamNow()).TotalMinutes;
-            if (minutesUntilStart <= 0)
-                throw new InvalidOperationException("Thời gian bắt đầu phải trong tương lai.");
-            if (minutesUntilStart < 30)
-                throw new InvalidOperationException("Phải đặt trước ít nhất 30 phút trước giờ sạc.");
+                // Cấp khóa lock đồng bộ (Prevent Simultaneous Double Booking)
+                var lockResource = $"SlotLock_{dto.SlotId}";
+                await _context.Database.ExecuteSqlRawAsync(
+                    "EXEC sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000",
+                    lockResource);
 
-            // Validate: Driver chỉ được có tối đa 3 booking đang chờ xử lý
-            var pendingCount = await _context.Bookings
-                .CountAsync(b => b.DriverUserId == driverUserId
-                    && (b.Status == BookingStatus.WaitingOwner || b.Status == BookingStatus.PendingPayment));
-            if (pendingCount >= 3)
-                throw new InvalidOperationException("Bạn đang có 3 booking chờ xử lý. Vui lòng hoàn tất hoặc hủy bớt trước khi đặt mới.");
+                // Validate: StartTime phải trong tương lai và cách hiện tại ít nhất 30 phút
+                var minutesUntilStart = (dto.StartTime - DateTimeHelper.VietnamNow()).TotalMinutes;
+                if (minutesUntilStart <= 0)
+                    throw new InvalidOperationException("Thời gian bắt đầu phải trong tương lai.");
+                if (minutesUntilStart < 30)
+                    throw new InvalidOperationException("Phải đặt trước ít nhất 30 phút trước giờ sạc.");
 
-            // Step 5: Compute end time
-            var endTime = dto.StartTime.AddHours((double)dto.DurationHours);
+                // Validate: Driver chỉ được có tối đa 3 booking đang chờ xử lý
+                var pendingCount = await _context.Bookings
+                    .CountAsync(b => b.DriverUserId == driverUserId
+                        && (b.Status == BookingStatus.WaitingOwner || b.Status == BookingStatus.PendingPayment));
+                if (pendingCount >= 3)
+                    throw new InvalidOperationException("Bạn đang có 3 booking chờ xử lý. Vui lòng hoàn tất hoặc hủy bớt trước khi đặt mới.");
 
-            // Lấy slot để tính giá
-            var slot = await _slotRepo.GetByIdAsync(dto.SlotId)
-                ?? throw new InvalidOperationException("Slot không tồn tại.");
+                // Step 5: Compute end time
+                var endTime = dto.StartTime.AddHours((double)dto.DurationHours);
 
-            if (slot.Status == SlotStatus.Inactive || slot.Status == SlotStatus.Maintenance)
-                throw new InvalidOperationException("Slot hiện không khả dụng.");
+                // Lấy slot để tính giá
+                var slot = await _slotRepo.GetByIdAsync(dto.SlotId)
+                    ?? throw new InvalidOperationException("Slot không tồn tại.");
 
-            // Step 6: Validate slot availability (check overlap)
-            var hasOverlap = await _bookingRepo.HasOverlappingBookingAsync(
-                dto.SlotId, dto.StartTime, endTime);
+                if (slot.Status == SlotStatus.Inactive || slot.Status == SlotStatus.Maintenance)
+                    throw new InvalidOperationException("Slot hiện không khả dụng.");
 
-            // Step 7: Available?
-            if (hasOverlap)
-                throw new InvalidOperationException("Slot đã được đặt trong khung giờ này.");
+                // Step 6: Validate slot availability (check overlap)
+                var hasOverlap = await _bookingRepo.HasOverlappingBookingAsync(
+                    dto.SlotId, dto.StartTime, endTime);
 
-            // Không cho 1 driver book trùng giờ (dù khác slot)
-            var driverOverlap = await _bookingRepo.HasDriverOverlappingBookingAsync(
-                driverUserId, dto.StartTime, endTime);
-            if (driverOverlap)
-                throw new InvalidOperationException("Bạn đã có booking trùng khung giờ này. Vui lòng chọn giờ khác.");
+                // Step 7: Available?
+                if (hasOverlap)
+                    throw new InvalidOperationException("Slot đã được đặt trong khung giờ này.");
+
+                // Không cho 1 driver book trùng giờ (dù khác slot)
+                var driverOverlap = await _bookingRepo.HasDriverOverlappingBookingAsync(
+                    driverUserId, dto.StartTime, endTime);
+                if (driverOverlap)
+                    throw new InvalidOperationException("Bạn đã có booking trùng khung giờ này. Vui lòng chọn giờ khác.");
 
             // Tính giá từ pricing tiers (station-level) — tách theo từng khung giờ
             // VD: booking 11h-14h, tier 5h-12h=10K + 12h-15h=12K → 1h×10K + 2h×12K = 34K
@@ -178,6 +190,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 });
             }
 
+            var configs = await _configService.GetCurrentConfigsAsync();
+
             var booking = new Booking
             {
                 DriverUserId = driverUserId,
@@ -191,7 +205,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 PointsDiscountAmount = pointsDiscountAmount,
                 Status = BookingStatus.WaitingOwner,
                 BookingExtraServices = extraServiceRecords,
-                CreatedAt = DateTimeHelper.VietnamNow()
+                CreatedAt = DateTimeHelper.VietnamNow(),
+
+                // Snapshots
+                Refund100DeadlineAt = dto.StartTime.AddHours(-configs.RefundPolicy100_Hrs),
+                Refund50DeadlineAt = dto.StartTime.AddHours(-configs.RefundPolicy50_Hrs),
+                PlatformFeeRateSnapshot = configs.Platform_Fee_Rate,
+                VatRateSnapshot = configs.VAT_Rate
             };
 
             await _bookingRepo.CreateAsync(booking);
@@ -207,9 +227,17 @@ namespace ChargeSlot.Api.Services.Implementation
                     NotificationType.Booking);
             }
 
-            // Reload with details
-            var result = await _bookingRepo.GetByIdWithDetailsAsync(booking.Id);
-            return MapToDto(result!);
+                // Reload with details
+                var result = await _bookingRepo.GetByIdWithDetailsAsync(booking.Id);
+                
+                await transaction.CommitAsync();
+                return MapToDto(result!);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         /// <summary>
@@ -217,34 +245,46 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<BookingDto> AcceptBookingAsync(int ownerUserId, int bookingId)
         {
-            var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
-                ?? throw new InvalidOperationException("Booking không tồn tại.");
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
+                    ?? throw new InvalidOperationException("Booking không tồn tại.");
 
-            // Verify owner quyền
-            if (booking.ChargingSlot.ChargingStation.OwnerUserId != ownerUserId)
-                throw new UnauthorizedAccessException("Bạn không có quyền thao tác trên booking này.");
+                // Lock độc quyền trên Slot này để chống việc Accept 2 Booking cùng 1 lúc (Double-Booking Race Condition)
+                var lockResource = $"SlotLock_{booking.SlotId}";
+                await _context.Database.ExecuteSqlRawAsync(
+                    "EXEC sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000",
+                    lockResource);
 
-            if (booking.Status != BookingStatus.WaitingOwner)
-                throw new InvalidOperationException("Booking không ở trạng thái chờ duyệt.");
+                // Verify owner quyền
+                if (booking.ChargingSlot.ChargingStation.OwnerUserId != ownerUserId)
+                    throw new UnauthorizedAccessException("Bạn không có quyền thao tác trên booking này.");
 
-            // Check: đã có booking khác được accept trùng giờ trên slot này chưa?
-            var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
-                booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
-            if (hasConflict)
-                throw new InvalidOperationException("Slot đã có booking khác được chấp nhận trong khung giờ này.");
+                if (booking.Status != BookingStatus.WaitingOwner)
+                    throw new InvalidOperationException("Booking không ở trạng thái chờ duyệt.");
 
-            // Step 16: Set booking status = PendingPayment
-            booking.Status = BookingStatus.PendingPayment;
+                // Check: đã có booking khác được accept trùng giờ trên slot này chưa?
+                var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
+                    booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
+                if (hasConflict)
+                    throw new InvalidOperationException("Slot đã có booking khác được chấp nhận trong khung giờ này.");
 
-            // Step 18: Compute payment deadline (30 phút hoặc đến lúc sạc)
+                // Step 16: Set booking status = PendingPayment
+                booking.Status = BookingStatus.PendingPayment;
+
+            // Step 18: Compute payment deadline
+            var configs = await _configService.GetCurrentConfigsAsync();
+            var paymentExpiryMinutes = configs.Payment_Expiry_Minutes;
+
             var timeToCharging = booking.StartTime - DateTimeHelper.VietnamNow();
-            if (timeToCharging.TotalMinutes < 30)
+            if (timeToCharging.TotalMinutes < paymentExpiryMinutes)
             {
                 booking.PaymentExpiresAt = booking.StartTime;
             }
             else
             {
-                booking.PaymentExpiresAt = DateTimeHelper.VietnamNow().AddMinutes(30);
+                booking.PaymentExpiresAt = DateTimeHelper.VietnamNow().AddMinutes(paymentExpiryMinutes);
             }
 
             await _bookingRepo.UpdateAsync(booking);
@@ -266,14 +306,21 @@ namespace ChargeSlot.Api.Services.Implementation
                     NotificationType.Booking);
             }
 
-            // Notify Driver: booking được chấp nhận
-            await _notificationService.SendAsync(
-                booking.DriverUserId,
-                "Đặt chỗ được chấp nhận",
-                $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) đã được chấp nhận. Vui lòng thanh toán {booking.TotalAmount:N0}đ trước {booking.PaymentExpiresAt:HH:mm dd/MM}.",
-                NotificationType.Booking);
+                // Notify Driver: booking được chấp nhận
+                await _notificationService.SendAsync(
+                    booking.DriverUserId,
+                    "Đặt chỗ được chấp nhận",
+                    $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) đã được chấp nhận. Vui lòng thanh toán {booking.TotalAmount:N0}đ trước {booking.PaymentExpiresAt:HH:mm dd/MM}.",
+                    NotificationType.Booking);
 
-            return MapToDto(booking);
+                await transaction.CommitAsync();
+                return MapToDto(booking);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         /// <summary>
@@ -347,22 +394,27 @@ namespace ChargeSlot.Api.Services.Implementation
                 // Xử lý hoàn tiền nếu đã Paid
                 if (wasPaid)
                 {
-                    var hoursBeforeStart = (booking.StartTime - DateTimeHelper.VietnamNow()).TotalHours;
+                    var now = DateTimeHelper.VietnamNow();
+                    var hoursBeforeStart = (booking.StartTime - now).TotalHours;
 
-                    if (hoursBeforeStart >= 2)
+                    // Fallback policies in case snapshots are missing (old bookings)
+                    var refund100Deadline = booking.Refund100DeadlineAt ?? booking.StartTime.AddHours(-2);
+                    var refund50Deadline = booking.Refund50DeadlineAt ?? booking.StartTime.AddHours(-1);
+
+                    if (now <= refund100Deadline)
                     {
                         refundPercent = 1.0m;
-                        refundNote = "Hoàn 100% (hủy trước ≥2 giờ)";
+                        refundNote = $"Hoàn 100% (hủy trước {refund100Deadline:HH:mm dd/MM})";
                     }
-                    else if (hoursBeforeStart >= 1)
+                    else if (now <= refund50Deadline)
                     {
                         refundPercent = 0.5m;
-                        refundNote = "Hoàn 50% (hủy trước 1-2 giờ)";
+                        refundNote = $"Hoàn 50% (hủy trước {refund50Deadline:HH:mm dd/MM})";
                     }
                     else
                     {
                         refundPercent = 0m;
-                        refundNote = "Không hoàn tiền (hủy trước <1 giờ)";
+                        refundNote = "Không hoàn tiền (quá hạn hủy có mức hoàn)";
                     }
 
                     await ProcessRefundAsync(booking, refundPercent, $"Driver hủy booking — {refundNote}");
@@ -558,9 +610,11 @@ namespace ChargeSlot.Api.Services.Implementation
 
         private async Task SettleCompensationToOwner(Booking booking, decimal grossAmount, int ownerUserId, string memo)
         {
-            // Tính toán phí giống hệt NoShowJob và ChargingSessionService
-            var vatAmount = Math.Round(grossAmount * 0.08m, 0);
-            var platformFee = Math.Round(grossAmount * 0.05m, 0);
+            var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
+            var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
+
+            var vatAmount = Math.Round(grossAmount * vatRate, 0);
+            var platformFee = Math.Round(grossAmount * platformFeeRate, 0);
             var ownerNet = grossAmount - vatAmount - platformFee;
 
             var escrowWallet = await _context.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");

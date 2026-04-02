@@ -111,8 +111,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1} AND AvailableBalance >= {0}",
                 booking.TotalAmount, wallet.Id);
             if (rowsAffected == 0)
-                throw new InvalidOperationException("Số dư ví không đủ hoặc đã bị thay đổi. Vui lòng thử lại.");
-            await _db.Entry(wallet).ReloadAsync(); // Reload để có balance mới
+                throw new InvalidOperationException("Số dư ví không đủ hoặc đã bị thay đổi bởi giao dịch khác (Kẹt ví).");
+            await _db.Entry(wallet).ReloadAsync(); // Reload để EF Core bắt được balance mới cho các hàm update phía sau
 
             // Cộng tiền vào ESCROW (query by SystemCode thay vì hardcode ID)
             var escrowWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.SystemCode == "ESCROW") 
@@ -250,10 +250,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException(
                     $"Số dư không đủ. Hiện có {wallet.AvailableBalance:N0} VND.");
 
-            // Freeze tiền → chờ Admin duyệt
-            wallet.AvailableBalance -= dto.Amount;
-            wallet.FrozenBalance += dto.Amount;
-            await _walletRepo.UpdateAsync(wallet);
+            // Atomic SQL: chống race condition khi rút tiền 2 lần cùng lúc
+            var rowsAffected = await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0}, FrozenBalance = FrozenBalance + {0} WHERE Id = {1} AND AvailableBalance >= {0}",
+                dto.Amount, wallet.Id);
+            if (rowsAffected == 0)
+                throw new InvalidOperationException("Số dư không đủ hoặc đã bị thay đổi bởi giao dịch khác.");
+            await _db.Entry(wallet).ReloadAsync();
 
             // Tạo WithdrawRequest với snapshot thông tin ngân hàng
             var request = new WithdrawRequest

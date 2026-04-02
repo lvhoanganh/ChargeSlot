@@ -17,6 +17,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IFileStorageService _fileStorageService;
         private readonly Lazy<IBookingService> _lazyBookingService;
+        private readonly Lazy<ISystemConfigService> _lazyConfigService;
 
         private static readonly string[] AllowedFileExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".mp4", ".avi", ".mov", ".webm", ".pdf" };
         private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
@@ -33,6 +34,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _userManager = userManager;
             _fileStorageService = fileStorageService;
             _lazyBookingService = new Lazy<IBookingService>(() => serviceProvider.GetRequiredService<IBookingService>());
+            _lazyConfigService = new Lazy<ISystemConfigService>(() => serviceProvider.GetRequiredService<ISystemConfigService>());
         }
 
         /// <summary>
@@ -73,6 +75,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.BookingId == dto.BookingId);
 
                 // Create dispute
+                var configs = await _lazyConfigService.Value.GetCurrentConfigsAsync();
                 var dispute = new Dispute
                 {
                     BookingId = dto.BookingId,
@@ -82,6 +85,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     Description = dto.Description,
                     Status = DisputeStatus.WaitingOwnerEvidence,
                     StatusChangedAt = DateTimeHelper.VietnamNow(),
+                    OwnerEvidenceDeadlineAt = DateTimeHelper.VietnamNow().AddHours(configs.Dispute_OwnerEvidence_Hours),
                     CreatedAt = DateTimeHelper.VietnamNow()
                 };
 
@@ -160,9 +164,11 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Khiếu nại không ở trạng thái chờ bằng chứng.");
 
             // Update response
+            var configs = await _lazyConfigService.Value.GetCurrentConfigsAsync();
             dispute.OwnerResponse = dto.Response;
             dispute.Status = DisputeStatus.PendingReview;
             dispute.StatusChangedAt = DateTimeHelper.VietnamNow();
+            dispute.AdminReviewDeadlineAt = DateTimeHelper.VietnamNow().AddHours(configs.Dispute_AdminReview_Hours);
 
             // Upload evidence files
             if (dto.Files?.Length > 0)
@@ -320,7 +326,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 else
                 {
                     // Station thua
-                    var stationId = dispute.Booking.ChargingSlot.StationId;
+                    var stationId = dispute.Booking.ChargingSlot?.StationId ?? 0;
                     var stationLoseCount = await _db.Disputes
                         .CountAsync(d => d.Booking.ChargingSlot.StationId == stationId
                                       && d.ResolvedAt >= startOfMonth
@@ -328,10 +334,10 @@ namespace ChargeSlot.Api.Services.Implementation
                                       
                     if (stationLoseCount >= 5)
                     {
-                        var station = dispute.Booking.ChargingSlot.ChargingStation;
+                        var station = dispute.Booking.ChargingSlot?.ChargingStation;
                         
                         // Đảm bảo không phạt dồn lặp lại nếu trạm đang trong thời gian phạt hoặc đã bị cấm vĩnh viễn
-                        if (station.BannedUntil == null && station.BanCount < 2)
+                        if (station != null && station.BannedUntil == null && station.BanCount < 2)
                         {
                             station.BanCount += 1;
                             if (station.BanCount == 1)

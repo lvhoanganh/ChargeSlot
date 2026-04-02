@@ -37,8 +37,17 @@ namespace ChargeSlot.Api.Models
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
         public DateTime? UpdatedAt { get; set; }
 
+        // Snapshot Configs for Business Rules
+        public DateTime? Refund100DeadlineAt { get; set; }
+        public DateTime? Refund50DeadlineAt { get; set; }
+        public decimal PlatformFeeRateSnapshot { get; set; } = 0.05m;
+        public decimal VatRateSnapshot { get; set; } = 0.08m;
+
         /// <summary>Driver yêu cầu kết thúc sạc sớm.</summary>
         public DateTime? EarlyEndRequestedAt { get; set; }
+
+        /// <summary>Driver gửi yêu cầu xác nhận thủ công (khi không check-in được do lỗi mạng/app).</summary>
+        public DateTime? ManualCheckinRequestedAt { get; set; }
 
         public ICollection<BookingExtraService> BookingExtraServices { get; set; } = new List<BookingExtraService>();
         public Payment? Payment { get; set; }

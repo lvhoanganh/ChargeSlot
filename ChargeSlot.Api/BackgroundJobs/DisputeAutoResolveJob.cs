@@ -20,9 +20,6 @@ namespace ChargeSlot.Api.BackgroundJobs
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<DisputeAutoResolveJob> _logger;
 
-        private static readonly TimeSpan OwnerEvidenceDeadline = TimeSpan.FromHours(24);
-        private static readonly TimeSpan AdminReviewDeadline = TimeSpan.FromHours(48);
-
         public DisputeAutoResolveJob(IServiceProvider serviceProvider, ILogger<DisputeAutoResolveJob> logger)
         {
             _serviceProvider = serviceProvider;
@@ -52,14 +49,16 @@ namespace ChargeSlot.Api.BackgroundJobs
         /// </summary>
         private async Task AutoResolveOwnerNoEvidenceAsync(IServiceProvider serviceProvider, CancellationToken ct)
         {
-            var deadline = DateTimeHelper.VietnamNow() - OwnerEvidenceDeadline;
+            var now = DateTimeHelper.VietnamNow();
             List<int> expiredDisputeIds;
 
             using (var outerScope = serviceProvider.CreateScope())
             {
                 var outerDb = outerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
                 expiredDisputeIds = await outerDb.Disputes
-                    .Where(d => d.Status == DisputeStatus.WaitingOwnerEvidence && (d.StatusChangedAt ?? d.CreatedAt) <= deadline)
+                    .Where(d => d.Status == DisputeStatus.WaitingOwnerEvidence 
+                             && d.OwnerEvidenceDeadlineAt.HasValue 
+                             && d.OwnerEvidenceDeadlineAt.Value <= now)
                     .Select(d => d.Id)
                     .ToListAsync(ct);
             }
@@ -83,23 +82,23 @@ namespace ChargeSlot.Api.BackgroundJobs
                     if (dispute == null || dispute.Status != DisputeStatus.WaitingOwnerEvidence)
                         continue;
 
-                    var now = DateTimeHelper.VietnamNow();
+                    var currentTime = DateTimeHelper.VietnamNow();
 
                     // Auto-resolve: Driver thắng
                     dispute.Status = DisputeStatus.ResolvedRefund;
                     dispute.AdminNote = "Tự động xử lý: Owner không phản hồi trong 24h. Driver được hoàn tiền.";
-                    dispute.ResolvedAt = now;
+                    dispute.ResolvedAt = currentTime;
 
                     // Invoice → Resolved
                     if (dispute.Invoice != null)
                     {
                         dispute.Invoice.Status = InvoiceStatus.Resolved;
-                        dispute.Invoice.UpdatedAt = now;
+                        dispute.Invoice.UpdatedAt = currentTime;
                     }
 
                     // Booking → Completed
                     dispute.Booking.Status = BookingStatus.Completed;
-                    dispute.Booking.UpdatedAt = now;
+                    dispute.Booking.UpdatedAt = currentTime;
 
                     await db.SaveChangesAsync(ct);
 
@@ -152,14 +151,16 @@ namespace ChargeSlot.Api.BackgroundJobs
         /// </summary>
         private async Task AutoResolveAdminNoActionAsync(IServiceProvider serviceProvider, CancellationToken ct)
         {
-            var deadline = DateTimeHelper.VietnamNow() - AdminReviewDeadline;
+            var now = DateTimeHelper.VietnamNow();
             List<int> expiredDisputeIds;
 
             using (var outerScope = serviceProvider.CreateScope())
             {
                 var outerDb = outerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
                 expiredDisputeIds = await outerDb.Disputes
-                    .Where(d => d.Status == DisputeStatus.PendingReview && (d.StatusChangedAt ?? d.CreatedAt) <= deadline)
+                    .Where(d => d.Status == DisputeStatus.PendingReview 
+                             && d.AdminReviewDeadlineAt.HasValue 
+                             && d.AdminReviewDeadlineAt.Value <= now)
                     .Select(d => d.Id)
                     .ToListAsync(ct);
             }
@@ -183,23 +184,23 @@ namespace ChargeSlot.Api.BackgroundJobs
                     if (dispute == null || dispute.Status != DisputeStatus.PendingReview)
                         continue;
 
-                    var now = DateTimeHelper.VietnamNow();
+                    var currentTime = DateTimeHelper.VietnamNow();
 
                     // Auto-resolve: Owner thắng
                     dispute.Status = DisputeStatus.ResolvedPayout;
                     dispute.AdminNote = "Tự động xử lý: Admin không phân xử trong 48h. Owner nhận tiền.";
-                    dispute.ResolvedAt = now;
+                    dispute.ResolvedAt = currentTime;
 
                     // Invoice → Resolved
                     if (dispute.Invoice != null)
                     {
                         dispute.Invoice.Status = InvoiceStatus.Resolved;
-                        dispute.Invoice.UpdatedAt = now;
+                        dispute.Invoice.UpdatedAt = currentTime;
                     }
 
                     // Booking → Completed
                     dispute.Booking.Status = BookingStatus.Completed;
-                    dispute.Booking.UpdatedAt = now;
+                    dispute.Booking.UpdatedAt = currentTime;
 
                     await db.SaveChangesAsync(ct);
 

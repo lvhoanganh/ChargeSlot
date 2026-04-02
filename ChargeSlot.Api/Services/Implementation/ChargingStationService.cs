@@ -567,12 +567,12 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (station.BannedUntil == null)
             {
-                station.OperationalStatus = Enums.StationOperationalStatus.Inactive;
+                station.OperationalStatus = Enums.OperationalStatus.Inactive;
                 station.BannedUntil = DateTimeHelper.VietnamNow().AddYears(100);
             }
             else
             {
-                station.OperationalStatus = Enums.StationOperationalStatus.Active;
+                station.OperationalStatus = Enums.OperationalStatus.Active;
                 station.BannedUntil = null;
                 station.BanCount = 0; 
             }

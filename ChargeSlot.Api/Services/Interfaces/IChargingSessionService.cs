@@ -26,5 +26,11 @@ namespace ChargeSlot.Api.Services.Interfaces
 
         /// <summary>Get invoice by booking ID.</summary>
         Task<InvoiceDto?> GetInvoiceByBookingIdAsync(int bookingId);
+
+        /// <summary>Driver gửi yêu cầu xác nhận thủ công khi không check-in được (lỗi mạng/app).</summary>
+        Task<BookingDto> RequestManualCheckinAsync(int driverUserId, int bookingId);
+
+        /// <summary>Owner xác nhận manual check-in → tạo session + invoice + hoàn thành booking.</summary>
+        Task<BookingDto> ConfirmManualCheckinAsync(int ownerUserId, int bookingId);
     }
 }

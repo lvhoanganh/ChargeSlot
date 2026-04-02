@@ -19,11 +19,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IWalletRepository _walletRepo;
         private readonly INotificationService _notificationService;
         private readonly Data.ChargeSlotDbContext _db;
-
-        // Business constants
-        private const int CheckInWindowMinutes = 15;
-        private const decimal VatRate = 0.08m;       // 8%
-        private const decimal PlatformFeeRate = 0.05m; // 5%
+        private readonly ISystemConfigService _configService;
 
         public ChargingSessionService(
             IChargingSessionRepository sessionRepo,
@@ -32,7 +28,8 @@ namespace ChargeSlot.Api.Services.Implementation
             IChargingSlotRepository slotRepo,
             IWalletRepository walletRepo,
             INotificationService notificationService,
-            Data.ChargeSlotDbContext db)
+            Data.ChargeSlotDbContext db,
+            ISystemConfigService configService)
         {
             _sessionRepo = sessionRepo;
             _invoiceRepo = invoiceRepo;
@@ -41,6 +38,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _walletRepo = walletRepo;
             _notificationService = notificationService;
             _db = db;
+            _configService = configService;
         }
 
         /// <summary>
@@ -73,20 +71,29 @@ namespace ChargeSlot.Api.Services.Implementation
                     && b.Status == BookingStatus.Paid)
                 ?? throw new InvalidOperationException("Không tìm thấy booking đã thanh toán trên slot này.");
 
-            // 3. Validate time window: now must be within ±15 min of StartTime
-            var earliestCheckin = booking.StartTime.AddMinutes(-CheckInWindowMinutes);
-            var latestCheckin = booking.StartTime.AddMinutes(CheckInWindowMinutes);
+            // 3. Validate time window: now must be within ±X min of StartTime
+            var configs = await _configService.GetCurrentConfigsAsync();
+            var checkInWindowMinutes = configs.CheckIn_Window_Minutes;
+
+            var earliestCheckin = booking.StartTime.AddMinutes(-checkInWindowMinutes);
+            var latestCheckin = booking.StartTime.AddMinutes(checkInWindowMinutes);
             if (now < earliestCheckin)
                 throw new InvalidOperationException($"Chưa đến giờ check-in. Vui lòng quay lại lúc {earliestCheckin:HH:mm dd/MM/yyyy}.");
             if (now > latestCheckin)
                 throw new InvalidOperationException("Đã quá thời gian check-in cho booking này.");
 
-            // 4. Update booking status
+            // 4. Chống double check-in: nếu đã có session cho booking này thì từ chối
+            var existingSession = await _db.ChargingSessions
+                .AnyAsync(s => s.BookingId == booking.Id);
+            if (existingSession)
+                throw new InvalidOperationException("Booking này đã được check-in trước đó.");
+
+            // 5. Update booking status
             booking.Status = BookingStatus.CheckedIn;
             booking.CheckedInAt = now;
             await _bookingRepo.UpdateAsync(booking);
 
-            // 5. Create charging session
+            // 6. Create charging session
             var session = new ChargingSession
             {
                 BookingId = booking.Id,
@@ -120,79 +127,91 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<ChargingSessionDto> StopChargingAsync(int ownerUserId, int sessionId)
         {
-            var session = await _sessionRepo.GetByIdWithDetailsAsync(sessionId)
-                ?? throw new InvalidOperationException("Session không tồn tại.");
-
-            var booking = session.Booking;
-
-            // Validate owner
-            if (booking.ChargingSlot.ChargingStation.OwnerUserId != ownerUserId)
-                throw new UnauthorizedAccessException("Bạn không có quyền thao tác trên session này.");
-
-            // Validate status
-            if (booking.Status != BookingStatus.CheckedIn)
-                throw new InvalidOperationException("Booking không ở trạng thái CheckedIn.");
-
-            var now = DateTimeHelper.VietnamNow();
-
-            // Owner chỉ được kết thúc khi:
-            // 1. Hết thời gian sạc (now >= EndTime), HOẶC
-            // 2. Driver đã request kết thúc sớm
-            var isTimeUp = now >= booking.EndTime;
-            var isDriverRequestedEarlyEnd = booking.EarlyEndRequestedAt.HasValue;
-
-            if (!isTimeUp && !isDriverRequestedEarlyEnd)
-                throw new InvalidOperationException(
-                    $"Chưa thể kết thúc phiên sạc. Thời gian sạc kết thúc lúc {booking.EndTime:HH:mm dd/MM/yyyy}. " +
-                    "Driver cần yêu cầu kết thúc sớm trước khi Owner có thể dừng.");
-
-            // Update session
-            session.ActualEndTime = now;
-            session.ActualDurationHours = (decimal)(now - (session.ActualStartTime ?? now)).TotalHours;
-            await _sessionRepo.UpdateAsync(session);
-
-            // Update booking → CompletedPendingInvoice (= WaitingDriverConfirm)
-            booking.Status = BookingStatus.CompletedPendingInvoice;
-            await _bookingRepo.UpdateAsync(booking);
-
-            // Create invoice - VAT & PlatformFee are DEDUCTED from booking amount
-            // Driver đã trả booking.TotalAmount → ESCROW
-            // Owner sẽ nhận: TotalAmount - VAT - PlatformFee
-            var grossAmount = booking.TotalAmount;
-            var vatAmount = Math.Round(grossAmount * VatRate, 0);
-            var platformFee = Math.Round(grossAmount * PlatformFeeRate, 0);
-            var ownerNetAmount = grossAmount - vatAmount - platformFee;
-
-            var invoice = new Invoice
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
             {
-                BookingId = booking.Id,
-                ChargingAmount = ownerNetAmount,  // Số tiền Owner thực nhận
-                ServiceAmount = 0,
-                VatAmount = vatAmount,             // Thuế (8%)
-                PlatformFee = platformFee,         // Phí nền tảng (5%)
-                TotalAmount = grossAmount,         // Tổng Driver đã trả
-                Status = InvoiceStatus.PendingConfirm,
-                CreatedAt = now
-            };
-            await _invoiceRepo.CreateAsync(invoice);
+                var session = await _sessionRepo.GetByIdWithDetailsAsync(sessionId)
+                    ?? throw new InvalidOperationException("Session không tồn tại.");
 
-            // Release slot → Active
-            var slot = await _slotRepo.GetByIdAsync(booking.SlotId, tracking: true);
-            if (slot != null)
-            {
-                slot.Status = SlotStatus.Active;
-                slot.UpdatedAt = now;
-                await _slotRepo.SaveChangesAsync();
+                var booking = session.Booking;
+
+                // Validate owner
+                if (booking.ChargingSlot.ChargingStation.OwnerUserId != ownerUserId)
+                    throw new UnauthorizedAccessException("Bạn không có quyền thao tác trên session này.");
+
+                // Validate status
+                if (booking.Status != BookingStatus.CheckedIn)
+                    throw new InvalidOperationException("Booking không ở trạng thái CheckedIn.");
+
+                var now = DateTimeHelper.VietnamNow();
+
+                // Owner chỉ được kết thúc khi:
+                // 1. Hết thời gian sạc (now >= EndTime), HOẶC
+                // 2. Driver đã request kết thúc sớm
+                var isTimeUp = now >= booking.EndTime;
+                var isDriverRequestedEarlyEnd = booking.EarlyEndRequestedAt.HasValue;
+
+                if (!isTimeUp && !isDriverRequestedEarlyEnd)
+                    throw new InvalidOperationException(
+                        $"Chưa thể kết thúc phiên sạc. Thời gian sạc kết thúc lúc {booking.EndTime:HH:mm dd/MM/yyyy}. " +
+                        "Driver cần yêu cầu kết thúc sớm trước khi Owner có thể dừng.");
+
+                // Update session
+                session.ActualEndTime = now;
+                session.ActualDurationHours = (decimal)(now - (session.ActualStartTime ?? now)).TotalHours;
+                await _sessionRepo.UpdateAsync(session);
+
+                // Update booking → CompletedPendingInvoice (= WaitingDriverConfirm)
+                booking.Status = BookingStatus.CompletedPendingInvoice;
+                await _bookingRepo.UpdateAsync(booking);
+
+                // Create invoice - VAT & PlatformFee are DEDUCTED from booking amount
+                var grossAmount = booking.TotalAmount;
+                var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
+                var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
+
+                var vatAmount = Math.Round(grossAmount * vatRate, 0);
+                var platformFee = Math.Round(grossAmount * platformFeeRate, 0);
+                var ownerNetAmount = grossAmount - vatAmount - platformFee;
+
+                var invoice = new Invoice
+                {
+                    BookingId = booking.Id,
+                    ChargingAmount = ownerNetAmount,
+                    ServiceAmount = 0,
+                    VatAmount = vatAmount,
+                    PlatformFee = platformFee,
+                    TotalAmount = grossAmount,
+                    Status = InvoiceStatus.PendingConfirm,
+                    CreatedAt = now
+                };
+                await _invoiceRepo.CreateAsync(invoice);
+
+                // Release slot → Active
+                var slot = await _slotRepo.GetByIdAsync(booking.SlotId, tracking: true);
+                if (slot != null)
+                {
+                    slot.Status = SlotStatus.Active;
+                    slot.UpdatedAt = now;
+                    await _slotRepo.SaveChangesAsync();
+                }
+
+                await transaction.CommitAsync();
+
+                // Notify Driver (ngoài transaction)
+                await _notificationService.SendAsync(
+                    booking.DriverUserId,
+                    "Phiên sạc đã kết thúc",
+                    $"Phiên sạc tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã kết thúc. Vui lòng xác nhận hóa đơn {grossAmount:N0}đ.",
+                    NotificationType.Booking);
+
+                return MapToDto(session, booking);
             }
-
-            // Notify Driver
-            await _notificationService.SendAsync(
-                booking.DriverUserId,
-                "Phiên sạc đã kết thúc",
-                $"Phiên sạc tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã kết thúc. Vui lòng xác nhận hóa đơn {grossAmount:N0}đ.",
-                NotificationType.Booking);
-
-            return MapToDto(session, booking);
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         /// <summary>
@@ -262,8 +281,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _bookingRepo.UpdateAsync(booking);
 
                 // ── LOYALTY POINTS: tích điểm ──
-                var earnRateConfig = await _db.SystemConfigs.FindAsync("LoyaltyEarnRate");
-                var earnRate = decimal.TryParse(earnRateConfig?.Value, out var er) ? er : 0.05m;
+                var configs = await _configService.GetCurrentConfigsAsync();
+                var earnRate = configs.Loyalty_Earn_Rate;
                 var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
 
                 if (pointsEarned > 0)
@@ -348,9 +367,14 @@ namespace ChargeSlot.Api.Services.Implementation
             var platformFee = invoice.PlatformFee;
             var totalDeducted = ownerNet + platformFee; // VAT stays in ESCROW (paid to tax authority later)
 
-            // 1. ESCROW → Owner: net amount
-            escrowWallet.AvailableBalance -= ownerNet;
-            ownerWallet.AvailableBalance += ownerNet;
+            // 1. ESCROW → Owner: net amount atomically
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
+                ownerNet, escrowWallet.Id);
+                
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
+                ownerNet, ownerWallet.Id);
 
             var ownerLedger = new LedgerTransaction
             {
@@ -367,9 +391,14 @@ namespace ChargeSlot.Api.Services.Implementation
             };
             await _walletRepo.AddLedgerTransactionAsync(ownerLedger);
 
-            // 2. ESCROW → PLATFORM_REVENUE: platform fee
-            escrowWallet.AvailableBalance -= platformFee;
-            platformWallet.AvailableBalance += platformFee;
+            // 2. ESCROW → PLATFORM_REVENUE: platform fee atomically
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
+                platformFee, escrowWallet.Id);
+                
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
+                platformFee, platformWallet.Id);
 
             var feeLedger = new LedgerTransaction
             {
@@ -388,10 +417,6 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Note: VAT (invoice.VatAmount) remains in ESCROW for tax authority payment
             // A separate admin process would handle VAT remittance
-
-            await _walletRepo.UpdateAsync(escrowWallet);
-            await _walletRepo.UpdateAsync(ownerWallet);
-            await _walletRepo.UpdateAsync(platformWallet);
         }
 
         public async Task<ChargingSessionDto?> GetByBookingIdAsync(int bookingId)
@@ -492,6 +517,178 @@ namespace ChargeSlot.Api.Services.Implementation
                 CreatedAt = invoice.CreatedAt,
                 UpdatedAt = invoice.UpdatedAt
             };
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // MANUAL CHECK-IN (khi app/mạng lỗi, driver không quét QR được)
+        // ═══════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Driver gửi yêu cầu xác nhận thủ công khi không check-in được do lỗi mạng/app.
+        /// Booking phải ở trạng thái Paid. Owner sẽ nhìn thấy request và xác nhận.
+        /// </summary>
+        public async Task<BookingDto> RequestManualCheckinAsync(int driverUserId, int bookingId)
+        {
+            var booking = await _db.Bookings
+                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(b => b.Driver).ThenInclude(d => d.User)
+                .FirstOrDefaultAsync(b => b.Id == bookingId)
+                ?? throw new InvalidOperationException("Booking không tồn tại.");
+
+            if (booking.DriverUserId != driverUserId)
+                throw new UnauthorizedAccessException("Booking này không thuộc về bạn.");
+
+            if (booking.Status != BookingStatus.Paid)
+                throw new InvalidOperationException("Chỉ có thể yêu cầu xác nhận thủ công khi booking đã thanh toán.");
+
+            if (booking.ManualCheckinRequestedAt.HasValue)
+                throw new InvalidOperationException("Bạn đã gửi yêu cầu xác nhận thủ công rồi. Vui lòng chờ Owner xác nhận.");
+
+            booking.ManualCheckinRequestedAt = DateTimeHelper.VietnamNow();
+            booking.UpdatedAt = DateTimeHelper.VietnamNow();
+            await _bookingRepo.UpdateAsync(booking);
+
+            // Notify Owner
+            var ownerUserId = booking.ChargingSlot.ChargingStation.OwnerUserId;
+            await _notificationService.SendAsync(
+                ownerUserId,
+                "Yêu cầu xác nhận thủ công",
+                $"Driver {booking.Driver?.User?.FullName ?? ""} yêu cầu xác nhận thủ công tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) do không thể check-in qua app. Vui lòng xác nhận nếu Driver đã sạc thực tế.",
+                NotificationType.Booking);
+
+            return MapToBookingDto(booking);
+        }
+
+        /// <summary>
+        /// Owner xác nhận manual check-in → tạo session + invoice + settle payment + hoàn thành booking.
+        /// Flow nén: CheckIn + StopCharging + ConfirmCompletion gộp thành 1 bước.
+        /// </summary>
+        public async Task<BookingDto> ConfirmManualCheckinAsync(int ownerUserId, int bookingId)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var booking = await _db.Bookings
+                    .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                    .Include(b => b.Driver).ThenInclude(d => d.User)
+                    .Include(b => b.BookingExtraServices)
+                    .FirstOrDefaultAsync(b => b.Id == bookingId)
+                    ?? throw new InvalidOperationException("Booking không tồn tại.");
+
+                // Validate owner
+                if (booking.ChargingSlot.ChargingStation.OwnerUserId != ownerUserId)
+                    throw new UnauthorizedAccessException("Bạn không có quyền thao tác trên booking này.");
+
+                // Validate: booking phải đã Paid và có manual request
+                if (booking.Status != BookingStatus.Paid)
+                    throw new InvalidOperationException("Booking không ở trạng thái đã thanh toán.");
+
+                if (!booking.ManualCheckinRequestedAt.HasValue)
+                    throw new InvalidOperationException("Driver chưa gửi yêu cầu xác nhận thủ công.");
+
+                var now = DateTimeHelper.VietnamNow();
+
+                // 1. Tạo session (dùng thời gian booking làm thời gian sạc)
+                var session = new ChargingSession
+                {
+                    BookingId = booking.Id,
+                    CheckinTime = booking.ManualCheckinRequestedAt.Value,
+                    ActualStartTime = booking.StartTime,
+                    ActualEndTime = now > booking.EndTime ? booking.EndTime : now,
+                    ActualDurationHours = (decimal)(booking.EndTime - booking.StartTime).TotalHours,
+                    CreatedAt = now
+                };
+                await _sessionRepo.CreateAsync(session);
+
+                // 2. Tạo invoice
+                var grossAmount = booking.TotalAmount;
+                var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
+                var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
+
+                var vatAmount = Math.Round(grossAmount * vatRate, 0);
+                var platformFee = Math.Round(grossAmount * platformFeeRate, 0);
+                var ownerNetAmount = grossAmount - vatAmount - platformFee;
+
+                var invoice = new Invoice
+                {
+                    BookingId = booking.Id,
+                    ChargingAmount = ownerNetAmount,
+                    ServiceAmount = 0,
+                    VatAmount = vatAmount,
+                    PlatformFee = platformFee,
+                    TotalAmount = grossAmount,
+                    Status = InvoiceStatus.Confirmed, // Đã xác nhận trực tiếp (không cần chờ 24h)
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                await _invoiceRepo.CreateAsync(invoice);
+
+                // 3. Complete booking
+                booking.Status = BookingStatus.Completed;
+                booking.CheckedInAt = booking.ManualCheckinRequestedAt.Value;
+                booking.UpdatedAt = now;
+                await _bookingRepo.UpdateAsync(booking);
+
+                // 4. Loyalty points
+                var earnRateConfig = await _db.SystemConfigs.FindAsync("LoyaltyEarnRate");
+                var earnRate = decimal.TryParse(earnRateConfig?.Value, out var er) ? er : 0.05m;
+                var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
+
+                if (pointsEarned > 0)
+                {
+                    var driver = await _db.Set<Driver>().FirstOrDefaultAsync(d => d.UserId == booking.DriverUserId);
+                    if (driver != null)
+                    {
+                        driver.LoyaltyPoints += pointsEarned;
+                        booking.PointsEarned = pointsEarned;
+
+                        _db.LoyaltyTransactions.Add(new LoyaltyTransaction
+                        {
+                            DriverUserId = booking.DriverUserId,
+                            BookingId = booking.Id,
+                            Type = "Earn",
+                            Points = pointsEarned,
+                            Description = $"Tích {pointsEarned:N0} điểm từ booking #{booking.Id} (xác nhận thủ công)",
+                            CreatedAt = now
+                        });
+                        await _db.SaveChangesAsync();
+                    }
+                }
+
+                // 5. Settle payment (ESCROW → Owner + Platform)
+                await SettlePaymentToOwnerAsync(booking, invoice);
+
+                // 6. Release slot
+                var slot = await _slotRepo.GetByIdAsync(booking.SlotId, tracking: true);
+                if (slot != null && slot.Status == SlotStatus.Booked)
+                {
+                    slot.Status = SlotStatus.Active;
+                    slot.UpdatedAt = now;
+                    await _slotRepo.SaveChangesAsync();
+                }
+
+                await transaction.CommitAsync();
+
+                // Notifications (ngoài transaction)
+                await _notificationService.SendAsync(
+                    booking.DriverUserId,
+                    "Xác nhận thủ công thành công",
+                    $"Owner đã xác nhận phiên sạc thủ công tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name}. Booking #{booking.Id} đã hoàn thành. {(pointsEarned > 0 ? $"Bạn nhận {pointsEarned:N0} điểm thưởng." : "")}",
+                    NotificationType.Booking);
+
+                await _notificationService.SendAsync(
+                    ownerUserId,
+                    "Đã xác nhận phiên sạc thủ công",
+                    $"Booking #{booking.Id} tại slot {booking.ChargingSlot?.SlotName} đã hoàn thành. {ownerNetAmount:N0}đ đã chuyển vào ví của bạn.",
+                    NotificationType.Payment);
+
+                return MapToBookingDto(booking);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
     }
 }

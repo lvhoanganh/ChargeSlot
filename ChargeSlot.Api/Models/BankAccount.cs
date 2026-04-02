@@ -15,7 +15,5 @@ namespace ChargeSlot.Api.Models
         public string BankAccountHolder { get; set; } = null!;
         public bool IsDefault { get; set; }
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
-
-        public ICollection<PayoutRequest> PayoutRequests { get; set; } = new List<PayoutRequest>();
     }
 }

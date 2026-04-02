@@ -1,61 +1,75 @@
 using ChargeSlot.Api.Constants;
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Admin;
-using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
-using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Controllers
 {
-    /// <summary>
-    /// Admin: quản lý cấu hình hệ thống (SystemConfig).
-    /// </summary>
-    // TODO: Refactor – move business logic to a dedicated AdminConfigService
     [ApiController]
-    [Route("api/admin/config")]
+    [Route("api/[controller]")]
     [Authorize(Roles = RoleConstants.Admin)]
     public class AdminConfigController : ControllerBase
     {
-        private readonly ChargeSlotDbContext _db;
+        private readonly ISystemConfigService _configService;
 
-        public AdminConfigController(ChargeSlotDbContext db)
+        public AdminConfigController(ISystemConfigService configService)
         {
-            _db = db;
+            _configService = configService;
         }
 
-        /// <summary>Lấy tất cả cấu hình hệ thống.</summary>
+        // GET: api/AdminConfig
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetConfigs()
         {
-            var configs = await _db.SystemConfigs
-                .OrderBy(c => c.Key)
-                .Select(c => new
-                {
-                    c.Key,
-                    c.Value,
-                    c.Description,
-                    c.UpdatedAt
-                })
-                .ToListAsync();
-
-            return Ok(configs);
+            try
+            {
+                var configs = await _configService.GetCurrentConfigsAsync();
+                return Ok(configs);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi máy chủ.", details = ex.Message });
+            }
         }
 
-        /// <summary>Cập nhật giá trị config.</summary>
-        [HttpPut("{key}")]
-        public async Task<IActionResult> Update(string key, [FromBody] UpdateConfigDto dto)
+        // PUT: api/AdminConfig
+        [HttpPut]
+        public async Task<IActionResult> UpdateConfigs([FromBody] UpdateSystemConfigsDto dto)
         {
-            var config = await _db.SystemConfigs.FindAsync(key);
-            if (config == null)
-                return NotFound(new { message = $"Config '{key}' không tồn tại." });
+            try
+            {
+                var adminUserIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(adminUserIdStr) || !int.TryParse(adminUserIdStr, out int adminUserId))
+                    return Unauthorized("Không thể nhận diện user hiện tại.");
 
-            config.Value = dto.Value;
-            config.UpdatedAt = DateTimeHelper.VietnamNow();
-            await _db.SaveChangesAsync();
-
-            return Ok(new { config.Key, config.Value, config.Description, config.UpdatedAt });
+                await _configService.UpdateConfigsAsync(dto, adminUserId);
+                return Ok(new { message = "Cập nhật cấu hình thành công!" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi máy chủ.", details = ex.Message });
+            }
+        }
+        
+        // POST: api/AdminConfig/seed
+        [HttpPost("seed")]
+        public async Task<IActionResult> SeedConfigs()
+        {
+            try
+            {
+                await _configService.SeedDefaultConfigsAsync();
+                return Ok(new { message = "Đã khởi tạo các cấu hình còn thiếu thành công." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi máy chủ.", details = ex.Message });
+            }
         }
     }
 }

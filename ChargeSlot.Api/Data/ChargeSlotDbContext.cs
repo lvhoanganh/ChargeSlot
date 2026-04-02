@@ -34,7 +34,6 @@ namespace ChargeSlot.Api.Data
         public DbSet<Dispute> Disputes => Set<Dispute>();
         public DbSet<DisputeEvidence> DisputeEvidences => Set<DisputeEvidence>();
         public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
-        public DbSet<PayoutRequest> PayoutRequests => Set<PayoutRequest>();
         public DbSet<Wallet> Wallets => Set<Wallet>();
         public DbSet<LedgerTransaction> LedgerTransactions => Set<LedgerTransaction>();
         public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();

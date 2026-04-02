@@ -27,6 +27,11 @@ namespace ChargeSlot.Api.Models
         public DateTime? ResolvedAt { get; set; }
         /// <summary>Timestamp khi status thay đổi lần cuối (dùng cho auto-resolve deadline).</summary>
         public DateTime? StatusChangedAt { get; set; }
+        
+        // Snapshot Configurations
+        public DateTime? OwnerEvidenceDeadlineAt { get; set; }
+        public DateTime? AdminReviewDeadlineAt { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 
         public ICollection<DisputeEvidence> Evidences { get; set; } = new List<DisputeEvidence>();

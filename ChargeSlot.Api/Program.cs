@@ -13,7 +13,6 @@ using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -155,20 +154,25 @@ builder.Services.AddAuthorization();
 // =======================
 // SERVICES (DI)
 // =======================
+builder.Services.AddMemoryCache(); // Dành cho SystemConfig
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserOtpRepository, UserOtpRepository>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ISmsService, EsmsSmsService>();
+builder.Services.AddScoped<IEmailService, MockEmailService>();
+builder.Services.AddScoped<ISystemConfigService, SystemConfigService>();
 
 // Firebase Auth
 var firebaseKeyPath = configuration["Firebase:ServiceAccountKeyPath"] ?? "firebase-service-account.json";
 if (File.Exists(firebaseKeyPath))
 {
     using var stream = new FileStream(firebaseKeyPath, FileMode.Open, FileAccess.Read);
+#pragma warning disable CS0618
     FirebaseApp.Create(new AppOptions()
     {
         Credential = GoogleCredential.FromStream(stream)
     });
+#pragma warning restore CS0618
 }
 else
 {
@@ -219,9 +223,6 @@ builder.Services.AddScoped<IAdminRevenueService, AdminRevenueService>();
 
 // Reviews
 builder.Services.AddScoped<IReviewService, ReviewService>();
-
-// Payout
-builder.Services.AddScoped<IPayoutService, PayoutService>();
 
 // Analytics & AI
 builder.Services.AddScoped<IDashboardService, DashboardService>();
@@ -332,6 +333,7 @@ app.Use(async (context, next) =>
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<ChargeSlot.Api.Middlewares.SecurityBanCheckMiddleware>();
 
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");

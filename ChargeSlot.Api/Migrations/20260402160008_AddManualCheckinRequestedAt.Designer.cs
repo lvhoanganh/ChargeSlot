@@ -4,6 +4,7 @@ using ChargeSlot.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChargeSlot.Api.Migrations
 {
     [DbContext(typeof(ChargeSlotDbContext))]
-    partial class ChargeSlotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260402160008_AddManualCheckinRequestedAt")]
+    partial class AddManualCheckinRequestedAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -108,9 +111,6 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<DateTime?>("PaymentExpiresAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<decimal>("PlatformFeeRateSnapshot")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<decimal>("PointsDiscountAmount")
                         .HasColumnType("decimal(18,2)");
 
@@ -119,12 +119,6 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<decimal>("PointsUsed")
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("Refund100DeadlineAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("Refund50DeadlineAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
@@ -147,9 +141,6 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<decimal>("VatRateSnapshot")
-                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -454,9 +445,6 @@ namespace ChargeSlot.Api.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
-                    b.Property<DateTime?>("AdminReviewDeadlineAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<int>("BookingId")
                         .HasColumnType("int");
 
@@ -473,9 +461,6 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<int?>("InvoiceId")
                         .HasColumnType("int");
-
-                    b.Property<DateTime?>("OwnerEvidenceDeadlineAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("OwnerResponse")
                         .HasMaxLength(2000)
@@ -704,9 +689,6 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
-
-                    b.Property<string>("SecondaryPasswordHash")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
@@ -1004,6 +986,51 @@ namespace ChargeSlot.Api.Migrations
                     b.HasIndex("BookingId", "CreatedAt");
 
                     b.ToTable("Payment", (string)null);
+                });
+
+            modelBuilder.Entity("ChargeSlot.Api.Models.PayoutRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("BankAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("OwnerUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ProcessedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BankAccountId");
+
+                    b.HasIndex("OwnerUserId", "RequestedAt");
+
+                    b.ToTable("PayoutRequest", (string)null);
                 });
 
             modelBuilder.Entity("ChargeSlot.Api.Models.Rating", b =>
@@ -1888,6 +1915,25 @@ namespace ChargeSlot.Api.Migrations
                     b.Navigation("Booking");
                 });
 
+            modelBuilder.Entity("ChargeSlot.Api.Models.PayoutRequest", b =>
+                {
+                    b.HasOne("ChargeSlot.Api.Models.BankAccount", "BankAccount")
+                        .WithMany("PayoutRequests")
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChargeSlot.Api.Models.Owner", "Owner")
+                        .WithMany("PayoutRequests")
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("Owner");
+                });
+
             modelBuilder.Entity("ChargeSlot.Api.Models.Rating", b =>
                 {
                     b.HasOne("ChargeSlot.Api.Models.Booking", "Booking")
@@ -2053,6 +2099,11 @@ namespace ChargeSlot.Api.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ChargeSlot.Api.Models.BankAccount", b =>
+                {
+                    b.Navigation("PayoutRequests");
+                });
+
             modelBuilder.Entity("ChargeSlot.Api.Models.Booking", b =>
                 {
                     b.Navigation("BookingExtraServices");
@@ -2128,6 +2179,8 @@ namespace ChargeSlot.Api.Migrations
             modelBuilder.Entity("ChargeSlot.Api.Models.Owner", b =>
                 {
                     b.Navigation("ChargingStations");
+
+                    b.Navigation("PayoutRequests");
                 });
 
             modelBuilder.Entity("ChargeSlot.Api.Models.Wallet", b =>

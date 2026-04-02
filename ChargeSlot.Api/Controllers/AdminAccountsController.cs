@@ -87,5 +87,73 @@ namespace ChargeSlot.Api.Controllers
             }
         }
 
+        // POST: api/AdminAccounts/secondary-password/setup
+        [HttpPost("secondary-password/setup")]
+        public async Task<IActionResult> SetupSecondaryPassword([FromBody] ChargeSlot.Api.DTOs.Admin.SetupSecondaryPasswordDto dto)
+        {
+            try
+            {
+                var adminUserIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(adminUserIdStr) || !int.TryParse(adminUserIdStr, out int adminUserId))
+                    return Unauthorized("Không thể nhận diện user hiện tại.");
+
+                await _adminAccountService.SetupSecondaryPasswordAsync(adminUserId, dto);
+                return Ok(new { message = "Thiết lập mật khẩu cấp 2 thành công." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi máy chủ.", details = ex.Message });
+            }
+        }
+
+        // POST: api/AdminAccounts/secondary-password/reset-request
+        [HttpPost("secondary-password/reset-request")]
+        public async Task<IActionResult> RequestResetSecondaryPassword()
+        {
+            try
+            {
+                var adminUserIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(adminUserIdStr) || !int.TryParse(adminUserIdStr, out int adminUserId))
+                    return Unauthorized("Không thể nhận diện user hiện tại.");
+
+                await _adminAccountService.RequestResetSecondaryPasswordAsync(adminUserId);
+                return Ok(new { message = "Đã gửi mã OTP khôi phục qua email admin." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi máy chủ.", details = ex.Message });
+            }
+        }
+
+        // POST: api/AdminAccounts/secondary-password/reset-confirm
+        [HttpPost("secondary-password/reset-confirm")]
+        public async Task<IActionResult> ConfirmResetSecondaryPassword([FromBody] ChargeSlot.Api.DTOs.Admin.ConfirmResetSecondaryPasswordDto dto)
+        {
+            try
+            {
+                var adminUserIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(adminUserIdStr) || !int.TryParse(adminUserIdStr, out int adminUserId))
+                    return Unauthorized("Không thể nhận diện user hiện tại.");
+
+                await _adminAccountService.ConfirmResetSecondaryPasswordAsync(adminUserId, dto);
+                return Ok(new { message = "Khôi phục mật khẩu cấp 2 thành công." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi máy chủ.", details = ex.Message });
+            }
+        }
     }
 }

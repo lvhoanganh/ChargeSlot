@@ -4,6 +4,7 @@ using ChargeSlot.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChargeSlot.Api.Migrations
 {
     [DbContext(typeof(ChargeSlotDbContext))]
-    partial class ChargeSlotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260402161529_DropPayoutRequest")]
+    partial class DropPayoutRequest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -108,9 +111,6 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<DateTime?>("PaymentExpiresAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<decimal>("PlatformFeeRateSnapshot")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<decimal>("PointsDiscountAmount")
                         .HasColumnType("decimal(18,2)");
 
@@ -119,12 +119,6 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<decimal>("PointsUsed")
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("Refund100DeadlineAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("Refund50DeadlineAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
@@ -147,9 +141,6 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<decimal>("VatRateSnapshot")
-                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -454,9 +445,6 @@ namespace ChargeSlot.Api.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
-                    b.Property<DateTime?>("AdminReviewDeadlineAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<int>("BookingId")
                         .HasColumnType("int");
 
@@ -473,9 +461,6 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<int?>("InvoiceId")
                         .HasColumnType("int");
-
-                    b.Property<DateTime?>("OwnerEvidenceDeadlineAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("OwnerResponse")
                         .HasMaxLength(2000)
@@ -704,9 +689,6 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
-
-                    b.Property<string>("SecondaryPasswordHash")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");

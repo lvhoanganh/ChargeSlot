@@ -19,6 +19,9 @@ namespace ChargeSlot.Api.Models.Identity
         public int BanCount { get; set; } = 0;
         public DateTime? BannedUntil { get; set; }
 
+        /// <summary>Secondary Password Hash primarily for Administrative config changes.</summary>
+        public string? SecondaryPasswordHash { get; set; }
+
         public Driver? DriverProfile { get; set; }
         public Owner? OwnerProfile { get; set; }
     }

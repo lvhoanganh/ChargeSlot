@@ -1,4 +1,4 @@
-﻿using ChargeSlot.Api.DTOs.Admin;
+using ChargeSlot.Api.DTOs.Admin;
 
 namespace ChargeSlot.Api.Services.Interfaces
 {
@@ -14,5 +14,9 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<string> ToggleBanStatusAsync(int targetUserId, int actingAdminUserId);
 
         Task<AccountStatisticsDto> GetAccountStatisticsAsync();
+
+        Task SetupSecondaryPasswordAsync(int adminUserId, SetupSecondaryPasswordDto dto);
+        Task RequestResetSecondaryPasswordAsync(int adminUserId);
+        Task ConfirmResetSecondaryPasswordAsync(int adminUserId, ConfirmResetSecondaryPasswordDto dto);
     }
 }

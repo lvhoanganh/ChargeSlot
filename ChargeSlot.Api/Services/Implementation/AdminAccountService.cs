@@ -6,6 +6,8 @@ using ChargeSlot.Api.Services.Implementation;
 using Microsoft.EntityFrameworkCore;
 using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.Repositories.Interfaces;
+using ChargeSlot.Api.Helpers;
+
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class AdminAccountService : IAdminAccountService
@@ -14,17 +16,26 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly ChargeSlot.Api.Data.ChargeSlotDbContext _db;
         private readonly IBookingService _bookingService;
         private readonly INotificationService _notificationService;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IEmailService _emailService;
+        private readonly IUserOtpRepository _otpRepository;
 
         public AdminAccountService(
             IAdminAccountRepository adminAccountRepository,
             ChargeSlot.Api.Data.ChargeSlotDbContext db,
             IBookingService bookingService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            UserManager<ApplicationUser> userManager,
+            IEmailService emailService,
+            IUserOtpRepository otpRepository)
         {
             _adminAccountRepository = adminAccountRepository;
             _db = db;
             _bookingService = bookingService;
             _notificationService = notificationService;
+            _userManager = userManager;
+            _emailService = emailService;
+            _otpRepository = otpRepository;
         }
 
         public async Task<PagedResultDto<AccountListItemDto>> GetAccountsAsync(
@@ -235,6 +246,91 @@ namespace ChargeSlot.Api.Services.Implementation
                 BannedAccounts = users.Count(x => x.Status == UserStatusConstants.Banned),
                 //SuspendedAccounts = users.Count(x => x.Status == UserStatusConstants.Suspended)
             };
+        }
+
+        public async Task SetupSecondaryPasswordAsync(int adminUserId, SetupSecondaryPasswordDto dto)
+        {
+            var adminUser = await _userManager.FindByIdAsync(adminUserId.ToString()) 
+                ?? throw new InvalidOperationException("Tài khoản không tồn tại.");
+
+            if (!string.IsNullOrEmpty(adminUser.SecondaryPasswordHash))
+                throw new InvalidOperationException("Mật khẩu cấp 2 đã được thiết lập trước đó.");
+
+            var isPrimaryValid = await _userManager.CheckPasswordAsync(adminUser, dto.PrimaryPassword);
+            if (!isPrimaryValid)
+                throw new InvalidOperationException("Mật khẩu cấp 1 không chính xác.");
+
+            adminUser.SecondaryPasswordHash = _userManager.PasswordHasher.HashPassword(adminUser, dto.NewSecondaryPassword);
+            var result = await _userManager.UpdateAsync(adminUser);
+            if (!result.Succeeded)
+                throw new InvalidOperationException("Không thể thiết lập mật khẩu cấp 2: " + string.Join(", ", result.Errors.Select(e => e.Description)));
+        }
+
+        public async Task RequestResetSecondaryPasswordAsync(int adminUserId)
+        {
+            var adminUser = await _userManager.FindByIdAsync(adminUserId.ToString())
+                ?? throw new InvalidOperationException("Tài khoản không tồn tại.");
+
+            // Fake Phone Number field for UserOtp storage mechanism since we are reusing it
+            // We use the admin's email as the identifier.
+            var identifier = "admin_sec_pass_" + adminUserId.ToString();
+
+            // Check Cooldown 30s
+            var remainingSeconds = await _otpRepository.GetRemainingCooldownSecondsAsync(identifier, TimeSpan.FromSeconds(30));
+            if (remainingSeconds > 0)
+                throw new InvalidOperationException($"Vui lòng đợi {remainingSeconds} giây trước khi gửi lại yêu cầu.");
+
+            // Generate OTP
+            var otp = Random.Shared.Next(100000, 999999).ToString();
+            var otpHash = BCrypt.Net.BCrypt.HashPassword(otp);
+
+            var entity = new ChargeSlot.Api.Models.UserOtp
+            {
+                PhoneNumber = identifier, // Storing identifier in PhoneNumber column temporarily
+                OtpHash = otpHash,
+                Purpose = ChargeSlot.Api.Enums.OtpPurpose.ResetSecondaryPassword,
+                ExpiredAt = DateTimeHelper.VietnamNow().AddMinutes(5),
+                IsUsed = false,
+                CreatedAt = DateTimeHelper.VietnamNow()
+            };
+
+            await _otpRepository.AddAsync(entity);
+            await _otpRepository.SaveChangesAsync();
+
+            // Send via mocked / real email service
+            // Gửi OTP thẳng tới laivuhoanganh.fj@gmail.com như Sếp chỉ định
+            string targetEmail = "laivuhoanganh.fj@gmail.com"; 
+            
+            await _emailService.SendEmailAsync(
+                to: targetEmail, 
+                subject: "[ChargeSlot] Khôi phục Mật Khẩu Cấp 2", 
+                body: $"Mã OTP của bạn là: {otp}. Mã có hiệu lực trong 5 phút. Nếu không phải bạn yêu cầu, vui lòng đổi mật khẩu ngay lập tức!"
+            );
+        }
+
+        public async Task ConfirmResetSecondaryPasswordAsync(int adminUserId, ConfirmResetSecondaryPasswordDto dto)
+        {
+            var adminUser = await _userManager.FindByIdAsync(adminUserId.ToString())
+                ?? throw new InvalidOperationException("Tài khoản không tồn tại.");
+
+            var identifier = "admin_sec_pass_" + adminUserId.ToString();
+
+            // Validate OTP
+            var record = await _otpRepository.GetLatestValidOtpAsync(identifier, ChargeSlot.Api.Enums.OtpPurpose.ResetSecondaryPassword);
+            if (record == null)
+                throw new InvalidOperationException("Mã OTP không hợp lệ hoặc đã hết hạn.");
+
+            if (!BCrypt.Net.BCrypt.Verify(dto.OtpCode, record.OtpHash))
+                throw new InvalidOperationException("Mã OTP không chính xác.");
+
+            // Mark OTP as used
+            record.VerifiedAt = DateTimeHelper.VietnamNow();
+            record.IsUsed = true;
+            await _otpRepository.SaveChangesAsync();
+
+            // Reset Password
+            adminUser.SecondaryPasswordHash = _userManager.PasswordHasher.HashPassword(adminUser, dto.NewSecondaryPassword);
+            await _userManager.UpdateAsync(adminUser);
         }
     }
 }

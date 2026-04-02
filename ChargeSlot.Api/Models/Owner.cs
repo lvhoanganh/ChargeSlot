@@ -14,6 +14,5 @@ namespace ChargeSlot.Api.Models
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 
         public ICollection<ChargingStation> ChargingStations { get; set; } = new List<ChargingStation>();
-        public ICollection<PayoutRequest> PayoutRequests { get; set; } = new List<PayoutRequest>();
     }
 }

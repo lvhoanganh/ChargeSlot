@@ -344,12 +344,21 @@ namespace ChargeSlot.Api.Services.Implementation
                     return true;
                 }
 
-                // ── Idempotency: đã xử lý rồi thì bỏ qua ──
-                if (payment.Status == PaymentStatus.Completed || 
-                    payment.Status == PaymentStatus.Refunded || 
-                    payment.GatewayTxnRef == request.referenceCode)
+                // ── Idempotency: nếu cùng mã giao dịch SePay thì bỏ qua (webhook gọi lại) ──
+                if (payment.GatewayTxnRef == request.referenceCode)
                 {
                     await transaction.RollbackAsync();
+                    return true;
+                }
+
+                // ── Payment đã hoàn tất nhưng Driver chuyển thêm lần nữa → Hoàn vào ví ──
+                if (payment.Status == PaymentStatus.Completed || 
+                    payment.Status == PaymentStatus.Refunded)
+                {
+                    _logger.LogWarning($"SePay: Booking #{bookingId} đã thanh toán/hoàn tiền, nhưng nhận thêm {amount:N0} VND (SePay#{sePayTxnId}). Hoàn vào ví Driver.");
+                    await DepositToDriverWalletAsync(booking.DriverUserId, amount, sePayTxnId,
+                        $"Bạn đã chuyển khoản {amount:N0}đ cho Booking #{bookingId} nhưng đơn này đã được thanh toán trước đó. Tiền đã hoàn vào ví của bạn.");
+                    await transaction.CommitAsync();
                     return true;
                 }
 
