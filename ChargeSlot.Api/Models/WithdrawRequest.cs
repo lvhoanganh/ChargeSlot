@@ -4,7 +4,7 @@ using ChargeSlot.Api.Helpers;
 
 namespace ChargeSlot.Api.Models
 {
-    /// <summary>Yêu cầu rút tiền từ ví → chờ Admin duyệt.</summary>
+    /// <summary>Yêu cầu rút tiền từ ví → luồng xác nhận đa bước.</summary>
     public class WithdrawRequest
     {
         public int Id { get; set; }
@@ -24,9 +24,27 @@ namespace ChargeSlot.Api.Models
 
         public WithdrawStatus Status { get; set; } = WithdrawStatus.Pending;
         public DateTime RequestedAt { get; set; } = DateTimeHelper.VietnamNow();
+
+        // Admin duyệt/từ chối
         public DateTime? ProcessedAt { get; set; }
         public int? ProcessedByUserId { get; set; }
         public string? AdminNote { get; set; }
         public string? UserNote { get; set; }
+
+        // Admin chuyển khoản
+        /// <summary>URL ảnh biên lai chuyển khoản (Firebase Storage).</summary>
+        public string? TransferReceiptUrl { get; set; }
+        /// <summary>Thời điểm Admin xác nhận đã chuyển khoản.</summary>
+        public DateTime? TransferredAt { get; set; }
+
+        // User xác nhận
+        /// <summary>Thời điểm User xác nhận đã nhận tiền.</summary>
+        public DateTime? UserConfirmedAt { get; set; }
+
+        // User báo lỗi
+        /// <summary>Thời điểm User báo chưa nhận được tiền.</summary>
+        public DateTime? IssueReportedAt { get; set; }
+        /// <summary>Ghi chú lý do chưa nhận được tiền.</summary>
+        public string? IssueNote { get; set; }
     }
 }

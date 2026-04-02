@@ -18,6 +18,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IPaymentRepository _paymentRepo;
         private readonly IChargingSlotRepository _slotRepo;
         private readonly INotificationService _notificationService;
+        private readonly IFileStorageService _fileStorageService;
         private readonly ChargeSlotDbContext _db;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IConfiguration _configuration;
@@ -28,6 +29,7 @@ namespace ChargeSlot.Api.Services.Implementation
             IPaymentRepository paymentRepo,
             IChargingSlotRepository slotRepo,
             INotificationService notificationService,
+            IFileStorageService fileStorageService,
             ChargeSlotDbContext db,
             UserManager<ApplicationUser> userManager,
             IConfiguration configuration)
@@ -37,6 +39,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _paymentRepo = paymentRepo;
             _slotRepo = slotRepo;
             _notificationService = notificationService;
+            _fileStorageService = fileStorageService;
             _db = db;
             _userManager = userManager;
             _configuration = configuration;
@@ -359,7 +362,9 @@ namespace ChargeSlot.Api.Services.Implementation
         }
 
         /// <summary>
-        /// Admin duyệt / từ chối yêu cầu rút tiền
+        /// Admin duyệt / từ chối yêu cầu rút tiền.
+        /// Approve chỉ đổi trạng thái, CHƯA trừ tiền (tiền vẫn frozen).
+        /// Tiền chỉ rời hệ thống khi Completed.
         /// </summary>
         public async Task<WithdrawRequestDto> ProcessWithdrawAsync(int adminUserId, int requestId, ProcessWithdrawDto dto)
         {
@@ -376,42 +381,16 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (dto.Approve)
             {
-                // Approve: trừ frozen, tiền đã được chuyển thực tế (ngoài hệ thống)
-                wallet.FrozenBalance -= request.Amount;
+                // Approve: chỉ đổi trạng thái, tiền vẫn frozen.
+                // Admin cần chuyển khoản thật rồi upload ảnh bill → TransferCompleted.
                 request.Status = WithdrawStatus.Approved;
-
-                // Ghi ledger: DEBIT CLEARING → out (tiền rời hệ thống)
-                var clearingWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.SystemCode == "CLEARING")
-                    ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
-                clearingWallet.AvailableBalance -= request.Amount;
-
-                var ledgerTx = new LedgerTransaction
-                {
-                    ReferenceType = "WithdrawApproved",
-                    ReferenceId = request.Id,
-                    Memo = $"Admin duyệt rút {request.Amount:N0} VND → {request.BankName} - {request.BankAccountNumber}",
-                    CreatedByUserId = adminUserId,
-                    CreatedAt = DateTimeHelper.VietnamNow(),
-                    Entries = new List<LedgerEntry>
-                    {
-                        new LedgerEntry
-                        {
-                            WalletId = clearingWallet.Id,
-                            Direction = LedgerDirection.Debit,
-                            Amount = request.Amount,
-                            CreatedAt = DateTimeHelper.VietnamNow()
-                        }
-                    }
-                };
-                _db.LedgerTransactions.Add(ledgerTx);
-                _db.Wallets.Update(clearingWallet);
 
                 await _notificationService.SendAsync(
                     request.UserId,
-                    "Rút tiền thành công",
-                    $"Yêu cầu rút {request.Amount:N0} VND → {request.BankName} ({request.BankAccountNumber}) đã được duyệt." +
+                    "Yêu cầu rút tiền đã được duyệt",
+                    $"Yêu cầu rút {request.Amount:N0} VND đã được duyệt. Admin sẽ chuyển khoản trong thời gian sớm nhất." +
                     (string.IsNullOrEmpty(dto.AdminNote) ? "" : $" Ghi chú: {dto.AdminNote}"),
-                    NotificationType.Payment);
+                    NotificationType.Wallet);
             }
             else
             {
@@ -419,6 +398,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 wallet.FrozenBalance -= request.Amount;
                 wallet.AvailableBalance += request.Amount;
                 request.Status = WithdrawStatus.Rejected;
+                _db.Wallets.Update(wallet);
 
                 await _notificationService.SendAsync(
                     request.UserId,
@@ -432,11 +412,208 @@ namespace ChargeSlot.Api.Services.Implementation
             request.ProcessedByUserId = adminUserId;
             request.AdminNote = dto.AdminNote;
 
-            _db.Wallets.Update(wallet);
             _db.Set<WithdrawRequest>().Update(request);
             await _db.SaveChangesAsync();
 
             return MapToWithdrawDto(request, request.User?.FullName);
+        }
+
+        /// <summary>Admin xem tất cả yêu cầu rút tiền (mọi trạng thái).</summary>
+        public async Task<List<WithdrawRequestDto>> GetAllWithdrawsAsync()
+        {
+            var requests = await _db.Set<WithdrawRequest>()
+                .Include(r => r.User)
+                .OrderByDescending(r => r.RequestedAt)
+                .ToListAsync();
+
+            return requests.Select(r => MapToWithdrawDto(r, r.User?.FullName)).ToList();
+        }
+
+        /// <summary>
+        /// Admin đã chuyển khoản thật → upload ảnh biên lai → TransferCompleted.
+        /// </summary>
+        public async Task<WithdrawRequestDto> ConfirmTransferAsync(int adminUserId, int requestId, IFormFile receiptImage)
+        {
+            var request = await _db.Set<WithdrawRequest>()
+                .Include(r => r.User)
+                .FirstOrDefaultAsync(r => r.Id == requestId)
+                ?? throw new InvalidOperationException("Yêu cầu rút tiền không tồn tại.");
+
+            if (request.Status != WithdrawStatus.Approved)
+                throw new InvalidOperationException($"Chỉ có thể xác nhận chuyển khoản khi trạng thái là Approved. Hiện tại: {request.Status}");
+
+            // Upload ảnh biên lai lên Firebase
+            var receiptUrl = await _fileStorageService.UploadAsync(receiptImage, $"withdraws/{requestId}");
+
+            request.TransferReceiptUrl = receiptUrl;
+            request.TransferredAt = DateTimeHelper.VietnamNow();
+            request.Status = WithdrawStatus.TransferCompleted;
+
+            _db.Set<WithdrawRequest>().Update(request);
+            await _db.SaveChangesAsync();
+
+            await _notificationService.SendAsync(
+                request.UserId,
+                "Tiền đã được chuyển khoản",
+                $"Admin đã chuyển {request.Amount:N0} VND vào tài khoản {request.BankName} ({request.BankAccountNumber}). " +
+                $"Vui lòng kiểm tra và xác nhận đã nhận tiền trong 24 giờ.",
+                NotificationType.Wallet);
+
+            return MapToWithdrawDto(request, request.User?.FullName);
+        }
+
+        /// <summary>
+        /// User xác nhận đã nhận tiền → Completed (trừ frozen + ghi ledger).
+        /// </summary>
+        public async Task<WithdrawRequestDto> UserConfirmReceivedAsync(int userId, int requestId)
+        {
+            var request = await _db.Set<WithdrawRequest>()
+                .Include(r => r.User)
+                .Include(r => r.Wallet)
+                .FirstOrDefaultAsync(r => r.Id == requestId)
+                ?? throw new InvalidOperationException("Yêu cầu rút tiền không tồn tại.");
+
+            if (request.UserId != userId)
+                throw new UnauthorizedAccessException("Yêu cầu này không thuộc về bạn.");
+
+            if (request.Status != WithdrawStatus.TransferCompleted)
+                throw new InvalidOperationException($"Chỉ xác nhận khi trạng thái là TransferCompleted. Hiện tại: {request.Status}");
+
+            request.UserConfirmedAt = DateTimeHelper.VietnamNow();
+            await FinalizeWithdrawCompletedAsync(request, userId);
+
+            return MapToWithdrawDto(request, request.User?.FullName);
+        }
+
+        /// <summary>
+        /// User báo chưa nhận được tiền → IssueReported.
+        /// </summary>
+        public async Task<WithdrawRequestDto> UserReportIssueAsync(int userId, int requestId, string issueNote)
+        {
+            var request = await _db.Set<WithdrawRequest>()
+                .Include(r => r.User)
+                .FirstOrDefaultAsync(r => r.Id == requestId)
+                ?? throw new InvalidOperationException("Yêu cầu rút tiền không tồn tại.");
+
+            if (request.UserId != userId)
+                throw new UnauthorizedAccessException("Yêu cầu này không thuộc về bạn.");
+
+            if (request.Status != WithdrawStatus.TransferCompleted)
+                throw new InvalidOperationException($"Chỉ báo lỗi khi trạng thái là TransferCompleted. Hiện tại: {request.Status}");
+
+            request.Status = WithdrawStatus.IssueReported;
+            request.IssueReportedAt = DateTimeHelper.VietnamNow();
+            request.IssueNote = issueNote;
+
+            _db.Set<WithdrawRequest>().Update(request);
+            await _db.SaveChangesAsync();
+
+            // Notify admins
+            var adminUsers = await _userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
+            foreach (var admin in adminUsers)
+            {
+                await _notificationService.SendAsync(
+                    admin.Id,
+                    "Vấn đề rút tiền",
+                    $"User {request.User?.FullName ?? userId.ToString()} báo chưa nhận được {request.Amount:N0} VND. Lý do: {issueNote}",
+                    NotificationType.Wallet);
+            }
+
+            return MapToWithdrawDto(request, request.User?.FullName);
+        }
+
+        /// <summary>
+        /// Admin xử lý issue: refund=true → hoàn tiền (Rejected), refund=false → chuyển lại (TransferCompleted).
+        /// </summary>
+        public async Task<WithdrawRequestDto> AdminResolveIssueAsync(int adminUserId, int requestId, bool refund, string? note)
+        {
+            var request = await _db.Set<WithdrawRequest>()
+                .Include(r => r.User)
+                .Include(r => r.Wallet)
+                .FirstOrDefaultAsync(r => r.Id == requestId)
+                ?? throw new InvalidOperationException("Yêu cầu rút tiền không tồn tại.");
+
+            if (request.Status != WithdrawStatus.IssueReported)
+                throw new InvalidOperationException($"Chỉ xử lý issue khi trạng thái là IssueReported. Hiện tại: {request.Status}");
+
+            if (!string.IsNullOrEmpty(note))
+                request.AdminNote = (request.AdminNote ?? "") + $"\n[Resolve] {note}";
+
+            if (refund)
+            {
+                // Hoàn tiền: frozen → available, status = Rejected
+                var wallet = request.Wallet;
+                wallet.FrozenBalance -= request.Amount;
+                wallet.AvailableBalance += request.Amount;
+                request.Status = WithdrawStatus.Rejected;
+                _db.Wallets.Update(wallet);
+
+                await _notificationService.SendAsync(
+                    request.UserId,
+                    "Hoàn tiền rút về ví",
+                    $"Admin đã hoàn {request.Amount:N0} VND về ví của bạn do không chuyển khoản thành công.",
+                    NotificationType.Wallet);
+            }
+            else
+            {
+                // Admin đã chuyển lại → cho user xác nhận lần nữa
+                request.Status = WithdrawStatus.TransferCompleted;
+                request.TransferredAt = DateTimeHelper.VietnamNow(); // reset timer 24h
+
+                await _notificationService.SendAsync(
+                    request.UserId,
+                    "Admin đã chuyển khoản lại",
+                    $"Admin đã xử lý vấn đề và chuyển lại {request.Amount:N0} VND. Vui lòng kiểm tra lại tài khoản.",
+                    NotificationType.Wallet);
+            }
+
+            _db.Set<WithdrawRequest>().Update(request);
+            await _db.SaveChangesAsync();
+
+            return MapToWithdrawDto(request, request.User?.FullName);
+        }
+
+        /// <summary>
+        /// Hoàn tất rút tiền: trừ frozen + ghi ledger (tiền rời hệ thống).
+        /// Được gọi bởi UserConfirmReceivedAsync hoặc WithdrawAutoConfirmJob.
+        /// </summary>
+        internal async Task FinalizeWithdrawCompletedAsync(WithdrawRequest request, int? confirmedByUserId = null)
+        {
+            var wallet = request.Wallet ?? await _db.Wallets.FirstAsync(w => w.Id == request.WalletId);
+
+            wallet.FrozenBalance -= request.Amount;
+            request.Status = WithdrawStatus.Completed;
+            if (request.UserConfirmedAt == null)
+                request.UserConfirmedAt = DateTimeHelper.VietnamNow(); // auto-confirm
+
+            // Ghi ledger: DEBIT CLEARING → out (tiền rời hệ thống)
+            var clearingWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.SystemCode == "CLEARING")
+                ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
+            clearingWallet.AvailableBalance -= request.Amount;
+
+            var ledgerTx = new LedgerTransaction
+            {
+                ReferenceType = "WithdrawCompleted",
+                ReferenceId = request.Id,
+                Memo = $"Rút {request.Amount:N0} VND → {request.BankName} - {request.BankAccountNumber} (hoàn tất)",
+                CreatedByUserId = confirmedByUserId ?? 0,
+                CreatedAt = DateTimeHelper.VietnamNow(),
+                Entries = new List<LedgerEntry>
+                {
+                    new LedgerEntry
+                    {
+                        WalletId = clearingWallet.Id,
+                        Direction = LedgerDirection.Debit,
+                        Amount = request.Amount,
+                        CreatedAt = DateTimeHelper.VietnamNow()
+                    }
+                }
+            };
+            _db.LedgerTransactions.Add(ledgerTx);
+            _db.Wallets.Update(clearingWallet);
+            _db.Wallets.Update(wallet);
+            _db.Set<WithdrawRequest>().Update(request);
+            await _db.SaveChangesAsync();
         }
 
         /// <summary>
@@ -513,7 +690,12 @@ namespace ChargeSlot.Api.Services.Implementation
                 RequestedAt = r.RequestedAt,
                 ProcessedAt = r.ProcessedAt,
                 AdminNote = r.AdminNote,
-                UserNote = r.UserNote
+                UserNote = r.UserNote,
+                TransferReceiptUrl = r.TransferReceiptUrl,
+                TransferredAt = r.TransferredAt,
+                UserConfirmedAt = r.UserConfirmedAt,
+                IssueReportedAt = r.IssueReportedAt,
+                IssueNote = r.IssueNote
             };
         }
     }

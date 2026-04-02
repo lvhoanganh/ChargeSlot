@@ -102,6 +102,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     PhoneNumber = u.PhoneNumber,
                     Role = roles.FirstOrDefault(),
                     Status = u.Status,
+                    BanCount = u.BanCount,
+                    BannedUntil = u.BannedUntil,
                     CreatedAt = u.CreatedAt
                 });
             }

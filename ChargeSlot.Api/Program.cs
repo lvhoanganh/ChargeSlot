@@ -175,6 +175,9 @@ else
     Console.WriteLine($"[WARNING] Firebase service account key not found at: {firebaseKeyPath}");
 }
 builder.Services.AddScoped<IFirebaseAuthService, FirebaseAuthService>();
+
+// Firebase Storage
+builder.Services.AddSingleton<IFileStorageService, FirebaseStorageService>();
 builder.Services.AddScoped<IDriverRepository, DriverRepository>();
 builder.Services.AddScoped<IOwnerRepository, OwnerRepository>();
 builder.Services.AddScoped<IDriverProfileService, DriverProfileService>();
@@ -220,11 +223,17 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 // Payout
 builder.Services.AddScoped<IPayoutService, PayoutService>();
 
+// Analytics & AI
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IAiInsightsService, GeminiInsightsService>();
+
 // Background Jobs
 builder.Services.AddHostedService<PaymentExpiryJob>();
 builder.Services.AddHostedService<InvoiceAutoConfirmJob>();
 builder.Services.AddHostedService<DisputeAutoResolveJob>();
 builder.Services.AddHostedService<NoShowJob>();
+builder.Services.AddHostedService<WithdrawAutoConfirmJob>();
+builder.Services.AddHostedService<UnbanAutoJob>();
 
 // =======================
 // CONTROLLERS & SWAGGER
@@ -320,7 +329,6 @@ app.Use(async (context, next) =>
     }
 });
 
-app.UseStaticFiles(); // Serve wwwroot/uploads/stations images
 
 app.UseAuthentication();
 app.UseAuthorization();

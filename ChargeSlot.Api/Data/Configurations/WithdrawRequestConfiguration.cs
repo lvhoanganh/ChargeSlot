@@ -19,6 +19,10 @@ namespace ChargeSlot.Api.Data.Configurations
             builder.Property(x => x.AdminNote).HasMaxLength(2000);
             builder.Property(x => x.UserNote).HasMaxLength(2000);
 
+            // Transfer fields
+            builder.Property(x => x.TransferReceiptUrl).HasMaxLength(500);
+            builder.Property(x => x.IssueNote).HasMaxLength(2000);
+
             builder.HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId)

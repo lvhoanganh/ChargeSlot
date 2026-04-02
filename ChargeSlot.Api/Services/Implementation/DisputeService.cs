@@ -15,6 +15,8 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly INotificationService _notificationService;
         private readonly Data.ChargeSlotDbContext _db;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IFileStorageService _fileStorageService;
+        private readonly Lazy<IBookingService> _lazyBookingService;
 
         private static readonly string[] AllowedFileExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".mp4", ".avi", ".mov", ".webm", ".pdf" };
         private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
@@ -22,11 +24,15 @@ namespace ChargeSlot.Api.Services.Implementation
         public DisputeService(
             INotificationService notificationService,
             Data.ChargeSlotDbContext db,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            IFileStorageService fileStorageService,
+            IServiceProvider serviceProvider)
         {
             _notificationService = notificationService;
             _db = db;
             _userManager = userManager;
+            _fileStorageService = fileStorageService;
+            _lazyBookingService = new Lazy<IBookingService>(() => serviceProvider.GetRequiredService<IBookingService>());
         }
 
         /// <summary>
@@ -271,6 +277,83 @@ namespace ChargeSlot.Api.Services.Implementation
                         : $"Khiếu nại từ {driverName} tại trạm {stationName}: Bạn được thanh toán. {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví. {dto.AdminNote}",
                     NotificationType.Dispute);
 
+                // ── CHECK BANNING RULES (Lũy tiến: lần 1 -> 30 ngày, lần 2 -> vĩnh viễn) ──
+                var startOfMonth = new DateTime(now.Year, now.Month, 1);
+                
+                if (!dto.IsDriverWin)
+                {
+                    // Driver thua
+                    var driverUserIdLocal = dispute.CreatedByUserId;
+                    var driverLoseCount = await _db.Disputes
+                        .CountAsync(d => d.CreatedByUserId == driverUserIdLocal
+                                      && d.ResolvedAt >= startOfMonth
+                                      && d.Status == DisputeStatus.ResolvedPayout); // ResolvedPayout = Owner win
+                                      
+                    if (driverLoseCount >= 3)
+                    {
+                        var driverUser = dispute.Booking.Driver!.User;
+                        
+                        // Đảm bảo không phạt dồn (tránh trường hợp Admin xử lý 4 khiếu nại liên tiếp cùng lúc khiến BanCount tăng vọt lên 2)
+                        // Chỉ phạt khi User đang ở trạng thái tự do (không bị cấm)
+                        if (driverUser.Status != Constants.UserStatusConstants.Banned && driverUser.BannedUntil == null)
+                        {
+                            driverUser.BanCount += 1;
+                            if (driverUser.BanCount == 1)
+                            {
+                                driverUser.Status = Constants.UserStatusConstants.Suspended;
+                                driverUser.BannedUntil = now.AddDays(30);
+                                await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị đình chỉ", "Tài khoản bị đình chỉ 30 ngày do vi phạm chính sách khiếu nại (thua quá 3 lần/tháng).", NotificationType.System);
+                            }
+                            else
+                            {
+                                driverUser.Status = Constants.UserStatusConstants.Banned;
+                                driverUser.BannedUntil = null;
+                                await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị khóa vĩnh viễn", "Tài khoản bị khóa vĩnh viễn do lạm dụng bộ phận CSKH nhiều lần.", NotificationType.System);
+                            }
+                            _db.Users.Update(driverUser);
+                            await _db.SaveChangesAsync();
+
+                            await CancelDriverBookingsAsync(driverUserIdLocal, "Tài xế bị hệ thống khóa tài khoản.");
+                        }
+                    }
+                }
+                else
+                {
+                    // Station thua
+                    var stationId = dispute.Booking.ChargingSlot.StationId;
+                    var stationLoseCount = await _db.Disputes
+                        .CountAsync(d => d.Booking.ChargingSlot.StationId == stationId
+                                      && d.ResolvedAt >= startOfMonth
+                                      && d.Status == DisputeStatus.ResolvedRefund); // ResolvedRefund = Driver win
+                                      
+                    if (stationLoseCount >= 5)
+                    {
+                        var station = dispute.Booking.ChargingSlot.ChargingStation;
+                        
+                        // Đảm bảo không phạt dồn lặp lại nếu trạm đang trong thời gian phạt hoặc đã bị cấm vĩnh viễn
+                        if (station.BannedUntil == null && station.BanCount < 2)
+                        {
+                            station.BanCount += 1;
+                            if (station.BanCount == 1)
+                            {
+                                station.OperationalStatus = OperationalStatus.Inactive;
+                                station.BannedUntil = now.AddDays(30);
+                                await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị đình chỉ", $"Trạm {station.Name} bị đình chỉ 30 ngày do lượng khiếu nại quá cao (>= 5 lần/tháng).", NotificationType.System);
+                            }
+                            else
+                            {
+                                station.OperationalStatus = OperationalStatus.Inactive;
+                                station.BannedUntil = null;
+                                await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị khóa vĩnh viễn", $"Trạm {station.Name} bị khóa vĩnh viễn do chất lượng dịch vụ không đạt yêu cầu tái phạm.", NotificationType.System);
+                            }
+                            _db.ChargingStations.Update(station);
+                            await _db.SaveChangesAsync(); // Auto commit
+
+                            await CancelStationBookingsAsync(stationId, "Trạm sạc bị hệ thống đình chỉ do vi phạm chất lượng.");
+                        }
+                    }
+                }
+
                 return MapToDto(dispute);
             }
             catch
@@ -454,13 +537,10 @@ namespace ChargeSlot.Api.Services.Implementation
         // ─────────────── HELPERS ───────────────
 
         /// <summary>
-        /// Lưu files bằng chứng vào wwwroot/uploads/disputes/{disputeId}/ và tạo DisputeEvidence records.
+        /// Upload files bằng chứng lên Firebase Storage và tạo DisputeEvidence records.
         /// </summary>
         private async Task SaveEvidenceFilesAsync(Dispute dispute, IFormFile[] files, int uploadedByUserId)
         {
-            var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "disputes", dispute.Id.ToString());
-            Directory.CreateDirectory(uploadDir);
-
             foreach (var file in files)
             {
                 if (file.Length <= 0) continue;
@@ -475,13 +555,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 if (!AllowedFileExtensions.Contains(ext))
                     throw new InvalidOperationException($"Loại file '{ext}' không được cho phép. Chỉ chấp nhận: {string.Join(", ", AllowedFileExtensions)}");
 
-                var fileName = $"{Guid.NewGuid():N}{ext}";
-                var filePath = Path.Combine(uploadDir, fileName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
+                // Upload lên Firebase Storage
+                var publicUrl = await _fileStorageService.UploadAsync(file, $"disputes/{dispute.Id}");
 
                 // Detect file type from extension
                 var fileType = ext switch
@@ -491,7 +566,6 @@ namespace ChargeSlot.Api.Services.Implementation
                     _ => "document"
                 };
 
-                var publicUrl = $"/uploads/disputes/{dispute.Id}/{fileName}";
                 dispute.Evidences.Add(new DisputeEvidence
                 {
                     DisputeId = dispute.Id,
@@ -503,6 +577,62 @@ namespace ChargeSlot.Api.Services.Implementation
             }
 
             await _db.SaveChangesAsync();
+        }
+
+        private async Task CancelDriverBookingsAsync(int driverUserId, string reason)
+        {
+            var targetStatuses = new[] { 
+                BookingStatus.WaitingOwner, 
+                BookingStatus.PendingPayment, 
+                BookingStatus.Paid 
+            };
+            
+            var bookings = await _db.Bookings
+                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Where(b => b.DriverUserId == driverUserId && targetStatuses.Contains(b.Status))
+                .ToListAsync();
+                
+            var bookingService = _lazyBookingService.Value;
+            foreach (var b in bookings)
+            {
+                await bookingService.CancelSystemBookingAsync(b.Id, reason);
+                
+                var ownerId = b.ChargingSlot?.ChargingStation?.OwnerUserId;
+                if (ownerId.HasValue)
+                {
+                    await _notificationService.SendAsync(
+                        ownerId.Value, 
+                        "Lịch đặt đã bị hủy", 
+                        $"Tài xế đặt slot {b.ChargingSlot?.SlotName} tại trạm {b.ChargingSlot?.ChargingStation?.Name} vừa bị khóa tài khoản theo chính sách vi phạm. Lịch đã tự động hủy.", 
+                        NotificationType.System);
+                }
+            }
+        }
+
+        private async Task CancelStationBookingsAsync(int stationId, string reason)
+        {
+            var targetStatuses = new[] { 
+                BookingStatus.WaitingOwner, 
+                BookingStatus.PendingPayment, 
+                BookingStatus.Paid 
+            };
+
+            var bookings = await _db.Bookings
+                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Where(b => b.ChargingSlot!.StationId == stationId && targetStatuses.Contains(b.Status))
+                .ToListAsync();
+                
+            var bookingService = _lazyBookingService.Value;
+            foreach (var b in bookings)
+            {
+                await bookingService.CancelSystemBookingAsync(b.Id, reason);
+                
+                await _notificationService.SendAsync(
+                    b.DriverUserId, 
+                    "Lịch đặt đã bị hủy", 
+                    $"Trạm sạc {b.ChargingSlot?.ChargingStation?.Name} do vi phạm nên đã bị hệ thống khóa. Lịch đặt của bạn tại slot {b.ChargingSlot?.SlotName} bị hủy, tiền cọc (nếu có) đã hoàn 100% vào ví.", 
+                    NotificationType.System);
+            }
         }
 
         private async Task<Dispute?> LoadDisputeWithDetailsAsync(int id)

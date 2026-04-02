@@ -1,4 +1,5 @@
 using ChargeSlot.Api.DTOs.Station;
+using ChargeSlot.Api.DTOs.Admin;
 
 namespace ChargeSlot.Api.Services.Interfaces
 {
@@ -16,6 +17,7 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task SubmitForApprovalAsync(int id, int ownerUserId);
 
         // Admin
+        Task<PagedResultDto<ChargingStationDto>> GetAdminStationsAsync(string? status, string? search, int page, int pageSize);
         Task<List<ChargingStationDto>> GetPendingStationsAsync();
         Task<ChargingStationDto?> GetStationDetailForAdminAsync(int id);
         Task ReviewStationAsync(int id, int adminUserId, ReviewStationDto dto);

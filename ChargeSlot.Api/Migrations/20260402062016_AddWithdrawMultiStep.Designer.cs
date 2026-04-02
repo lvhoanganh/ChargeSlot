@@ -4,6 +4,7 @@ using ChargeSlot.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChargeSlot.Api.Migrations
 {
     [DbContext(typeof(ChargeSlotDbContext))]
-    partial class ChargeSlotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260402062016_AddWithdrawMultiStep")]
+    partial class AddWithdrawMultiStep
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -290,12 +293,6 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<decimal>("AverageRating")
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("BanCount")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("BannedUntil")
-                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -630,12 +627,6 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<string>("AvatarUrl")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
-
-                    b.Property<int>("BanCount")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("BannedUntil")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()

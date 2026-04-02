@@ -14,6 +14,10 @@ namespace ChargeSlot.Api.Models.Identity
         public string Status { get; set; } = "ACTIVE";
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
         public DateTime? UpdatedAt { get; set; }
+        
+        // Tracking Dispute Bans
+        public int BanCount { get; set; } = 0;
+        public DateTime? BannedUntil { get; set; }
 
         public Driver? DriverProfile { get; set; }
         public Owner? OwnerProfile { get; set; }

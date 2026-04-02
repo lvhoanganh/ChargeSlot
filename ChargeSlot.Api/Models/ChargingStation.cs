@@ -32,6 +32,10 @@ namespace ChargeSlot.Api.Models
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
         public DateTime? UpdatedAt { get; set; }
 
+        // Tracking Dispute Bans
+        public int BanCount { get; set; } = 0;
+        public DateTime? BannedUntil { get; set; }
+
         /// <summary>Đánh giá trung bình (denormalized for performance).</summary>
         public decimal AverageRating { get; set; } = 0;
         /// <summary>Tổng số đánh giá.</summary>

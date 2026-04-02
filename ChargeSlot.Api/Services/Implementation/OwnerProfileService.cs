@@ -12,11 +12,16 @@ namespace ChargeSlot.Api.Services.Implementation
     {
         private readonly IOwnerRepository _ownerRepository;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IFileStorageService _fileStorageService;
 
-        public OwnerProfileService(IOwnerRepository ownerRepository, UserManager<ApplicationUser> userManager)
+        public OwnerProfileService(
+            IOwnerRepository ownerRepository,
+            UserManager<ApplicationUser> userManager,
+            IFileStorageService fileStorageService)
         {
             _ownerRepository = ownerRepository;
             _userManager = userManager;
+            _fileStorageService = fileStorageService;
         }
 
         public async Task<OwnerProfileDto?> GetByUserIdAsync(int userId)
@@ -70,27 +75,14 @@ namespace ChargeSlot.Api.Services.Implementation
             var user = await _userManager.FindByIdAsync(userId.ToString())
                 ?? throw new InvalidOperationException("User không tồn tại.");
 
-            // Delete old avatar file if exists
+            // Delete old avatar on Firebase (bỏ qua URL cũ từ wwwroot tự động)
             if (!string.IsNullOrEmpty(user.AvatarUrl))
             {
-                var oldPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", user.AvatarUrl.TrimStart('/'));
-                if (File.Exists(oldPath)) File.Delete(oldPath);
+                await _fileStorageService.DeleteAsync(user.AvatarUrl);
             }
 
-            // Save new avatar
-            var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "avatars", userId.ToString());
-            Directory.CreateDirectory(uploadDir);
-
-            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-            var fileName = $"{Guid.NewGuid():N}{ext}";
-            var filePath = Path.Combine(uploadDir, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            var avatarUrl = $"/uploads/avatars/{userId}/{fileName}";
+            // Upload lên Firebase Storage
+            var avatarUrl = await _fileStorageService.UploadAsync(file, $"avatars/{userId}");
             user.AvatarUrl = avatarUrl;
             await _userManager.UpdateAsync(user);
 
@@ -98,5 +90,3 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
-
-

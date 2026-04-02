@@ -124,5 +124,47 @@ namespace ChargeSlot.Api.Controllers
             var result = await _walletService.GetTransactionHistoryAsync(GetUserId());
             return Ok(result);
         }
+
+        /// <summary>
+        /// User xác nhận đã nhận tiền rút (TransferCompleted → Completed)
+        /// </summary>
+        [HttpPut("withdraw-requests/{id}/confirm")]
+        public async Task<IActionResult> ConfirmWithdrawReceived(int id)
+        {
+            try
+            {
+                var result = await _walletService.UserConfirmReceivedAsync(GetUserId(), id);
+                return Ok(new { message = "Đã xác nhận nhận tiền thành công", withdrawRequest = result });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// User báo chưa nhận được tiền (TransferCompleted → IssueReported)
+        /// </summary>
+        [HttpPut("withdraw-requests/{id}/report-issue")]
+        public async Task<IActionResult> ReportWithdrawIssue(int id, [FromBody] ReportWithdrawIssueDto dto)
+        {
+            try
+            {
+                var result = await _walletService.UserReportIssueAsync(GetUserId(), id, dto.IssueNote);
+                return Ok(new { message = "Đã gửi báo cáo, Admin sẽ xử lý sớm nhất", withdrawRequest = result });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }

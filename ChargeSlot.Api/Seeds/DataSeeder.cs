@@ -206,13 +206,7 @@ namespace ChargeSlot.Api.Seeds
             // 6. STATION IMAGES
             // ══════════════════════════════════════════
 
-            db.StationImages.AddRange(
-                new StationImage { StationId = station1.Id, ImageUrl = "/uploads/stations/demo/station1_1.jpg" },
-                new StationImage { StationId = station1.Id, ImageUrl = "/uploads/stations/demo/station1_2.jpg" },
-                new StationImage { StationId = station2.Id, ImageUrl = "/uploads/stations/demo/station2_1.jpg" },
-                new StationImage { StationId = station3.Id, ImageUrl = "/uploads/stations/demo/station3_1.jpg" },
-                new StationImage { StationId = station3.Id, ImageUrl = "/uploads/stations/demo/station3_2.jpg" }
-            );
+            // Station Images: không seed demo nữa, ảnh sẽ được upload qua API → Firebase Storage
 
             // ══════════════════════════════════════════
             // 6b. EXTRA SERVICES (cho thuê sạc, nước uống...)

@@ -10,9 +10,16 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<WithdrawRequestDto> WithdrawAsync(int userId, WithdrawDto dto);
         Task<List<TransactionHistoryDto>> GetTransactionHistoryAsync(int userId);
 
-        // Withdraw requests
+        // Withdraw requests — queries
         Task<List<WithdrawRequestDto>> GetUserWithdrawRequestsAsync(int userId);
         Task<List<WithdrawRequestDto>> GetAllPendingWithdrawsAsync();
+        Task<List<WithdrawRequestDto>> GetAllWithdrawsAsync();
         Task<WithdrawRequestDto> ProcessWithdrawAsync(int adminUserId, int requestId, ProcessWithdrawDto dto);
+
+        // Withdraw multi-step flow
+        Task<WithdrawRequestDto> ConfirmTransferAsync(int adminUserId, int requestId, IFormFile receiptImage);
+        Task<WithdrawRequestDto> UserConfirmReceivedAsync(int userId, int requestId);
+        Task<WithdrawRequestDto> UserReportIssueAsync(int userId, int requestId, string issueNote);
+        Task<WithdrawRequestDto> AdminResolveIssueAsync(int adminUserId, int requestId, bool refund, string? note);
     }
 }

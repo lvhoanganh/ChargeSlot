@@ -14,5 +14,12 @@ namespace ChargeSlot.Api.DTOs.Wallet
         public DateTime? ProcessedAt { get; set; }
         public string? AdminNote { get; set; }
         public string? UserNote { get; set; }
+
+        // Transfer fields
+        public string? TransferReceiptUrl { get; set; }
+        public DateTime? TransferredAt { get; set; }
+        public DateTime? UserConfirmedAt { get; set; }
+        public DateTime? IssueReportedAt { get; set; }
+        public string? IssueNote { get; set; }
     }
 }

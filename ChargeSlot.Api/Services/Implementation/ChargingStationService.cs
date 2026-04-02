@@ -2,6 +2,7 @@ using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Slot;
 using ChargeSlot.Api.DTOs.Station;
+using ChargeSlot.Api.DTOs.Admin;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Models.Identity;
@@ -18,15 +19,18 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IChargingStationRepository _stationRepo;
         private readonly ChargeSlotDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IFileStorageService _fileStorageService;
 
         public ChargingStationService(
             IChargingStationRepository stationRepo,
             ChargeSlotDbContext context,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            IFileStorageService fileStorageService)
         {
             _stationRepo = stationRepo;
             _context = context;
             _userManager = userManager;
+            _fileStorageService = fileStorageService;
         }
 
         // ─────────────── CRUD ───────────────
@@ -204,27 +208,14 @@ namespace ChargeSlot.Api.Services.Implementation
             await _stationRepo.AddAsync(station);
             await _stationRepo.SaveChangesAsync();
 
-            // Upload images to disk: wwwroot/uploads/stations/{stationId}/
+            // Upload images to Firebase Storage
             if (dto.Images?.Length > 0)
             {
-                var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "stations", station.Id.ToString());
-                Directory.CreateDirectory(uploadDir);
-
                 foreach (var file in dto.Images)
                 {
                     if (file.Length > 0)
                     {
-                        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-                        var fileName = $"{Guid.NewGuid():N}{ext}";
-                        var filePath = Path.Combine(uploadDir, fileName);
-
-                        using (var stream = new FileStream(filePath, FileMode.Create))
-                        {
-                            await file.CopyToAsync(stream);
-                        }
-
-                        // Build public URL
-                        var imageUrl = $"/uploads/stations/{station.Id}/{fileName}";
+                        var imageUrl = await _fileStorageService.UploadAsync(file, $"stations/{station.Id}");
                         station.Images.Add(new StationImage
                         {
                             StationId = station.Id,
@@ -313,28 +304,22 @@ namespace ChargeSlot.Api.Services.Implementation
             // 1. Xóa ảnh cũ không nằm trong danh sách giữ lại
             var keepUrls = dto.ExistingImageUrls ?? new List<string>();
             var imagesToRemove = station.Images.Where(i => !keepUrls.Contains(i.ImageUrl)).ToList();
+
+            // Xóa file trên Firebase Storage trước khi xóa record
+            foreach (var img in imagesToRemove)
+            {
+                await _fileStorageService.DeleteAsync(img.ImageUrl);
+            }
             _context.StationImages.RemoveRange(imagesToRemove);
 
-            // 2. Upload ảnh mới
+            // 2. Upload ảnh mới lên Firebase Storage
             if (dto.Images?.Length > 0)
             {
-                var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "stations", station.Id.ToString());
-                Directory.CreateDirectory(uploadDir);
-
                 foreach (var file in dto.Images)
                 {
                     if (file.Length > 0)
                     {
-                        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-                        var fileName = $"{Guid.NewGuid():N}{ext}";
-                        var filePath = Path.Combine(uploadDir, fileName);
-
-                        using (var stream = new FileStream(filePath, FileMode.Create))
-                        {
-                            await file.CopyToAsync(stream);
-                        }
-
-                        var imageUrl = $"/uploads/stations/{station.Id}/{fileName}";
+                        var imageUrl = await _fileStorageService.UploadAsync(file, $"stations/{station.Id}");
                         station.Images.Add(new StationImage
                         {
                             StationId = station.Id,
@@ -379,6 +364,12 @@ namespace ChargeSlot.Api.Services.Implementation
                 .AnyAsync(b => slotIds.Contains(b.SlotId) && activeStatuses.Contains(b.Status));
             if (hasActiveBookings)
                 throw new InvalidOperationException("Không thể xóa trạm có booking đang hoạt động.");
+
+            // Remove images from Firebase Storage
+            foreach (var img in station.Images)
+            {
+                await _fileStorageService.DeleteAsync(img.ImageUrl);
+            }
 
             // Remove child entities
             _context.StationOperatingHours.RemoveRange(station.OperatingHours);
@@ -440,6 +431,56 @@ namespace ChargeSlot.Api.Services.Implementation
         }
 
         // ─────────────── ADMIN ───────────────
+
+        public async Task<PagedResultDto<ChargingStationDto>> GetAdminStationsAsync(string? status, string? search, int page, int pageSize)
+        {
+            page = page <= 0 ? 1 : page;
+            pageSize = pageSize <= 0 ? 10 : pageSize;
+            if (pageSize > 100) pageSize = 100;
+
+            var query = _context.Set<ChargingStation>()
+                .Include(s => s.Images)
+                .Include(s => s.OperatingHours)
+                .Include(s => s.ChargingSlots)
+                .Include(s => s.StationPricings)
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var sValue = status.Trim().ToUpper();
+                // Filter by OperationalStatus 
+                // e.g. "INACTIVE"
+                if (Enum.TryParse<OperationalStatus>(sValue, true, out var opStatus))
+                {
+                    query = query.Where(s => s.OperationalStatus == opStatus);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.Trim().ToLower();
+                query = query.Where(s => s.Name.ToLower().Contains(searchLower) || s.Address.ToLower().Contains(searchLower));
+            }
+
+            var total = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(s => s.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var dtos = items.Select(MapToDto).ToList();
+
+            return new PagedResultDto<ChargingStationDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = total,
+                Items = dtos
+            };
+        }
 
         public async Task<List<ChargingStationDto>> GetPendingStationsAsync()
         {
@@ -561,6 +602,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 AdminNote = station.AdminNote,
                 CreatedAt = station.CreatedAt,
                 UpdatedAt = station.UpdatedAt,
+                BanCount = station.BanCount,
+                BannedUntil = station.BannedUntil,
                 Images = station.Images.Select(i => new StationImageDto
                 {
                     Id = i.Id,
