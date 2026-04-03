@@ -227,6 +227,7 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 // Analytics & AI
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IAiInsightsService, GeminiInsightsService>();
+builder.Services.AddScoped<IAiChatbotService, AiChatbotService>();
 
 // Background Jobs
 builder.Services.AddHostedService<PaymentExpiryJob>();
