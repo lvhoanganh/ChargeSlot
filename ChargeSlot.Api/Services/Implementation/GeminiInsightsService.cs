@@ -139,7 +139,23 @@ Yêu cầu bắt buộc: Chỉ in ra Markdown, không giải thích. Tiêu đề
                 {
                     var errorBody = await response.Content.ReadAsStringAsync();
                     _logger.LogError("Google API Error: {StatusCode} - {Body}", response.StatusCode, errorBody);
-                    return $"⚠️ Lỗi từ Google AI (Mã {response.StatusCode}): {errorBody}";
+                    
+                    try 
+                    {
+                        using var errDoc = JsonDocument.Parse(errorBody);
+                        var errMsg = errDoc.RootElement.GetProperty("error").GetProperty("message").GetString();
+                        
+                        if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                        {
+                            return $"⚠️ **Hết Lượt Dùng API (Quota Exceeded)**\n\nAPI Key của bạn đã hết hạn ngạch truy vấn miễn phí (Limit 0) cho model này, hoặc bạn đã gọi quá nhanh. Vui lòng cập nhật API Key hoặc liên kết lại thanh toán (Billing) trên Google AI Studio.";
+                        }
+                        
+                        return $"⚠️ **Lỗi từ Google AI ({response.StatusCode})**: {errMsg}";
+                    }
+                    catch
+                    {
+                        return $"⚠️ Lỗi từ Google AI (Mã {response.StatusCode}): Không gọi được trợ lý ảo.";
+                    }
                 }
                 response.EnsureSuccessStatusCode();
 
