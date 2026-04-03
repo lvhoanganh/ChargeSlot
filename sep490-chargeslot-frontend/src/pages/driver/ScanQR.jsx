@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { showToast } from "@/components/Toast";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { Html5Qrcode } from "html5-qrcode";
@@ -145,7 +146,17 @@ export default function ScanQR() {
 
       if (!res.ok) {
         // Backend trả lỗi — hiện message
-        const msg = data?.message || `Lỗi check-in (${res.status})`;
+        let msg = data?.message || `Lỗi check-in (${res.status})`;
+
+        if (res.status === 400) {
+          msg = "Trụ sạc vẫn đang có xe cắm sạc. Vui lòng yêu cầu xe trước kết thúc trước khi check-in";
+          showToast.error(msg, 5000);
+          setSteps(prev => prev.map((s, i) =>
+            i === 1 ? { ...s, status: "fail" } : s
+          ));
+          setApiError(msg);
+          return;
+        }
 
         // Determine which step failed based on error message
         if (msg.includes("thanh toán") || msg.includes("Paid") || msg.includes("status")) {

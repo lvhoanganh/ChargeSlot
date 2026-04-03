@@ -182,6 +182,8 @@ export default function EditChargingStation() {
   );
   const [stationName, setStationName] = useState("");
   const [description, setDescription] = useState("");
+  const [layoutImageFile, setLayoutImageFile] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]);
 
   // Load existing station data
   useEffect(() => {
@@ -245,6 +247,11 @@ export default function EditChargingStation() {
     if (description.trim()) fd.append("description", description.trim());
     if (mapData.lat) fd.append("latitude", String(mapData.lat));
     if (mapData.lng) fd.append("longitude", String(mapData.lng));
+    
+    if (layoutImageFile) fd.append("LayoutImage", layoutImageFile);
+    imageFiles.forEach(file => {
+      fd.append("Images", file);
+    });
 
     // Operating hours — dùng index-based key giống CreateChargingStation
     operatingHours.forEach((h, i) => {
@@ -322,6 +329,26 @@ export default function EditChargingStation() {
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
                   placeholder="Mô tả vị trí, tiện ích..."
                 />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">Ảnh Layout (Sơ đồ trạm)</label>
+                  <label className="flex flex-col items-center justify-center h-32 w-full rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 cursor-pointer hover:bg-slate-100 transition">
+                    <span className="text-2xl mb-1">🗺️</span>
+                    <span className="text-xs text-slate-500 font-medium px-4 text-center line-clamp-2">
+                      {layoutImageFile ? layoutImageFile.name : "Bấm để chọn 1 ảnh layout..."}
+                    </span>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => setLayoutImageFile(e.target.files[0])} />
+                  </label>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">Ảnh trạm sạc thực tế</label>
+                  <label className="flex flex-col items-center justify-center h-32 w-full rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 cursor-pointer hover:bg-slate-100 transition">
+                    <span className="text-2xl mb-1">📸</span>
+                    <span className="text-xs text-slate-500 font-medium">{imageFiles.length > 0 ? `Đã chọn ${imageFiles.length} ảnh` : "Bấm để chọn nhiều ảnh..."}</span>
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setImageFiles(Array.from(e.target.files))} />
+                  </label>
+                </div>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">

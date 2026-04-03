@@ -43,12 +43,15 @@ export default function BookingForm() {
     const base = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
     const token = localStorage.getItem("accessToken");
     const dateParam = selectedDate ? `?date=${selectedDate}` : "";
-    fetch(`${base}/stations/${stationId}/slots/${selectedSlot}/availability${dateParam}`, {
+    fetch(`${base}/slots/${selectedSlot}/schedule${dateParam}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        const list = Array.isArray(data?.bookedRanges) ? data.bookedRanges : [];
+        let list = [];
+        if (Array.isArray(data)) list = data;
+        else if (data && Array.isArray(data.bookedRanges)) list = data.bookedRanges;
+        else if (data && Array.isArray(data.items)) list = data.items;
         setBookedRanges(list);
       })
       .catch(() => setBookedRanges([]));
@@ -316,11 +319,17 @@ export default function BookingForm() {
       if (selectedSlot && stationId && selectedDate) {
         const base = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
         const token = localStorage.getItem("accessToken");
-        fetch(`${base}/stations/${stationId}/slots/${selectedSlot}/availability?date=${selectedDate}`, {
+        fetch(`${base}/slots/${selectedSlot}/schedule?date=${selectedDate}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         })
           .then(r => r.ok ? r.json() : null)
-          .then(data => { if (Array.isArray(data?.bookedRanges)) setBookedRanges(data.bookedRanges); })
+          .then(data => {
+             let list = [];
+             if (Array.isArray(data)) list = data;
+             else if (data && Array.isArray(data.bookedRanges)) list = data.bookedRanges;
+             else if (data && Array.isArray(data.items)) list = data.items;
+             setBookedRanges(list);
+           })
           .catch(() => { });
       }
     } finally {
@@ -357,7 +366,14 @@ export default function BookingForm() {
     const sMin = sh * 60 + sm, eMin = eh * 60 + em;
     if (eMin <= sMin) return false;
     return bookedRanges.some(r => {
-      const parseT = (t) => { const d = new Date(String(t).replace("Z", "")); return d.getHours() * 60 + d.getMinutes(); };
+      const parseT = (t) => { 
+        if (typeof t === "string" && !t.includes("T")) {
+          const [h,m] = t.split(":");
+          return parseInt(h) * 60 + parseInt(m);
+        }
+        const d = new Date(String(t).replace("Z", "")); 
+        return d.getHours() * 60 + d.getMinutes(); 
+      };
       const rS = parseT(r.startTime), rE = parseT(r.endTime);
       return sMin < rE && eMin > rS;
     });
@@ -423,7 +439,13 @@ export default function BookingForm() {
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                     {bookedRanges.map((r, idx) => {
-                      const parseVN = (t) => new Date(String(t).replace("Z", ""));
+                      const parseVN = (t) => {
+                        if (typeof t === "string" && !t.includes("T")) {
+                          const [h,m] = t.split(":");
+                          const d = new Date(); d.setHours(h, m, 0, 0); return d;
+                        }
+                        return new Date(String(t).replace("Z", ""));
+                      };
                       const start = parseVN(r.startTime);
                       const end = parseVN(r.endTime);
                       const fmtT = (d) => d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
@@ -495,7 +517,14 @@ export default function BookingForm() {
                     </div>
                   ))}
                   {bookedRanges.map((r, i) => {
-                    const parseT = (t) => { const d = new Date(String(t).replace("Z", "")); return d.getHours() * 60 + d.getMinutes(); };
+                    const parseT = (t) => { 
+                      if (typeof t === "string" && !t.includes("T")) {
+                        const [h,m] = t.split(":");
+                        return parseInt(h) * 60 + parseInt(m);
+                      }
+                      const d = new Date(String(t).replace("Z", "")); 
+                      return d.getHours() * 60 + d.getMinutes(); 
+                    };
                     const sMin = parseT(r.startTime);
                     const eMin = Math.min(parseT(r.endTime), 24 * 60);
                     if (eMin <= sMin) return null;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { walletApi, payoutApi, bankAccountApi } from "@/services/api";
+import { walletApi, bankAccountApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 import { showConfirm } from "@/components/ConfirmDialog";
 import BankCombobox from "@/components/BankCombobox";
@@ -17,11 +17,13 @@ const txTypeLabels = {
   ChargingPayout: { label: "Thanh toán phiên sạc", icon: "⚡", color: "#22c55e" },
 };
 
-const payoutStatusLabels = {
-  Pending: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb" },
-  Approved: { label: "Đã duyệt", color: "#22c55e", bg: "#f0fdf4" },
+const withdrawStatusLabels = {
+  Pending: { label: "Chờ xử lý", color: "#f59e0b", bg: "#fffbeb" },
+  Approved: { label: "Đã duyệt", color: "#3b82f6", bg: "#eff6ff" },
+  TransferCompleted: { label: "Đã chuyển khoản", color: "#22c55e", bg: "#f0fdf4" },
+  Completed: { label: "Thành công", color: "#16a34a", bg: "#dcfce7" },
+  IssueReported: { label: "Báo lỗi", color: "#ef4444", bg: "#fef2f2" },
   Rejected: { label: "Từ chối", color: "#ef4444", bg: "#fef2f2" },
-  Processing: { label: "Đang xử lý", color: "#3b82f6", bg: "#eff6ff" },
 };
 
 const toLocal = (dt) => {
@@ -34,7 +36,7 @@ export default function OwnerWallet() {
   const navigate = useNavigate();
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
-  const [payouts, setPayouts] = useState([]);
+  const [withdraws, setWithdraws] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("transactions");
@@ -53,17 +55,49 @@ export default function OwnerWallet() {
     Promise.all([
       walletApi.getWallet().catch(() => null),
       walletApi.getTransactions().catch(() => []),
-      payoutApi.getAll().catch(() => []),
+      walletApi.getWithdrawRequests().catch(() => []),
       bankAccountApi.getAll().catch(() => []),
-    ]).then(([w, txs, pts, bas]) => {
+    ]).then(([w, txs, wds, bas]) => {
       setWallet(w);
       setTransactions(Array.isArray(txs) ? txs : []);
-      setPayouts(Array.isArray(pts) ? pts : []);
+      setWithdraws(Array.isArray(wds) ? wds : []);
       setBankAccounts(Array.isArray(bas) ? bas : []);
     }).finally(() => setLoading(false));
   }
 
   useEffect(() => { fetchAll(); }, []);
+
+  const [issueForm, setIssueForm] = useState({ id: null, reason: "" });
+  const [issueLoading, setIssueLoading] = useState(false);
+
+  async function handleConfirmWithdraw(id) {
+    if (!(await showConfirm("Bạn xác nhận đã nhận được tiền rút trong tài khoản?", "Xác nhận nhận tiền"))) return;
+    try {
+      await walletApi.confirmWithdrawal(id);
+      showToast.success("Cảm ơn bạn đã xác nhận!");
+      fetchAll();
+    } catch (err) {
+      showToast.error(err.message || "Lỗi xác nhận");
+    }
+  }
+
+  async function handleReportIssue() {
+    if (!issueForm.reason.trim()) {
+      showToast.error("Vui lòng nhập lý do");
+      return;
+    }
+    setIssueLoading(true);
+    try {
+      await walletApi.reportWithdrawalIssue(issueForm.id, issueForm.reason);
+      showToast.success("Đã gửi báo cáo lỗi thành công");
+      setIssueForm({ id: null, reason: "" });
+      fetchAll();
+    } catch (err) {
+      showToast.error(err.message || "Lỗi báo cáo");
+    } finally {
+      setIssueLoading(false);
+    }
+  }
 
   async function handlePayout() {
     const amt = Number(payoutForm.amount);
@@ -77,10 +111,13 @@ export default function OwnerWallet() {
     }
     setPayoutLoading(true);
     try {
-      await payoutApi.create({
+      const bank = bankAccounts.find(b => b.id === Number(payoutForm.bankAccountId));
+      await walletApi.withdraw({
         amount: amt,
-        bankAccountId: Number(payoutForm.bankAccountId),
-        note: payoutForm.note,
+        bankName: bank.bankName,
+        bankAccountNumber: bank.bankAccountNumber,
+        bankAccountHolder: bank.bankAccountHolder,
+        userNote: payoutForm.note,
       });
       showToast.success("Yêu cầu rút tiền đã gửi! Chờ admin duyệt.");
       setShowPayout(false);
@@ -282,7 +319,7 @@ export default function OwnerWallet() {
         }}>
           {[
             { key: "transactions", label: `Giao dịch (${transactions.length})` },
-            { key: "payouts", label: `Rút tiền (${payouts.length})` },
+            { key: "payouts", label: `Rút tiền (${withdraws.length})` },
             { key: "bank-accounts", label: `TK Ngân hàng (${bankAccounts.length})` },
           ].map(t => (
             <button
@@ -346,12 +383,12 @@ export default function OwnerWallet() {
         {activeTab === "payouts" && (
           <>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", marginBottom: 16 }}>Lịch sử rút tiền</h2>
-            {payouts.length === 0 ? (
+            {withdraws.length === 0 ? (
               <EmptyState icon="🏦" text="Chưa có yêu cầu rút tiền nào" />
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {payouts.map((p) => {
-                  const st = payoutStatusLabels[p.status] || payoutStatusLabels.Pending;
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {withdraws.map((p) => {
+                  const st = withdrawStatusLabels[p.status] || withdrawStatusLabels.Pending;
                   return (
                     <div key={p.id} style={{
                       background: "#fff", borderRadius: 16, padding: "16px 20px",
@@ -367,10 +404,44 @@ export default function OwnerWallet() {
                         }}>{st.label}</span>
                       </div>
                       <div style={{ fontSize: 13, color: "#64748b" }}>
-                        {p.note && <div>📝 {p.note}</div>}
-                        {p.adminNote && <div style={{ color: "#dc2626" }}>⚠️ Admin: {p.adminNote}</div>}
-                        <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 4 }}>{toLocal(p.createdAt)}</div>
+                        <div>Ngân hàng: <strong>{p.bankName}</strong> - {p.bankAccountNumber}</div>
+                        {p.userNote && <div style={{ marginTop: 4 }}>📝 Ghi chú: {p.userNote}</div>}
+                        {p.adminNote && <div style={{ color: "#dc2626", marginTop: 4 }}>⚠️ Admin: {p.adminNote}</div>}
+                        {p.issueReason && <div style={{ color: "#ef4444", marginTop: 4, fontWeight: 600 }}>🔴 Báo lỗi: {p.issueReason}</div>}
+                        <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 6 }}>{toLocal(p.createdAt)}</div>
                       </div>
+
+                      {p.status === "TransferCompleted" && (
+                        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px dashed #e2e8f0" }}>
+                          <p style={{ fontSize: 13, color: "#475569", marginBottom: 10, fontWeight: 500 }}>
+                            Hệ thống đã chuyển khoản. Vui lòng xác nhận hoặc báo lỗi nếu chưa nhận được tiền:
+                          </p>
+                          {issueForm.id === p.id ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                              <input 
+                                type="text"
+                                placeholder="Nhập lý do chưa nhận được tiền..."
+                                value={issueForm.reason}
+                                onChange={(e) => setIssueForm({ ...issueForm, reason: e.target.value })}
+                                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #ef4444", outline: "none", fontSize: 13, boxSizing: "border-box" }}
+                              />
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <button onClick={handleReportIssue} disabled={issueLoading} style={{ flex: 1, padding: "10px", background: "#ef4444", color: "#fff", borderRadius: 10, border: "none", fontWeight: 600, cursor: "pointer" }}>Gửi báo cáo</button>
+                                <button onClick={() => setIssueForm({ id: null, reason: "" })} disabled={issueLoading} style={{ flex: 1, padding: "10px", background: "#f1f5f9", color: "#475569", borderRadius: 10, border: "none", fontWeight: 600, cursor: "pointer" }}>Hủy</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", gap: 10 }}>
+                              <button onClick={() => handleConfirmWithdraw(p.id)} style={{ flex: 1, padding: "10px", background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff", borderRadius: 10, border: "none", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 10px rgba(34,197,94,0.2)" }}>
+                                🟢 Đã nhận tiền
+                              </button>
+                              <button onClick={() => setIssueForm({ id: p.id, reason: "" })} style={{ flex: 1, padding: "10px", background: "#fff", color: "#ef4444", borderRadius: 10, border: "1.5px solid #fca5a5", fontWeight: 700, cursor: "pointer" }}>
+                                🔴 Báo lỗi
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

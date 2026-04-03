@@ -505,7 +505,7 @@ export const walletApi = {
     payBooking: (bookingId) =>
         apiFetch(`/Wallet/pay-booking/${bookingId}`, { method: "POST" }),
 
-    /** Rút tiền (Driver) — cần info ngân hàng */
+    /** Rút tiền (Chung cho cả Owner & Driver) */
     withdraw: ({ amount, bankName, bankAccountNumber, bankAccountHolder, userNote }) =>
         apiFetch("/Wallet/withdraw", {
             method: "POST",
@@ -515,6 +515,15 @@ export const walletApi = {
     getTransactions: () => apiFetch("/Wallet/transactions"),
 
     getWithdrawRequests: () => apiFetch("/Wallet/withdraw-requests"),
+
+    /** Báo đã nhận được tiền */
+    confirmWithdrawal: (id) => apiFetch(`/Wallet/withdraw-requests/${id}/confirm`, { method: "PUT" }),
+
+    /** Báo lỗi rút tiền */
+    reportWithdrawalIssue: (id, reason) => apiFetch(`/Wallet/withdraw-requests/${id}/report-issue`, {
+        method: "PUT",
+        body: JSON.stringify({ reason }),
+    }),
 };
 
 // ============================

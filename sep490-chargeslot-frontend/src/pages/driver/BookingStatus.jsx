@@ -507,72 +507,68 @@ export default function BookingStatus() {
                 {previewLoading ? "Đang kiểm tra phí hủy..." : "🚫 Hủy booking"}
               </button>
             ) : (
-              <div style={{ border: "2px solid #fecaca", borderRadius: 16, padding: 20, background: "#fef2f2" }}>
-                {/* Penalty Warning */}
-                {cancelPreview && (cancelPreview.penaltyAmount > 0 || cancelPreview.refundAmount != null) && (
-                  <div style={{
-                    background: "linear-gradient(135deg, #fef3c7, #fde68a)",
-                    border: "1.5px solid #f59e0b", borderRadius: 12,
-                    padding: "12px 16px", marginBottom: 14,
-                  }}>
-                    <div style={{ fontWeight: 800, fontSize: 14, color: "#92400e", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                      ⚠️ Phí hủy booking
+              <div style={{ background: "#fff", borderRadius: 24, padding: "28px 24px", boxShadow: "0 10px 40px rgba(0,0,0,0.1)", border: "1px solid #e2e8f0" }}>
+                <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#fef2f2", color: "#ef4444", fontSize: 32, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                  ⚠️
+                </div>
+                <h3 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 800, color: "#1e293b", textAlign: "center" }}>Xác nhận hủy</h3>
+                <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24, textAlign: "center", lineHeight: 1.5 }}>
+                  Logic hoàn tiền được xử lý minh bạch. Bạn vui lòng xem kỹ chi phí trước khi xác nhận hủy.
+                </p>
+
+                {cancelPreview && booking && (
+                  <div style={{ background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 16, padding: "16px", marginBottom: 20 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, fontSize: 14, color: "#475569" }}>
+                      <span>Tiền đã thanh toán:</span>
+                      <span style={{ fontWeight: 600 }}>{booking.totalAmount?.toLocaleString("vi-VN")}đ</span>
                     </div>
-                    {cancelPreview.penaltyAmount > 0 && (
-                      <div style={{ fontSize: 13, color: "#92400e", marginBottom: 4 }}>
-                        Phí phạt hủy: <strong style={{ color: "#dc2626" }}>{cancelPreview.penaltyAmount?.toLocaleString("vi-VN")}đ</strong>
-                      </div>
-                    )}
-                    {cancelPreview.refundAmount != null && (
-                      <div style={{ fontSize: 13, color: "#92400e" }}>
-                        Hoàn tiền về ví: <strong style={{ color: "#16a34a" }}>{cancelPreview.refundAmount?.toLocaleString("vi-VN")}đ</strong>
-                      </div>
-                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16, fontSize: 14, color: "#dc2626" }}>
+                      <span>Phí phạt hủy:</span>
+                      <span style={{ fontWeight: 700 }}>- {cancelPreview.penaltyAmount?.toLocaleString("vi-VN")}đ</span>
+                    </div>
+                    <div style={{ borderTop: "1px dashed #cbd5e1", paddingTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Thực nhận lại:</span>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: "#16a34a" }}>{cancelPreview.refundAmount?.toLocaleString("vi-VN")}đ</span>
+                    </div>
                     {cancelPreview.penaltyAmount === 0 && (
-                      <div style={{ fontSize: 12, color: "#92400e", marginTop: 4 }}>
-                        Không có phí phạt. Bạn sẽ được hoàn tiền đầy đủ.
+                      <div style={{ fontSize: 12, color: "#166534", marginTop: 12, textAlign: "center", fontWeight: 600, background: "#dcfce7", padding: "6px 10px", borderRadius: 8 }}>
+                        ✅ Không có phí phạt. Hoàn tiền 100%.
                       </div>
                     )}
                   </div>
                 )}
-                <p style={{ fontSize: 14, fontWeight: 700, color: "#dc2626", marginBottom: 10 }}>
-                  Lý do hủy booking
-                </p>
-                <textarea
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="Nhập lý do hủy (không bắt buộc)..."
-                  rows={3}
-                  style={{
-                    width: "100%", padding: 12, borderRadius: 10,
-                    border: "1px solid #fca5a5", fontSize: 14,
-                    resize: "vertical", outline: "none", boxSizing: "border-box",
-                  }}
-                />
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button
-                    onClick={submitCancel}
-                    disabled={cancelLoading}
+
+                <div style={{ marginBottom: 20 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>Lý do hủy (không bắt buộc)</p>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="Chia sẻ lý do bạn hủy..."
+                    rows={2}
                     style={{
-                      flex: 1, padding: "12px 0", borderRadius: 10, border: "none",
-                      background: cancelLoading ? "#d1d5db" : "#ef4444",
-                      color: "#fff", fontWeight: 700, fontSize: 14,
-                      cursor: cancelLoading ? "not-allowed" : "pointer",
+                      width: "100%", padding: "12px", borderRadius: 12,
+                      border: "1.5px solid #cbd5e1", fontSize: 14, background: "#f8fafc",
+                      resize: "vertical", outline: "none", boxSizing: "border-box", transition: "all 0.2s"
                     }}
-                  >
-                    {cancelLoading ? "Đang hủy..." : "Xác nhận hủy"}
-                  </button>
+                    onFocus={e => { e.target.style.borderColor = "#94a3b8"; e.target.style.background = "#fff" }}
+                    onBlur={e => { e.target.style.borderColor = "#cbd5e1"; e.target.style.background = "#f8fafc" }}
+                  />
+                </div>
+
+                <div style={{ display: "flex", gap: 12 }}>
                   <button
                     onClick={() => { setShowCancelForm(false); setCancelReason(""); setCancelPreview(null); }}
                     disabled={cancelLoading}
-                    style={{
-                      flex: 1, padding: "12px 0", borderRadius: 10,
-                      border: "1px solid #d1d5db", background: "#fff",
-                      color: "#6b7280", fontWeight: 600, fontSize: 14,
-                      cursor: "pointer",
-                    }}
+                    style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "1px solid #cbd5e1", background: "#f8fafc", color: "#475569", fontWeight: 700, cursor: cancelLoading ? "not-allowed" : "pointer" }}
                   >
-                    Không hủy
+                    Đóng
+                  </button>
+                  <button
+                    onClick={submitCancel}
+                    disabled={cancelLoading}
+                    style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "#ef4444", color: "#fff", fontWeight: 700, cursor: cancelLoading ? "not-allowed" : "pointer" }}
+                  >
+                    {cancelLoading ? "Đang hủy..." : "Xác nhận hủy"}
                   </button>
                 </div>
               </div>

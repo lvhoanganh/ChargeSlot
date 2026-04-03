@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { bookingApi } from "@/services/api";
+import { showToast } from "@/components/Toast";
 
 const statusStyles = {
   WaitingOwner: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "⏳", group: "active" },
@@ -40,12 +41,56 @@ export default function MyBookings() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("all");
 
-  useEffect(() => {
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelPreviewData, setCancelPreviewData] = useState(null);
+  const [selectedCancelId, setSelectedCancelId] = useState(null);
+  const [selectedCancelBooking, setSelectedCancelBooking] = useState(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+
+  const fetchBookings = () => {
     bookingApi.getDriverBookings()
       .then((data) => setBookings(Array.isArray(data) ? data : (data?.items ?? [])))
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchBookings();
   }, []);
+
+  const handleStartCancel = async (e, b) => {
+    e.stopPropagation();
+    setSelectedCancelId(b.id);
+    setSelectedCancelBooking(b);
+    setCancelLoading(true);
+    try {
+      const preview = await bookingApi.cancelPreview(id);
+      setCancelPreviewData(preview);
+      setShowCancelConfirm(true);
+    } catch {
+      setCancelPreviewData(null);
+      setShowCancelConfirm(true);
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!selectedCancelId) return;
+    setCancelLoading(true);
+    try {
+      await bookingApi.driverCancel(selectedCancelId, "");
+      showToast.success("Hủy booking thành công");
+      setShowCancelConfirm(false);
+      setSelectedCancelId(null);
+      setSelectedCancelBooking(null);
+      fetchBookings();
+    } catch (err) {
+      showToast.error(err.message || "Hủy thất bại");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   const filtered = tab === "all"
     ? bookings
@@ -208,15 +253,28 @@ export default function MyBookings() {
                   {isActive && (
                     <div style={{
                       marginTop: 10, paddingTop: 8, borderTop: "1px solid #f1f5f9",
-                      display: "flex", justifyContent: "flex-end", alignItems: "center",
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
                       fontSize: 12, color: st.color, fontWeight: 600,
                     }}>
-                      {b.status === "PendingPayment" && "Thanh toán ngay →"}
-                      {b.status === "CheckedIn" && "Xem phiên sạc →"}
-                      {b.status === "InProgress" && "Xem phiên sạc →"}
-                      {b.status === "WaitingOwner" && "Đang chờ duyệt..."}
-                      {b.status === "Paid" && "Chờ check-in →"}
-                      {b.status === "CompletedPendingInvoice" && "Xác nhận hóa đơn →"}
+                      <div>
+                        {(b.status === "Paid" || b.status === "PendingPayment" || b.status === "WaitingOwner") && (
+                          <button
+                            onClick={(e) => handleStartCancel(e, b)}
+                            disabled={cancelLoading}
+                            style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #fca5a5", color: "#dc2626", background: "#fff", fontSize: 11, fontWeight: 600, cursor: cancelLoading ? "not-allowed" : "pointer" }}
+                          >
+                            Hủy Booking
+                          </button>
+                        )}
+                      </div>
+                      <div>
+                        {b.status === "PendingPayment" && "Thanh toán ngay →"}
+                        {b.status === "CheckedIn" && "Xem phiên sạc →"}
+                        {b.status === "InProgress" && "Xem phiên sạc →"}
+                        {b.status === "WaitingOwner" && "Đang chờ duyệt..."}
+                        {b.status === "Paid" && "Chờ check-in →"}
+                        {b.status === "CompletedPendingInvoice" && "Xác nhận hóa đơn →"}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -225,6 +283,62 @@ export default function MyBookings() {
           </div>
         )}
       </div>
+
+      {showCancelConfirm && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
+          background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+        }}>
+          <div style={{ background: "#fff", width: "100%", maxWidth: 380, borderRadius: 24, padding: "28px 24px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#fef2f2", color: "#ef4444", fontSize: 32, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              ⚠️
+            </div>
+            <h3 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 800, color: "#1e293b", textAlign: "center" }}>Hủy Booking</h3>
+            <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24, textAlign: "center", lineHeight: 1.5 }}>
+              Logic hoàn tiền được xử lý minh bạch. Bạn vui lòng xem kỹ chi phí trước khi xác nhận hủy.
+            </p>
+            
+            {cancelPreviewData && selectedCancelBooking && (
+              <div style={{ background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 16, padding: "16px", marginBottom: 24 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, fontSize: 14, color: "#475569" }}>
+                  <span>Tiền đã thanh toán:</span>
+                  <span style={{ fontWeight: 600 }}>{selectedCancelBooking.totalAmount?.toLocaleString("vi-VN")}đ</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16, fontSize: 14, color: "#dc2626" }}>
+                  <span>Phí phạt hủy:</span>
+                  <span style={{ fontWeight: 700 }}>- {cancelPreviewData.penaltyAmount?.toLocaleString("vi-VN")}đ</span>
+                </div>
+                <div style={{ borderTop: "1px dashed #cbd5e1", paddingTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Thực nhận lại:</span>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: "#16a34a" }}>{cancelPreviewData.refundAmount?.toLocaleString("vi-VN")}đ</span>
+                </div>
+                {cancelPreviewData.penaltyAmount === 0 && (
+                  <div style={{ fontSize: 12, color: "#166534", marginTop: 12, textAlign: "center", fontWeight: 600, background: "#dcfce7", padding: "6px 10px", borderRadius: 8 }}>
+                    ✅ Không có phí phạt. Hoàn tiền 100%.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                onClick={() => { setShowCancelConfirm(false); setSelectedCancelId(null); setSelectedCancelBooking(null); setCancelPreviewData(null); }}
+                disabled={cancelLoading}
+                style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "1px solid #cbd5e1", background: "#f8fafc", color: "#475569", fontWeight: 700, cursor: cancelLoading ? "not-allowed" : "pointer" }}
+              >
+                Đóng
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={cancelLoading}
+                style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "#ef4444", color: "#fff", fontWeight: 700, cursor: cancelLoading ? "not-allowed" : "pointer" }}
+              >
+                {cancelLoading ? "Đang hủy..." : "Xác nhận hủy"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

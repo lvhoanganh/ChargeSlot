@@ -1,4 +1,5 @@
 import axios from "axios";
+import { showToast } from "@/components/Toast";
 export const instance = axios.create({
   baseURL: import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api",
 });
@@ -11,24 +12,24 @@ instance.interceptors.request.use((config) => {
   return config;
 });
 
-// let refreshPromise = null;
-// instance.interceptors.response.use(
-//   (response) => {
-//     return response;
-//   },
-//   async (error) => {
-//     console.log(error.response);
-//     if (error.response.status === 401) {
-//     //   if (!refreshPromise) {
-//     //     refreshPromise = useAuth.getState().refreshAccessToken();
-//     //   }
-//     //   try {
-//     //     await refreshPromise;
-//     //   } finally {
-//     //     refreshPromise = null;
-//     //   }
-//       return instance(error.config);
-//     }
-//     return Promise.reject(error);
-//   },
-// );
+instance.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  async (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      const msg = String(error.response.data?.message || "");
+      if (msg.includes("Tài khoản bị khoá")) {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("role");
+        showToast.error("Tài khoản bị khoá do phá rối hệ thống", 5000);
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1500);
+        return Promise.reject(error);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
