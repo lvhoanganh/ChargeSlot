@@ -297,8 +297,11 @@ await DataSeeder.SeedAsync(app.Services);
 // =======================
 // MIDDLEWARE PIPELINE
 // =======================
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseHttpsRedirection();
 
@@ -323,8 +326,7 @@ app.Use(async (context, next) =>
 
         var response = new 
         {
-            message = "Lỗi hệ thống ngoài ý muốn.",
-            detail = ex.Message
+            message = "Lỗi hệ thống ngoài ý muốn."
         };
 
         await context.Response.WriteAsJsonAsync(response);

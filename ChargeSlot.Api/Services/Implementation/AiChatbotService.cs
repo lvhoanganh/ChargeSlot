@@ -2,12 +2,9 @@ using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Analytics;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Google.Apis.Auth.OAuth2;
 using System.Text.Json;
 using System.Text;
 using System.Text.Json.Serialization;
-using System.Net.Http.Headers;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 
 namespace ChargeSlot.Api.Services.Implementation
@@ -19,7 +16,6 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly ILogger<AiChatbotService> _logger;
         private readonly IWalletService _walletService;
         private readonly IChargingStationService _stationService;
-        private readonly IMemoryCache _cache;
         private readonly IConfiguration _configuration;
 
         public AiChatbotService(
@@ -28,7 +24,6 @@ namespace ChargeSlot.Api.Services.Implementation
             ILogger<AiChatbotService> logger,
             IWalletService walletService,
             IChargingStationService stationService,
-            IMemoryCache cache,
             IConfiguration configuration)
         {
             _httpClient = httpClient;
@@ -36,16 +31,15 @@ namespace ChargeSlot.Api.Services.Implementation
             _logger = logger;
             _walletService = walletService;
             _stationService = stationService;
-            _cache = cache;
             _configuration = configuration;
         }
 
-        private (string ProjectId, string Region) GetVertexConfig()
+        private (string ApiKey, string Model) GetGeminiConfig()
         {
-            var projectId = _configuration["VertexAi:ProjectId"]?.Trim() ?? "chargeslot-42b86";
-            var region = _configuration["VertexAi:Region"]?.Trim() ?? "us-central1";
-
-            return (projectId, region);
+            var apiKey = _configuration["GeminiApi:ApiKey"]?.Trim() 
+                ?? throw new InvalidOperationException("GeminiApi:ApiKey is not configured.");
+            var model = _configuration["GeminiApi:Model"]?.Trim() ?? "gemini-2.5-flash";
+            return (apiKey, model);
         }
 
         public async Task<ChatbotResponseDto> ProcessDriverChatAsync(int userId, ChatbotRequestDto request)
@@ -102,24 +96,8 @@ Quy tắc Lõi:
             object tools,
             string role)
         {
-            if (!_cache.TryGetValue("VertexAiToken", out string token))
-            {
-                var credFilePath = Path.Combine(Directory.GetCurrentDirectory(), "vertex-credentials.json");
-                if (!File.Exists(credFilePath))
-                    return new ChatbotResponseDto { ReplyMarkdown = "⚠️ **Hệ Thống Trợ Lý Đang Tạm Dừng:** Không tìm thấy chứng chỉ bảo mật Vertex AI." };
-
-                try {
-                    var credential = GoogleCredential.FromFile(credFilePath).CreateScoped("https://www.googleapis.com/auth/cloud-platform");
-                    token = await ((ITokenAccess)credential).GetAccessTokenForRequestAsync();
-                    _cache.Set("VertexAiToken", token, TimeSpan.FromMinutes(50));
-                } catch {
-                    return new ChatbotResponseDto { ReplyMarkdown = "⚠️ **Giao thức OAuth2 Vertex bị từ chối.** Vui lòng kiểm tra lại file cấu hình." };
-                }
-            }
-
-            var (projectId, region) = GetVertexConfig();
-
-            var url = $"https://{region}-aiplatform.googleapis.com/v1/projects/{projectId}/locations/{region}/publishers/google/models/gemini-2.0-flash:generateContent";
+            var (apiKey, model) = GetGeminiConfig();
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
             // Xây dựng lịch sử trò chuyện
             var contents = new List<object>
@@ -148,11 +126,10 @@ Quy tắc Lõi:
                 };
 
                 var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
-                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 requestMessage.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
                 // GIỚI HẠN THỜI GIAN KẾT NỐI (TIMEOUT) CHỐNG TREO LUỒNG C#
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 HttpResponseMessage response;
                 try
                 {
@@ -160,14 +137,14 @@ Quy tắc Lõi:
                 }
                 catch (TaskCanceledException)
                 {
-                    return new ChatbotResponseDto { ReplyMarkdown = "⚠️ Gián đoạn kết nối đến Trung tâm dữ liệu (Timeout 15s). Vui lòng thử lại lúc khác." };
+                    return new ChatbotResponseDto { ReplyMarkdown = "⚠️ Gián đoạn kết nối đến Trung tâm dữ liệu (Timeout 30s). Vui lòng thử lại lúc khác." };
                 }
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var err = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Vertex Chat Error: {Err}", err);
-                    return new ChatbotResponseDto { ReplyMarkdown = "Xin lỗi, đường kết nối đến dữ liệu não bộ đang nghẽn." };
+                    _logger.LogError("Gemini Chat Error ({StatusCode}): {Err}", response.StatusCode, err);
+                    return new ChatbotResponseDto { ReplyMarkdown = $"⚠️ Lỗi kết nối AI ({response.StatusCode}). Vui lòng thử lại." };
                 }
 
                 var responseString = await response.Content.ReadAsStringAsync();

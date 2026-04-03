@@ -1,12 +1,9 @@
 using System.Text;
 using System.Text.Json;
-using System.Net.Http.Headers;
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Analytics;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Google.Apis.Auth.OAuth2;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 
 namespace ChargeSlot.Api.Services.Implementation
@@ -16,24 +13,22 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly HttpClient _httpClient;
         private readonly ChargeSlotDbContext _db;
         private readonly ILogger<GeminiInsightsService> _logger;
-        private readonly IMemoryCache _cache;
         private readonly IConfiguration _configuration;
 
-        public GeminiInsightsService(HttpClient httpClient, ChargeSlotDbContext db, ILogger<GeminiInsightsService> logger, IMemoryCache cache, IConfiguration configuration)
+        public GeminiInsightsService(HttpClient httpClient, ChargeSlotDbContext db, ILogger<GeminiInsightsService> logger, IConfiguration configuration)
         {
             _httpClient = httpClient;
             _db = db;
             _logger = logger;
-            _cache = cache;
             _configuration = configuration;
         }
 
-        private (string ProjectId, string Region) GetVertexConfig()
+        private (string ApiKey, string Model) GetGeminiConfig()
         {
-            var projectId = _configuration["VertexAi:ProjectId"]?.Trim() ?? "chargeslot-42b86";
-            var region = _configuration["VertexAi:Region"]?.Trim() ?? "us-central1";
-
-            return (projectId, region);
+            var apiKey = _configuration["GeminiApi:ApiKey"]?.Trim() 
+                ?? throw new InvalidOperationException("GeminiApi:ApiKey is not configured.");
+            var model = _configuration["GeminiApi:Model"]?.Trim() ?? "gemini-2.5-flash";
+            return (apiKey, model);
         }
 
         public async Task<AiInsightResponseDto> GenerateAdminInsightAsync(AdminDashboardMetricsDto metrics)
@@ -64,7 +59,7 @@ NHIỆM VỤ CỦA BẠN: Viết báo cáo nội bộ chia làm 4 phần rõ rà
 Yêu cầu bắt buộc: Chỉ in ra Markdown, tuyệt đối không có lời mở đầu hay kết luận sáo rỗng.
 ";
 
-            var insight = await CallVertexApiAsync(prompt);
+            var insight = await CallGeminiApiAsync(prompt);
             return new AiInsightResponseDto { InsightMarkdown = insight };
         }
 
@@ -90,37 +85,14 @@ NHIỆM VỤ CỦA BẠN: Viết báo cáo gửi sếp chia làm 4 phần giật
 Yêu cầu bắt buộc: Chỉ in ra Markdown, không giải thích. Tiêu đề phải bùng nổ, tạo cảm giác 'wow' cho người đọc.
 ";
 
-            var insight = await CallVertexApiAsync(prompt);
+            var insight = await CallGeminiApiAsync(prompt);
             return new AiInsightResponseDto { InsightMarkdown = insight };
         }
 
-        private async Task<string> CallVertexApiAsync(string prompt)
+        private async Task<string> CallGeminiApiAsync(string prompt)
         {
-            if (!_cache.TryGetValue("VertexAiToken", out string token))
-            {
-                var credFilePath = Path.Combine(Directory.GetCurrentDirectory(), "vertex-credentials.json");
-                
-                if (!File.Exists(credFilePath))
-                {
-                    return "⚠️ **Lỗi Hệ Thống:** Không tìm thấy tệp xác thực `vertex-credentials.json` của Vertex AI trên thư mục gốc dự án C#.";
-                }
-
-                try 
-                {
-                    var credential = GoogleCredential.FromFile(credFilePath)
-                        .CreateScoped("https://www.googleapis.com/auth/cloud-platform");
-                    
-                    token = await ((ITokenAccess)credential).GetAccessTokenForRequestAsync();
-                    _cache.Set("VertexAiToken", token, TimeSpan.FromMinutes(50));
-                }
-                catch
-                {
-                    return "⚠️ **Giao thức OAuth2 Vertex bị từ chối.** Vui lòng kiểm tra lại file cấu hình.";
-                }
-            }
-
-            var (projectId, region) = GetVertexConfig();
-            var url = $"https://{region}-aiplatform.googleapis.com/v1/projects/{projectId}/locations/{region}/publishers/google/models/gemini-2.0-flash:generateContent";
+            var (apiKey, model) = GetGeminiConfig();
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
             try 
             {
@@ -138,10 +110,9 @@ Yêu cầu bắt buộc: Chỉ in ra Markdown, không giải thích. Tiêu đề
                 };
 
                 var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
-                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 requestMessage.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 HttpResponseMessage response;
                 try
                 {
@@ -149,22 +120,22 @@ Yêu cầu bắt buộc: Chỉ in ra Markdown, không giải thích. Tiêu đề
                 }
                 catch (TaskCanceledException)
                 {
-                    return "⚠️ Gián đoạn kết nối đến Trung tâm dữ liệu (Timeout 15s). Vui lòng thử lại lúc khác.";
+                    return "⚠️ Gián đoạn kết nối đến Trung tâm dữ liệu (Timeout 30s). Vui lòng thử lại lúc khác.";
                 }
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorBody = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Vertex API Error: {StatusCode} - {Body}", response.StatusCode, errorBody);
+                    _logger.LogError("Gemini API Error: {StatusCode} - {Body}", response.StatusCode, errorBody);
                     try 
                     {
                         using var errDoc = JsonDocument.Parse(errorBody);
                         var errMsg = errDoc.RootElement.GetProperty("error").GetProperty("message").GetString();
-                        return $"⚠️ **Lỗi từ Vertex AI ({response.StatusCode})**: {errMsg}";
+                        return $"⚠️ **Lỗi từ Gemini AI ({response.StatusCode})**: {errMsg}";
                     }
                     catch
                     {
-                        return $"⚠️ Lỗi từ Vertex AI (Mã {response.StatusCode}): {errorBody}";
+                        return $"⚠️ Lỗi từ Gemini AI (Mã {response.StatusCode}): {errorBody}";
                     }
                 }
 
@@ -181,8 +152,8 @@ Yêu cầu bắt buộc: Chỉ in ra Markdown, không giải thích. Tiêu đề
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to call Vertex API");
-                return $"Đã xảy ra lỗi khi xác thực Token Vertex. Chi tiết: {ex.Message}";
+                _logger.LogError(ex, "Failed to call Gemini API");
+                return $"Đã xảy ra lỗi khi gọi Gemini AI. Chi tiết: {ex.Message}";
             }
         }
     }

@@ -47,20 +47,6 @@ namespace ChargeSlot.Api.Controllers
             }
         }
 
-        [HttpGet("test-pay/{bookingId}/{userId}")]
-        [AllowAnonymous]
-        public async Task<IActionResult> TestPay(int bookingId, int userId)
-        {
-            try
-            {
-                var result = await _walletService.PayBookingByWalletAsync(userId, bookingId);
-                return Ok(new { message = "Thanh toán thành công", wallet = result });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message, stackTrace = ex.StackTrace, innerException = ex.InnerException?.Message });
-            }
-        }
 
         /// <summary>
         /// Thanh toán booking bằng số dư ví
@@ -82,9 +68,9 @@ namespace ChargeSlot.Api.Controllers
             {
                 return Forbid();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { message = ex.Message, stackTrace = ex.StackTrace, innerException = ex.InnerException?.Message });
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi thanh toán." });
             }
         }
 
