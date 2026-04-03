@@ -645,13 +645,21 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _context.SaveChangesAsync();
             }
 
-            // Chuyển tiền nét cho Owner
-            escrowWallet.AvailableBalance -= ownerNet;
-            ownerWallet.AvailableBalance += ownerNet;
+            // Chuyển tiền nét cho Owner (Atomic để tránh lỗ hổng Lost Update tranh chấp luồng)
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
+                ownerNet, escrowWallet.Id);
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
+                ownerNet, ownerWallet.Id);
 
-            // Chuyển phí nền tảng
-            escrowWallet.AvailableBalance -= platformFee;
-            platformWallet.AvailableBalance += platformFee;
+            // Chuyển phí nền tảng (Atomic)
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
+                platformFee, escrowWallet.Id);
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
+                platformFee, platformWallet.Id);
 
             var now = DateTimeHelper.VietnamNow();
 
@@ -691,8 +699,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _context.SaveChangesAsync();
             }
 
-            escrowWallet.AvailableBalance -= amount;
-            userWallet.AvailableBalance += amount;
+            // Sử dụng SQL Atomic nguyên thủy để chống đè tiền Escrow
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
+                amount, escrowWallet.Id);
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
+                amount, userWallet.Id);
 
             _context.Set<LedgerTransaction>().Add(new LedgerTransaction
             {

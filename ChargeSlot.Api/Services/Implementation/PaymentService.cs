@@ -61,10 +61,12 @@ namespace ChargeSlot.Api.Services.Implementation
             }
             await _bookingRepo.UpdateAsync(booking);
 
-            // Cộng tiền vào ESCROW wallet (VNPay đã thu tiền thực tế từ Driver)
+            // Cộng tiền vào ESCROW wallet (Atomic)
             var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
             var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
-            escrowWallet.AvailableBalance += booking.TotalAmount;
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
+                booking.TotalAmount, escrowWallet.Id);
             await _db.SaveChangesAsync();
 
             // Ghi ledger double-entry: DEBIT từ CLEARING (VNPay gateway), CREDIT vào ESCROW

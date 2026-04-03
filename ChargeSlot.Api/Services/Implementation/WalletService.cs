@@ -117,11 +117,12 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Số dư ví không đủ hoặc đã bị thay đổi bởi giao dịch khác (Kẹt ví).");
             await _db.Entry(wallet).ReloadAsync(); // Reload để EF Core bắt được balance mới cho các hàm update phía sau
 
-            // Cộng tiền vào ESCROW (query by SystemCode thay vì hardcode ID)
+            // Cộng tiền vào ESCROW (Atomic SQL update)
             var escrowWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.SystemCode == "ESCROW") 
                 ?? throw new InvalidOperationException("Ví hệ thống ESCROW chưa được cấu hình. Vui lòng liên hệ Admin.");
-            escrowWallet.AvailableBalance += booking.TotalAmount;
-            await _walletRepo.UpdateAsync(escrowWallet);
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
+                booking.TotalAmount, escrowWallet.Id);
 
             // Ghi ledger: DEBIT từ ví Driver, CREDIT vào ESCROW
             var ledgerTx = new LedgerTransaction

@@ -104,10 +104,11 @@ namespace ChargeSlot.Api.Services.Implementation
                 booking.Status = BookingStatus.Disputed;
                 booking.UpdatedAt = DateTimeHelper.VietnamNow();
 
-                // Freeze ESCROW balance: AvailableBalance → FrozenBalance
+                // Freeze ESCROW balance (Atomic SQL update)
                 var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-                escrowWallet.AvailableBalance -= booking.TotalAmount;
-                escrowWallet.FrozenBalance += booking.TotalAmount;
+                await _db.Database.ExecuteSqlRawAsync(
+                    "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0}, FrozenBalance = FrozenBalance + {0} WHERE Id = {1}",
+                    booking.TotalAmount, escrowWallet.Id);
 
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -398,9 +399,13 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var refundAmount = booking.TotalAmount;
 
-            // Unfreeze from ESCROW.FrozenBalance (was frozen when dispute submitted)
-            escrowWallet.FrozenBalance -= refundAmount;
-            driverWallet.AvailableBalance += refundAmount;
+            // Unfreeze from ESCROW.FrozenBalance (Atomic SQL update)
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET FrozenBalance = FrozenBalance - {0} WHERE Id = {1}",
+                refundAmount, escrowWallet.Id);
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
+                refundAmount, driverWallet.Id);
 
             var ledger = new LedgerTransaction
             {
@@ -449,10 +454,13 @@ namespace ChargeSlot.Api.Services.Implementation
             var platformFee = invoice.PlatformFee;
             var vatAmount = invoice.VatAmount;
 
-            // Unfreeze from ESCROW.FrozenBalance → distribute
-            escrowWallet.FrozenBalance -= (ownerNet + platformFee + vatAmount);
-            escrowWallet.AvailableBalance += vatAmount; // VAT stays in ESCROW AvailableBalance for later tax remittance
-            ownerWallet.AvailableBalance += ownerNet;
+            // Unfreeze from ESCROW.FrozenBalance → distribute (Atomic SQL update)
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET FrozenBalance = FrozenBalance - {0}, AvailableBalance = AvailableBalance + {1} WHERE Id = {2}",
+                (ownerNet + platformFee + vatAmount), vatAmount, escrowWallet.Id);
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
+                ownerNet, ownerWallet.Id);
 
             _db.Set<LedgerTransaction>().Add(new LedgerTransaction
             {
@@ -467,8 +475,10 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             });
 
-            // ESCROW → PLATFORM_REVENUE (already unfrozen above)
-            platformWallet.AvailableBalance += platformFee;
+            // ESCROW → PLATFORM_REVENUE (already unfrozen above, Atomic logic)
+            await _db.Database.ExecuteSqlRawAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
+                platformFee, platformWallet.Id);
             // VAT stays as revenue in ESCROW for tax authority payment later
 
             _db.Set<LedgerTransaction>().Add(new LedgerTransaction
