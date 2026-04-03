@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAdminAccountStore } from "@/stores/adminAccountStore";
 import { showToast } from "@/components/Toast";
 import { formatDateVN } from "@/utils/dateVN";
+import { BanStatusBadge } from "@/components/BanStatusBadge";
 
 const ROLE_OPTIONS = [
   { label: "Tất cả", value: "ALL" },
@@ -223,6 +224,7 @@ export default function ManageUser() {
               <th>Số điện thoại</th>
               <th>Vai trò</th>
               <th>Trạng thái</th>
+              <th>Vi phạm (AI)</th>
               <th>Ngày tạo</th>
               <th style={{ textAlign: "right" }}>Hành động</th>
             </tr>
@@ -230,7 +232,7 @@ export default function ManageUser() {
           <tbody>
             {users.length === 0 && !loading ? (
               <tr>
-                <td colSpan={7} className="cs-admin-table__empty">
+                <td colSpan={8} className="cs-admin-table__empty">
                   <svg width="40" height="40" fill="none" stroke="#cbd5e1" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                   </svg>
@@ -256,19 +258,43 @@ export default function ManageUser() {
                         {getStatusLabel(u.status)}
                       </span>
                     </td>
+                    <td>
+                      <BanStatusBadge banCount={u.banCount ?? 0} bannedUntil={u.bannedUntil ?? null} />
+                    </td>
                     <td>{formatDate(u.createdAt)}</td>
                     <td style={{ textAlign: "right" }}>
-                      <button
-                        disabled={isAdmin}
-                        onClick={() => askToggle(u)}
-                        className={`cs-admin-action-btn ${isAdmin ? "cs-admin-action-btn--disabled" : u.status === "ACTIVE" ? "cs-admin-action-btn--ban" : "cs-admin-action-btn--activate"}`}
-                      >
-                        {isAdmin
-                          ? "Không khả dụng"
-                          : u.status === "ACTIVE"
-                            ? "Vô hiệu hóa"
-                            : "Kích hoạt"}
-                      </button>
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, flexWrap: "wrap" }}>
+                        <button
+                          disabled={isAdmin}
+                          onClick={() => askToggle(u)}
+                          className={`cs-admin-action-btn ${isAdmin ? "cs-admin-action-btn--disabled" : u.status === "ACTIVE" ? "cs-admin-action-btn--ban" : "cs-admin-action-btn--activate"}`}
+                        >
+                          {isAdmin
+                            ? "Không khả dụng"
+                            : u.status === "ACTIVE"
+                              ? "Vô hiệu hóa"
+                              : "Kích hoạt"}
+                        </button>
+                        {!isAdmin && u.bannedUntil && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await toggleBan(u.id);
+                                showToast.success("Đã bỏ phạt AI cho " + u.fullName);
+                                await Promise.all([
+                                  fetchUsers(search, role, status, page, pageSize),
+                                  fetchStatistics(),
+                                ]);
+                              } catch (err) {
+                                showToast.error(err?.response?.data?.message || "Thao tác thất bại.");
+                              }
+                            }}
+                            className="cs-admin-action-btn cs-admin-action-btn--unban"
+                          >
+                            🔓 Bỏ phạt AI
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -522,7 +548,7 @@ export default function ManageUser() {
         }
         .cs-admin-table {
           width: 100%;
-          min-width: 900px;
+          min-width: 1000px;
           border-collapse: collapse;
         }
         .cs-admin-table thead {
@@ -613,6 +639,8 @@ export default function ManageUser() {
         .cs-admin-action-btn--activate { background: #22c55e; }
         .cs-admin-action-btn--activate:hover { background: #16a34a; transform: translateY(-1px); }
         .cs-admin-action-btn--disabled { background: #d1d5db; cursor: not-allowed; color: #9ca3af; }
+        .cs-admin-action-btn--unban { background: #7c3aed; }
+        .cs-admin-action-btn--unban:hover { background: #6d28d9; transform: translateY(-1px); }
 
         /* Pagination */
         .cs-admin-pagination {

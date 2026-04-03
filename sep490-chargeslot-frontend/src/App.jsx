@@ -36,6 +36,7 @@ const AdminRevenue      = lazy(() => import("./pages/admin/AdminRevenue"));
 const AdminSystemConfig = lazy(() => import("./pages/admin/AdminSystemConfig"));
 const AdminPayouts      = lazy(() => import("./pages/admin/AdminPayouts"));
 const AdminWithdraws    = lazy(() => import("./pages/admin/AdminWithdraws"));
+const AdminDashboard    = lazy(() => import("./pages/admin/AdminDashboard"));
 
 // ── Driver pages ──────────────────────────────────────────────
 const DriverProfile       = lazy(() => import("./pages/driver/DriverProfile"));
@@ -69,6 +70,7 @@ const OwnerActiveSessions   = lazy(() => import("./pages/owner/OwnerActiveSessio
 const OwnerWallet           = lazy(() => import("./pages/owner/OwnerWallet"));
 const OwnerReviews          = lazy(() => import("./pages/owner/OwnerReviews"));
 const OwnerExtraServices    = lazy(() => import("./pages/owner/OwnerExtraServices"));
+const OwnerDashboard        = lazy(() => import("./pages/owner/OwnerDashboard"));
 
 // Loading fallback
 const PageLoader = () => (
@@ -131,6 +133,7 @@ export default function App() {
               <Route path="payouts" element={<AdminPayouts />} />
               <Route path="withdraws" element={<AdminWithdraws />} />
               <Route path="change-password" element={<ChangePassword />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
             </Route>
           </Route>
 
@@ -170,6 +173,7 @@ export default function App() {
               <Route path="chat-list" element={<ChatList />} />
               <Route path="chat/:bookingId" element={<ChatPage />} />
               <Route path="change-password" element={<ChangePassword />} />
+              <Route path="dashboard" element={<OwnerDashboard />} />
             </Route>
           </Route>
 

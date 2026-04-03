@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { instance } from "@/lib/httpRequest";
 import { showToast } from "@/components/Toast";
 import { formatDateVN } from "@/utils/dateVN";
+import { BanStatusBadge } from "@/components/BanStatusBadge";
 
 /* ─── API helpers ─── */
 const adminStationApi = {
@@ -12,6 +13,10 @@ const adminStationApi = {
   },
   review: async (stationId, body) => {
     const { data } = await instance.post(`/admin/stations/${stationId}/review`, body);
+    return data;
+  },
+  toggleBan: async (stationId) => {
+    const { data } = await instance.patch(`/admin/stations/${stationId}/toggle-ban`);
     return data;
   },
 };
@@ -232,6 +237,7 @@ export default function ApproveStation() {
               <th>Tên trạm</th>
               <th>Địa chỉ</th>
               <th>Số ổ sạc</th>
+              <th>Vi phạm (AI)</th>
               <th>Ngày tạo</th>
               <th>Trạng thái</th>
               <th style={{ textAlign: "right" }}>Hành động</th>
@@ -240,7 +246,7 @@ export default function ApproveStation() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="cs-admin-table__empty">
+                <td colSpan={8} className="cs-admin-table__empty">
                   <p>Không tìm thấy yêu cầu nào</p>
                 </td>
               </tr>
@@ -253,6 +259,9 @@ export default function ApproveStation() {
                     <td className="cs-admin-table__name">{s.name}</td>
                     <td>{s.address}</td>
                     <td>{s.chargingSlots?.length || 0}</td>
+                    <td>
+                      <BanStatusBadge banCount={s.banCount ?? 0} bannedUntil={s.bannedUntil ?? null} />
+                    </td>
                     <td>{formatDate(s.createdAt)}</td>
                     <td>
                       <span className={`cs-admin-status-badge cs-admin-status-badge--${s.approvalStatus === "PendingApproval" ? "pending" : s.approvalStatus === "Approved" ? "active" : s.approvalStatus === "Rejected" ? "banned" : "draft"}`}>
@@ -261,7 +270,7 @@ export default function ApproveStation() {
                       </span>
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, flexWrap: "wrap" }}>
                         <button
                           disabled={!isPending}
                           onClick={() => askReview(s, true)}
@@ -276,6 +285,22 @@ export default function ApproveStation() {
                         >
                           Từ chối
                         </button>
+                        {s.bannedUntil && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await adminStationApi.toggleBan(s.id);
+                                showToast.success("Đã bỏ phạt AI cho trạm " + s.name);
+                                queryClient.invalidateQueries({ queryKey: ["admin-stations-pending"] });
+                              } catch (err) {
+                                showToast.error(err?.response?.data?.message || "Thao tác thất bại.");
+                              }
+                            }}
+                            className="cs-admin-action-btn cs-admin-action-btn--unban"
+                          >
+                            🔓 Bỏ phạt AI
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -596,6 +621,8 @@ const styles = `
   .cs-admin-action-btn--activate { background: #22c55e; }
   .cs-admin-action-btn--activate:hover { background: #16a34a; transform: translateY(-1px); }
   .cs-admin-action-btn--disabled { background: #d1d5db; cursor: not-allowed; color: #9ca3af; }
+  .cs-admin-action-btn--unban { background: #7c3aed; }
+  .cs-admin-action-btn--unban:hover { background: #6d28d9; transform: translateY(-1px); }
 
   /* Modal */
   .cs-admin-modal-overlay {
