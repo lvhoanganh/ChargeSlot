@@ -7,6 +7,8 @@ using System.Text.Json;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Net.Http.Headers;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 
 namespace ChargeSlot.Api.Services.Implementation
 {
@@ -17,28 +19,31 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly ILogger<AiChatbotService> _logger;
         private readonly IWalletService _walletService;
         private readonly IChargingStationService _stationService;
+        private readonly IMemoryCache _cache;
+        private readonly IConfiguration _configuration;
 
         public AiChatbotService(
             HttpClient httpClient, 
             ChargeSlotDbContext db, 
             ILogger<AiChatbotService> logger,
             IWalletService walletService,
-            IChargingStationService stationService)
+            IChargingStationService stationService,
+            IMemoryCache cache,
+            IConfiguration configuration)
         {
             _httpClient = httpClient;
             _db = db;
             _logger = logger;
             _walletService = walletService;
             _stationService = stationService;
+            _cache = cache;
+            _configuration = configuration;
         }
 
-        private async Task<(string ProjectId, string Region)> GetVertexConfigAsync()
+        private (string ProjectId, string Region) GetVertexConfig()
         {
-            var pConfig = await _db.SystemConfigs.FirstOrDefaultAsync(c => c.Key == "VertexProjectId");
-            var rConfig = await _db.SystemConfigs.FirstOrDefaultAsync(c => c.Key == "VertexRegion");
-            
-            var projectId = pConfig?.Value?.Trim() ?? "chargeslot-42b86";
-            var region = rConfig?.Value?.Trim() ?? "us-central1";
+            var projectId = _configuration["VertexAi:ProjectId"]?.Trim() ?? "chargeslot-42b86";
+            var region = _configuration["VertexAi:Region"]?.Trim() ?? "us-central1";
 
             return (projectId, region);
         }
@@ -97,20 +102,24 @@ Quy tắc Lõi:
             object tools,
             string role)
         {
-            var credFilePath = Path.Combine(Directory.GetCurrentDirectory(), "vertex-credentials.json");
-            if (!File.Exists(credFilePath))
-                return new ChatbotResponseDto { ReplyMarkdown = "⚠️ **Hệ Thống Trợ Lý Đang Tạm Dừng:** Không tìm thấy chứng chỉ bảo mật Vertex AI." };
+            if (!_cache.TryGetValue("VertexAiToken", out string token))
+            {
+                var credFilePath = Path.Combine(Directory.GetCurrentDirectory(), "vertex-credentials.json");
+                if (!File.Exists(credFilePath))
+                    return new ChatbotResponseDto { ReplyMarkdown = "⚠️ **Hệ Thống Trợ Lý Đang Tạm Dừng:** Không tìm thấy chứng chỉ bảo mật Vertex AI." };
 
-            var (projectId, region) = await GetVertexConfigAsync();
-            var url = $"https://{region}-aiplatform.googleapis.com/v1/projects/{projectId}/locations/{region}/publishers/google/models/gemini-2.0-flash:generateContent";
-
-            string token;
-            try {
-                var credential = GoogleCredential.FromFile(credFilePath).CreateScoped("https://www.googleapis.com/auth/cloud-platform");
-                token = await ((ITokenAccess)credential).GetAccessTokenForRequestAsync();
-            } catch {
-                return new ChatbotResponseDto { ReplyMarkdown = "⚠️ **Giao thức OAuth2 Vertex bị từ chối.** Vui lòng kiểm tra lại file cấu hình." };
+                try {
+                    var credential = GoogleCredential.FromFile(credFilePath).CreateScoped("https://www.googleapis.com/auth/cloud-platform");
+                    token = await ((ITokenAccess)credential).GetAccessTokenForRequestAsync();
+                    _cache.Set("VertexAiToken", token, TimeSpan.FromMinutes(50));
+                } catch {
+                    return new ChatbotResponseDto { ReplyMarkdown = "⚠️ **Giao thức OAuth2 Vertex bị từ chối.** Vui lòng kiểm tra lại file cấu hình." };
+                }
             }
+
+            var (projectId, region) = GetVertexConfig();
+
+            var url = $"https://{region}-aiplatform.googleapis.com/v1/projects/{projectId}/locations/{region}/publishers/google/models/gemini-2.0-flash:generateContent";
 
             // Xây dựng lịch sử trò chuyện
             var contents = new List<object>
@@ -119,7 +128,8 @@ Quy tắc Lõi:
                 new { role = "model", parts = new[] { new { text = "Đã rõ. Tôi sẽ tuân thủ nghiêm ngặt." } } }
             };
 
-            foreach (var msg in request.History)
+            // GIỚI HẠN LỊCH SỬ CHAT TRÁNH TẤN CÔNG TOKEN DDOS VÀ TIẾT KIỆM BĂNG THÔNG
+            foreach (var msg in request.History.TakeLast(6))
             {
                 contents.Add(new { role = msg.Role, parts = new[] { new { text = msg.Content } } });
             }
@@ -141,7 +151,18 @@ Quy tắc Lõi:
                 requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 requestMessage.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
-                using var response = await _httpClient.SendAsync(requestMessage);
+                // GIỚI HẠN THỜI GIAN KẾT NỐI (TIMEOUT) CHỐNG TREO LUỒNG C#
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                HttpResponseMessage response;
+                try
+                {
+                    response = await _httpClient.SendAsync(requestMessage, cts.Token);
+                }
+                catch (TaskCanceledException)
+                {
+                    return new ChatbotResponseDto { ReplyMarkdown = "⚠️ Gián đoạn kết nối đến Trung tâm dữ liệu (Timeout 15s). Vui lòng thử lại lúc khác." };
+                }
+
                 if (!response.IsSuccessStatusCode)
                 {
                     var err = await response.Content.ReadAsStringAsync();
@@ -208,10 +229,12 @@ Quy tắc Lõi:
                     {
                         if (part.TryGetProperty("text", out var textProp))
                         {
+                            response.Dispose();
                             return new ChatbotResponseDto { ReplyMarkdown = textProp.GetString() };
                         }
                     }
                 }
+                response.Dispose();
             }
 
             return new ChatbotResponseDto { ReplyMarkdown = "Xin lỗi, tôi phải suy nghĩ quá lâu (vượt ngưỡng an toàn) nên tự động ngắt kết nối." };
