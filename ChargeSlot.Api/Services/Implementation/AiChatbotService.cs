@@ -122,7 +122,7 @@ Quy tắc Lõi:
                 {
                     contents,
                     tools,
-                    generationConfig = new { temperature = 0.5, maxOutputTokens = 800 }
+                    generationConfig = new { temperature = 0.5, maxOutputTokens = 800, thinkingConfig = new { thinkingBudget = 0 } }
                 };
 
                 var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);

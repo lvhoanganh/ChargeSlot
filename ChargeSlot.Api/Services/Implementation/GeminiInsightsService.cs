@@ -105,14 +105,15 @@ Yêu cầu bắt buộc: Chỉ in ra Markdown, không giải thích. Tiêu đề
                     generationConfig = new
                     {
                         temperature = 0.7,
-                        maxOutputTokens = 1024
+                        maxOutputTokens = 1024,
+                        thinkingConfig = new { thinkingBudget = 0 }
                     }
                 };
 
                 var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
                 requestMessage.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                 HttpResponseMessage response;
                 try
                 {
