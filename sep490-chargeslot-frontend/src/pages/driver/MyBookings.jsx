@@ -64,7 +64,7 @@ export default function MyBookings() {
     setSelectedCancelBooking(b);
     setCancelLoading(true);
     try {
-      const preview = await bookingApi.cancelPreview(id);
+      const preview = await bookingApi.cancelPreview(b.id);
       setCancelPreviewData(preview);
       setShowCancelConfirm(true);
     } catch {

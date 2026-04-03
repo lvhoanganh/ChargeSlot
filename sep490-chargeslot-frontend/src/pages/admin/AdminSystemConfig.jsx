@@ -8,6 +8,8 @@ export default function AdminSystemConfig() {
   const [editingKey, setEditingKey] = useState(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [secModal, setSecModal] = useState(null);
+  const [secPass, setSecPass] = useState("");
 
   useEffect(() => {
     adminConfigApi.getAll()
@@ -22,14 +24,22 @@ export default function AdminSystemConfig() {
   }
 
   async function handleSave(key) {
+    setSecModal({ key, value: editValue });
+  }
+
+  async function confirmSave(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!secPass) return showToast.error("Vui lòng nhập mật khẩu cấp 2");
     setSaving(true);
     try {
-      await adminConfigApi.update(key, editValue);
-      setConfigs(prev => prev.map(c => c.key === key ? { ...c, value: editValue } : c));
+      await adminConfigApi.update(secModal.key, secModal.value, secPass);
+      setConfigs(prev => prev.map(c => c.key === secModal.key ? { ...c, value: secModal.value } : c));
       setEditingKey(null);
+      setSecModal(null);
+      setSecPass("");
       showToast.success("Cập nhật cấu hình thành công!");
     } catch (err) {
-      showToast.error(err.message || "Lỗi cập nhật cấu hình");
+      showToast.error(err.message || "Lỗi cập nhật cấu hình (Sai mật khẩu cấp 2?)");
     } finally {
       setSaving(false);
     }
@@ -131,6 +141,36 @@ export default function AdminSystemConfig() {
             </div>
           </div>
         )}
+
+        {/* Modal Mật khẩu cấp 2 */}
+        {secModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Bảo mật cấp 2</h2>
+              <p className="text-sm text-gray-500 mb-4">Vui lòng nhập mật khẩu cấp 2 để lưu <strong>{secModal.key}</strong></p>
+              <form onSubmit={confirmSave} className="flex flex-col gap-4">
+                <input 
+                  type="password" 
+                  autoFocus
+                  placeholder="Nhập mật khẩu cấp 2..."
+                  value={secPass} 
+                  onChange={e => setSecPass(e.target.value)} 
+                  className="w-full p-2.5 border rounded-lg outline-none focus:border-orange-500 text-sm" 
+                  required 
+                />
+                <div className="flex gap-2">
+                  <button type="submit" disabled={saving} className="flex-1 py-2.5 font-semibold bg-orange-500 text-white hover:bg-orange-600 rounded-lg disabled:opacity-50 transition cursor-pointer">
+                    {saving ? "Đang xử lý..." : "Xác nhận"}
+                  </button>
+                  <button type="button" onClick={() => { setSecModal(null); setSecPass(""); }} disabled={saving} className="flex-1 py-2.5 font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition cursor-pointer">
+                    Hủy
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

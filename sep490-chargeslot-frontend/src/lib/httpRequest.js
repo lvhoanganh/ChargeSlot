@@ -19,13 +19,15 @@ instance.interceptors.response.use(
   async (error) => {
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       const msg = String(error.response.data?.message || "");
-      if (msg.includes("Tài khoản bị khoá")) {
+      if (msg.includes("Tài khoản bị khoá") || msg.includes("bị khoá") || msg.includes("bị cấm")) {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("userId");
         localStorage.removeItem("role");
-        showToast.error("Tài khoản bị khoá do phá rối hệ thống", 5000);
+        localStorage.removeItem("auth-store"); // clear Zustand persist
+        showToast.error("Tài khoản bị khoá do vi phạm tiêu chuẩn hệ thống!", 5000);
+        window.dispatchEvent(new Event("cs:logout"));
         setTimeout(() => {
-          window.location.href = '/login';
+          window.location.href = '/login?banned=true';
         }, 1500);
         return Promise.reject(error);
       }

@@ -105,10 +105,10 @@ export async function apiFetch(endpoint, options = {}) {
     // 403 → tài khoản bị vô hiệu hóa → force logout
     if (response.status === 403) {
         const body = await response.json().catch(() => ({}));
-        if (body.message && body.message.includes("vô hiệu hóa")) {
+        if (body.message && (body.message.includes("vô hiệu hóa") || body.message.includes("khoá"))) {
             clearAuth();
             window.location.href = "/login?banned=true";
-            throw new Error("Tài khoản đã bị vô hiệu hóa");
+            throw new Error("Tài khoản bị khoá do vi phạm tiêu chuẩn hệ thống!");
         }
         throw new Error(body.message || "Bạn không có quyền thực hiện thao tác này");
     }
@@ -152,10 +152,10 @@ async function apiFetchFormData(endpoint, formData, method = "POST") {
 
     if (response.status === 403) {
         const body = await response.json().catch(() => ({}));
-        if (body.message && body.message.includes("vô hiệu hóa")) {
+        if (body.message && (body.message.includes("vô hiệu hóa") || body.message.includes("khoá"))) {
             clearAuth();
             window.location.href = "/login?banned=true";
-            throw new Error("Tài khoản đã bị vô hiệu hóa");
+            throw new Error("Tài khoản bị khoá do vi phạm tiêu chuẩn hệ thống!");
         }
         throw new Error(body.message || "Bạn không có quyền thực hiện thao tác này");
     }
@@ -726,10 +726,13 @@ export const loyaltyApi = {
 export const adminConfigApi = {
     getAll: () => apiFetch("/admin/config"),
 
-    update: (key, value) =>
-        apiFetch(`/admin/config/${key}`, {
+    update: (key, value, secondaryPassword) =>
+        apiFetch("/AdminConfig", {
             method: "PUT",
-            body: JSON.stringify({ value }),
+            headers: {
+                "SecondaryPassword": secondaryPassword
+            },
+            body: JSON.stringify({ key, value }),
         }),
 };
 
@@ -773,52 +776,32 @@ export const bankAccountApi = {
 };
 
 // ============================
-// OWNER PAYOUT (rút tiền Owner)
+// [DEPRECATED] OWNER PAYOUT — ĐÃ XÓA TỬ BACKEND (Phase 6)
+// Dùng walletApi.withdraw() thay thế!
 // ============================
-
-export const payoutApi = {
-    create: (data) =>
-        apiFetch("/payouts", {
-            method: "POST",
-            body: JSON.stringify(data),
-        }),
-
-    getAll: () => apiFetch("/payouts"),
-};
+// payoutApi ĐÃ Bị XÓA — KHÔNG SỬ DỤNG NỮA
+// adminPayoutApi ĐÃ Bị XÓA — Dùng adminWithdrawApi
 
 // ============================
-// ADMIN — Duyệt payout (Owner)
-// ============================
-
-export const adminPayoutApi = {
-    getPending: () => apiFetch("/admin/payouts"),
-
-    process: (id, approve, note) =>
-        apiFetch(`/admin/payouts/${id}/process`, {
-            method: "PUT",
-            body: JSON.stringify({ approve, note }),
-        }),
-};
-
-// ============================
-// ADMIN — Duyệt rút tiền (Driver)
-// ============================
-
-export const adminWithdrawApi = {
-    getPending: () => apiFetch("/admin/withdraws"),
-
-    process: (id, approve, adminNote) =>
-        apiFetch(`/admin/withdraws/${id}/process`, {
-            method: "PUT",
-            body: JSON.stringify({ approve, adminNote }),
-        }),
-};
-
-// ============================
-// ADMIN — Quản lý tài khoản
+// ADMIN — Quản lý Tài khoản (Secondary Password & User Admin)
 // ============================
 
 export const adminAccountApi = {
+    setupSecondaryPassword: (currentLoginPassword, newSecondaryPassword) =>
+        apiFetch("/AdminAccounts/secondary-password/setup", {
+            method: "POST",
+            body: JSON.stringify({ currentLoginPassword, newSecondaryPassword })
+        }),
+
+    resetSecondaryPasswordRequest: () =>
+        apiFetch("/AdminAccounts/secondary-password/reset-request", { method: "POST" }),
+
+    resetSecondaryPasswordConfirm: (otp, newSecondaryPassword) =>
+        apiFetch("/AdminAccounts/secondary-password/reset-confirm", {
+            method: "POST",
+            body: JSON.stringify({ otp, newSecondaryPassword })
+        }),
+
     /** GET /api/AdminAccounts?search=&role=&status=&page=&pageSize= */
     getAll: (search, role, status, page = 1, pageSize = 10) => {
         const params = new URLSearchParams();
@@ -837,3 +820,30 @@ export const adminAccountApi = {
     toggleBan: (id) =>
         apiFetch(`/AdminAccounts/${id}/toggle-ban`, { method: "PATCH" }),
 };
+
+// ============================
+// ADMIN — Duyệt rút tiền đa bước
+// ============================
+
+export const adminWithdrawApi = {
+    getPending: () => apiFetch("/admin/withdraws/pending"),
+
+    process: (id, isApproved, note, secondaryPassword) =>
+        apiFetch(`/admin/withdraws/${id}/process`, {
+            method: "PUT",
+            headers: { "SecondaryPassword": secondaryPassword || "" },
+            body: JSON.stringify({ isApproved, note }),
+        }),
+
+    confirmTransfer: (id, receiptImageFile) => {
+        const formData = new FormData();
+        formData.append("ReceiptImage", receiptImageFile);
+        return apiFetchFormData(`/admin/withdraws/${id}/confirm-transfer`, formData, "PUT");
+    },
+
+    getIssueReported: () => apiFetch("/admin/withdraws/issue-reported"),
+
+    resolveIssue: (id) =>
+        apiFetch(`/admin/withdraws/${id}/resolve-issue`, { method: "PUT" })
+};
+// Removed duplicate adminAccountApi
