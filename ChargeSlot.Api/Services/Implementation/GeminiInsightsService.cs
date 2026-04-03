@@ -1,9 +1,11 @@
 using System.Text;
 using System.Text.Json;
+using System.Net.Http.Headers;
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Analytics;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Google.Apis.Auth.OAuth2;
 
 namespace ChargeSlot.Api.Services.Implementation
 {
@@ -12,7 +14,6 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly HttpClient _httpClient;
         private readonly ChargeSlotDbContext _db;
         private readonly ILogger<GeminiInsightsService> _logger;
-        private const string GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={0}";
 
         public GeminiInsightsService(HttpClient httpClient, ChargeSlotDbContext db, ILogger<GeminiInsightsService> logger)
         {
@@ -21,29 +22,20 @@ namespace ChargeSlot.Api.Services.Implementation
             _logger = logger;
         }
 
-        private async Task<string> GetApiKeyAsync()
+        private async Task<(string ProjectId, string Region)> GetVertexConfigAsync()
         {
-            // Or get from IConfiguration
-            var config = await _db.SystemConfigs.FirstOrDefaultAsync(c => c.Key == "GeminiApiKey");
-            if (config == null || string.IsNullOrWhiteSpace(config.Value))
-            {
-                // MOCK response if no key is configured to avoid crashes during testing
-                return string.Empty;
-            }
-            return config.Value.Trim();
+            var pConfig = await _db.SystemConfigs.FirstOrDefaultAsync(c => c.Key == "VertexProjectId");
+            var rConfig = await _db.SystemConfigs.FirstOrDefaultAsync(c => c.Key == "VertexRegion");
+            
+            // Theo như User xác nhận: chargeslot-42b86 và us-central1
+            var projectId = pConfig?.Value?.Trim() ?? "chargeslot-42b86";
+            var region = rConfig?.Value?.Trim() ?? "us-central1";
+
+            return (projectId, region);
         }
 
         public async Task<AiInsightResponseDto> GenerateAdminInsightAsync(AdminDashboardMetricsDto metrics)
         {
-            var apiKey = await GetApiKeyAsync();
-            if (string.IsNullOrEmpty(apiKey))
-            {
-                return new AiInsightResponseDto
-                {
-                    InsightMarkdown = "⚠️ **Thiếu API Key:** Vui lòng cấu hình `GeminiApiKey` trong bảng `SystemConfigs` để kích hoạt Trợ lý AI."
-                };
-            }
-
             var prompt = $@"
 Đóng vai: Giám đốc Kiểm soát Hệ thống & Phân tích Dữ liệu (Chief Data Officer) của nền tảng trạm sạc ChargeSlot (Admin Mode).
 Phong cách viết: Chuyên nghiệp, đanh thép, tập trung vào con số, đi thẳng vào rủi ro, không lan man. Sử dụng định dạng Markdown nổi bật (Heading, in đậm, emoji).
@@ -70,21 +62,12 @@ NHIỆM VỤ CỦA BẠN: Viết báo cáo nội bộ chia làm 4 phần rõ rà
 Yêu cầu bắt buộc: Chỉ in ra Markdown, tuyệt đối không có lời mở đầu hay kết luận sáo rỗng.
 ";
 
-            var insight = await CallGeminiApiAsync(apiKey, prompt);
+            var insight = await CallVertexApiAsync(prompt);
             return new AiInsightResponseDto { InsightMarkdown = insight };
         }
 
         public async Task<AiInsightResponseDto> GenerateOwnerInsightAsync(OwnerDashboardMetricsDto metrics)
         {
-            var apiKey = await GetApiKeyAsync();
-            if (string.IsNullOrEmpty(apiKey))
-            {
-                return new AiInsightResponseDto
-                {
-                    InsightMarkdown = "⚠️ **Thiếu API Key:** Vui lòng liên hệ Admin cấu hình `GeminiApiKey` để mở khóa Cố Vấn Doanh Thu AI cho Chủ Trạm."
-                };
-            }
-
             var prompt = $@"
 Đóng vai: Chuyên gia Khai vấn Kinh doanh (Business Coach) xuất sắc nhất khu vực, chuyên tư vấn tăng doanh thu cho Chủ Trạm Sạc Xe Điện trên ChargeSlot.
 Phong cách viết: Cực kỳ vồ vập, năng lượng cao, nhiệt huyết, xưng 'Tôi' và gọi chủ trạm là 'Sếp'. Dùng nhiều câu cảm thán khích lệ, nhét emoji vào mỗi ý.
@@ -105,63 +88,66 @@ NHIỆM VỤ CỦA BẠN: Viết báo cáo gửi sếp chia làm 4 phần giật
 Yêu cầu bắt buộc: Chỉ in ra Markdown, không giải thích. Tiêu đề phải bùng nổ, tạo cảm giác 'wow' cho người đọc.
 ";
 
-            var insight = await CallGeminiApiAsync(apiKey, prompt);
+            var insight = await CallVertexApiAsync(prompt);
             return new AiInsightResponseDto { InsightMarkdown = insight };
         }
 
-        private async Task<string> CallGeminiApiAsync(string apiKey, string prompt)
+        private async Task<string> CallVertexApiAsync(string prompt)
         {
-            var url = string.Format(GEMINI_API_URL, apiKey);
-
-            var payload = new
+            var credFilePath = Path.Combine(Directory.GetCurrentDirectory(), "vertex-credentials.json");
+            
+            if (!File.Exists(credFilePath))
             {
-                contents = new[]
+                return "⚠️ **Lỗi Hệ Thống:** Không tìm thấy tệp xác thực `vertex-credentials.json` của Vertex AI trên thư mục gốc dự án C#.";
+            }
+
+            var (projectId, region) = await GetVertexConfigAsync();
+            var url = $"https://{region}-aiplatform.googleapis.com/v1/projects/{projectId}/locations/{region}/publishers/google/models/gemini-2.0-flash:generateContent";
+
+            try 
+            {
+                // Sinh Bearer Token bảo mật bằng OAuth2
+                var credential = GoogleCredential.FromFile(credFilePath)
+                    .CreateScoped("https://www.googleapis.com/auth/cloud-platform");
+                
+                string token = await ((ITokenAccess)credential).GetAccessTokenForRequestAsync();
+
+                var payload = new
                 {
-                    new
+                    contents = new[]
                     {
-                        parts = new[] { new { text = prompt } }
+                        new { parts = new[] { new { text = prompt } } }
+                    },
+                    generationConfig = new
+                    {
+                        temperature = 0.7,
+                        maxOutputTokens = 1024
                     }
-                },
-                generationConfig = new
-                {
-                    temperature = 0.7,
-                    maxOutputTokens = 1024
-                }
-            };
+                };
 
-            var jsonPayload = JsonSerializer.Serialize(payload);
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+                var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                requestMessage.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
-            try
-            {
-                var response = await _httpClient.PostAsync(url, content);
+                var response = await _httpClient.SendAsync(requestMessage);
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorBody = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Google API Error: {StatusCode} - {Body}", response.StatusCode, errorBody);
-                    
+                    _logger.LogError("Vertex API Error: {StatusCode} - {Body}", response.StatusCode, errorBody);
                     try 
                     {
                         using var errDoc = JsonDocument.Parse(errorBody);
                         var errMsg = errDoc.RootElement.GetProperty("error").GetProperty("message").GetString();
-                        
-                        if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                        {
-                            return $"⚠️ **Hết Lượt Dùng API (Quota Exceeded)**\n\nAPI Key của bạn đã hết hạn ngạch truy vấn miễn phí (Limit 0) cho model này, hoặc bạn đã gọi quá nhanh. Vui lòng cập nhật API Key hoặc liên kết lại thanh toán (Billing) trên Google AI Studio.";
-                        }
-                        
-                        return $"⚠️ **Lỗi từ Google AI ({response.StatusCode})**: {errMsg}";
+                        return $"⚠️ **Lỗi từ Vertex AI ({response.StatusCode})**: {errMsg}";
                     }
                     catch
                     {
-                        return $"⚠️ Lỗi từ Google AI (Mã {response.StatusCode}): Không gọi được trợ lý ảo.";
+                        return $"⚠️ Lỗi từ Vertex AI (Mã {response.StatusCode}): {errorBody}";
                     }
                 }
-                response.EnsureSuccessStatusCode();
 
                 var responseString = await response.Content.ReadAsStringAsync();
                 using var document = JsonDocument.Parse(responseString);
-
                 var generatedText = document.RootElement
                     .GetProperty("candidates")[0]
                     .GetProperty("content")
@@ -173,8 +159,8 @@ Yêu cầu bắt buộc: Chỉ in ra Markdown, không giải thích. Tiêu đề
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to call Gemini API");
-                return $"Đã xảy ra lỗi khi kết nối với AI Studio. Lỗi: {ex.Message}";
+                _logger.LogError(ex, "Failed to call Vertex API");
+                return $"Đã xảy ra lỗi khi xác thực Token Vertex. Chi tiết: {ex.Message}";
             }
         }
     }
