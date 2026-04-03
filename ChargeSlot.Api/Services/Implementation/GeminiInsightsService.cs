@@ -12,7 +12,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly HttpClient _httpClient;
         private readonly ChargeSlotDbContext _db;
         private readonly ILogger<GeminiInsightsService> _logger;
-        private const string GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={0}";
+        private const string GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={0}";
 
         public GeminiInsightsService(HttpClient httpClient, ChargeSlotDbContext db, ILogger<GeminiInsightsService> logger)
         {
