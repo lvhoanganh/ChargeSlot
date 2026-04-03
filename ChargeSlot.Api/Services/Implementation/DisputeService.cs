@@ -64,18 +64,20 @@ namespace ChargeSlot.Api.Services.Implementation
                 if (existing)
                     throw new InvalidOperationException("Đã có khiếu nại cho booking này.");
 
-                // Rate limit: max 3 disputes/driver/tháng
+                // Load configs for dispute settings
+                var configs = await _lazyConfigService.Value.GetCurrentConfigsAsync();
+
+                // Rate limit: max disputes/driver/tháng (dùng config thay hardcode)
                 var monthStart = new DateTime(DateTimeHelper.VietnamNow().Year, DateTimeHelper.VietnamNow().Month, 1);
                 var disputeCountThisMonth = await _db.Disputes
                     .CountAsync(d => d.CreatedByUserId == driverUserId && d.CreatedAt >= monthStart);
-                if (disputeCountThisMonth >= 3)
-                    throw new InvalidOperationException("Bạn đã đạt giới hạn 3 khiếu nại/tháng. Vui lòng liên hệ hotline nếu cần hỗ trợ thêm.");
+                if (disputeCountThisMonth >= configs.Dispute_Limit_Per_Month)
+                    throw new InvalidOperationException($"Bạn đã đạt giới hạn {configs.Dispute_Limit_Per_Month} khiếu nại/tháng. Vui lòng liên hệ hotline nếu cần hỗ trợ thêm.");
 
                 // Get invoice
                 var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.BookingId == dto.BookingId);
 
                 // Create dispute
-                var configs = await _lazyConfigService.Value.GetCurrentConfigsAsync();
                 var dispute = new Dispute
                 {
                     BookingId = dto.BookingId,
@@ -260,7 +262,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     }
                 }
 
-                // ── CHECK BANNING RULES (Lũy tiến: lần 1 -> 30 ngày, lần 2 -> vĩnh viễn) ──
+                // ── CHECK BANNING RULES (Lũy tiến: lần 1 -> config ngày, lần 2 -> vĩnh viễn) ──
+                var banConfigs = await _lazyConfigService.Value.GetCurrentConfigsAsync();
                 var startOfMonth = new DateTime(now.Year, now.Month, 1);
                 
                 if (!dto.IsDriverWin)
@@ -284,7 +287,7 @@ namespace ChargeSlot.Api.Services.Implementation
                             if (driverUser.BanCount == 1)
                             {
                                 driverUser.Status = Constants.UserStatusConstants.Suspended;
-                                driverUser.BannedUntil = now.AddDays(30);
+                                driverUser.BannedUntil = now.AddDays(banConfigs.Ban_Duration_Days_FirstOffense);
                                 await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị đình chỉ", "Tài khoản bị đình chỉ 30 ngày do vi phạm chính sách khiếu nại (thua quá 3 lần/tháng).", NotificationType.System);
                             }
                             else
@@ -320,7 +323,7 @@ namespace ChargeSlot.Api.Services.Implementation
                             if (station.BanCount == 1)
                             {
                                 station.OperationalStatus = OperationalStatus.Inactive;
-                                station.BannedUntil = now.AddDays(30);
+                                station.BannedUntil = now.AddDays(banConfigs.Ban_Duration_Days_FirstOffense);
                                 await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị đình chỉ", $"Trạm {station.Name} bị đình chỉ 30 ngày do lượng khiếu nại quá cao (>= 5 lần/tháng).", NotificationType.System);
                             }
                             else
@@ -448,6 +451,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Unfreeze from ESCROW.FrozenBalance → distribute
             escrowWallet.FrozenBalance -= (ownerNet + platformFee + vatAmount);
+            escrowWallet.AvailableBalance += vatAmount; // VAT stays in ESCROW AvailableBalance for later tax remittance
             ownerWallet.AvailableBalance += ownerNet;
 
             _db.Set<LedgerTransaction>().Add(new LedgerTransaction

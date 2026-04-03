@@ -148,7 +148,7 @@ namespace ChargeSlot.Api.Services.Implementation
             if (user.Status == UserStatusConstants.Active)
             {
                 user.Status = UserStatusConstants.Banned;
-                user.BannedUntil = DateTimeHelper.VietnamNow().AddYears(100); // Vĩnh viễn mốc tượng trưng
+                user.BannedUntil = null; // Vĩnh viễn — đồng nhất với DisputeService (UnbanAutoJob chỉ xử lý SUSPENDED)
             }
             else if (user.Status == UserStatusConstants.Banned || user.Status == UserStatusConstants.Suspended)
             {

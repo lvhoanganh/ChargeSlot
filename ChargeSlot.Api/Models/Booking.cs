@@ -42,6 +42,7 @@ namespace ChargeSlot.Api.Models
         public DateTime? Refund50DeadlineAt { get; set; }
         public decimal PlatformFeeRateSnapshot { get; set; } = 0.05m;
         public decimal VatRateSnapshot { get; set; } = 0.08m;
+        public decimal LoyaltyEarnRateSnapshot { get; set; } = 0.05m;
 
         /// <summary>Driver yêu cầu kết thúc sạc sớm.</summary>
         public DateTime? EarlyEndRequestedAt { get; set; }

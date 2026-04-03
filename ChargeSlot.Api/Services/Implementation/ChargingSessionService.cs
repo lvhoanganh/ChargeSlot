@@ -71,12 +71,12 @@ namespace ChargeSlot.Api.Services.Implementation
                     && b.Status == BookingStatus.Paid)
                 ?? throw new InvalidOperationException("Không tìm thấy booking đã thanh toán trên slot này.");
 
-            // 3. Validate time window: now must be within ±X min of StartTime
+            // 3. Validate time window: dùng snapshot CheckinDeadlineAt (đã set lúc payment)
             var configs = await _configService.GetCurrentConfigsAsync();
             var checkInWindowMinutes = configs.CheckIn_Window_Minutes;
 
             var earliestCheckin = booking.StartTime.AddMinutes(-checkInWindowMinutes);
-            var latestCheckin = booking.StartTime.AddMinutes(checkInWindowMinutes);
+            var latestCheckin = booking.CheckinDeadlineAt ?? booking.StartTime.AddMinutes(checkInWindowMinutes);
             if (now < earliestCheckin)
                 throw new InvalidOperationException($"Chưa đến giờ check-in. Vui lòng quay lại lúc {earliestCheckin:HH:mm dd/MM/yyyy}.");
             if (now > latestCheckin)
@@ -286,9 +286,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 booking.Status = BookingStatus.Completed;
                 await _bookingRepo.UpdateAsync(booking);
 
-                // ── LOYALTY POINTS: tích điểm ──
-                var configs = await _configService.GetCurrentConfigsAsync();
-                var earnRate = configs.Loyalty_Earn_Rate;
+                // ── LOYALTY POINTS: tích điểm (dùng snapshot từ lúc tạo booking) ──
+                var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
                 var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
 
                 if (pointsEarned > 0)
@@ -636,8 +635,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _bookingRepo.UpdateAsync(booking);
 
                 // 4. Loyalty points
-                var earnRateConfig = await _db.SystemConfigs.FindAsync("LoyaltyEarnRate");
-                var earnRate = decimal.TryParse(earnRateConfig?.Value, out var er) ? er : 0.05m;
+                // Dùng snapshot LoyaltyEarnRateSnapshot (đồng nhất toàn hệ thống)
+                var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
                 var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
 
                 if (pointsEarned > 0)

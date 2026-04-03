@@ -139,6 +139,49 @@ namespace ChargeSlot.Api.BackgroundJobs
                         await slotRepo.SaveChangesAsync();
                     }
 
+                    // H1 FIX: Tạo Invoice (trước đây bị thiếu)
+                    var grossAmount = booking.TotalAmount;
+                    var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
+                    var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
+                    var vatAmount = Math.Round(grossAmount * vatRate, 0);
+                    var platformFee = Math.Round(grossAmount * platformFeeRate, 0);
+                    var ownerNetAmount = grossAmount - vatAmount - platformFee;
+
+                    var invoice = new Models.Invoice
+                    {
+                        BookingId = booking.Id,
+                        ChargingAmount = ownerNetAmount,
+                        ServiceAmount = 0,
+                        VatAmount = vatAmount,
+                        PlatformFee = platformFee,
+                        TotalAmount = grossAmount,
+                        Status = InvoiceStatus.Confirmed, // Auto-confirmed (No-Show)
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    };
+                    db.Invoices.Add(invoice);
+                    await db.SaveChangesAsync();
+
+                    // H2 FIX: Loyalty Points (trước đây bị thiếu)
+                    // H2 FIX: Loyalty Points (dùng snapshot từ lúc tạo booking)
+                    var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
+                    var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
+                    if (pointsEarned > 0 && booking.Driver != null)
+                    {
+                        booking.Driver.LoyaltyPoints += pointsEarned;
+                        booking.PointsEarned = pointsEarned;
+                        db.LoyaltyTransactions.Add(new Models.LoyaltyTransaction
+                        {
+                            DriverUserId = booking.DriverUserId,
+                            BookingId = booking.Id,
+                            Type = "Earn",
+                            Points = pointsEarned,
+                            Description = $"Tích {pointsEarned:N0} điểm từ booking #{booking.Id} (auto-complete, no-show)",
+                            CreatedAt = now
+                        });
+                        await db.SaveChangesAsync();
+                    }
+
                     var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
                     if (ownerUserId.HasValue)
                     {
@@ -192,6 +235,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                 .Where(b => b.Status == BookingStatus.CheckedIn && b.EndTime < cutoff)
                 .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
                 .Include(b => b.ChargingSession)
+                .Include(b => b.Driver) // H2 FIX: Include Driver for loyalty points
                 .ToListAsync();
 
             foreach (var booking in overtimeBookings)
@@ -243,6 +287,26 @@ namespace ChargeSlot.Api.BackgroundJobs
                     }
 
                     await db.SaveChangesAsync();
+
+                    // H2 FIX: Loyalty Points (trước đây bị thiếu)
+                    // H2 FIX: Loyalty Points (dùng snapshot từ lúc tạo booking)
+                    var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
+                    var pointsEarned2 = Math.Floor(booking.TotalAmount * earnRate);
+                    if (pointsEarned2 > 0 && booking.Driver != null)
+                    {
+                        booking.Driver.LoyaltyPoints += pointsEarned2;
+                        booking.PointsEarned = pointsEarned2;
+                        db.LoyaltyTransactions.Add(new Models.LoyaltyTransaction
+                        {
+                            DriverUserId = booking.DriverUserId,
+                            BookingId = booking.Id,
+                            Type = "Earn",
+                            Points = pointsEarned2,
+                            Description = $"Tích {pointsEarned2:N0} điểm từ booking #{booking.Id} (auto-stop overtime)",
+                            CreatedAt = now
+                        });
+                        await db.SaveChangesAsync();
+                    }
 
                     // 5. Settle payment
                     var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;

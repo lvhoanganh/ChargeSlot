@@ -4,6 +4,7 @@ using ChargeSlot.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChargeSlot.Api.Migrations
 {
     [DbContext(typeof(ChargeSlotDbContext))]
-    partial class ChargeSlotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260403102650_AddLoyaltyEarnRateSnapshot")]
+    partial class AddLoyaltyEarnRateSnapshot
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

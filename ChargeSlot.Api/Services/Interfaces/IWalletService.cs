@@ -21,5 +21,8 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<WithdrawRequestDto> UserConfirmReceivedAsync(int userId, int requestId);
         Task<WithdrawRequestDto> UserReportIssueAsync(int userId, int requestId, string issueNote);
         Task<WithdrawRequestDto> AdminResolveIssueAsync(int adminUserId, int requestId, bool refund, string? note);
+
+        // Finalize withdraw: trừ frozen + ghi ledger (dùng bởi WithdrawAutoConfirmJob)
+        Task FinalizeWithdrawCompletedAsync(Models.WithdrawRequest request, int? confirmedByUserId = null);
     }
 }

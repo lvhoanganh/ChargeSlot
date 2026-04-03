@@ -19,6 +19,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly ChargeSlotDbContext _db;
         private readonly ILogger<PaymentService> _logger;
         private readonly IConfiguration _configuration;
+        private readonly ISystemConfigService _configService;
 
         public PaymentService(
             IBookingRepository bookingRepo,
@@ -28,7 +29,8 @@ namespace ChargeSlot.Api.Services.Implementation
             IWalletRepository walletRepo,
             ChargeSlotDbContext db,
             ILogger<PaymentService> logger,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ISystemConfigService configService)
         {
             _bookingRepo = bookingRepo;
             _paymentRepo = paymentRepo;
@@ -38,6 +40,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _db = db;
             _logger = logger;
             _configuration = configuration;
+            _configService = configService;
         }
 
         /// <summary>
@@ -50,6 +53,12 @@ namespace ChargeSlot.Api.Services.Implementation
             await _paymentRepo.UpdateAsync(payment);
 
             booking.Status = BookingStatus.Paid;
+            // Snapshot CheckinDeadlineAt: StartTime + config check-in window
+            if (booking.CheckinDeadlineAt == null)
+            {
+                var cfgs = await _configService.GetCurrentConfigsAsync();
+                booking.CheckinDeadlineAt = booking.StartTime.AddMinutes(cfgs.CheckIn_Window_Minutes);
+            }
             await _bookingRepo.UpdateAsync(booking);
 
             // Cộng tiền vào ESCROW wallet (VNPay đã thu tiền thực tế từ Driver)

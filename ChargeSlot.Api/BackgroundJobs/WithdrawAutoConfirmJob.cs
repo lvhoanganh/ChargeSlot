@@ -1,7 +1,6 @@
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
-using ChargeSlot.Api.Services.Implementation;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -73,24 +72,20 @@ namespace ChargeSlot.Api.BackgroundJobs
                             if (request == null || request.Status != WithdrawStatus.TransferCompleted)
                                 continue;
 
-                            // Dùng WalletService.FinalizeWithdrawCompletedAsync
+                            // M8 FIX: Dùng interface thay vì cast sang implementation
                             var walletService = scope.ServiceProvider.GetRequiredService<IWalletService>();
-                            // Cast to implementation to access internal method
-                            if (walletService is WalletService ws)
-                            {
-                                request.UserConfirmedAt = DateTimeHelper.VietnamNow(); // auto
-                                await ws.FinalizeWithdrawCompletedAsync(request);
+                            request.UserConfirmedAt = DateTimeHelper.VietnamNow(); // auto
+                            await walletService.FinalizeWithdrawCompletedAsync(request);
 
-                                _logger.LogInformation(
-                                    "[WithdrawAutoConfirm] Auto-confirmed withdraw #{Id} ({Amount} VND) for user {UserId}",
-                                    request.Id, request.Amount, request.UserId);
+                            _logger.LogInformation(
+                                "[WithdrawAutoConfirm] Auto-confirmed withdraw #{Id} ({Amount} VND) for user {UserId}",
+                                request.Id, request.Amount, request.UserId);
 
-                                await notificationService.SendAsync(
-                                    request.UserId,
-                                    "Rút tiền hoàn tất (tự động)",
-                                    $"Yêu cầu rút {request.Amount:N0} VND đã được tự động xác nhận sau 24 giờ.",
-                                    NotificationType.Wallet);
-                            }
+                            await notificationService.SendAsync(
+                                request.UserId,
+                                "Rút tiền hoàn tất (tự động)",
+                                $"Yêu cầu rút {request.Amount:N0} VND đã được tự động xác nhận sau 24 giờ.",
+                                NotificationType.Wallet);
                         }
                         catch (Exception ex)
                         {

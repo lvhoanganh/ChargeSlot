@@ -314,6 +314,7 @@ namespace ChargeSlot.Api.BackgroundJobs
             var vatAmount = invoice.VatAmount;
 
             escrowWallet.FrozenBalance -= (ownerNet + platformFee + vatAmount);
+            escrowWallet.AvailableBalance += vatAmount; // VAT stays in ESCROW AvailableBalance for later tax remittance
             ownerWallet.AvailableBalance += ownerNet;
             platformWallet.AvailableBalance += platformFee;
 

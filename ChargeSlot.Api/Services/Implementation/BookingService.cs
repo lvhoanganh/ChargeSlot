@@ -82,6 +82,15 @@ namespace ChargeSlot.Api.Services.Implementation
                 if (slot.Status == SlotStatus.Inactive || slot.Status == SlotStatus.Maintenance)
                     throw new InvalidOperationException("Slot hiện không khả dụng.");
 
+                // Validate station is approved and operational
+                if (slot.ChargingStation != null)
+                {
+                    if (slot.ChargingStation.ApprovalStatus != ApprovalStatus.Approved)
+                        throw new InvalidOperationException("Trạm sạc chưa được phê duyệt hoạt động.");
+                    if (slot.ChargingStation.OperationalStatus == OperationalStatus.Inactive)
+                        throw new InvalidOperationException("Trạm sạc hiện đang ngừng hoạt động.");
+                }
+
                 // Step 6: Validate slot availability (check overlap)
                 var hasOverlap = await _bookingRepo.HasOverlappingBookingAsync(
                     dto.SlotId, dto.StartTime, endTime);
@@ -211,7 +220,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 Refund100DeadlineAt = dto.StartTime.AddHours(-configs.RefundPolicy100_Hrs),
                 Refund50DeadlineAt = dto.StartTime.AddHours(-configs.RefundPolicy50_Hrs),
                 PlatformFeeRateSnapshot = configs.Platform_Fee_Rate,
-                VatRateSnapshot = configs.VAT_Rate
+                VatRateSnapshot = configs.VAT_Rate,
+                LoyaltyEarnRateSnapshot = configs.Loyalty_Earn_Rate
             };
 
             await _bookingRepo.CreateAsync(booking);
@@ -745,28 +755,31 @@ namespace ChargeSlot.Api.Services.Implementation
             }
             else if (booking.Status == BookingStatus.Paid)
             {
-                var hoursBeforeStart = (booking.StartTime - DateTimeHelper.VietnamNow()).TotalHours;
+                var now = DateTimeHelper.VietnamNow();
+                // Dùng snapshot deadline (đã snapshot lúc tạo booking) — đồng nhất với DriverCancelBookingAsync
+                var refund100Deadline = booking.Refund100DeadlineAt ?? booking.StartTime.AddHours(-2);
+                var refund50Deadline = booking.Refund50DeadlineAt ?? booking.StartTime.AddHours(-1);
 
-                if (hoursBeforeStart >= 2)
+                if (now <= refund100Deadline)
                 {
                     result.RefundPercent = 100;
                     result.RefundAmount = booking.TotalAmount;
                     result.PenaltyAmount = 0;
-                    result.Message = "Hoàn 100% vào ví (hủy trước ≥2 giờ).";
+                    result.Message = $"Hoàn 100% vào ví (hủy trước {refund100Deadline:HH:mm dd/MM}).";
                 }
-                else if (hoursBeforeStart >= 1)
+                else if (now <= refund50Deadline)
                 {
                     result.RefundPercent = 50;
                     result.RefundAmount = Math.Round(booking.TotalAmount * 0.5m, 0);
                     result.PenaltyAmount = booking.TotalAmount - result.RefundAmount;
-                    result.Message = $"Hoàn 50% ({result.RefundAmount:N0}đ) vào ví. Mất {result.PenaltyAmount:N0}đ phí hủy muộn.";
+                    result.Message = $"Hoàn 50% ({result.RefundAmount:N0}đ) vào ví. Mất {result.PenaltyAmount:N0}đ phí hủy muộn (hủy trước {refund50Deadline:HH:mm dd/MM}).";
                 }
                 else
                 {
                     result.RefundPercent = 0;
                     result.RefundAmount = 0;
                     result.PenaltyAmount = booking.TotalAmount;
-                    result.Message = $"⚠️ Không hoàn tiền! Bạn sẽ mất toàn bộ {booking.TotalAmount:N0}đ vì hủy dưới 1 giờ trước giờ sạc.";
+                    result.Message = $"⚠️ Không hoàn tiền! Bạn sẽ mất toàn bộ {booking.TotalAmount:N0}đ vì đã quá hạn hủy có mức hoàn.";
                 }
             }
             else

@@ -63,6 +63,13 @@ namespace ChargeSlot.Api.BackgroundJobs
                                     booking.Id);
 
                                 booking.Status = BookingStatus.Paid;
+                                // Snapshot CheckinDeadlineAt nếu chưa có
+                                if (booking.CheckinDeadlineAt == null)
+                                {
+                                    var configService = innerScope.ServiceProvider.GetRequiredService<ISystemConfigService>();
+                                    var cfgs = await configService.GetCurrentConfigsAsync();
+                                    booking.CheckinDeadlineAt = booking.StartTime.AddMinutes(cfgs.CheckIn_Window_Minutes);
+                                }
                                 await bookingRepo.UpdateAsync(booking);
                                 await LockSlotIfNeeded(slotRepo, booking);
                                 await transaction.CommitAsync(stoppingToken);

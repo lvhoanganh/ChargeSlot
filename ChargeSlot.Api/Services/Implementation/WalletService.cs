@@ -22,6 +22,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly ChargeSlotDbContext _db;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IConfiguration _configuration;
+        private readonly ISystemConfigService _configService;
 
         public WalletService(
             IWalletRepository walletRepo,
@@ -32,7 +33,8 @@ namespace ChargeSlot.Api.Services.Implementation
             IFileStorageService fileStorageService,
             ChargeSlotDbContext db,
             UserManager<ApplicationUser> userManager,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ISystemConfigService configService)
         {
             _walletRepo = walletRepo;
             _bookingRepo = bookingRepo;
@@ -43,6 +45,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _db = db;
             _userManager = userManager;
             _configuration = configuration;
+            _configService = configService;
         }
 
         /// <summary>
@@ -174,6 +177,12 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Set booking = Paid
             booking.Status = BookingStatus.Paid;
+            // Snapshot CheckinDeadlineAt: StartTime + config check-in window
+            if (booking.CheckinDeadlineAt == null)
+            {
+                var cfgs = await _configService.GetCurrentConfigsAsync();
+                booking.CheckinDeadlineAt = booking.StartTime.AddMinutes(cfgs.CheckIn_Window_Minutes);
+            }
             await _bookingRepo.UpdateAsync(booking);
 
             // Trừ stock cho ExtraServices (nếu có)
@@ -580,7 +589,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// Hoàn tất rút tiền: trừ frozen + ghi ledger (tiền rời hệ thống).
         /// Được gọi bởi UserConfirmReceivedAsync hoặc WithdrawAutoConfirmJob.
         /// </summary>
-        internal async Task FinalizeWithdrawCompletedAsync(WithdrawRequest request, int? confirmedByUserId = null)
+        public async Task FinalizeWithdrawCompletedAsync(WithdrawRequest request, int? confirmedByUserId = null)
         {
             var wallet = request.Wallet ?? await _db.Wallets.FirstAsync(w => w.Id == request.WalletId);
 

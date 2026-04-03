@@ -59,6 +59,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                             var invoice = await db.Invoices
                                 .Include(i => i.Booking)
                                     .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                                .Include(i => i.Booking)
+                                    .ThenInclude(b => b.Driver) // Include Driver for loyalty points
                                 .FirstOrDefaultAsync(i => i.Id == invoiceId, stoppingToken);
 
                             if (invoice == null || invoice.Status != InvoiceStatus.PendingConfirm)
@@ -75,6 +77,25 @@ namespace ChargeSlot.Api.BackgroundJobs
                             booking.UpdatedAt = DateTimeHelper.VietnamNow();
 
                             await db.SaveChangesAsync(stoppingToken);
+
+                            // Loyalty Points (dùng snapshot từ lúc tạo booking)
+                            var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
+                            var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
+                            if (pointsEarned > 0 && booking.Driver != null)
+                            {
+                                booking.Driver.LoyaltyPoints += pointsEarned;
+                                booking.PointsEarned = pointsEarned;
+                                db.Set<LoyaltyTransaction>().Add(new LoyaltyTransaction
+                                {
+                                    DriverUserId = booking.DriverUserId,
+                                    BookingId = booking.Id,
+                                    Type = "Earn",
+                                    Points = pointsEarned,
+                                    Description = $"Tích {pointsEarned:N0} điểm từ booking #{booking.Id} (auto-confirm invoice)",
+                                    CreatedAt = DateTimeHelper.VietnamNow()
+                                });
+                                await db.SaveChangesAsync(stoppingToken);
+                            }
 
                             // Settle payment: ESCROW → Owner + PLATFORM_REVENUE
                             await SettlePaymentAsync(db, walletRepo, booking, invoice);
