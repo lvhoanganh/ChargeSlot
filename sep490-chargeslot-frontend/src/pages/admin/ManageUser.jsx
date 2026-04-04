@@ -263,24 +263,35 @@ export default function ManageUser() {
                     </td>
                     <td>{formatDate(u.createdAt)}</td>
                     <td style={{ textAlign: "right" }}>
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, flexWrap: "wrap" }}>
-                        <button
-                          disabled={isAdmin}
-                          onClick={() => askToggle(u)}
-                          className={`cs-admin-action-btn ${isAdmin ? "cs-admin-action-btn--disabled" : u.status === "ACTIVE" ? "cs-admin-action-btn--ban" : "cs-admin-action-btn--activate"}`}
-                        >
-                          {isAdmin
-                            ? "Không khả dụng"
-                            : u.status === "ACTIVE"
-                              ? "Vô hiệu hóa"
-                              : "Kích hoạt"}
-                        </button>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                        {/* Toggle Switch */}
+                        {isAdmin ? (
+                          <span style={{ fontSize: 12, color: "#9ca3af", fontStyle: "italic" }}>Không khả dụng</span>
+                        ) : (
+                          <label
+                            className="cs-toggle-switch"
+                            title={u.status === "ACTIVE" ? "Đang hoạt động — nhấn để vô hiệu hóa" : "Đang bị khoá — nhấn để kích hoạt"}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={u.status === "ACTIVE"}
+                              onChange={() => askToggle(u)}
+                            />
+                            <span className="cs-toggle-switch__track">
+                              <span className="cs-toggle-switch__thumb" />
+                            </span>
+                            <span className="cs-toggle-switch__label">
+                              {u.status === "ACTIVE" ? "Hoạt động" : "Bị khoá"}
+                            </span>
+                          </label>
+                        )}
+                        {/* Nút ân xá AI-ban */}
                         {!isAdmin && u.bannedUntil && (
                           <button
                             onClick={async () => {
                               try {
                                 await toggleBan(u.id);
-                                showToast.success("Đã bỏ phạt AI cho " + u.fullName);
+                                showToast.success("✅ Đã ân xá AI-ban cho " + u.fullName);
                                 await Promise.all([
                                   fetchUsers(search, role, status, page, pageSize),
                                   fetchStatistics(),
@@ -290,8 +301,9 @@ export default function ManageUser() {
                               }
                             }}
                             className="cs-admin-action-btn cs-admin-action-btn--unban"
+                            style={{ fontSize: 11, height: 28, minWidth: "unset", padding: "0 10px" }}
                           >
-                            🔓 Bỏ phạt AI
+                            🔓 Ân xá
                           </button>
                         )}
                       </div>
@@ -641,6 +653,49 @@ export default function ManageUser() {
         .cs-admin-action-btn--disabled { background: #d1d5db; cursor: not-allowed; color: #9ca3af; }
         .cs-admin-action-btn--unban { background: #7c3aed; }
         .cs-admin-action-btn--unban:hover { background: #6d28d9; transform: translateY(-1px); }
+
+        /* Toggle Switch */
+        .cs-toggle-switch {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          user-select: none;
+        }
+        .cs-toggle-switch input { display: none; }
+        .cs-toggle-switch__track {
+          position: relative;
+          width: 44px;
+          height: 24px;
+          background: #e5e7eb;
+          border-radius: 99px;
+          transition: background 0.25s;
+          flex-shrink: 0;
+        }
+        .cs-toggle-switch input:checked + .cs-toggle-switch__track {
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+        }
+        .cs-toggle-switch__thumb {
+          position: absolute;
+          top: 3px;
+          left: 3px;
+          width: 18px;
+          height: 18px;
+          background: white;
+          border-radius: 50%;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+          transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .cs-toggle-switch input:checked ~ .cs-toggle-switch__track .cs-toggle-switch__thumb {
+          transform: translateX(20px);
+        }
+        .cs-toggle-switch__label {
+          font-size: 12px;
+          font-weight: 600;
+          color: #64748b;
+          min-width: 62px;
+        }
+        .cs-toggle-switch input:checked ~ .cs-toggle-switch__label { color: #16a34a; }
 
         /* Pagination */
         .cs-admin-pagination {

@@ -724,17 +724,20 @@ export const loyaltyApi = {
 // ============================
 
 export const adminConfigApi = {
-    getAll: () => apiFetch("/admin/config"),
+    /** GET /api/AdminConfig — trả về object UpdateSystemConfigsDto */
+    getAll: () => apiFetch("/AdminConfig"),
 
-    update: (key, value, secondaryPassword) =>
+    /** PUT /api/AdminConfig — gửi toàn bộ object + secondaryPassword */
+    update: (dto) =>
         apiFetch("/AdminConfig", {
             method: "PUT",
-            headers: {
-                "SecondaryPassword": secondaryPassword
-            },
-            body: JSON.stringify({ key, value }),
+            body: JSON.stringify(dto),
         }),
+
+    /** POST /api/AdminConfig/seed — khởi tạo dữ liệu mặc định vào DB */
+    seed: () => apiFetch("/AdminConfig/seed", { method: "POST" }),
 };
+
 
 // ============================
 // CHAT (Driver ↔ Owner)
@@ -790,7 +793,10 @@ export const adminAccountApi = {
     setupSecondaryPassword: (currentLoginPassword, newSecondaryPassword) =>
         apiFetch("/AdminAccounts/secondary-password/setup", {
             method: "POST",
-            body: JSON.stringify({ currentLoginPassword, newSecondaryPassword })
+            body: JSON.stringify({
+                PrimaryPassword: currentLoginPassword,
+                NewSecondaryPassword: newSecondaryPassword
+            })
         }),
 
     resetSecondaryPasswordRequest: () =>
@@ -799,7 +805,10 @@ export const adminAccountApi = {
     resetSecondaryPasswordConfirm: (otp, newSecondaryPassword) =>
         apiFetch("/AdminAccounts/secondary-password/reset-confirm", {
             method: "POST",
-            body: JSON.stringify({ otp, newSecondaryPassword })
+            body: JSON.stringify({
+                OtpCode: otp,
+                NewSecondaryPassword: newSecondaryPassword
+            })
         }),
 
     /** GET /api/AdminAccounts?search=&role=&status=&page=&pageSize= */
@@ -847,3 +856,21 @@ export const adminWithdrawApi = {
         apiFetch(`/admin/withdraws/${id}/resolve-issue`, { method: "PUT" })
 };
 // Removed duplicate adminAccountApi
+
+// ============================
+// AI COPILOT CHATBOT (RBAC)
+// ============================
+
+export const aiCopilotApi = {
+    /**
+     * Gửi tin nhắn tới AI Copilot theo role
+     * @param {"driver"|"owner"|"admin"} role
+     * @param {Array<{role:string, content:string}>} history
+     * @param {string} currentMessage
+     */
+    chat: (role, history, currentMessage) =>
+        apiFetch(`/chat/${role}`, {
+            method: "POST",
+            body: JSON.stringify({ history, currentMessage }),
+        }),
+};

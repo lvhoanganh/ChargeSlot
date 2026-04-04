@@ -285,22 +285,37 @@ export default function ApproveStation() {
                         >
                           Từ chối
                         </button>
-                        {s.bannedUntil && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                await adminStationApi.toggleBan(s.id);
-                                showToast.success("Đã bỏ phạt AI cho trạm " + s.name);
-                                queryClient.invalidateQueries({ queryKey: ["admin-stations-pending"] });
-                              } catch (err) {
-                                showToast.error(err?.response?.data?.message || "Thao tác thất bại.");
-                              }
-                            }}
-                            className="cs-admin-action-btn cs-admin-action-btn--unban"
+                        {/* Toggle ban trạm */}
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, marginTop: 4 }}>
+                          <label
+                            className="cs-toggle-switch"
+                            title={s.bannedUntil ? "Trạm đang bị AI khoá — nhấn để ân xá" : "Trạm hoạt động bình thường"}
                           >
-                            🔓 Bỏ phạt AI
-                          </button>
-                        )}
+                            <input
+                              type="checkbox"
+                              checked={!s.bannedUntil}
+                              onChange={async () => {
+                                try {
+                                  await adminStationApi.toggleBan(s.id);
+                                  showToast.success(
+                                    s.bannedUntil
+                                      ? "✅ Đã ân xá AI-ban cho trạm " + s.name
+                                      : "🔒 Đã khoá trạm " + s.name
+                                  );
+                                  queryClient.invalidateQueries({ queryKey: ["admin-stations-pending"] });
+                                } catch (err) {
+                                  showToast.error(err?.response?.data?.message || "Thao tác thất bại.");
+                                }
+                              }}
+                            />
+                            <span className="cs-toggle-switch__track">
+                              <span className="cs-toggle-switch__thumb" />
+                            </span>
+                            <span className="cs-toggle-switch__label">
+                              {s.bannedUntil ? "Bị khoá" : "Hoạt động"}
+                            </span>
+                          </label>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -623,6 +638,49 @@ const styles = `
   .cs-admin-action-btn--disabled { background: #d1d5db; cursor: not-allowed; color: #9ca3af; }
   .cs-admin-action-btn--unban { background: #7c3aed; }
   .cs-admin-action-btn--unban:hover { background: #6d28d9; transform: translateY(-1px); }
+
+  /* Toggle Switch */
+  .cs-toggle-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .cs-toggle-switch input { display: none; }
+  .cs-toggle-switch__track {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: #fca5a5;
+    border-radius: 99px;
+    transition: background 0.25s;
+    flex-shrink: 0;
+  }
+  .cs-toggle-switch input:checked + .cs-toggle-switch__track {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+  }
+  .cs-toggle-switch__thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .cs-toggle-switch input:checked ~ .cs-toggle-switch__track .cs-toggle-switch__thumb {
+    transform: translateX(20px);
+  }
+  .cs-toggle-switch__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #ef4444;
+    min-width: 66px;
+  }
+  .cs-toggle-switch input:checked ~ .cs-toggle-switch__label { color: #16a34a; }
 
   /* Modal */
   .cs-admin-modal-overlay {

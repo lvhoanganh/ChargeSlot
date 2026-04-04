@@ -157,7 +157,7 @@ export default function AdminProfile() {
             <Button
               variant="outline"
               className="flex-1 h-11 border-purple-300 text-purple-600 hover:bg-purple-50 rounded-xl font-medium transition-all"
-              onClick={() => { setSecModal("setup"); setSecForm({ currentPass: "", newSecPass: "", otp: "" }); }}
+              onClick={() => { setSecModal("reset-request"); setSecForm({ currentPass: "", newSecPass: "", otp: "", confirmSecPass: "" }); }}
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -172,44 +172,124 @@ export default function AdminProfile() {
       {secModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">
-              {secModal === "setup" ? "Thiết lập Mật khẩu Cấp 2" : "Khôi phục Mật khẩu Cấp 2"}
-            </h2>
-            {secModal === "setup" ? (
-              <form onSubmit={handleSetupSecPass} className="flex flex-col gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Mật khẩu đăng nhập</label>
-                  <input type="password" value={secForm.currentPass} onChange={e => setSecForm({ ...secForm, currentPass: e.target.value })} className="mt-1 w-full p-2 border rounded-lg outline-none focus:border-orange-500" required />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Mật khẩu cấp 2 (Mới)</label>
-                  <input type="password" value={secForm.newSecPass} onChange={e => setSecForm({ ...secForm, newSecPass: e.target.value })} className="mt-1 w-full p-2 border rounded-lg outline-none focus:border-orange-500" required />
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <Button type="submit" disabled={secLoading} className="flex-1 bg-orange-500 hover:bg-orange-600">Lưu</Button>
-                  <Button type="button" onClick={() => setSecModal(null)} className="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200">Hủy</Button>
-                </div>
-                <button type="button" onClick={handleResetSecReq} className="text-sm text-blue-500 hover:underline mt-2">
-                  Quên mật khẩu cấp 2?
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleResetSecConfirm} className="flex flex-col gap-4">
-                <p className="text-sm text-gray-600">Chúng tôi đã gửi mã OTP. Vui lòng kiểm tra tin nhắn.</p>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Mã OTP</label>
-                  <input type="text" value={secForm.otp} onChange={e => setSecForm({ ...secForm, otp: e.target.value })} className="mt-1 w-full p-2 border rounded-lg outline-none focus:border-orange-500" required />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Mật khẩu cấp 2 (Mới)</label>
-                  <input type="password" value={secForm.newSecPass} onChange={e => setSecForm({ ...secForm, newSecPass: e.target.value })} className="mt-1 w-full p-2 border rounded-lg outline-none focus:border-orange-500" required />
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <Button type="submit" disabled={secLoading} className="flex-1 bg-orange-500 hover:bg-orange-600">Xác nhận</Button>
-                  <Button type="button" onClick={() => setSecModal(null)} className="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200">Hủy</Button>
-                </div>
-              </form>
+
+            {/* ── SETUP LẦN ĐẦU ── */}
+            {secModal === "setup" && (
+              <>
+                <h2 className="text-xl font-bold text-gray-800 mb-1">🔐 Thiết lập Mật khẩu Cấp 2</h2>
+                <p className="text-xs text-gray-400 mb-4">Dùng để xác thực các thao tác quan trọng (cấu hình, duyệt tài chính).</p>
+                <form onSubmit={handleSetupSecPass} className="flex flex-col gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Mật khẩu đăng nhập hiện tại</label>
+                    <input type="password" autoFocus value={secForm.currentPass}
+                      onChange={e => setSecForm({ ...secForm, currentPass: e.target.value })}
+                      placeholder="Nhập MK đăng nhập để xác thực..."
+                      className="mt-1 w-full p-2.5 border rounded-lg outline-none focus:border-orange-500 text-sm" required />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Mật khẩu cấp 2 (Mới)</label>
+                    <input type="password" value={secForm.newSecPass}
+                      onChange={e => setSecForm({ ...secForm, newSecPass: e.target.value })}
+                      placeholder="Ít nhất 6 ký tự..."
+                      className="mt-1 w-full p-2.5 border rounded-lg outline-none focus:border-orange-500 text-sm" required minLength={6} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Xác nhận mật khẩu cấp 2</label>
+                    <input type="password" value={secForm.confirmSecPass || ""}
+                      onChange={e => setSecForm({ ...secForm, confirmSecPass: e.target.value })}
+                      placeholder="Nhập lại MK cấp 2..."
+                      className="mt-1 w-full p-2.5 border rounded-lg outline-none focus:border-orange-500 text-sm" required />
+                    {secForm.confirmSecPass && secForm.newSecPass !== secForm.confirmSecPass && (
+                      <p className="text-xs text-red-500 mt-1">⚠️ Mật khẩu xác nhận không khớp</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 mt-1">
+                    <Button type="submit"
+                      disabled={secLoading || (secForm.newSecPass !== secForm.confirmSecPass)}
+                      className="flex-1 bg-orange-500 hover:bg-orange-600">
+                      {secLoading ? "Đang xử lý..." : "Thiết lập"}
+                    </Button>
+                    <Button type="button" onClick={() => setSecModal(null)}
+                      className="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200">Hủy</Button>
+                  </div>
+                  <button type="button"
+                    onClick={() => { setSecModal("reset-request"); setSecForm({ currentPass: "", newSecPass: "", otp: "", confirmSecPass: "" }); }}
+                    className="text-sm text-blue-500 hover:underline text-center mt-1">
+                    Quên / muốn đổi mật khẩu cấp 2?
+                  </button>
+                </form>
+              </>
             )}
+
+            {/* ── BƯỚC 1: YÊU CẦU OTP ── */}
+            {secModal === "reset-request" && (
+              <>
+                <h2 className="text-xl font-bold text-gray-800 mb-2">📧 Đổi Mật khẩu Cấp 2</h2>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
+                  <p className="text-sm text-blue-700 font-medium">Hệ thống sẽ gửi mã OTP về email quản trị viên.</p>
+                  <p className="text-xs text-blue-500 mt-1">Kiểm tra hộp thư của admin sau khi bấm gửi OTP.</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleResetSecReq} disabled={secLoading}
+                    className="flex-1 bg-orange-500 hover:bg-orange-600">
+                    {secLoading ? "Đang gửi..." : "📤 Gửi OTP qua Email"}
+                  </Button>
+                  <Button type="button" onClick={() => setSecModal(null)}
+                    className="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200">Hủy</Button>
+                </div>
+              </>
+            )}
+
+            {/* ── BƯỚC 2: NHẬP OTP + MK MỚI ── */}
+            {secModal === "reset-confirm" && (
+              <>
+                <h2 className="text-xl font-bold text-gray-800 mb-1">✅ Xác nhận OTP</h2>
+                <p className="text-xs text-gray-500 mb-4">Nhập mã OTP đã được gửi về email admin và mật khẩu cấp 2 mới.</p>
+                <form onSubmit={handleResetSecConfirm} className="flex flex-col gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Mã OTP (từ email)</label>
+                    <input type="text" autoFocus value={secForm.otp}
+                      onChange={e => setSecForm({ ...secForm, otp: e.target.value })}
+                      placeholder="Nhập 6 chữ số..."
+                      className="mt-1 w-full p-2.5 border rounded-lg outline-none focus:border-orange-500 text-sm tracking-widest text-center font-mono"
+                      maxLength={6} required />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Mật khẩu cấp 2 (Mới)</label>
+                    <input type="password" value={secForm.newSecPass}
+                      onChange={e => setSecForm({ ...secForm, newSecPass: e.target.value })}
+                      placeholder="Ít nhất 6 ký tự..."
+                      className="mt-1 w-full p-2.5 border rounded-lg outline-none focus:border-orange-500 text-sm" required minLength={6} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Xác nhận mật khẩu cấp 2</label>
+                    <input type="password" value={secForm.confirmSecPass || ""}
+                      onChange={e => setSecForm({ ...secForm, confirmSecPass: e.target.value })}
+                      placeholder="Nhập lại MK cấp 2..."
+                      className="mt-1 w-full p-2.5 border rounded-lg outline-none focus:border-orange-500 text-sm" required />
+                    {secForm.confirmSecPass && secForm.newSecPass !== secForm.confirmSecPass && (
+                      <p className="text-xs text-red-500 mt-1">⚠️ Mật khẩu xác nhận không khớp</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 mt-1">
+                    <Button type="submit"
+                      disabled={secLoading || (secForm.newSecPass !== secForm.confirmSecPass)}
+                      className="flex-1 bg-orange-500 hover:bg-orange-600">
+                      {secLoading ? "Đang xử lý..." : "Xác nhận"}
+                    </Button>
+                    <Button type="button" onClick={() => setSecModal(null)}
+                      className="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200">Hủy</Button>
+                  </div>
+                  <button type="button"
+                    onClick={handleResetSecReq}
+                    disabled={secLoading}
+                    className="text-sm text-blue-500 hover:underline text-center">
+                    Gửi lại OTP
+                  </button>
+                </form>
+              </>
+            )}
+
           </div>
         </div>
       )}

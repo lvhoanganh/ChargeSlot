@@ -72,9 +72,18 @@ export default function AdminDashboard() {
               icon="💰"
               label="Số dư Escrow (Ký quỹ)"
               value={fmt(metrics?.totalEscrowBalance)}
-              sub="Tổng tiền đang giữ hộ"
-              color="#7c3aed"
-              bg="linear-gradient(135deg, #f5f3ff, #ede9fe)"
+              sub={
+                metrics?.totalEscrowBalance < 0
+                  ? "⚠️ Số dư âm — kiểm tra hoàn tiền/refund"
+                  : "Tổng tiền đang giữ hộ"
+              }
+              color={metrics?.totalEscrowBalance < 0 ? "#dc2626" : "#7c3aed"}
+              bg={
+                metrics?.totalEscrowBalance < 0
+                  ? "linear-gradient(135deg, #fef2f2, #fee2e2)"
+                  : "linear-gradient(135deg, #f5f3ff, #ede9fe)"
+              }
+              highlight={metrics?.totalEscrowBalance < 0}
             />
             <MetricCard
               icon="🏦"
