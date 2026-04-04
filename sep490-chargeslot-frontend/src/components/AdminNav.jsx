@@ -18,6 +18,7 @@ export default function AdminNav() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const dropdownRef = useRef(null);
   const moreRef = useRef(null);
   const mobileMenuRef = useRef(null);
@@ -261,88 +262,100 @@ export default function AdminNav() {
               </div>
             )}
           </div>
-
-          {/* Hamburger button (mobile only) */}
-          <button
-            className="cs-hamburger"
-            onClick={() => setMobileMenuOpen(prev => !prev)}
-            aria-label="Mở menu"
-          >
-            {mobileMenuOpen ? (
-              <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
-          </button>
         </div>
       </nav>
 
-      {/* Mobile overlay */}
-      <div
-        className={`cs-mobile-overlay ${mobileMenuOpen ? "cs-mobile-overlay--open" : ""}`}
-        onClick={() => setMobileMenuOpen(false)}
-      />
+      {/* ===== ADMIN BOTTOM NAVIGATION BAR (mobile only) ===== */}
+      <nav className="cs-admin-bottom-nav" aria-label="Điều hướng Admin">
+        <NavLink to="/admin/dashboard" className={({ isActive }) => `cs-admin-bnav__item ${isActive ? "cs-admin-bnav__item--active" : ""}`}>
+          <svg className="cs-admin-bnav__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <span className="cs-admin-bnav__label">Dashboard</span>
+        </NavLink>
 
-      {/* Mobile drawer */}
-      <div
-        ref={mobileMenuRef}
-        className={`cs-mobile-menu ${mobileMenuOpen ? "cs-mobile-menu--open" : ""}`}
-      >
-        <div className="cs-mobile-menu__header">
-          <ChargeSlotLogo size={30} showText suffix="Admin" />
-          <button className="cs-mobile-menu__close" onClick={() => setMobileMenuOpen(false)}>
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+        <NavLink to="/admin/manage-users" className={({ isActive }) => `cs-admin-bnav__item ${isActive ? "cs-admin-bnav__item--active" : ""}`}>
+          <svg className="cs-admin-bnav__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span className="cs-admin-bnav__label">Users</span>
+        </NavLink>
+
+        {/* Duyệt trạm — FAB ở giữa */}
+        <NavLink to="/admin/approve-station" className={({ isActive }) => `cs-admin-bnav__fab-wrap ${isActive ? "active" : ""}`}>
+          <div className="cs-admin-bnav__fab">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-          </button>
-        </div>
-
-        {token && (
-          <div className="cs-mobile-menu__user">
-            <img src={DEFAULT_AVATAR} alt="Avatar" className="cs-mobile-menu__avatar" />
-            <div>
-              <p className="cs-mobile-menu__phone">{maskPhone(phoneNumber) || "Quản trị viên"}</p>
-              <span className="cs-mobile-menu__role">Quản trị viên</span>
-            </div>
           </div>
-        )}
+          <span className="cs-admin-bnav__fab-label">Duyệt</span>
+        </NavLink>
 
-        <div className="cs-mobile-menu__nav">
+        <NavLink to="/admin/view-financial-report" className={({ isActive }) => `cs-admin-bnav__item ${isActive ? "cs-admin-bnav__item--active" : ""}`}>
+          <svg className="cs-admin-bnav__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+          <span className="cs-admin-bnav__label">Tài chính</span>
+        </NavLink>
+
+        <button
+          className={`cs-admin-bnav__item ${
+            location.pathname.startsWith("/admin/admin-profile") ||
+            location.pathname.startsWith("/admin/disputes") ||
+            location.pathname.startsWith("/admin/system-config") ||
+            mobileMoreOpen ? "cs-admin-bnav__item--active" : ""
+          }`}
+          onClick={() => setMobileMoreOpen(true)}
+        >
+          <img
+            src={DEFAULT_AVATAR}
+            alt="Avatar"
+            style={{
+              width: 24, height: 24, borderRadius: "50%", objectFit: "cover",
+              border: mobileMoreOpen ? "2px solid #f97316" : "2px solid #e5e7eb"
+            }}
+          />
+          <span className="cs-admin-bnav__label">Tôi</span>
+        </button>
+      </nav>
+
+      {/* ===== ADMIN MOBILE MORE BOTTOM SHEET ===== */}
+      {mobileMoreOpen && (
+        <div className="cs-more-sheet-overlay" onClick={() => setMobileMoreOpen(false)} />
+      )}
+      <div className={`cs-more-sheet ${mobileMoreOpen ? "cs-more-sheet--open" : ""}`}>
+        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 8px" }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: "#e2e8f0" }} />
+        </div>
+        <div className="cs-more-sheet__user">
+          <img src={DEFAULT_AVATAR} alt="Avatar" className="cs-more-sheet__avatar" />
+          <div>
+            <p className="cs-more-sheet__phone">{maskPhone(phoneNumber) || "Quản trị viên"}</p>
+            <span className="cs-more-sheet__role">Quản trị viên</span>
+          </div>
+        </div>
+        <div className="cs-more-sheet__grid">
           {[
-            ...primaryItems,
-            ...moreItems,
-          ].map((item, i) => (
-            <NavLink
-              key={i}
-              to={item.to}
-              className={({ isActive }) =>
-                `cs-mobile-nav-item ${isActive ? "cs-mobile-nav-item--active" : ""}`
-              }
-              onClick={() => setMobileMenuOpen(false)}
+            { emoji: "👤", label: "Hồ sơ", to: "/admin/admin-profile" },
+            { emoji: "⚠️", label: "Tranh chấp", to: "/admin/disputes" },
+            { emoji: "🏦", label: "Rút Owner", to: "/admin/payouts" },
+            { emoji: "💸", label: "Rút Driver", to: "/admin/withdraws" },
+            { emoji: "⚙️", label: "Cấu hình", to: "/admin/system-config" },
+          ].map((item) => (
+            <button
+              key={item.to}
+              className="cs-more-sheet__item"
+              onClick={() => { setMobileMoreOpen(false); navigate(item.to); }}
             >
-              <span className="cs-mobile-nav-item__icon">{item.icon || "📬"}</span>
-              <span>{item.label}</span>
-              <svg className="cs-mobile-nav-item__arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </NavLink>
+              <span className="cs-more-sheet__item-emoji">{item.emoji}</span>
+              <span className="cs-more-sheet__item-label">{item.label}</span>
+            </button>
           ))}
         </div>
-
-        <div className="cs-mobile-menu__footer">
+        <div className="cs-more-sheet__footer">
           <button
-            className="cs-mobile-menu__btn cs-mobile-menu__btn--secondary"
-            onClick={() => { setMobileMenuOpen(false); navigate("/admin/admin-profile"); }}
-          >
-            👤 Xem hồ sơ
-          </button>
-          <button
-            className="cs-mobile-menu__btn cs-mobile-menu__btn--danger"
-            onClick={() => { setMobileMenuOpen(false); logout(); navigate("/login"); }}
+            className="cs-more-sheet__logout-btn"
+            onClick={() => { setMobileMoreOpen(false); logout(); navigate("/login"); }}
           >
             🚪 Đăng xuất
           </button>
@@ -350,318 +363,185 @@ export default function AdminNav() {
       </div>
 
       <style>{`
-        /* ===== ADMIN NAVBAR CORE ===== */
         .cs-nav {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 64px;
-          background: rgba(255, 255, 255, 0.92);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-          z-index: 30;
-          display: flex;
-          align-items: center;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+          position: fixed; top: 0; left: 0; width: 100%; height: 64px;
+          background: rgba(255,255,255,0.92); backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(0,0,0,0.06);
+          z-index: 30; display: flex; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
-        .cs-nav--admin {
-          background: rgba(248, 250, 252, 0.95);
-        }
+        .cs-nav--admin { background: rgba(248,250,252,0.95); }
         .cs-nav__container {
-          max-width: 1400px;
-          width: 95%;
-          margin: 0 auto;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
+          max-width: 1400px; width: 95%; margin: 0 auto;
+          display: flex; align-items: center; justify-content: space-between; gap: 16px;
         }
-
-        /* ===== BRAND ===== */
-        .cs-nav__brand {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          text-decoration: none;
-          flex-shrink: 0;
-        }
-        .cs-nav__brand-icon {
-          font-size: 22px;
-          line-height: 1;
-        }
-        .cs-nav__brand-text {
-          font-size: 18px;
-          font-weight: 800;
-          letter-spacing: -0.5px;
-        }
+        .cs-nav__brand { display: flex; align-items: center; gap: 8px; text-decoration: none; flex-shrink: 0; }
+        .cs-nav__brand-icon { font-size: 22px; line-height: 1; }
+        .cs-nav__brand-text { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
         .cs-nav__brand-text--admin {
           background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
         }
-
-        /* ===== NAV LINKS ===== */
-        .cs-nav__links {
-          display: flex;
-          align-items: center;
-          gap: 2px;
-        }
-
-        /* ===== NAV ITEM ===== */
+        .cs-nav__links { display: flex; align-items: center; gap: 2px; }
         .nav-item {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 14px;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 500;
-          color: #4b5563;
-          text-decoration: none;
-          transition: all 0.2s ease;
-          cursor: pointer;
-          border: none;
-          background: none;
-          white-space: nowrap;
-          position: relative;
+          display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+          border-radius: 10px; font-size: 14px; font-weight: 500; color: #4b5563;
+          text-decoration: none; transition: all 0.2s ease; cursor: pointer;
+          border: none; background: none; white-space: nowrap; position: relative;
         }
-        .nav-item:hover {
-          background: #fff7ed;
-          color: #ea580c;
-        }
-        .nav-item--active-admin {
-          color: #ea580c;
-          font-weight: 600;
-          background: #fff7ed;
-        }
+        .nav-item:hover { background: #fff7ed; color: #ea580c; }
+        .nav-item--active-admin { color: #ea580c; font-weight: 600; background: #fff7ed; }
         .nav-item--active-admin::after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 20px;
-          height: 3px;
-          border-radius: 3px;
-          background: linear-gradient(90deg, #f97316, #ea580c);
+          content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+          width: 20px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, #f97316, #ea580c);
         }
-        .nav-item__icon {
-          display: flex;
-          align-items: center;
-          opacity: 0.7;
-          transition: opacity 0.2s;
-        }
-        .nav-item:hover .nav-item__icon,
-        .nav-item--active-admin .nav-item__icon {
-          opacity: 1;
-        }
-        .nav-item__label {
-          line-height: 1;
-        }
-
-        /* ===== MORE DROPDOWN ===== */
+        .nav-item__icon { display: flex; align-items: center; opacity: 0.7; transition: opacity 0.2s; }
+        .nav-item:hover .nav-item__icon, .nav-item--active-admin .nav-item__icon { opacity: 1; }
+        .nav-item__label { line-height: 1; }
         .cs-more-dropdown {
-          position: absolute;
-          right: 0;
-          top: 100%;
-          margin-top: 8px;
-          width: 200px;
-          opacity: 0;
-          transform: scale(0.95) translateY(-8px);
-          pointer-events: none;
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-          transform-origin: top right;
-          z-index: 50;
+          position: absolute; right: 0; top: 100%; margin-top: 8px; width: 200px;
+          opacity: 0; transform: scale(0.95) translateY(-8px); pointer-events: none;
+          transition: all 0.25s cubic-bezier(0.16,1,0.3,1); transform-origin: top right; z-index: 50;
         }
-        .cs-more-dropdown--open {
-          opacity: 1;
-          transform: scale(1) translateY(0);
-          pointer-events: auto;
-        }
+        .cs-more-dropdown--open { opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
         .cs-more-dropdown__inner {
-          background: rgba(255, 255, 255, 0.97);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(0, 0, 0, 0.06);
-          border-radius: 14px;
-          padding: 6px;
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
+          background: rgba(255,255,255,0.97); backdrop-filter: blur(20px);
+          border: 1px solid rgba(0,0,0,0.06); border-radius: 14px; padding: 6px;
+          box-shadow: 0 12px 40px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.04);
         }
         .cs-more-dropdown__item {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          width: 100%;
-          padding: 10px 14px;
-          border: none;
-          background: none;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 500;
-          color: #4b5563;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          text-align: left;
+          display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px;
+          border: none; background: none; border-radius: 10px; font-size: 14px; font-weight: 500;
+          color: #4b5563; cursor: pointer; transition: all 0.15s ease; text-align: left;
         }
-        .cs-more-dropdown__item:hover {
-          background: #fff7ed;
-          color: #ea580c;
-        }
-        .cs-more-dropdown__item--active {
-          background: #fff7ed;
-          color: #ea580c;
-          font-weight: 600;
-        }
-        .cs-more-dropdown__item-icon {
-          font-size: 16px;
-          flex-shrink: 0;
-        }
-
-        /* ===== RIGHT SECTION ===== */
-        .cs-nav__right {
-          display: flex;
-          align-items: center;
-          flex-shrink: 0;
-        }
-
-        /* ===== AUTH BUTTON ===== */
-        .cs-btn--login {
-          border-radius: 10px;
-          font-weight: 600;
-          font-size: 13px;
-          padding: 8px 18px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          border: none;
-          color: white;
-        }
-        .cs-btn--login-admin {
-          background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-          box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
-        }
-        .cs-btn--login-admin:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4);
-        }
-
-        /* ===== AVATAR BUTTON ===== */
-        .cs-avatar-btn {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          cursor: pointer;
-          border: none;
-          background: none;
-          padding: 4px;
-          border-radius: 50px;
-          transition: background 0.2s;
-        }
-        .cs-avatar-btn:hover {
-          background: #f3f4f6;
-        }
-        .cs-avatar-btn__img {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          object-fit: cover;
-          border: 2px solid #e5e7eb;
-          transition: all 0.3s;
-        }
-        .cs-avatar-btn__img--open,
-        .cs-avatar-btn:hover .cs-avatar-btn__img {
-          border-color: #f97316;
-          box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
-        }
-
-        /* ===== PROFILE DROPDOWN ===== */
+        .cs-more-dropdown__item:hover { background: #fff7ed; color: #ea580c; }
+        .cs-more-dropdown__item--active { background: #fff7ed; color: #ea580c; font-weight: 600; }
+        .cs-more-dropdown__item-icon { font-size: 16px; flex-shrink: 0; }
+        .cs-nav__right { display: flex; align-items: center; flex-shrink: 0; }
+        .cs-btn--login { border-radius: 10px; font-weight: 600; font-size: 13px; padding: 8px 18px; cursor: pointer; transition: all 0.2s ease; border: none; color: white; }
+        .cs-btn--login-admin { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); box-shadow: 0 2px 8px rgba(249,115,22,0.3); }
+        .cs-btn--login-admin:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(249,115,22,0.4); }
+        .cs-avatar-btn { display: flex; align-items: center; gap: 6px; cursor: pointer; border: none; background: none; padding: 4px; border-radius: 50px; transition: background 0.2s; }
+        .cs-avatar-btn:hover { background: #f3f4f6; }
+        .cs-avatar-btn__img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #e5e7eb; transition: all 0.3s; }
+        .cs-avatar-btn__img--open, .cs-avatar-btn:hover .cs-avatar-btn__img { border-color: #f97316; box-shadow: 0 0 0 3px rgba(249,115,22,0.15); }
         .cs-profile-dropdown {
-          position: absolute;
-          right: 0;
-          top: 100%;
-          margin-top: 10px;
-          width: 280px;
-          opacity: 0;
-          transform: scale(0.95) translateY(-8px);
-          pointer-events: none;
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-          transform-origin: top right;
-          z-index: 50;
+          position: absolute; right: 0; top: 100%; margin-top: 10px; width: 280px;
+          opacity: 0; transform: scale(0.95) translateY(-8px); pointer-events: none;
+          transition: all 0.25s cubic-bezier(0.16,1,0.3,1); transform-origin: top right; z-index: 50;
         }
-        .cs-profile-dropdown--open {
-          opacity: 1;
-          transform: scale(1) translateY(0);
-          pointer-events: auto;
-        }
+        .cs-profile-dropdown--open { opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
         .cs-profile-dropdown__card {
-          background: rgba(255, 255, 255, 0.97);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(0, 0, 0, 0.06);
-          border-radius: 16px;
-          overflow: hidden;
-          box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+          background: rgba(255,255,255,0.97); backdrop-filter: blur(20px);
+          border: 1px solid rgba(0,0,0,0.06); border-radius: 16px; overflow: hidden;
+          box-shadow: 0 16px 48px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.04);
         }
-        .cs-profile-dropdown__header {
-          padding: 16px 20px;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .cs-profile-dropdown__header--admin {
-          background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-        }
+        .cs-profile-dropdown__header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; }
+        .cs-profile-dropdown__header--admin { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
 
-        .cs-hamburger {
-          display: none; align-items: center; justify-content: center;
-          width: 40px; height: 40px; border: none; background: none;
-          border-radius: 10px; color: #4b5563; cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+        /* Hamburger + drawer — ẩn (dùng bottom nav) */
+        .cs-hamburger { display: none !important; }
+        .cs-mobile-overlay { display: none !important; }
+        .cs-mobile-menu { display: none !important; }
+
+        /* ===== ADMIN BOTTOM NAV ===== */
+        .cs-admin-bottom-nav {
+          display: none;
+          position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
+          background: rgba(248,250,252,0.97);
+          backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+          border-top: 1px solid rgba(0,0,0,0.07);
+          box-shadow: 0 -4px 24px rgba(0,0,0,0.06);
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+          height: calc(60px + env(safe-area-inset-bottom, 0px));
+          flex-direction: row; align-items: stretch;
         }
-        .cs-hamburger:hover { background: #f3f4f6; color: #ea580c; }
-        .cs-mobile-overlay {
-          display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-          z-index: 40; opacity: 0; transition: opacity 0.3s;
+        .cs-admin-bnav__item {
+          flex: 1; display: flex; flex-direction: column; align-items: center;
+          justify-content: center; gap: 3px; border: none; background: none;
+          cursor: pointer; padding: 8px 4px 6px; color: #94a3b8;
+          text-decoration: none; transition: color 0.18s;
+          -webkit-tap-highlight-color: transparent; position: relative;
         }
-        .cs-mobile-overlay--open { opacity: 1; }
-        .cs-mobile-menu {
-          display: none; position: fixed; top: 0; right: 0;
-          width: min(320px, 100vw); height: 100vh;
-          background: rgba(255,255,255,0.98); backdrop-filter: blur(20px);
-          z-index: 45; flex-direction: column;
-          transform: translateX(100%); transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
-          box-shadow: -8px 0 40px rgba(0,0,0,0.15); overflow-y: auto;
+        .cs-admin-bnav__item--active { color: #f97316; }
+        .cs-admin-bnav__item--active::before {
+          content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+          width: 28px; height: 3px; border-radius: 0 0 4px 4px;
+          background: linear-gradient(90deg, #f97316, #ea580c);
         }
-        .cs-mobile-menu--open { transform: translateX(0); }
-        .cs-mobile-menu__header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #f1f5f9; flex-shrink: 0; }
-        .cs-mobile-menu__close { width: 36px; height: 36px; border: none; background: #f8fafc; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; transition: all 0.2s; }
-        .cs-mobile-menu__close:hover { background: #fff7ed; color: #ea580c; }
-        .cs-mobile-menu__user { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: linear-gradient(135deg, #fff7ed, #fed7aa); margin: 12px 16px; border-radius: 16px; }
-        .cs-mobile-menu__avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(249,115,22,0.3); flex-shrink: 0; }
-        .cs-mobile-menu__phone { font-size: 14px; font-weight: 600; color: #1e293b; margin: 0 0 2px; }
-        .cs-mobile-menu__role { font-size: 12px; color: #ea580c; font-weight: 500; }
-        .cs-mobile-menu__nav { flex: 1; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
-        .cs-mobile-nav-item { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-radius: 12px; font-size: 15px; font-weight: 500; color: #374151; text-decoration: none; transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; cursor: pointer; }
-        .cs-mobile-nav-item:hover { background: #fff7ed; color: #ea580c; }
-        .cs-mobile-nav-item--active { background: #fff7ed; color: #ea580c; font-weight: 600; }
-        .cs-mobile-nav-item__icon { font-size: 18px; width: 28px; text-align: center; flex-shrink: 0; }
-        .cs-mobile-nav-item__arrow { margin-left: auto; color: #cbd5e1; flex-shrink: 0; }
-        .cs-mobile-menu__footer { padding: 16px; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
-        .cs-mobile-menu__btn { width: 100%; padding: 13px 20px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; text-align: center; }
-        .cs-mobile-menu__btn--secondary { background: #f8fafc; color: #374151; border: 1.5px solid #e2e8f0; }
-        .cs-mobile-menu__btn--secondary:hover { background: #fff7ed; color: #ea580c; border-color: #fed7aa; }
-        .cs-mobile-menu__btn--danger { background: #fef2f2; color: #dc2626; border: 1.5px solid #fecaca; }
-        .cs-mobile-menu__btn--danger:hover { background: #fee2e2; }
+        .cs-admin-bnav__icon { width: 22px; height: 22px; flex-shrink: 0; }
+        .cs-admin-bnav__label { font-size: 10px; font-weight: 600; white-space: nowrap; }
+        .cs-admin-bnav__fab-wrap {
+          flex: 1; display: flex; flex-direction: column; align-items: center;
+          justify-content: center; gap: 3px; text-decoration: none;
+          padding: 0 4px 4px; -webkit-tap-highlight-color: transparent;
+        }
+        .cs-admin-bnav__fab {
+          width: 50px; height: 50px; border-radius: 50%;
+          background: linear-gradient(135deg, #f97316, #ea580c);
+          display: flex; align-items: center; justify-content: center;
+          color: white; margin-top: -12px;
+          box-shadow: 0 4px 16px rgba(249,115,22,0.4);
+          border: 3px solid rgba(248,250,252,0.97);
+        }
+        .cs-admin-bnav__fab-label { font-size: 10px; font-weight: 700; color: #f97316; }
 
         @media (max-width: 768px) {
+          .cs-nav { height: 52px; }
           .cs-nav__links { display: none !important; }
           .cs-nav__right .flex.items-center.gap-2 { display: none !important; }
-          .cs-hamburger { display: flex; }
-          .cs-mobile-overlay { display: block; pointer-events: none; }
-          .cs-mobile-overlay--open { pointer-events: auto; }
-          .cs-mobile-menu { display: flex; }
+          .cs-nav__right { display: flex !important; }
+          .cs-avatar-btn > svg.w-4 { display: none !important; }
+          .cs-admin-bottom-nav { display: flex; }
         }
+        @media (min-width: 769px) {
+          .cs-admin-bottom-nav { display: none !important; }
+          .cs-more-sheet { display: none !important; }
+          .cs-more-sheet-overlay { display: none !important; }
+        }
+
+        /* ===== MOBILE MORE SHEET (Admin) ===== */
+        .cs-more-sheet-overlay {
+          position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+          z-index: 45; backdrop-filter: blur(2px);
+          animation: adminFadeIn 0.2s ease;
+        }
+        @keyframes adminFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .cs-more-sheet {
+          position: fixed; bottom: 0; left: 0; right: 0; z-index: 46;
+          background: #ffffff; border-radius: 20px 20px 0 0;
+          box-shadow: 0 -8px 40px rgba(0,0,0,0.15);
+          transform: translateY(100%);
+          transition: transform 0.32s cubic-bezier(0.16,1,0.3,1);
+          padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+          max-height: 85vh; overflow-y: auto;
+        }
+        .cs-more-sheet--open { transform: translateY(0); }
+        .cs-more-sheet__user {
+          display: flex; align-items: center; gap: 12px;
+          margin: 0 16px 16px; padding: 14px 16px;
+          background: linear-gradient(135deg, #fff7ed, #ffedd5); border-radius: 14px;
+        }
+        .cs-more-sheet__avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(249,115,22,0.3); flex-shrink: 0; }
+        .cs-more-sheet__phone { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0 0 2px; }
+        .cs-more-sheet__role { font-size: 12px; color: #ea580c; font-weight: 500; }
+        .cs-more-sheet__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 0 16px 8px; }
+        .cs-more-sheet__item {
+          display: flex; flex-direction: column; align-items: center; gap: 8px;
+          padding: 16px 8px; border: none; background: #f8fafc;
+          border-radius: 14px; cursor: pointer; transition: all 0.15s;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .cs-more-sheet__item:active { transform: scale(0.94); background: #fff7ed; }
+        .cs-more-sheet__item-emoji { font-size: 26px; line-height: 1; }
+        .cs-more-sheet__item-label { font-size: 12px; font-weight: 600; color: #374151; text-align: center; }
+        .cs-more-sheet__footer { padding: 12px 16px 4px; border-top: 1px solid #f1f5f9; }
+        .cs-more-sheet__logout-btn {
+          width: 100%; padding: 14px 20px; border-radius: 14px;
+          font-size: 15px; font-weight: 600; cursor: pointer;
+          background: #fef2f2; color: #dc2626; border: 1.5px solid #fecaca;
+          transition: all 0.2s;
+        }
+        .cs-more-sheet__logout-btn:active { background: #fee2e2; }
       `}</style>
     </>
   );

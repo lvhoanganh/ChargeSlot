@@ -43,6 +43,7 @@ export default function Nav() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [toast, setToast] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
   const [walletBalance, setWalletBalance] = useState(null);
@@ -675,6 +676,175 @@ export default function Nav() {
         </div>
       )}
 
+      {/* ===== MOBILE BOTTOM NAVIGATION BAR ===== */}
+      {/* Chỉ hiển thị khi mobile và không phải trang fullscreen */}
+      {!location.pathname.startsWith("/driver/scan-qr") &&
+        !location.pathname.startsWith("/driver/check-in") &&
+        !location.pathname.startsWith("/driver/charging") && (
+          <nav className="cs-bottom-nav" aria-label="Điều hướng chính">
+            {/* Trang chủ */}
+            <NavLink to="/" end className={({ isActive }) => `cs-bottom-nav__item ${isActive ? "cs-bottom-nav__item--active" : ""}`}>
+              <svg className="cs-bottom-nav__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1" />
+              </svg>
+              <span className="cs-bottom-nav__label">Trang chủ</span>
+            </NavLink>
+
+            {/* Tìm trạm */}
+            <NavLink to="/driver/map" className={({ isActive }) => `cs-bottom-nav__item ${isActive ? "cs-bottom-nav__item--active" : ""}`}>
+              <svg className="cs-bottom-nav__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="cs-bottom-nav__label">Tìm trạm</span>
+            </NavLink>
+
+            {/* Check-in — FAB nổi bật ở giữa */}
+            <button
+              className="cs-bottom-nav__fab"
+              onClick={() => {
+                if (token) navigate("/driver/scan-qr");
+                else requireLogin("làm thủ tục check-in");
+              }}
+              aria-label="Check-in QR"
+            >
+              <div className="cs-bottom-nav__fab-inner">
+                <svg width="26" height="26" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+              </div>
+              <span className="cs-bottom-nav__fab-label">Check-in</span>
+            </button>
+
+            {/* Booking */}
+            <button
+              className={`cs-bottom-nav__item ${location.pathname.startsWith("/driver/my-bookings") || location.pathname.startsWith("/driver/booking") ? "cs-bottom-nav__item--active" : ""}`}
+              onClick={() => {
+                if (token) navigate("/driver/my-bookings");
+                else requireLogin("xem booking");
+              }}
+            >
+              <div style={{ position: "relative", display: "inline-flex" }}>
+                <svg className="cs-bottom-nav__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {/* badge khi có active booking */}
+                {activeSession && (
+                  <span style={{
+                    position: "absolute", top: -3, right: -4,
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: "#22c55e", border: "2px solid #fff",
+                  }} />
+                )}
+              </div>
+              <span className="cs-bottom-nav__label">Booking</span>
+            </button>
+
+            {/* Tôi — mở bottom sheet với đầy đủ mục */}
+            <button
+              className={`cs-bottom-nav__item ${
+                location.pathname.startsWith("/driver/driver-profile") ||
+                location.pathname.startsWith("/driver/wallet") ||
+                location.pathname.startsWith("/driver/favorites") ||
+                location.pathname.startsWith("/driver/loyalty") ||
+                location.pathname.startsWith("/driver/reviews") ||
+                location.pathname.startsWith("/driver/chat") ||
+                mobileMoreOpen
+                  ? "cs-bottom-nav__item--active" : ""
+              }`}
+              onClick={() => setMobileMoreOpen(true)}
+            >
+              {token ? (
+                <img
+                  src={avatarSrc}
+                  alt="Avatar"
+                  style={{
+                    width: 24, height: 24, borderRadius: "50%",
+                    objectFit: "cover",
+                    border: mobileMoreOpen ? "2px solid #f97316" : "2px solid #e5e7eb",
+                    transition: "border-color 0.2s"
+                  }}
+                />
+              ) : (
+                <svg className="cs-bottom-nav__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              )}
+              <span className="cs-bottom-nav__label">Tôi</span>
+            </button>
+          </nav>
+        )}
+
+      {/* ===== MOBILE MORE BOTTOM SHEET ===== */}
+      {mobileMoreOpen && (
+        <div
+          className="cs-more-sheet-overlay"
+          onClick={() => setMobileMoreOpen(false)}
+        />
+      )}
+      <div className={`cs-more-sheet ${mobileMoreOpen ? "cs-more-sheet--open" : ""}`}>
+        {/* Handle bar */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 8px" }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: "#e2e8f0" }} />
+        </div>
+
+        {/* User info (if logged in) */}
+        {token && (
+          <div className="cs-more-sheet__user">
+            <img src={avatarSrc} alt="Avatar" className="cs-more-sheet__avatar" />
+            <div>
+              <p className="cs-more-sheet__phone">{maskPhone(phoneNumber) || "Người dùng"}</p>
+              <span className="cs-more-sheet__role">{roleLabels[normalizedRole] || "Tài xế"}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Nav items grid */}
+        <div className="cs-more-sheet__grid">
+          {[
+            { emoji: "👤", label: "Hồ sơ", to: "/driver/driver-profile", auth: true },
+            { emoji: "💳", label: "Ví tiền", to: "/driver/wallet", auth: true },
+            { emoji: "❤️", label: "Yêu thích", to: "/driver/favorites", auth: true },
+            { emoji: "🏆", label: "Điểm thưởng", to: "/driver/loyalty", auth: true },
+            { emoji: "💬", label: "Chat", to: "/driver/chat-list", auth: true },
+            { emoji: "⭐", label: "Đánh giá", to: "/driver/reviews", auth: true },
+            { emoji: "⚠️", label: "Khiếu nại", to: "/driver/disputes", auth: true },
+          ].map((item) => (
+            <button
+              key={item.to}
+              className="cs-more-sheet__item"
+              onClick={() => {
+                setMobileMoreOpen(false);
+                if (item.auth && !token) requireLogin(item.label);
+                else navigate(item.to);
+              }}
+            >
+              <span className="cs-more-sheet__item-emoji">{item.emoji}</span>
+              <span className="cs-more-sheet__item-label">{item.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Footer actions */}
+        <div className="cs-more-sheet__footer">
+          {!token ? (
+            <button
+              className="cs-more-sheet__login-btn"
+              onClick={() => { setMobileMoreOpen(false); navigate("/login"); }}
+            >
+              🔑 Đăng nhập
+            </button>
+          ) : (
+            <button
+              className="cs-more-sheet__logout-btn"
+              onClick={() => { setMobileMoreOpen(false); logout(); navigate("/login"); }}
+            >
+              🚪 Đăng xuất
+            </button>
+          )}
+        </div>
+      </div>
+
       <style>{`
         /* ===== NAVBAR CORE ===== */
         .cs-nav {
@@ -1242,43 +1412,210 @@ export default function Nav() {
           background: #fee2e2;
         }
 
+        /* ===== MOBILE MORE BOTTOM SHEET ===== */
+        .cs-more-sheet-overlay {
+          position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+          z-index: 45; backdrop-filter: blur(2px);
+          animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .cs-more-sheet {
+          position: fixed; bottom: 0; left: 0; right: 0; z-index: 46;
+          background: #ffffff;
+          border-radius: 20px 20px 0 0;
+          box-shadow: 0 -8px 40px rgba(0,0,0,0.15);
+          transform: translateY(100%);
+          transition: transform 0.32s cubic-bezier(0.16,1,0.3,1);
+          padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+          max-height: 85vh; overflow-y: auto;
+        }
+        .cs-more-sheet--open { transform: translateY(0); }
+        .cs-more-sheet__user {
+          display: flex; align-items: center; gap: 12px;
+          margin: 0 16px 16px; padding: 14px 16px;
+          background: linear-gradient(135deg, #fff7ed, #ffedd5);
+          border-radius: 14px;
+        }
+        .cs-more-sheet__avatar {
+          width: 48px; height: 48px; border-radius: 50%; object-fit: cover;
+          border: 2px solid rgba(249,115,22,0.3); flex-shrink: 0;
+        }
+        .cs-more-sheet__phone { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0 0 2px; }
+        .cs-more-sheet__role { font-size: 12px; color: #ea580c; font-weight: 500; }
+        .cs-more-sheet__grid {
+          display: grid; grid-template-columns: repeat(3, 1fr);
+          gap: 8px; padding: 0 16px 8px;
+        }
+        .cs-more-sheet__item {
+          display: flex; flex-direction: column; align-items: center; gap: 8px;
+          padding: 16px 8px; border: none; background: #f8fafc;
+          border-radius: 14px; cursor: pointer; transition: all 0.15s;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .cs-more-sheet__item:active { transform: scale(0.94); background: #fff7ed; }
+        .cs-more-sheet__item-emoji { font-size: 26px; line-height: 1; }
+        .cs-more-sheet__item-label { font-size: 12px; font-weight: 600; color: #374151; text-align: center; }
+        .cs-more-sheet__footer {
+          padding: 12px 16px 4px;
+          border-top: 1px solid #f1f5f9;
+        }
+        .cs-more-sheet__login-btn, .cs-more-sheet__logout-btn {
+          width: 100%; padding: 14px 20px; border-radius: 14px;
+          font-size: 15px; font-weight: 600; cursor: pointer; border: none;
+          transition: all 0.2s; text-align: center;
+        }
+        .cs-more-sheet__login-btn {
+          background: linear-gradient(135deg, #f97316, #ea580c);
+          color: white; box-shadow: 0 2px 12px rgba(249,115,22,0.3);
+        }
+        .cs-more-sheet__logout-btn {
+          background: #fef2f2; color: #dc2626; border: 1.5px solid #fecaca;
+        }
+        .cs-more-sheet__logout-btn:active { background: #fee2e2; }
+
         /* ===== RESPONSIVE BREAKPOINTS ===== */
         @media (max-width: 768px) {
-          .cs-nav__links {
-            display: none !important;
-          }
-          /* Ẩn nút Đăng nhập / Đăng ký (gap-2) trên mobile */
-          .cs-nav__right .flex.items-center.gap-2 {
-            display: none !important;
-          }
-          .cs-hamburger {
-            display: flex;
-          }
-          .cs-mobile-overlay {
-            display: block;
-            pointer-events: none;
-          }
-          .cs-mobile-overlay--open {
-            pointer-events: auto;
-          }
-          .cs-mobile-menu {
-            display: flex;
-          }
+          .cs-nav { height: 52px; }
+          /* Ẩn nav links desktop */
+          .cs-nav__links { display: none !important; }
+          /* Ẩn hamburger & mobile drawer (dùng bottom nav thay thế) */
+          .cs-hamburger { display: none !important; }
+          .cs-mobile-overlay { display: none !important; }
+          .cs-mobile-menu { display: none !important; }
+          /* Ẩn nút Đăng nhập/Đăng ký desktop — tab Tôi ở bottom nav lo việc này */
+          .cs-nav__right .flex.items-center.gap-2 { display: none !important; }
+          /* GIỮ NGUYÊN bell + avatar để người dùng đăng xuất được */
+          .cs-nav__right { display: flex !important; }
+          /* Chỉ ẩn chevron avatar cho gọn trên mobile */
+          .cs-avatar-btn > svg.w-4 { display: none !important; }
+          /* Charging banner lên trên bottom nav */
           .cs-charging-banner {
-            bottom: 12px;
-            font-size: 12px;
-            padding: 10px 16px;
-            gap: 8px;
+            bottom: calc(68px + env(safe-area-inset-bottom, 0px) + 8px);
+            font-size: 12px; padding: 10px 16px; gap: 8px;
             max-width: calc(100vw - 24px);
           }
-          .cs-charging-banner__label {
-            font-size: 12px;
-          }
-          .cs-charging-banner__timer {
-            font-size: 13px;
+          .cs-charging-banner__label { font-size: 12px; }
+          .cs-charging-banner__timer { font-size: 13px; }
+        }
+
+        @media (min-width: 769px) {
+          .cs-bottom-nav { display: none !important; }
+        }
+
+        /* ===== BOTTOM NAVIGATION BAR ===== */
+        .cs-bottom-nav {
+          display: none; /* hidden by default, shown on mobile via media query below */
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          z-index: 40;
+          background: rgba(255, 255, 255, 0.97);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border-top: 1px solid rgba(0, 0, 0, 0.07);
+          box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.06);
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+          height: calc(60px + env(safe-area-inset-bottom, 0px));
+          flex-direction: row;
+          align-items: stretch;
+        }
+        @media (max-width: 768px) {
+          .cs-bottom-nav {
+            display: flex;
           }
         }
+        .cs-bottom-nav__item {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 3px;
+          border: none;
+          background: none;
+          cursor: pointer;
+          padding: 8px 4px 6px;
+          color: #94a3b8;
+          text-decoration: none;
+          transition: color 0.18s;
+          -webkit-tap-highlight-color: transparent;
+          position: relative;
+        }
+        .cs-bottom-nav__item--active {
+          color: #f97316;
+        }
+        .cs-bottom-nav__item--active::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 28px;
+          height: 3px;
+          border-radius: 0 0 4px 4px;
+          background: linear-gradient(90deg, #f97316, #ea580c);
+        }
+        .cs-bottom-nav__icon {
+          width: 22px;
+          height: 22px;
+          flex-shrink: 0;
+          transition: transform 0.18s;
+        }
+        .cs-bottom-nav__item--active .cs-bottom-nav__icon {
+          transform: scale(1.1);
+        }
+        .cs-bottom-nav__label {
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.01em;
+          line-height: 1;
+          white-space: nowrap;
+        }
+
+        /* Check-in FAB (center button) */
+        .cs-bottom-nav__fab {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 3px;
+          border: none;
+          background: none;
+          cursor: pointer;
+          padding: 0 4px 4px;
+          -webkit-tap-highlight-color: transparent;
+          position: relative;
+        }
+        .cs-bottom-nav__fab-inner {
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4);
+          margin-top: -14px;
+          transition: transform 0.18s, box-shadow 0.18s;
+          border: 3px solid #fff;
+        }
+        .cs-bottom-nav__fab:active .cs-bottom-nav__fab-inner {
+          transform: scale(0.93);
+          box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+        }
+        .cs-bottom-nav__fab-label {
+          font-size: 10px;
+          font-weight: 700;
+          color: #f97316;
+          letter-spacing: 0.01em;
+          line-height: 1;
+          margin-top: 2px;
+        }
       `}</style>
+
     </>
   );
 }

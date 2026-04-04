@@ -249,7 +249,8 @@
     width: 100%;
     padding-left: 16px;
     padding-right: 16px;
-    padding-top: 80px;
+    padding-top: 68px;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -618,8 +619,8 @@
 .sm-root--mobile {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 64px);
-  margin-top: 64px;
+  height: calc(100dvh - 52px - 60px - env(safe-area-inset-bottom, 0px));
+  margin-top: 52px;
 }
 
 /* ── Desktop list panel ── */

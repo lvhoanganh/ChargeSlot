@@ -109,41 +109,41 @@ export default function MyBookings() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 84 }}>
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 16px 40px" }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #f8fafc 0%, #f1f5f9 100%)", paddingTop: 68 }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 14px", paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: 20 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1e293b", margin: 0 }}>
-            📋 Booking của tôi
+        <div style={{ padding: "16px 0 12px" }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1e293b", margin: 0, letterSpacing: "-0.5px" }}>
+            Booking của tôi
           </h1>
-          <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>
+          <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 3 }}>
             {bookings.length} booking · {bookings.filter(b => (statusStyles[b.status]?.group) === "active").length} đang xử lý
           </p>
         </div>
 
         {/* Tabs */}
         <div style={{
-          display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 12,
-          padding: 4, marginBottom: 20,
+          display: "flex", gap: 6, marginBottom: 14,
         }}>
           {TABS.map((t) => {
             const count = t.key === "all" ? bookings.length : bookings.filter(b => (statusStyles[b.status]?.group || "done") === t.key).length;
+            const isActive = tab === t.key;
             return (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
                 style={{
-                  flex: 1, padding: "10px 8px", borderRadius: 10, border: "none",
-                  background: tab === t.key ? "#fff" : "transparent",
-                  color: tab === t.key ? "#1e293b" : "#64748b",
-                  fontWeight: tab === t.key ? 700 : 500,
+                  flex: 1, padding: "9px 4px", borderRadius: 12, border: "none",
+                  background: isActive ? "#f97316" : "#fff",
+                  color: isActive ? "#fff" : "#64748b",
+                  fontWeight: isActive ? 700 : 500,
                   fontSize: 13, cursor: "pointer",
-                  boxShadow: tab === t.key ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+                  boxShadow: isActive ? "0 4px 14px rgba(249,115,22,0.3)" : "0 1px 4px rgba(0,0,0,0.06)",
                   transition: "all 0.2s",
                 }}
               >
-                {t.label} ({count})
+                {t.label} <span style={{ opacity: 0.8 }}>({count})</span>
               </button>
             );
           })}
@@ -152,18 +152,18 @@ export default function MyBookings() {
         {/* Booking list */}
         {filtered.length === 0 ? (
           <div style={{
-            textAlign: "center", padding: "60px 20px",
+            textAlign: "center", padding: "52px 20px",
             background: "#fff", borderRadius: 20,
             boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
           }}>
-            <div style={{ fontSize: 56, marginBottom: 12 }}>
+            <div style={{ fontSize: 52, marginBottom: 12 }}>
               {tab === "active" ? "⚡" : tab === "done" ? "🎉" : "📋"}
             </div>
             <p style={{ fontSize: 16, fontWeight: 700, color: "#374151", marginBottom: 4 }}>
-              {tab === "active" ? "Không có booking nào đang xử lý" : tab === "done" ? "Chưa có booking đã kết thúc" : "Bạn chưa có booking nào"}
+              {tab === "active" ? "Không có booking đang xử lý" : tab === "done" ? "Chưa có booking đã kết thúc" : "Bạn chưa có booking nào"}
             </p>
             <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 20 }}>
-              Tìm trạm sạc gần bạn để bắt đầu đặt lịch sạc.
+              Tìm trạm sạc gần bạn để đặt lịch
             </p>
             <button
               onClick={() => navigate("/driver/map")}
@@ -187,102 +187,118 @@ export default function MyBookings() {
                   key={b.id}
                   onClick={() => navigate(`/driver/booking/${b.id}`)}
                   style={{
-                    background: "#fff", borderRadius: 16, padding: "16px 20px",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.04)", cursor: "pointer",
-                    borderLeft: `4px solid ${st.color}`,
-                    transition: "all .15s",
+                    background: "#fff",
+                    borderRadius: 18,
+                    overflow: "hidden",
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+                    cursor: "pointer",
+                    transition: "transform 0.15s, box-shadow 0.15s",
+                    WebkitTapHighlightColor: "transparent",
+                    border: isActive ? `1.5px solid ${st.color}22` : "1.5px solid transparent",
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.1)";
-                    e.currentTarget.style.transform = "translateY(-1px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)";
-                    e.currentTarget.style.transform = "translateY(0)";
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.1)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.05)"; e.currentTarget.style.transform = "translateY(0)"; }}
                 >
-                  {/* Top row: station name + status */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: "#1e293b", flex: 1, marginRight: 8 }}>
-                      {b.stationName}
-                    </div>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, color: st.color,
-                      background: st.bg, padding: "4px 10px", borderRadius: 20,
-                      whiteSpace: "nowrap", flexShrink: 0,
-                    }}>
-                      {st.icon} {st.label}
-                    </span>
-                  </div>
-
-                  {/* Info grid */}
+                  {/* Colored top strip */}
                   <div style={{
-                    display: "grid", gridTemplateColumns: "1fr 1fr",
-                    gap: "4px 16px", fontSize: 13, color: "#64748b",
+                    background: `linear-gradient(135deg, ${st.color}18, ${st.color}08)`,
+                    padding: "12px 16px",
+                    borderBottom: `1px solid ${st.color}18`,
+                    display: "flex", alignItems: "center", gap: 12,
                   }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ opacity: 0.7 }}>⚡</span> Slot: <strong style={{ color: "#374151" }}>{b.slotName}</strong>
+                    {/* Status icon */}
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 14, flexShrink: 0,
+                      background: st.bg, display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 22, border: `1.5px solid ${st.color}30`,
+                    }}>
+                      {st.icon}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ opacity: 0.7 }}>⏱</span> {b.durationHours}h
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ opacity: 0.7 }}>🕐</span> {toLocal(b.startTime)}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
-                      <span style={{ fontWeight: 800, color: "#f97316", fontSize: 14 }}>
-                        {(b.totalAmount || 0).toLocaleString("vi-VN")}đ
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: "#1e293b", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {b.stationName}
+                      </div>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, color: st.color,
+                        background: st.bg, padding: "2px 8px", borderRadius: 20,
+                        display: "inline-block",
+                      }}>
+                        {st.label}
                       </span>
                     </div>
+                    <div style={{ fontWeight: 800, color: "#f97316", fontSize: 15, flexShrink: 0 }}>
+                      {(b.totalAmount || 0).toLocaleString("vi-VN")}đ
+                    </div>
                   </div>
 
-                  {/* Extra Services */}
-                  {b.extraServices && b.extraServices.length > 0 && (
-                    <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px dashed #e5e7eb" }}>
-                      <div style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600, marginBottom: 2 }}>🛒 Dịch vụ bổ sung:</div>
-                      {b.extraServices.map((es, idx) => (
-                        <div key={idx} style={{ fontSize: 11, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
-                          <span>{es.serviceName} ×{es.quantity}</span>
-                          <span style={{ fontWeight: 600, color: "#7c3aed" }}>{es.totalPrice?.toLocaleString("vi-VN")}đ</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Action hint for active bookings */}
-                  {isActive && (
+                  {/* Info body */}
+                  <div style={{ padding: "10px 16px 14px" }}>
                     <div style={{
-                      marginTop: 10, paddingTop: 8, borderTop: "1px solid #f1f5f9",
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                      fontSize: 12, color: st.color, fontWeight: 600,
+                      display: "grid", gridTemplateColumns: "1fr 1fr",
+                      gap: "5px 8px", fontSize: 12.5, color: "#64748b",
                     }}>
-                      <div>
-                        {(b.status === "Paid" || b.status === "PendingPayment" || b.status === "WaitingOwner") && (
-                          <button
-                            onClick={(e) => handleStartCancel(e, b)}
-                            disabled={cancelLoading}
-                            style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #fca5a5", color: "#dc2626", background: "#fff", fontSize: 11, fontWeight: 600, cursor: cancelLoading ? "not-allowed" : "pointer" }}
-                          >
-                            Hủy Booking
-                          </button>
-                        )}
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ fontSize: 14 }}>⚡</span>
+                        <span><strong style={{ color: "#374151" }}>{b.slotName}</strong></span>
                       </div>
-                      <div>
-                        {b.status === "PendingPayment" && "Thanh toán ngay →"}
-                        {b.status === "CheckedIn" && "Xem phiên sạc →"}
-                        {b.status === "InProgress" && "Xem phiên sạc →"}
-                        {b.status === "WaitingOwner" && "Đang chờ duyệt..."}
-                        {b.status === "Paid" && "Chờ check-in →"}
-                        {b.status === "CompletedPendingInvoice" && "Xác nhận hóa đơn →"}
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ fontSize: 14 }}>⏱</span>
+                        <span>{b.durationHours}h sạc</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, gridColumn: "1/-1" }}>
+                        <span style={{ fontSize: 14 }}>🕐</span>
+                        <span style={{ color: "#475569" }}>{toLocal(b.startTime)}</span>
                       </div>
                     </div>
-                  )}
+
+                    {/* Extra Services */}
+                    {b.extraServices && b.extraServices.length > 0 && (
+                      <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed #e5e7eb" }}>
+                        <div style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600, marginBottom: 3 }}>🛒 Dịch vụ bổ sung:</div>
+                        {b.extraServices.map((es, idx) => (
+                          <div key={idx} style={{ fontSize: 11, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
+                            <span>{es.serviceName} ×{es.quantity}</span>
+                            <span style={{ fontWeight: 600, color: "#7c3aed" }}>{es.totalPrice?.toLocaleString("vi-VN")}đ</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Action row for active bookings */}
+                    {isActive && (
+                      <div style={{
+                        marginTop: 10, paddingTop: 8, borderTop: `1px solid ${st.color}18`,
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                      }}>
+                        <div>
+                          {(b.status === "Paid" || b.status === "PendingPayment" || b.status === "WaitingOwner") && (
+                            <button
+                              onClick={(e) => handleStartCancel(e, b)}
+                              disabled={cancelLoading}
+                              style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid #fca5a5", color: "#dc2626", background: "#fff", fontSize: 11, fontWeight: 600, cursor: cancelLoading ? "not-allowed" : "pointer" }}
+                            >
+                              Hủy
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: st.color, display: "flex", alignItems: "center", gap: 4 }}>
+                          {b.status === "PendingPayment" && <><span>Thanh toán ngay</span><span>→</span></>}
+                          {b.status === "CheckedIn" && <><span>Xem phiên sạc</span><span>→</span></>}
+                          {b.status === "InProgress" && <><span>Xem phiên sạc</span><span>→</span></>}
+                          {b.status === "WaitingOwner" && <span>Đang chờ duyệt...</span>}
+                          {b.status === "Paid" && <><span>Chờ check-in</span><span>→</span></>}
+                          {b.status === "CompletedPendingInvoice" && <><span>Xác nhận hóa đơn</span><span>→</span></>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
 
       {showCancelConfirm && (
         <div style={{

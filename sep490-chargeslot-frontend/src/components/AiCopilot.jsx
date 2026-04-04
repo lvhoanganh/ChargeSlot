@@ -153,11 +153,12 @@ export default function AiCopilot() {
       <button
         onClick={() => setOpen(o => !o)}
         aria-label="AI Copilot"
+        className="ai-copilot-fab"
         style={{
-          position: "fixed", bottom: 24, right: 24, zIndex: 9990,
-          width: 56, height: 56, borderRadius: "50%", border: "none",
+          position: "fixed", right: 20, zIndex: 9990,
+          width: 52, height: 52, borderRadius: "50%", border: "none",
           background: `linear-gradient(135deg, ${cfg.accent}, ${cfg.accent}cc)`,
-          color: "#fff", fontSize: 24, cursor: "pointer",
+          color: "#fff", fontSize: 22, cursor: "pointer",
           boxShadow: `0 4px 20px ${cfg.accent}66`,
           display: "flex", alignItems: "center", justifyContent: "center",
           transition: "transform .2s, box-shadow .2s",
@@ -406,6 +407,18 @@ export default function AiCopilot() {
       )}
 
       <style>{`
+        /* AI Copilot FAB position */
+        .ai-copilot-fab {
+          bottom: 24px;
+        }
+        @media (max-width: 768px) {
+          .ai-copilot-fab {
+            bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+            width: 46px !important;
+            height: 46px !important;
+            right: 14px !important;
+          }
+        }
         @keyframes ai-ping {
           0%, 100% { transform: scale(1); opacity: 0.6; }
           50% { transform: scale(1.3); opacity: 0; }

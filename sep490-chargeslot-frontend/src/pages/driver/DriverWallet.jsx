@@ -159,8 +159,8 @@ export default function DriverWallet() {
   const frozen = wallet?.frozenBalance || 0;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90 }}>
-      <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 16px 40px" }}>
+    <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 68 }}>
+      <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 16px", paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))" }}>
         {/* Balance card */}
         <div style={{
           background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)",

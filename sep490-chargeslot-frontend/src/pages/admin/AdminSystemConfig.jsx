@@ -84,7 +84,17 @@ export default function AdminSystemConfig() {
   }
 
   function handleChange(key, value) {
-    setForm(prev => ({ ...prev, [key]: value }));
+    setForm(prev => {
+      // Find the actual key in the form object (case-insensitive) to prevent casing mismatches
+      const actualKey = Object.keys(prev).find(k => k.toLowerCase() === key.toLowerCase()) || key;
+      return { ...prev, [actualKey]: value };
+    });
+  }
+
+  function getFieldValue(key) {
+    if (!form) return "";
+    const actualKey = Object.keys(form).find(k => k.toLowerCase() === key.toLowerCase());
+    return actualKey != null && form[actualKey] != null ? form[actualKey] : "";
   }
 
   function handleSubmitClick(e) {
@@ -172,7 +182,7 @@ export default function AdminSystemConfig() {
                         type="number"
                         step={field.type === "decimal" ? "0.01" : "1"}
                         min="0"
-                        value={form[field.key] ?? ""}
+                        value={getFieldValue(field.key)}
                         onChange={e => handleChange(field.key, field.type === "decimal" ? parseFloat(e.target.value) : parseInt(e.target.value))}
                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
                         required
