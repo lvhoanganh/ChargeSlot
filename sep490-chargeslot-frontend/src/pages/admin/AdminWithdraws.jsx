@@ -29,6 +29,11 @@ export default function AdminWithdraws() {
   const [receiptModal, setReceiptModal] = useState(null); // { id }
   const [receiptFile, setReceiptFile] = useState(null);
 
+  // Modal giải quyết sự cố
+  const [resolveModal, setResolveModal] = useState(null); // { id }
+  const [resolveRefund, setResolveRefund] = useState(true);
+  const [resolveNote, setResolveNote] = useState("");
+
   function fetchData() {
     setLoading(true);
     const apiCall = activeTab === "pending" ? adminWithdrawApi.getPending() : adminWithdrawApi.getIssueReported();
@@ -77,12 +82,20 @@ export default function AdminWithdraws() {
     }
   }
 
-  async function handleResolveIssue(id) {
-    if (!window.confirm("Xác nhận đã giải quyết xong sự cố này?")) return;
-    setProcessing(id);
+  function handleResolveIssue(id) {
+    setResolveModal({ id });
+    setResolveRefund(true);
+    setResolveNote("");
+  }
+
+  async function submitResolveIssue(e) {
+    e.preventDefault();
+    if (!resolveModal) return;
+    setProcessing(resolveModal.id);
     try {
-      await adminWithdrawApi.resolveIssue(id);
-      showToast.success("Sự cố đã được giải quyết!");
+      await adminWithdrawApi.resolveIssue(resolveModal.id, resolveRefund, resolveNote);
+      showToast.success(resolveRefund ? "✅ Đã hoàn tiền vào ví!" : "🔄 Đã yêu cầu chuyển khoản lại!");
+      setResolveModal(null);
       fetchData();
     } catch (err) {
       showToast.error(err.message || "Lỗi giải quyết sự cố");
@@ -212,6 +225,44 @@ export default function AdminWithdraws() {
               <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
                 <button type="submit" disabled={processing} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: "#3b82f6", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{processing ? "..." : "Tải lên"}</button>
                 <button type="button" onClick={() => { setReceiptModal(null); setReceiptFile(null); }} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: "#f1f5f9", color: "#64748b", fontWeight: 600, cursor: "pointer" }}>Hủy</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Giải quyết Sự cố */}
+      {resolveModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "#fff", borderRadius: 20, padding: 32, maxWidth: 440, width: "100%", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#f97316", marginBottom: 8 }}>🛠️ Giải quyết Sự cố</h2>
+            <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>Chọn cách xử lý và nhập ghi chú trước khi xác nhận.</p>
+            <form onSubmit={submitResolveIssue} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Cách xử lý</label>
+                <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 10, border: `2px solid ${resolveRefund ? "#22c55e" : "#e5e7eb"}`, cursor: "pointer", transition: "0.2s" }}>
+                  <input type="radio" name="refund" checked={resolveRefund === true} onChange={() => setResolveRefund(true)} />
+                  <div>
+                    <div style={{ fontWeight: 700, color: "#16a34a" }}>✅ Hoàn tiền vào ví</div>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>Trả lại tiền vào ví Owner ngay lập tức</div>
+                  </div>
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 10, border: `2px solid ${resolveRefund === false ? "#3b82f6" : "#e5e7eb"}`, cursor: "pointer", transition: "0.2s" }}>
+                  <input type="radio" name="refund" checked={resolveRefund === false} onChange={() => setResolveRefund(false)} />
+                  <div>
+                    <div style={{ fontWeight: 700, color: "#3b82f6" }}>🔄 Chuyển khoản lại</div>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>Thực hiện lại lệnh chuyển khoản, chờ user xác nhận</div>
+                  </div>
+                </label>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: "block" }}>Ghi chú admin (tuỳ chọn)</label>
+                <input value={resolveNote} onChange={e => setResolveNote(e.target.value)} type="text" placeholder="Lý do xử lý..." style={{ width: "100%", padding: 12, borderRadius: 10, border: "1.5px solid #e2e8f0", outline: "none", boxSizing: "border-box" }} />
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                <button type="submit" disabled={!!processing} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: resolveRefund ? "#22c55e" : "#3b82f6", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+                  {processing ? "..." : "Xác nhận"}
+                </button>
+                <button type="button" onClick={() => setResolveModal(null)} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: "#f1f5f9", color: "#64748b", fontWeight: 600, cursor: "pointer" }}>Hủy</button>
               </div>
             </form>
           </div>

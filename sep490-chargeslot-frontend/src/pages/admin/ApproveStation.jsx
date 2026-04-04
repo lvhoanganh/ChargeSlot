@@ -7,6 +7,20 @@ import { BanStatusBadge } from "@/components/BanStatusBadge";
 
 /* ─── API helpers ─── */
 const adminStationApi = {
+  /** Lấy tất cả trạm (có filter + phân trang) */
+  getAll: async (status = "", search = "", page = 1, pageSize = 50) => {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (search) params.set("search", search);
+    params.set("page", String(page));
+    params.set("pageSize", String(pageSize));
+    const { data } = await instance.get(`/admin/stations?${params.toString()}`);
+    // BE trả về PagedResultDto { items, totalCount, page, pageSize }
+    // Loại bỏ Draft (Owner chưa submit) — Admin chỉ thấy trạm đã được gửi duyệt
+    const raw = Array.isArray(data) ? data : (data?.items ?? []);
+    return raw.filter(s => s.approvalStatus !== "Draft");
+  },
+  /** Chỉ lấy trạm pending (giữ lại để tương thích) */
   getPending: async () => {
     const { data } = await instance.get("/admin/stations/pending");
     return data;
@@ -44,15 +58,15 @@ export default function ApproveStation() {
   const [adminNote, setAdminNote] = useState("");
 
   const { data: stations = [], isLoading, error } = useQuery({
-    queryKey: ["admin-stations-pending"],
-    queryFn: adminStationApi.getPending,
+    queryKey: ["admin-stations-all"],
+    queryFn: () => adminStationApi.getAll(),
   });
 
   const reviewMutation = useMutation({
     mutationFn: ({ stationId, isApproved, adminNote }) =>
       adminStationApi.review(stationId, { isApproved, adminNote: adminNote || null }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-stations-pending"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-stations-all"] });
       setConfirmAction(null);
       setAdminNote("");
     },
@@ -125,7 +139,7 @@ export default function ApproveStation() {
         <div style={{ textAlign: "center", paddingTop: 120 }}>
           <p style={{ color: "#ef4444", fontSize: 16, marginBottom: 16 }}>❌ Lỗi tải dữ liệu: {error.message}</p>
           <button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["admin-stations-pending"] })}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["admin-stations-all"] })}
             className="cs-admin-action-btn cs-admin-action-btn--activate"
           >
             Thử lại
@@ -141,9 +155,9 @@ export default function ApproveStation() {
       {/* Page Header */}
       <div className="cs-admin-page__header">
         <div>
-          <h1 className="cs-admin-page__title">Duyệt trạm sạc</h1>
+          <h1 className="cs-admin-page__title">Quản lý trạm sạc</h1>
           <p className="cs-admin-page__subtitle">
-            Quản trị viên có thể phê duyệt hoặc từ chối các yêu cầu đăng ký trạm sạc
+            Xem toàn bộ trạm, phê duyệt / từ chối yêu cầu đăng ký và ban/unban trạm vi phạm
           </p>
         </div>
       </div>
@@ -253,6 +267,8 @@ export default function ApproveStation() {
             ) : (
               filtered.map((s) => {
                 const isPending = s.approvalStatus === "PendingApproval";
+                // Bị khoá nếu: AI auto-ban (bannedUntil) HOẶC Admin manual ban (operationalStatus)
+                const isBanned = !!s.bannedUntil || s.operationalStatus === "Banned" || s.operationalStatus === "Suspended";
                 return (
                   <tr key={s.id}>
                     <td className="cs-admin-table__id">{s.id}</td>
@@ -289,21 +305,41 @@ export default function ApproveStation() {
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, marginTop: 4 }}>
                           <label
                             className="cs-toggle-switch"
-                            title={s.bannedUntil ? "Trạm đang bị AI khoá — nhấn để ân xá" : "Trạm hoạt động bình thường"}
+                            title={isBanned ? "Trạm đang bị khoá — nhấn để mở khoá" : "Trạm hoạt động bình thường"}
                           >
                             <input
                               type="checkbox"
-                              checked={!s.bannedUntil}
+                              checked={!isBanned}
                               onChange={async () => {
+                                const previousStations = queryClient.getQueryData(["admin-stations-all"]);
+                                const newIsBanned = !isBanned;
+
+                                // Optimistic Update: cập nhật UI ngay lập tức
+                                queryClient.setQueryData(["admin-stations-all"], (old) => {
+                                  if (!old) return old;
+                                  return old.map(station => {
+                                    if (station.id === s.id) {
+                                      return {
+                                        ...station,
+                                        bannedUntil: newIsBanned ? "2199-01-01T00:00:00Z" : null,
+                                        operationalStatus: newIsBanned ? "Inactive" : "Active"
+                                      };
+                                    }
+                                    return station;
+                                  });
+                                });
+
                                 try {
                                   await adminStationApi.toggleBan(s.id);
                                   showToast.success(
-                                    s.bannedUntil
-                                      ? "✅ Đã ân xá AI-ban cho trạm " + s.name
+                                    isBanned
+                                      ? "✅ Đã mở khoá trạm " + s.name
                                       : "🔒 Đã khoá trạm " + s.name
                                   );
-                                  queryClient.invalidateQueries({ queryKey: ["admin-stations-pending"] });
+                                  queryClient.invalidateQueries({ queryKey: ["admin-stations-all"] });
                                 } catch (err) {
+                                  // Rollback nếu lỗi
+                                  queryClient.setQueryData(["admin-stations-all"], previousStations);
                                   showToast.error(err?.response?.data?.message || "Thao tác thất bại.");
                                 }
                               }}
@@ -312,7 +348,7 @@ export default function ApproveStation() {
                               <span className="cs-toggle-switch__thumb" />
                             </span>
                             <span className="cs-toggle-switch__label">
-                              {s.bannedUntil ? "Bị khoá" : "Hoạt động"}
+                              {isBanned ? "Bị khoá" : "Hoạt động"}
                             </span>
                           </label>
                         </div>

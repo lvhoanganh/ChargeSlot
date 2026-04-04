@@ -522,7 +522,7 @@ export const walletApi = {
     /** Báo lỗi rút tiền */
     reportWithdrawalIssue: (id, reason) => apiFetch(`/Wallet/withdraw-requests/${id}/report-issue`, {
         method: "PUT",
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ issueNote: reason }),
     }),
 };
 
@@ -835,13 +835,21 @@ export const adminAccountApi = {
 // ============================
 
 export const adminWithdrawApi = {
+    /** Lấy danh sách chờ duyệt (Pending) */
     getPending: () => apiFetch("/admin/withdraws/pending"),
 
-    process: (id, isApproved, note, secondaryPassword) =>
+    /** Lấy tất cả yêu cầu rút tiền mọi trạng thái */
+    getAll: () => apiFetch("/admin/withdraws"),
+
+    /**
+     * Duyệt hoặc từ chối yêu cầu rút tiền.
+     * BE DTO: { Approve: bool, AdminNote: string }
+     */
+    process: (id, isApproved, adminNote, secondaryPassword) =>
         apiFetch(`/admin/withdraws/${id}/process`, {
             method: "PUT",
             headers: { "SecondaryPassword": secondaryPassword || "" },
-            body: JSON.stringify({ isApproved, note }),
+            body: JSON.stringify({ approve: isApproved, adminNote: adminNote || null }),
         }),
 
     confirmTransfer: (id, receiptImageFile) => {
@@ -852,8 +860,17 @@ export const adminWithdrawApi = {
 
     getIssueReported: () => apiFetch("/admin/withdraws/issue-reported"),
 
-    resolveIssue: (id) =>
-        apiFetch(`/admin/withdraws/${id}/resolve-issue`, { method: "PUT" })
+    /**
+     * Giải quyết sự cố rút tiền.
+     * BE DTO: { Refund: bool, AdminNote: string }
+     * @param {boolean} refund true=hoàn tiền vào ví, false=chuyển khoản lại
+     * @param {string} adminNote Ghi chú của admin
+     */
+    resolveIssue: (id, refund, adminNote) =>
+        apiFetch(`/admin/withdraws/${id}/resolve-issue`, {
+            method: "PUT",
+            body: JSON.stringify({ refund: !!refund, adminNote: adminNote || null }),
+        }),
 };
 // Removed duplicate adminAccountApi
 
