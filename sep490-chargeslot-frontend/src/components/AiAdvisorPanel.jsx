@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { instance } from "@/lib/httpRequest";
@@ -9,10 +9,20 @@ import { instance } from "@/lib/httpRequest";
  *   role {string} — 'admin' hoặc 'owner'
  */
 export function AiAdvisorPanel({ role }) {
+  const CACHE_KEY = `ai-insight-${role}`; // Cache theo role: ai-insight-admin / ai-insight-owner
   const [insight, setInsight] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hasGenerated, setHasGenerated] = useState(false);
+
+  // Đọc cache từ sessionStorage khi mount (tránh gọi lại API khi chuyển tab)
+  useEffect(() => {
+    const cached = sessionStorage.getItem(CACHE_KEY);
+    if (cached) {
+      setInsight(cached);
+      setHasGenerated(true);
+    }
+  }, [CACHE_KEY]);
 
   const handleGenerate = async () => {
     setIsLoading(true);
@@ -27,7 +37,10 @@ export function AiAdvisorPanel({ role }) {
         instance.get(url),
         new Promise(resolve => setTimeout(resolve, 3000))
       ]);
-      setInsight(res.data?.insightMarkdown || res.data?.insight || "");
+      const content = res.data?.insightMarkdown || res.data?.insight || "";
+      setInsight(content);
+      // Lưu cache vào sessionStorage— chỉ mất khi đóng tab
+      sessionStorage.setItem(CACHE_KEY, content);
     } catch (err) {
       setError(
         err?.response?.data?.message || err?.message || "Không thể kết nối với Cố vấn AI lúc này."

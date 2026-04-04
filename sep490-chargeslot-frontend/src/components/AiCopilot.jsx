@@ -5,8 +5,10 @@ import { useAuthStore } from "@/stores/authStore";
 import { aiCopilotApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 
-const MAX_HISTORY = 20;
-const TIMEOUT_MS = 15000;
+const MAX_HISTORY = 6;       // BE giới hạn tối đa 6 tin nhắn history
+const MAX_MSG_LENGTH = 500;  // BE giới hạn currentMessage tối đa 500 ký tự
+const WARN_TIMEOUT_MS = 15000; // Sau 15s → hiện cảnh báo AI đang suy nghĩ
+const HARD_TIMEOUT_MS = 30000; // Sau 30s → báo lỗi, hủy request
 
 const ROLE_CONFIG = {
   Admin: { apiRole: "admin", label: "AI Admin", accent: "#7c3aed", emoji: "🛡️" },
@@ -20,15 +22,25 @@ const SUGGESTIONS = {
   Driver: ["Ví tôi còn bao nhiêu?", "Tìm trạm sạc gần đây", "Lịch sử đặt chỗ của tôi?"],
 };
 
+// Lời chào mặc định cho từng role — HARDCODE, KHÔNG gọi API
+const WELCOME_GREETINGS = {
+  Driver: "Chào Anh/Chị! 👋 Tôi là trợ lý AI ChargeSlot.\n\nTôi có thể giúp Anh/Chị:\n- 💰 Kiểm tra số dư ví\n- 🔌 Tìm trạm sạc gần đây\n\nHãy hỏi tôi bất cứ điều gì!",
+  Owner: "Xin chào! 👋 Tôi là Cố vấn AI ChargeSlot.\n\nTôi có thể tư vấn:\n- 📊 Phân tích doanh thu trạm\n- 🎯 Chiến lược tăng lợi nhuận\n\nHãy hỏi tôi bất cứ điều gì!",
+  Admin: "Xin chào Admin! 👋 Tôi là AI Giám sát hệ thống.\n\nTôi có thể phân tích:\n- 📈 Báo cáo doanh thu nền tảng\n- ⚠️ Cảnh báo rủi ro tài khoản/trạm\n\nHãy hỏi tôi bất cứ điều gì!",
+};
+
 export default function AiCopilot() {
   const { role } = useAuthStore();
   const [open, setOpen] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [slowWarning, setSlowWarning] = useState(false); // AI đang suy nghĩ lâu (>15s)
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const abortRef = useRef(null);
+  const warnTimerRef = useRef(null);
+  const hardTimerRef = useRef(null);
 
   const cfg = ROLE_CONFIG[role] || ROLE_CONFIG.Driver;
 
@@ -40,34 +52,37 @@ export default function AiCopilot() {
   }, [open, chatHistory]);
 
   const send = useCallback(async (text) => {
-    const msg = (text || input).trim();
-    if (!msg || loading) return;
+    const rawMsg = (text || input).trim();
+    if (!rawMsg || loading) return;
+    // Giới hạn 500 ký tự theo spec BE
+    const msg = rawMsg.slice(0, MAX_MSG_LENGTH);
     setInput("");
     setLoading(true);
+    setSlowWarning(false);
 
-    // Optimistic: add user message immediately
+    // Optimistic: thêm tin nhắn user ngay lập tức
     const userEntry = { role: "user", content: msg };
     setChatHistory(prev => {
       const next = [...prev, userEntry];
       return next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next;
     });
 
-    // Build history to send (exclude the just-added one, it'll be currentMessage)
+    // Gửi tối đa 6 tin nhắn history gần nhất (không bao gồm tin vừa thêm)
     const historyToSend = chatHistory.slice(-MAX_HISTORY);
 
-    // Timeout controller
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    // Timer 15s: hiện cảnh báo AI đang suy nghĩ
+    warnTimerRef.current = setTimeout(() => setSlowWarning(true), WARN_TIMEOUT_MS);
+    // Timer 30s: hard timeout
+    hardTimerRef.current = setTimeout(() => {
+      abortRef.current?.abort();
+    }, HARD_TIMEOUT_MS);
 
     try {
-      const data = await Promise.race([
-        aiCopilotApi.chat(cfg.apiRole, historyToSend, msg),
-        new Promise((_, rej) =>
-          setTimeout(() => rej(new Error("TIMEOUT")), TIMEOUT_MS)
-        ),
-      ]);
-      clearTimeout(timeoutId);
+      const data = await aiCopilotApi.chat(cfg.apiRole, historyToSend, msg);
+
+      clearTimeout(warnTimerRef.current);
+      clearTimeout(hardTimerRef.current);
+      setSlowWarning(false);
 
       const reply = data?.replyMarkdown || "Xin lỗi, tôi không thể trả lời lúc này.";
       const modelEntry = { role: "model", content: reply };
@@ -77,12 +92,25 @@ export default function AiCopilot() {
         return next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next;
       });
     } catch (err) {
-      clearTimeout(timeoutId);
-      const isTimeout = err?.message === "TIMEOUT" || err?.name === "AbortError";
-      const errMsg = isTimeout
-        ? "⚠️ **Gián đoạn kết nối** — AI mất quá 15 giây để phản hồi. Vui lòng thử lại."
-        : `⚠️ **Lỗi:** ${err?.message || "Không thể kết nối tới AI"}`;
-      showToast.error(isTimeout ? "AI phản hồi quá chậm, thử lại nhé!" : "Lỗi kết nối AI");
+      clearTimeout(warnTimerRef.current);
+      clearTimeout(hardTimerRef.current);
+      setSlowWarning(false);
+
+      const isTimeout = err?.name === "AbortError" || err?.message?.includes("abort");
+      const isBanned = err?.response?.data?.isBanned || err?.message?.includes("banned");
+      let errMsg;
+      if (isTimeout) {
+        errMsg = "⏳ Xin lỗi, AI không phản hồi. Vui lòng thử lại.";
+        showToast.error("AI không phản hồi sau 30s, thử lại nhé!");
+      } else if (err?.status === 401 || err?.message?.includes("401")) {
+        errMsg = "🔒 Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.";
+      } else if (isBanned) {
+        errMsg = "🚫 Tài khoản của bạn đã bị khóa.";
+        showToast.error("Tài khoản bị khóa!");
+      } else {
+        errMsg = `⚠️ **Lỗi:** ${err?.message || "Không thể kết nối tới AI"}`;
+        showToast.error("Lỗi kết nối AI");
+      }
       setChatHistory(prev => [
         ...prev,
         { role: "model", content: errMsg, isError: true },
@@ -187,12 +215,12 @@ export default function AiCopilot() {
             {chatHistory.length === 0 && (
               <div style={{ textAlign: "center", padding: "24px 16px" }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>{cfg.emoji}</div>
-                <p style={{ color: "#64748b", fontSize: 14, fontWeight: 600, margin: "0 0 4px" }}>
-                  Xin chào! Tôi là {cfg.label}
-                </p>
-                <p style={{ color: "#94a3b8", fontSize: 12, margin: "0 0 16px" }}>
-                  Hỏi tôi bất cứ điều gì về tài khoản của bạn.
-                </p>
+                {/* Lời chào hardcode — KHÔNG gọi API, theo đúng spec BE */}
+                <div className="ai-markdown" style={{ textAlign: "left", marginBottom: 16 }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {WELCOME_GREETINGS[role] || `Xin chào! Tôi là ${cfg.label}. Hỏi tôi bất cứ điều gì!`}
+                  </ReactMarkdown>
+                </div>
                 {/* Suggestions */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
                   {(SUGGESTIONS[role] || []).map(s => (
@@ -253,30 +281,41 @@ export default function AiCopilot() {
 
             {/* Typing indicator */}
             {loading && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: "50%",
-                  background: `${cfg.accent}18`,
-                  display: "flex", alignItems: "center",
-                  justifyContent: "center", fontSize: 14, flexShrink: 0,
-                }}>
-                  {cfg.emoji}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%",
+                    background: `${cfg.accent}18`,
+                    display: "flex", alignItems: "center",
+                    justifyContent: "center", fontSize: 14, flexShrink: 0,
+                  }}>
+                    {cfg.emoji}
+                  </div>
+                  <div style={{
+                    padding: "10px 16px", background: "#fff",
+                    borderRadius: "18px 18px 18px 4px",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                    display: "flex", gap: 4, alignItems: "center",
+                  }}>
+                    {[0, 1, 2].map(i => (
+                      <span key={i} style={{
+                        width: 7, height: 7, borderRadius: "50%",
+                        background: cfg.accent,
+                        display: "inline-block",
+                        animation: `ai-dot 1.2s ${i * 0.2}s ease-in-out infinite`,
+                      }} />
+                    ))}
+                  </div>
                 </div>
-                <div style={{
-                  padding: "10px 16px", background: "#fff",
-                  borderRadius: "18px 18px 18px 4px",
-                  boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-                  display: "flex", gap: 4, alignItems: "center",
-                }}>
-                  {[0, 1, 2].map(i => (
-                    <span key={i} style={{
-                      width: 7, height: 7, borderRadius: "50%",
-                      background: cfg.accent,
-                      display: "inline-block",
-                      animation: `ai-dot 1.2s ${i * 0.2}s ease-in-out infinite`,
-                    }} />
-                  ))}
-                </div>
+                {/* Cảnh báo sau 15s: AI đang suy nghĩ */}
+                {slowWarning && (
+                  <div style={{
+                    fontSize: 11, color: "#f59e0b", textAlign: "center",
+                    padding: "4px 12px", animation: "ai-dot 1.5s infinite",
+                  }}>
+                    ⏳ AI đang suy nghĩ... (có thể mất đến 30 giây)
+                  </div>
+                )}
               </div>
             )}
             <div ref={bottomRef} />
@@ -289,24 +328,32 @@ export default function AiCopilot() {
             background: "#fff",
             display: "flex", gap: 8, alignItems: "flex-end",
           }}>
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Nhập câu hỏi... (Enter để gửi)"
-              rows={1}
-              style={{
-                flex: 1, padding: "10px 12px",
-                borderRadius: 12, border: "1.5px solid #e5e7eb",
-                fontSize: 13.5, outline: "none", resize: "none",
-                fontFamily: "inherit", lineHeight: 1.5,
-                maxHeight: 80, overflowY: "auto",
-                transition: "border-color .15s",
-              }}
-              onFocus={e => { e.target.style.borderColor = cfg.accent; }}
-              onBlur={e => { e.target.style.borderColor = "#e5e7eb"; }}
-            />
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value.slice(0, MAX_MSG_LENGTH))}
+                onKeyDown={handleKeyDown}
+                placeholder="Nhập câu hỏi... (Enter để gửi)"
+                rows={1}
+                style={{
+                  width: "100%", padding: "10px 12px",
+                  borderRadius: 12, border: "1.5px solid #e5e7eb",
+                  fontSize: 13.5, outline: "none", resize: "none",
+                  fontFamily: "inherit", lineHeight: 1.5,
+                  maxHeight: 80, overflowY: "auto",
+                  transition: "border-color .15s",
+                  boxSizing: "border-box",
+                }}
+                onFocus={e => { e.target.style.borderColor = cfg.accent; }}
+                onBlur={e => { e.target.style.borderColor = "#e5e7eb"; }}
+              />
+              {input.length > 400 && (
+                <span style={{ fontSize: 10, color: input.length >= MAX_MSG_LENGTH ? "#ef4444" : "#94a3b8", textAlign: "right" }}>
+                  {input.length}/{MAX_MSG_LENGTH}
+                </span>
+              )}
+            </div>
             <button
               onClick={() => send()}
               disabled={!input.trim() || loading}

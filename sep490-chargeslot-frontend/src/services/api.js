@@ -864,9 +864,10 @@ export const adminWithdrawApi = {
 export const aiCopilotApi = {
     /**
      * Gửi tin nhắn tới AI Copilot theo role
+     * Endpoint: POST /api/Copilot/{role}/chat
      * @param {"driver"|"owner"|"admin"} role
-     * @param {Array<{role:string, content:string}>} history
-     * @param {string} currentMessage
+     * @param {Array<{role:string, content:string}>} history  — tối đa 6 tin nhắn gần nhất
+     * @param {string} currentMessage                         — tối đa 500 ký tự
      */
     chat: (role, history, currentMessage) =>
         apiFetch(`/chat/${role}`, {
