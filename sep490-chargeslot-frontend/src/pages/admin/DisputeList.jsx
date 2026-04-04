@@ -184,8 +184,8 @@ export default function DisputeList() {
           <thead>
             <tr>
               <th>ID</th>
-              <th>Booking</th>
-              <th>Driver</th>
+              <th>Mã Đặt Lịch</th>
+              <th>Tài xế</th>
               <th>Lý do</th>
               <th>Trạng thái</th>
               <th>Ngày tạo</th>

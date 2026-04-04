@@ -375,7 +375,7 @@ function normalizePhoneForKey(rawPhone) {
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("read-failed"));
+    reader.onerror = () => reject(new Error("Đọc file ảnh thất bại"));
     reader.onload = () => resolve(String(reader.result || ""));
     reader.readAsDataURL(file);
   });

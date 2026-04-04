@@ -132,7 +132,7 @@ export default function OwnerExtraServices() {
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="mb-6 rounded-2xl bg-white px-6 py-5 shadow-sm ring-1 ring-slate-200">
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-purple-500">Owner</p>
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-purple-500">Chủ trạm</p>
           <h1 className="mt-2 text-2xl font-bold">Dịch vụ bổ sung</h1>
           <p className="mt-1 text-sm text-slate-600">Quản lý dịch vụ bổ sung tại các trạm sạc của bạn.</p>
         </div>

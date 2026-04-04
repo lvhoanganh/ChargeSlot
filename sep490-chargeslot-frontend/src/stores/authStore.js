@@ -25,7 +25,7 @@ export const useAuthStore = create(
             password,
           });
           if (res.status !== 200) {
-            throw new Error("Login failed");
+            throw new Error("Đăng nhập thất bại");
           }
           const data = res.data;
 
@@ -47,7 +47,7 @@ export const useAuthStore = create(
 
           return data;
         } catch (error) {
-          console.error("Login failed:", error);
+          console.error("Đăng nhập thất bại:", error);
           const rawMessage =
             error?.response?.data?.message ||
             error?.response?.data?.error ||
@@ -55,6 +55,10 @@ export const useAuthStore = create(
 
           if (rawMessage === "Invalid phone number or password.") {
             throw "Số điện thoại hoặc mật khẩu không đúng.";
+          }
+
+          if (rawMessage === "Account is inactive/banned.") {
+            throw "Tài khoản của bạn đã bị vô hiệu hóa hoặc bị khóa.";
           }
 
           throw rawMessage;
@@ -103,13 +107,13 @@ export const useAuthStore = create(
       refreshAccessToken: async () => {
         const refreshToken = localStorage.getItem("refreshToken");
         const accessToken = localStorage.getItem("accessToken");
-        if (!refreshToken || !accessToken) throw new Error("No tokens");
+        if (!refreshToken || !accessToken) throw new Error("Không có token đăng nhập");
         const res = await fetch(`${API_BASE}/auth/refresh-token`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ accessToken, refreshToken }),
         });
-        if (!res.ok) throw new Error("Refresh failed");
+        if (!res.ok) throw new Error("Làm mới phiên đăng nhập thất bại");
         const data = await res.json();
         localStorage.setItem("accessToken", data.accessToken);
         if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);

@@ -138,7 +138,7 @@ export default function AdminSystemConfig() {
         {/* Header */}
         <div className="mb-6 rounded-2xl bg-white px-6 py-5 shadow-sm ring-1 ring-slate-200 flex items-center justify-between flex-wrap gap-3">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-orange-500">Admin</p>
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-orange-500">Quản trị</p>
             <h1 className="mt-1 text-2xl font-bold text-slate-900">Cấu hình hệ thống</h1>
             <p className="mt-0.5 text-sm text-slate-500">Siêu tham số điều khiển hành vi của ChargeSlot.</p>
           </div>

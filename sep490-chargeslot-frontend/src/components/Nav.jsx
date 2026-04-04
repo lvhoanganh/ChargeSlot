@@ -737,7 +737,7 @@ export default function Nav() {
                   }} />
                 )}
               </div>
-              <span className="cs-bottom-nav__label">Booking</span>
+              <span className="cs-bottom-nav__label">Lịch đặt</span>
             </button>
 
             {/* Tôi — mở bottom sheet với đầy đủ mục */}

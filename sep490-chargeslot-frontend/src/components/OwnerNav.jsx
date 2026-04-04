@@ -92,7 +92,7 @@ export default function OwnerNav() {
   const primaryItems = [
     {
       to: "/owner/dashboard",
-      label: "Dashboard",
+      label: "Tổng quan",
       icon: <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
     },
     {
@@ -342,7 +342,7 @@ export default function OwnerNav() {
           <svg className="cs-owner-bnav__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
-          <span className="cs-owner-bnav__label">Dashboard</span>
+          <span className="cs-owner-bnav__label">Tổng quan</span>
         </NavLink>
 
         {/* Trạm sạc */}
@@ -360,7 +360,7 @@ export default function OwnerNav() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <span className="cs-owner-bnav__fab-label">Booking</span>
+          <span className="cs-owner-bnav__fab-label">Lịch đặt</span>
         </NavLink>
 
         {/* Phiên sạc */}

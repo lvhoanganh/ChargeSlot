@@ -242,6 +242,7 @@ export default function ManageUser() {
             ) : (
               users.map((u) => {
                 const isAdmin = u.role === "Admin";
+                const isBanned = u.status === "BANNED" || !!u.bannedUntil;
                 return (
                   <tr key={u.id}>
                     <td className="cs-admin-table__id">{u.id}</td>
@@ -270,41 +271,20 @@ export default function ManageUser() {
                         ) : (
                           <label
                             className="cs-toggle-switch"
-                            title={u.status === "ACTIVE" ? "Đang hoạt động — nhấn để vô hiệu hóa" : "Đang bị khoá — nhấn để kích hoạt"}
+                            title={!isBanned ? "Đang hoạt động — nhấn để vô hiệu hóa" : "Đang bị khoá — nhấn để kích hoạt (ân xá)"}
                           >
                             <input
                               type="checkbox"
-                              checked={u.status === "ACTIVE"}
+                              checked={!isBanned}
                               onChange={() => askToggle(u)}
                             />
                             <span className="cs-toggle-switch__track">
                               <span className="cs-toggle-switch__thumb" />
                             </span>
                             <span className="cs-toggle-switch__label">
-                              {u.status === "ACTIVE" ? "Hoạt động" : "Bị khoá"}
+                              {!isBanned ? "Hoạt động" : "Bị khoá"}
                             </span>
                           </label>
-                        )}
-                        {/* Nút ân xá AI-ban */}
-                        {!isAdmin && u.bannedUntil && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                await toggleBan(u.id);
-                                showToast.success("✅ Đã ân xá AI-ban cho " + u.fullName);
-                                await Promise.all([
-                                  fetchUsers(search, role, status, page, pageSize),
-                                  fetchStatistics(),
-                                ]);
-                              } catch (err) {
-                                showToast.error(err?.response?.data?.message || "Thao tác thất bại.");
-                              }
-                            }}
-                            className="cs-admin-action-btn cs-admin-action-btn--unban"
-                            style={{ fontSize: 11, height: 28, minWidth: "unset", padding: "0 10px" }}
-                          >
-                            🔓 Ân xá
-                          </button>
                         )}
                       </div>
                     </td>
@@ -354,12 +334,12 @@ export default function ManageUser() {
         <div className="cs-admin-modal-overlay">
           <div className="cs-admin-modal">
             <div className="cs-admin-modal__icon">
-              {confirmTarget.status === "ACTIVE" ? "🚫" : "✅"}
+              {!(confirmTarget.status === "BANNED" || !!confirmTarget.bannedUntil) ? "🚫" : "✅"}
             </div>
             <h2 className="cs-admin-modal__title">Xác nhận thao tác</h2>
             <p className="cs-admin-modal__desc">
               Bạn có chắc chắn muốn{" "}
-              <strong>{confirmTarget.status === "ACTIVE" ? "vô hiệu hóa" : "kích hoạt"}</strong>{" "}
+              <strong>{!(confirmTarget.status === "BANNED" || !!confirmTarget.bannedUntil) ? "tạm khoá" : "mở khoá (ân xá)"}</strong>{" "}
               tài khoản <strong>{confirmTarget.fullName}</strong> không?
             </p>
             <div className="cs-admin-modal__actions">
@@ -373,7 +353,7 @@ export default function ManageUser() {
               <button
                 onClick={confirmToggleBan}
                 disabled={toggling}
-                className={`cs-admin-modal__btn ${confirmTarget.status === "ACTIVE" ? "cs-admin-modal__btn--danger" : "cs-admin-modal__btn--success"}`}
+                className={`cs-admin-modal__btn ${!(confirmTarget.status === "BANNED" || !!confirmTarget.bannedUntil) ? "cs-admin-modal__btn--danger" : "cs-admin-modal__btn--success"}`}
               >
                 {toggling ? "Đang xử lý..." : "Xác nhận"}
               </button>
