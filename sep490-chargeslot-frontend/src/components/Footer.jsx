@@ -23,10 +23,10 @@ export default function Footer() {
             <h3 className="cs-footer__heading">Tính năng</h3>
             <ul className="cs-footer__links">
               <li><Link to="/driver/map" className="cs-footer__link">🗺️ Tìm trạm sạc</Link></li>
-              <li><Link to="/driver/my-bookings" className="cs-footer__link">📅 Đặt chỗ</Link></li>
-              <li><Link to="/driver/scan-qr" className="cs-footer__link">📷 Check-in</Link></li>
+              <li><Link to="/driver/my-bookings" className="cs-footer__link">📅 Lịch đặt trạm</Link></li>
+              <li><Link to="/driver/scan-qr" className="cs-footer__link">📷 Quét mã slot sạc</Link></li>
               <li><Link to="/driver/wallet" className="cs-footer__link">💰 Ví điện tử</Link></li>
-              <li><Link to="/driver/favorites" className="cs-footer__link">❤️ Yêu thích</Link></li>
+              <li><Link to="/driver/favorites" className="cs-footer__link">❤️ Trạm yêu thích</Link></li>
               <li><Link to="/driver/loyalty" className="cs-footer__link">🏆 Điểm thưởng</Link></li>
             </ul>
           </div>

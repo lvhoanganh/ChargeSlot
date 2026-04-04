@@ -39,7 +39,7 @@ export default function OwnerSideBar() {
             }`
           }
         >
-          Yêu cầu Booking
+          Lịch đặt sạc
         </NavLink>
       </div>
     </div>

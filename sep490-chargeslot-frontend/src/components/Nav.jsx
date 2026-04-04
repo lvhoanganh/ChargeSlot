@@ -206,7 +206,7 @@ export default function Nav() {
   const moreItems = [
     {
       icon: "❤️",
-      label: "Yêu thích",
+      label: "Trạm yêu thích",
       to: "/driver/favorites",
       loginMsg: "xem danh sách yêu thích",
     },
@@ -218,7 +218,7 @@ export default function Nav() {
     },
     {
       icon: "💬",
-      label: "Chat",
+      label: "Nhắn tin",
       to: "/driver/chat-list",
       loginMsg: "sử dụng tính năng chat",
     },
@@ -231,7 +231,7 @@ export default function Nav() {
     },
     {
       icon: "⭐",
-      label: "Đánh giá",
+      label: "Đánh giá trạm sạc",
       to: "/driver/reviews",
       loginMsg: "đánh giá trạm sạc",
     },
@@ -240,14 +240,14 @@ export default function Nav() {
   // All nav items for mobile menu
   const allNavItems = [
     { to: "/", icon: "🏠", label: "Trang chủ" },
-    { to: "/driver/map", icon: "🗺️", label: "Tìm trạm" },
-    ...(token ? [{ to: "/driver/my-bookings", icon: "📅", label: "Booking" }] : []),
-    { to: token ? "/driver/scan-qr" : null, icon: "📷", label: "Check-in", requireLogin: !token },
-    { to: "/driver/favorites", icon: "❤️", label: "Yêu thích", requireLogin: !token },
+    { to: "/driver/map", icon: "🗺️", label: "Tìm trạm sạc" },
+    ...(token ? [{ to: "/driver/my-bookings", icon: "📅", label: "Lịch đặt trạm" }] : []),
+    { to: token ? "/driver/scan-qr" : null, icon: "📷", label: "Quét mã slot sạc", requireLogin: !token },
+    { to: "/driver/favorites", icon: "❤️", label: "Trạm yêu thích", requireLogin: !token },
     { to: "/driver/loyalty", icon: "🏆", label: "Điểm thưởng", requireLogin: !token },
-    { to: "/driver/chat-list", icon: "💬", label: "Chat", requireLogin: !token },
-    { to: "/driver/reviews", icon: "⭐", label: "Đánh giá", requireLogin: !token },
-    ...(token ? [{ to: "/driver/wallet", icon: "💰", label: "Ví tiền" }] : []),
+    { to: "/driver/chat-list", icon: "💬", label: "Nhắn tin", requireLogin: !token },
+    { to: "/driver/reviews", icon: "⭐", label: "Đánh giá trạm sạc", requireLogin: !token },
+    ...(token ? [{ to: "/driver/wallet", icon: "💰", label: "Ví điện tử" }] : []),
   ];
 
   return (
@@ -269,28 +269,28 @@ export default function Nav() {
             <NavItem
               to="/driver/map"
               icon={<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
-              label="Tìm trạm"
+              label="Tìm trạm sạc"
             />
             {token ? (
               <NavItem
                 to="/driver/my-bookings"
                 icon={<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
-                label="Booking"
+                label="Lịch đặt"
               />
             ) : (
               <NavItem
                 onClick={() => requireLogin("đặt lịch sạc")}
                 icon={<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
-                label="Booking"
+                label="Lịch đặt"
               />
             )}
             <NavItem
               onClick={() => {
                 if (token) navigate("/driver/scan-qr");
-                else requireLogin("làm thủ tục check-in", "/driver/scan-qr");
+                else requireLogin("quét mã slot sạc", "/driver/scan-qr");
               }}
               icon={<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>}
-              label="Check-in"
+              label="Quét mã slot sạc"
               isActive={isCheckinPage}
             />
 
@@ -450,7 +450,7 @@ export default function Nav() {
                             <svg className="w-4 h-4 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                             </svg>
-                            <span>Ví tiền</span>
+                            <span>Ví điện tử</span>
                             <span className="ml-auto font-bold text-orange-600">{walletBalance.toLocaleString("vi-VN")}đ</span>
                           </button>
                         </div>
@@ -696,7 +696,7 @@ export default function Nav() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <span className="cs-bottom-nav__label">Tìm trạm</span>
+              <span className="cs-bottom-nav__label">Tìm trạm sạc</span>
             </NavLink>
 
             {/* Check-in — FAB nổi bật ở giữa */}
@@ -704,7 +704,7 @@ export default function Nav() {
               className="cs-bottom-nav__fab"
               onClick={() => {
                 if (token) navigate("/driver/scan-qr");
-                else requireLogin("làm thủ tục check-in");
+                else requireLogin("quét mã slot sạc");
               }}
               aria-label="Check-in QR"
             >
@@ -713,7 +713,7 @@ export default function Nav() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                 </svg>
               </div>
-              <span className="cs-bottom-nav__fab-label">Check-in</span>
+              <span className="cs-bottom-nav__fab-label">Quét mã</span>
             </button>
 
             {/* Booking */}
@@ -742,16 +742,15 @@ export default function Nav() {
 
             {/* Tôi — mở bottom sheet với đầy đủ mục */}
             <button
-              className={`cs-bottom-nav__item ${
-                location.pathname.startsWith("/driver/driver-profile") ||
+              className={`cs-bottom-nav__item ${location.pathname.startsWith("/driver/driver-profile") ||
                 location.pathname.startsWith("/driver/wallet") ||
                 location.pathname.startsWith("/driver/favorites") ||
                 location.pathname.startsWith("/driver/loyalty") ||
                 location.pathname.startsWith("/driver/reviews") ||
                 location.pathname.startsWith("/driver/chat") ||
                 mobileMoreOpen
-                  ? "cs-bottom-nav__item--active" : ""
-              }`}
+                ? "cs-bottom-nav__item--active" : ""
+                }`}
               onClick={() => setMobileMoreOpen(true)}
             >
               {token ? (
@@ -803,11 +802,11 @@ export default function Nav() {
         <div className="cs-more-sheet__grid">
           {[
             { emoji: "👤", label: "Hồ sơ", to: "/driver/driver-profile", auth: true },
-            { emoji: "💳", label: "Ví tiền", to: "/driver/wallet", auth: true },
-            { emoji: "❤️", label: "Yêu thích", to: "/driver/favorites", auth: true },
+            { emoji: "💳", label: "Ví điện tử", to: "/driver/wallet", auth: true },
+            { emoji: "❤️", label: "Trạm yêu thích", to: "/driver/favorites", auth: true },
             { emoji: "🏆", label: "Điểm thưởng", to: "/driver/loyalty", auth: true },
-            { emoji: "💬", label: "Chat", to: "/driver/chat-list", auth: true },
-            { emoji: "⭐", label: "Đánh giá", to: "/driver/reviews", auth: true },
+            { emoji: "💬", label: "Nhắn tin", to: "/driver/chat-list", auth: true },
+            { emoji: "⭐", label: "Đánh giá trạm sạc", to: "/driver/reviews", auth: true },
             { emoji: "⚠️", label: "Khiếu nại", to: "/driver/disputes", auth: true },
           ].map((item) => (
             <button

@@ -102,7 +102,7 @@ export default function OwnerNav() {
     },
     {
       to: "/owner/booking-requests",
-      label: "Booking",
+      label: "Lịch đặt",
       icon: <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
     },
     {
@@ -127,12 +127,12 @@ export default function OwnerNav() {
     },
     {
       icon: "🔧",
-      label: "Dịch vụ",
+      label: "Dịch vụ thêm",
       to: "/owner/extra-services",
     },
     {
       icon: "💬",
-      label: "Chat",
+      label: "Nhắn tin",
       to: "/owner/chat-list",
     },
   ];
@@ -415,7 +415,7 @@ export default function OwnerNav() {
             { emoji: "👤", label: "Hồ sơ", to: "/owner/owner-profile" },
             { emoji: "💳", label: "Ví tiền", to: "/owner/wallet" },
             { emoji: "📊", label: "Doanh thu", to: "/owner/revenue" },
-            { emoji: "💬", label: "Chat", to: "/owner/chat-list" },
+            { emoji: "💬", label: "Nhắn tin", to: "/owner/chat-list" },
             { emoji: "⭐", label: "Đánh giá", to: "/owner/reviews" },
             { emoji: "⚠️", label: "Khiếu nại", to: "/owner/disputes" },
             { emoji: "🏦", label: "Rút tiền", to: "/owner/withdraw" },

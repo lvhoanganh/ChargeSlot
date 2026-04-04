@@ -53,7 +53,7 @@ export default function QRCodeModal({ isOpen, onClose, qrUrl, title, description
                   <ul style={{ margin: "4px 0 0 0", paddingLeft: 16 }}>
                     <li>Chuyển <strong>đúng số tiền</strong> hiển thị bên dưới — không thêm/bớt.</li>
                     <li><strong>Không sửa nội dung</strong> chuyển khoản (đã được điền sẵn trong mã QR).</li>
-                    <li>Nếu chuyển sai, tiền sẽ vào <strong>ví ChargeSlot</strong> của bạn, booking chưa được xác nhận.</li>
+                    <li>Nếu chuyển sai, tiền sẽ vào <strong>ví ChargeSlot</strong> của bạn, lịch đặt chưa được xác nhận.</li>
                   </ul>
                 </div>
               </div>

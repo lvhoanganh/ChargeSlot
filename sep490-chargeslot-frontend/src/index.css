@@ -657,7 +657,7 @@
 /* ── Locate me button ── */
 .sm-locate-btn {
   position: absolute;
-  bottom: 24px;
+  bottom: 90px;
   right: 16px;
   z-index: 1000;
   width: 46px;

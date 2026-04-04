@@ -14,7 +14,7 @@ export default function OwnerFooter() {
               <ChargeSlotLogo size={30} showText suffix="Owner" dark />
             </div>
             <p className="cs-footer__desc">
-              Quản lý trạm sạc, theo dõi booking, phiên sạc và dịch vụ khác.
+              Quản lý trạm sạc, theo dõi lịch đặt, phiên sạc và dịch vụ khác.
             </p>
           </div>
 
@@ -24,7 +24,7 @@ export default function OwnerFooter() {
             <ul className="cs-footer__links">
               <li><Link to="/stations" className="cs-footer__link">🏢 Trạm sạc</Link></li>
               <li><Link to="/stations/add" className="cs-footer__link">➕ Tạo trạm mới</Link></li>
-              <li><Link to="/owner/booking-requests" className="cs-footer__link">📋 Booking</Link></li>
+              <li><Link to="/owner/booking-requests" className="cs-footer__link">📋 Lịch đặt</Link></li>
               <li><Link to="/owner/active-sessions" className="cs-footer__link">⚡ Phiên sạc</Link></li>
               <li><Link to="/owner/extra-services" className="cs-footer__link">🔧 Dịch vụ thêm</Link></li>
             </ul>
@@ -37,7 +37,7 @@ export default function OwnerFooter() {
               <li><Link to="/owner/owner-profile" className="cs-footer__link">👤 Hồ sơ cá nhân</Link></li>
               <li><Link to="/owner/wallet" className="cs-footer__link">💰 Ví tiền</Link></li>
               <li><Link to="/owner/reviews" className="cs-footer__link">⭐ Đánh giá</Link></li>
-              <li><Link to="/owner/chat-list" className="cs-footer__link">💬 Chat</Link></li>
+              <li><Link to="/owner/chat-list" className="cs-footer__link">💬 Nhắn tin</Link></li>
             </ul>
           </div>
         </div>

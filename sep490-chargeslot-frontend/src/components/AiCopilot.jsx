@@ -181,8 +181,9 @@ export default function AiCopilot() {
       {/* Chat Panel */}
       {open && (
         <div
+          className="ai-copilot-panel"
           style={{
-            position: "fixed", bottom: 92, right: 24, zIndex: 9989,
+            position: "fixed", zIndex: 9989,
             width: "min(420px, calc(100vw - 48px))",
             height: "min(580px, calc(100vh - 120px))",
             background: "#fff",
@@ -411,12 +412,21 @@ export default function AiCopilot() {
         .ai-copilot-fab {
           bottom: 24px;
         }
+        .ai-copilot-panel {
+          bottom: 92px;
+          right: 24px;
+        }
         @media (max-width: 768px) {
           .ai-copilot-fab {
-            bottom: calc(68px + env(safe-area-inset-bottom, 0px));
-            width: 46px !important;
-            height: 46px !important;
+            bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+            width: 48px !important;
+            height: 48px !important;
             right: 14px !important;
+          }
+          .ai-copilot-panel {
+            bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important;
+            right: 14px !important;
+            width: calc(100vw - 28px) !important;
           }
         }
         @keyframes ai-ping {
