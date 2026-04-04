@@ -7,8 +7,8 @@ import { showToast } from "@/components/Toast";
 
 const MAX_HISTORY = 6;       // BE giới hạn tối đa 6 tin nhắn history
 const MAX_MSG_LENGTH = 500;  // BE giới hạn currentMessage tối đa 500 ký tự
-const WARN_TIMEOUT_MS = 15000; // Sau 15s → hiện cảnh báo AI đang suy nghĩ
-const HARD_TIMEOUT_MS = 30000; // Sau 30s → báo lỗi, hủy request
+const WARN_TIMEOUT_MS = 8000; // Sau 8s → hiện cảnh báo AI đang suy nghĩ
+const HARD_TIMEOUT_MS = 15000; // Sau 15s → báo lỗi, hủy request
 
 const ROLE_CONFIG = {
   Admin: { apiRole: "admin", label: "AI Admin", accent: "#7c3aed", emoji: "🛡️" },
@@ -70,15 +70,34 @@ export default function AiCopilot() {
     // Gửi tối đa 6 tin nhắn history gần nhất (không bao gồm tin vừa thêm)
     const historyToSend = chatHistory.slice(-MAX_HISTORY);
 
-    // Timer 15s: hiện cảnh báo AI đang suy nghĩ
+    // Khởi tạo AbortController cho request mới
+    abortRef.current = new AbortController();
+
+    // Timer cảnh báo AI đang suy nghĩ
     warnTimerRef.current = setTimeout(() => setSlowWarning(true), WARN_TIMEOUT_MS);
-    // Timer 30s: hard timeout
+    // Timer hard timeout
     hardTimerRef.current = setTimeout(() => {
       abortRef.current?.abort();
     }, HARD_TIMEOUT_MS);
 
     try {
-      const data = await aiCopilotApi.chat(cfg.apiRole, historyToSend, msg);
+      const pos = await new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve([p.coords.latitude, p.coords.longitude]),
+          (err) => resolve(null),
+          { enableHighAccuracy: true, timeout: 4000 }
+        );
+      });
+
+      let apiMessage = msg;
+      if (pos) {
+        apiMessage = `${msg}\n[System Info: Vị trí GPS hiện tại của người dùng là Latitude: ${pos[0]}, Longitude: ${pos[1]}]`;
+      }
+
+      const data = await aiCopilotApi.chat(cfg.apiRole, historyToSend, apiMessage, {
+        signal: abortRef.current.signal
+      });
 
       clearTimeout(warnTimerRef.current);
       clearTimeout(hardTimerRef.current);
@@ -100,8 +119,8 @@ export default function AiCopilot() {
       const isBanned = err?.response?.data?.isBanned || err?.message?.includes("banned");
       let errMsg;
       if (isTimeout) {
-        errMsg = "⏳ Xin lỗi, AI không phản hồi. Vui lòng thử lại.";
-        showToast.error("AI không phản hồi sau 30s, thử lại nhé!");
+        errMsg = "⏳ Xin lỗi, AI không phản hồi (kết nối gián đoạn). Vui lòng thử lại.";
+        showToast.error("AI không phản hồi sau 15s, kết nối đã bị hủy!");
       } else if (err?.status === 401 || err?.message?.includes("401")) {
         errMsg = "🔒 Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.";
       } else if (isBanned) {

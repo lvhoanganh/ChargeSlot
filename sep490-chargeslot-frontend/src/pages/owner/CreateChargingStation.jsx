@@ -429,11 +429,10 @@ export default function CreateChargingStation() {
                       if (addr) setValue("address", addr);
                     }}
                   />
-                  <div className="mt-2 flex items-start gap-2 text-sm">
-                    <span className="text-slate-400 flex-shrink-0">📍</span>
-                    <span className="text-slate-600">{watch("address") || "Tìm kiếm hoặc nhấn vào bản đồ để chọn vị trí"}</span>
+                  <div className="mt-4">
+                    <label className="mb-2 block text-sm font-medium text-slate-700">Địa chỉ cụ thể (có thể chỉnh sửa)</label>
+                    <input {...register("address")} className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none transition focus:border-orange-400" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố..." />
                   </div>
-                  <input type="hidden" {...register("address")} />
                   <input type="hidden" {...register("latitude")} />
                   <input type="hidden" {...register("longitude")} />
                   <FieldError message={errors.address?.message} />

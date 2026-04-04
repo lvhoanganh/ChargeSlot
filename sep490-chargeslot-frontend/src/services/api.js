@@ -886,9 +886,10 @@ export const aiCopilotApi = {
      * @param {Array<{role:string, content:string}>} history  — tối đa 6 tin nhắn gần nhất
      * @param {string} currentMessage                         — tối đa 500 ký tự
      */
-    chat: (role, history, currentMessage) =>
+    chat: (role, history, currentMessage, options = {}) =>
         apiFetch(`/chat/${role}`, {
             method: "POST",
             body: JSON.stringify({ history, currentMessage }),
+            ...options
         }),
 };

@@ -366,12 +366,18 @@ export default function EditChargingStation() {
                     }));
                   }}
                 />
-                {mapData.address && (
-                  <div className="mt-2 flex items-start gap-2 text-sm text-slate-600">
-                    <span className="text-slate-400 flex-shrink-0">📍</span>
-                    <span>{mapData.address}</span>
-                  </div>
-                )}
+                <div className="mt-4">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Địa chỉ cụ thể (có thể chỉnh sửa) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={mapData.address}
+                    onChange={(e) => setMapData(prev => ({ ...prev, address: e.target.value }))}
+                    className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                    placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố..."
+                  />
+                </div>
               </div>
             </div>
           </section>
