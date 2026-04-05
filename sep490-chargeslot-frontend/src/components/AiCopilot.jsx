@@ -17,16 +17,19 @@ const ROLE_CONFIG = {
 };
 
 const SUGGESTIONS = {
-  Admin: ["Báo cáo doanh thu hôm nay?", "Trạm nào đang hoạt động?", "Tình trạng khiếu nại?"],
-  Owner: ["Doanh thu tháng này thế nào?", "Trạm nào đang tốt nhất?", "Slot nào bị bỏ trống nhiều?"],
-  Driver: ["Ví tôi còn bao nhiêu?", "Tìm trạm sạc gần đây", "Lịch sử đặt chỗ của tôi?"],
+  // Admin tools: get_admin_dashboard ✔️, get_pending_stations ✔️, get_pending_disputes ✔️
+  Admin: ["Báo cáo doanh thu 30 ngày gần đây?", "Trạm nào đang chờ duyệt?", "Tình trạng khiếu nại?"],
+  // Owner tools: check_owner_wallet ✔️, get_owner_dashboard ✔️, get_owner_bookings ✔️
+  Owner: ["Doanh thu 30 ngày qua thế nào?", "Trạm nào đang tốt nhất?", "Xem đơn đặt gần nhất"],
+  // Driver tools: check_wallet_balance ✔️, find_nearby_stations ✔️
+  Driver: ["Ví tôi còn bao nhiêu?", "Danh sách các trạm trên bản đồ"],
 };
 
 // Lời chào mặc định cho từng role — HARDCODE, KHÔNG gọi API
 const WELCOME_GREETINGS = {
-  Driver: "Chào Anh/Chị! 👋 Tôi là trợ lý AI ChargeSlot.\n\nTôi có thể giúp Anh/Chị:\n- 💰 Kiểm tra số dư ví\n- 🔌 Tìm trạm sạc gần đây\n\nHãy hỏi tôi bất cứ điều gì!",
-  Owner: "Xin chào! 👋 Tôi là Cố vấn AI ChargeSlot.\n\nTôi có thể tư vấn:\n- 📊 Phân tích doanh thu trạm\n- 🎯 Chiến lược tăng lợi nhuận\n\nHãy hỏi tôi bất cứ điều gì!",
-  Admin: "Xin chào Admin! 👋 Tôi là AI Giám sát hệ thống.\n\nTôi có thể phân tích:\n- 📈 Báo cáo doanh thu nền tảng\n- ⚠️ Cảnh báo rủi ro tài khoản/trạm\n\nHãy hỏi tôi bất cứ điều gì!",
+  Driver: "Chào Anh/Chị! 👋 Tôi là trợ lý AI ChargeSlot.\n\nTôi có thể giúp Anh/Chị:\n- 💰 Kiểm tra số dư ví\n- 🔌 Danh sách các trạm trên bản đồ\n\nHãy hỏi tôi bất cứ điều gì!",
+  Owner: "Xin chào! 👋 Tôi là Cố vấn AI ChargeSlot.\n\nTôi có thể tư vấn:\n- 📊 Báo cáo doanh thu 30 ngày\n- 📋 Danh sách đơn đặt gần nhất\n- 💰 Số dư ví\n\nHãy hỏi tôi bất cứ điều gì!",
+  Admin: "Xin chào Admin! 👋 Tôi là AI Giám sát hệ thống.\n\nTôi có thể phân tích:\n- 📈 Doanh thu nền tảng 30 ngày\n- 🏢 Trạm đang chờ duyệt\n- ⚠️ Khiếu nại chưa xử lý\n\nHãy hỏi tôi bất cứ điều gì!",
 };
 
 export default function AiCopilot() {
@@ -43,13 +46,26 @@ export default function AiCopilot() {
   const hardTimerRef = useRef(null);
 
   const cfg = ROLE_CONFIG[role] || ROLE_CONFIG.Driver;
+  const [userLocation, setUserLocation] = useState(null); // [lat, lng] | null
+  const [locationStatus, setLocationStatus] = useState("idle"); // "idle"|"fetching"|"ok"|"denied"
 
+  // Lấy GPS 1 lần khi mở chatbot — cache lại, không fetch lại mỗi tin nhắn
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [open, chatHistory]);
+    if (!open) return;
+    setTimeout(() => inputRef.current?.focus(), 100);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+
+    if (!navigator.geolocation || locationStatus !== "idle") return;
+    setLocationStatus("fetching");
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        setUserLocation([p.coords.latitude, p.coords.longitude]);
+        setLocationStatus("ok");
+      },
+      () => setLocationStatus("denied"),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  }, [open]);
 
   const send = useCallback(async (text) => {
     const rawMsg = (text || input).trim();
@@ -81,18 +97,9 @@ export default function AiCopilot() {
     }, HARD_TIMEOUT_MS);
 
     try {
-      const pos = await new Promise((resolve) => {
-        if (!navigator.geolocation) return resolve(null);
-        navigator.geolocation.getCurrentPosition(
-          (p) => resolve([p.coords.latitude, p.coords.longitude]),
-          (err) => resolve(null),
-          { enableHighAccuracy: true, timeout: 4000 }
-        );
-      });
-
       let apiMessage = msg;
-      if (pos) {
-        apiMessage = `${msg}\n[System Info: Vị trí GPS hiện tại của người dùng là Latitude: ${pos[0]}, Longitude: ${pos[1]}]`;
+      if (userLocation) {
+        apiMessage = `${msg}\n[System Info: Vị trí GPS hiện tại của người dùng là Latitude: ${userLocation[0]}, Longitude: ${userLocation[1]}]`;
       }
 
       const data = await aiCopilotApi.chat(cfg.apiRole, historyToSend, apiMessage, {
@@ -137,7 +144,7 @@ export default function AiCopilot() {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, chatHistory, cfg.apiRole]);
+  }, [input, loading, chatHistory, cfg.apiRole, userLocation]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }

@@ -149,7 +149,6 @@ export default function ScanQR() {
         let msg = data?.message || `Lỗi check-in (${res.status})`;
 
         if (res.status === 400) {
-          msg = "Trụ sạc vẫn đang có xe cắm sạc. Vui lòng yêu cầu xe trước kết thúc trước khi check-in";
           showToast.error(msg, 5000);
           setSteps(prev => prev.map((s, i) =>
             i === 1 ? { ...s, status: "fail" } : s

@@ -29,9 +29,10 @@ const adminStationApi = {
     const { data } = await instance.post(`/admin/stations/${stationId}/review`, body);
     return data;
   },
+  /** Toggle khoá/mở trạm (Admin manual ban) */
   toggleBan: async (stationId) => {
     const { data } = await instance.patch(`/admin/stations/${stationId}/toggle-ban`);
-    return data;
+    return data; // { stationId, status: "Banned" | "Active" }
   },
 };
 
@@ -267,8 +268,8 @@ export default function ApproveStation() {
             ) : (
               filtered.map((s) => {
                 const isPending = s.approvalStatus === "PendingApproval";
-                // Bị khoá nếu: AI auto-ban (bannedUntil) HOẶC Admin manual ban (operationalStatus)
-                const isBanned = !!s.bannedUntil || s.operationalStatus === "Banned" || s.operationalStatus === "Suspended";
+                // BE set bannedUntil = +100 năm khi khoá, null khi mở
+                const isBanned = !!s.bannedUntil;
                 return (
                   <tr key={s.id}>
                     <td className="cs-admin-table__id">{s.id}</td>
@@ -301,11 +302,12 @@ export default function ApproveStation() {
                         >
                           Từ chối
                         </button>
+                        </div>
                         {/* Toggle ban trạm */}
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, marginTop: 4 }}>
                           <label
                             className="cs-toggle-switch"
-                            title={isBanned ? "Trạm đang bị khoá — nhấn để mở khoá" : "Trạm hoạt động bình thường"}
+                            title={isBanned ? "Trạm đang bị khoá — nhấn để mở khoá" : "Trạm hoạt động bình thường — nhấn để khoá"}
                           >
                             <input
                               type="checkbox"
@@ -314,31 +316,29 @@ export default function ApproveStation() {
                                 const previousStations = queryClient.getQueryData(["admin-stations-all"]);
                                 const newIsBanned = !isBanned;
 
-                                // Optimistic Update: cập nhật UI ngay lập tức
+                                // Optimistic Update
                                 queryClient.setQueryData(["admin-stations-all"], (old) => {
                                   if (!old) return old;
-                                  return old.map(station => {
-                                    if (station.id === s.id) {
-                                      return {
-                                        ...station,
-                                        bannedUntil: newIsBanned ? "2199-01-01T00:00:00Z" : null,
-                                        operationalStatus: newIsBanned ? "Inactive" : "Active"
-                                      };
-                                    }
-                                    return station;
-                                  });
+                                  return old.map(station =>
+                                    station.id === s.id
+                                      ? {
+                                          ...station,
+                                          bannedUntil: newIsBanned ? "2199-01-01T00:00:00Z" : null,
+                                          operationalStatus: newIsBanned ? "Inactive" : "Active",
+                                        }
+                                      : station
+                                  );
                                 });
 
                                 try {
                                   await adminStationApi.toggleBan(s.id);
                                   showToast.success(
                                     isBanned
-                                      ? "✅ Đã mở khoá trạm " + s.name
-                                      : "🔒 Đã khoá trạm " + s.name
+                                      ? `✅ Đã mở khoá trạm ${s.name}`
+                                      : `🔒 Đã khoá trạm ${s.name}`
                                   );
                                   queryClient.invalidateQueries({ queryKey: ["admin-stations-all"] });
                                 } catch (err) {
-                                  // Rollback nếu lỗi
                                   queryClient.setQueryData(["admin-stations-all"], previousStations);
                                   showToast.error(err?.response?.data?.message || "Thao tác thất bại.");
                                 }
@@ -352,9 +352,8 @@ export default function ApproveStation() {
                             </span>
                           </label>
                         </div>
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
                 );
               })
             )}
