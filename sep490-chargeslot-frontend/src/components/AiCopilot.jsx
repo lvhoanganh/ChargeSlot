@@ -2,8 +2,32 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAuthStore } from "@/stores/authStore";
-import { aiCopilotApi } from "@/services/api";
+import { aiCopilotApi, publicStationApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+
+// Nhận diện ý định hỏi trạm gần nhất — KHÔNG cần gọi AI
+const NEARBY_KEYWORDS = [
+  "gần tôi", "gần nhất", "gần đây", "xung quanh", "quanh đây",
+  "trạm gần", "trạm nào gần", "tìm trạm", "nearby", "closest",
+  "cách tôi", "khu vực tôi",
+];
+const isNearbyQuery = (msg) =>
+  NEARBY_KEYWORDS.some((kw) => msg.toLowerCase().includes(kw));
+
+// Format kết quả nearby thành Markdown đẹp
+const formatNearbyResult = (stations) => {
+  if (!stations || stations.length === 0)
+    return "😔 Không tìm thấy trạm sạc nào trong bán kính 10km quanh vị trí của Anh/Chị.";
+
+  const lines = stations.map((s, i) => {
+    const dist = s.distanceKm != null ? ` · 📍 **${s.distanceKm.toFixed(1)} km**` : "";
+    const rating = s.averageRating ? ` · ⭐ ${s.averageRating.toFixed(1)}/5` : "";
+    const reviews = s.totalReviews ? ` (${s.totalReviews} đánh giá)` : "";
+    return `**${i + 1}. ${s.name}**${dist}${rating}${reviews}\n   📌 ${s.address}`;
+  });
+
+  return `Tôi tìm thấy **${stations.length} trạm sạc** đang hoạt động gần Anh/Chị nhất:\n\n${lines.join("\n\n")}`;
+};
 
 const MAX_HISTORY = 6;       // BE giới hạn tối đa 6 tin nhắn history
 const MAX_MSG_LENGTH = 500;  // BE giới hạn currentMessage tối đa 500 ký tự
@@ -22,12 +46,12 @@ const SUGGESTIONS = {
   // Owner tools: check_owner_wallet ✔️, get_owner_dashboard ✔️, get_owner_bookings ✔️
   Owner: ["Doanh thu 30 ngày qua thế nào?", "Trạm nào đang tốt nhất?", "Xem đơn đặt gần nhất"],
   // Driver tools: check_wallet_balance ✔️, find_nearby_stations ✔️
-  Driver: ["Ví tôi còn bao nhiêu?", "Danh sách các trạm trên bản đồ"],
+  Driver: ["Ví tôi còn bao nhiêu?", "Trạm sạc nào gần tôi nhất?"],
 };
 
 // Lời chào mặc định cho từng role — HARDCODE, KHÔNG gọi API
 const WELCOME_GREETINGS = {
-  Driver: "Chào Anh/Chị! 👋 Tôi là trợ lý AI ChargeSlot.\n\nTôi có thể giúp Anh/Chị:\n- 💰 Kiểm tra số dư ví\n- 🔌 Danh sách các trạm trên bản đồ\n\nHãy hỏi tôi bất cứ điều gì!",
+  Driver: "Chào Anh/Chị! 👋 Tôi là trợ lý AI ChargeSlot.\n\nTôi có thể giúp Anh/Chị:\n- 💰 Kiểm tra số dư ví\n- 🔌 Tìm trạm sạc gần tôi nhất\n\nHãy hỏi tôi bất cứ điều gì!",
   Owner: "Xin chào! 👋 Tôi là Cố vấn AI ChargeSlot.\n\nTôi có thể tư vấn:\n- 📊 Báo cáo doanh thu 30 ngày\n- 📋 Danh sách đơn đặt gần nhất\n- 💰 Số dư ví\n\nHãy hỏi tôi bất cứ điều gì!",
   Admin: "Xin chào Admin! 👋 Tôi là AI Giám sát hệ thống.\n\nTôi có thể phân tích:\n- 📈 Doanh thu nền tảng 30 ngày\n- 🏢 Trạm đang chờ duyệt\n- ⚠️ Khiếu nại chưa xử lý\n\nHãy hỏi tôi bất cứ điều gì!",
 };
@@ -82,6 +106,37 @@ export default function AiCopilot() {
       const next = [...prev, userEntry];
       return next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next;
     });
+
+    // ─── INTERCEPT: Hỏi trạm gần → gọi thẳng API nearby, KHÔNG dùng AI ───
+    if (role === "Driver" && isNearbyQuery(msg)) {
+      try {
+        if (!userLocation) {
+          // GPS chưa sẵn sàng
+          const noGpsMsg = locationStatus === "denied"
+            ? "📍 Anh/Chị chưa cấp quyền vị trí cho trình duyệt. Vui lòng bật GPS và thử lại."
+            : "⏳ Đang lấy vị trí GPS... Anh/Chị vui lòng thử lại sau giây lát.";
+          setChatHistory(prev => [...prev, { role: "model", content: noGpsMsg }]);
+        } else {
+          const [lat, lng] = userLocation;
+          const stations = await publicStationApi.getNearby(lat, lng, 10, 5);
+          const reply = formatNearbyResult(stations);
+          setChatHistory(prev => {
+            const next = [...prev, { role: "model", content: reply }];
+            return next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next;
+          });
+        }
+      } catch (err) {
+        setChatHistory(prev => [...prev, {
+          role: "model",
+          content: `⚠️ Không thể tải danh sách trạm gần đây: ${err?.message || "Lỗi kết nối"}`,
+          isError: true,
+        }]);
+      } finally {
+        setLoading(false);
+      }
+      return; // Không gọi AI
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // Gửi tối đa 6 tin nhắn history gần nhất (không bao gồm tin vừa thêm)
     const historyToSend = chatHistory.slice(-MAX_HISTORY);

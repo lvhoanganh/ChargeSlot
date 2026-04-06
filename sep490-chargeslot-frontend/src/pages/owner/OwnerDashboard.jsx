@@ -39,9 +39,14 @@ export default function OwnerDashboard() {
     name: s.stationName || s.name || "Chưa rõ",
     revenue: s.revenue || s.totalRevenue || 0,
     sessions: s.totalSessions || s.sessionCount || 0,
+    rating: s.averageRating ?? s.rating ?? 0,
   }));
 
-  const avgRating = metrics?.averageRating ?? metrics?.avgRating ?? null;
+  // Tính average rating từ các trạm có rating thực tế
+  const ratedStations = stationPerformances.filter((s) => s.rating > 0);
+  const avgRating = ratedStations.length > 0
+    ? ratedStations.reduce((sum, s) => sum + s.rating, 0) / ratedStations.length
+    : null;
   const starDisplay = avgRating !== null ? `${Number(avgRating).toFixed(1)} ⭐` : "—";
 
   return (
@@ -76,8 +81,8 @@ export default function OwnerDashboard() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 16, marginBottom: 24 }}>
             <MetricCard
               icon="💵"
-              label="Tổng doanh thu"
-              value={fmt(metrics?.totalRevenue)}
+              label="Doanh thu 30 ngày"
+              value={fmt(metrics?.revenueLast30Days)}
               sub="Tổng tiền đã thu từ tất cả trạm"
               color="#16a34a"
               bg="linear-gradient(135deg, #f0fdf4, #dcfce7)"
@@ -86,15 +91,15 @@ export default function OwnerDashboard() {
               icon="⭐"
               label="Đánh giá trung bình"
               value={starDisplay}
-              sub={`Từ tất cả bookings đã hoàn thành`}
+              sub="Trung bình rating từ tất cả trạm"
               color="#d97706"
               bg="linear-gradient(135deg, #fffbeb, #fef3c7)"
             />
             <MetricCard
-              icon="⚡"
-              label="Phiên sạc đang hoạt động"
-              value={fmtNum(metrics?.activeSessionsCount ?? metrics?.activeSessions)}
-              sub="Số trụ đang sạc ngay lúc này"
+              icon="📋"
+              label="Đơn đặt 30 ngày"
+              value={fmtNum(metrics?.bookingsLast30Days)}
+              sub="Tổng booking trong 30 ngày qua"
               color="#2563eb"
               bg="linear-gradient(135deg, #eff6ff, #dbeafe)"
             />

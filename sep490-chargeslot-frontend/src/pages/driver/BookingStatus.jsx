@@ -608,7 +608,7 @@ export default function BookingStatus() {
                   Phiên sạc đã kết thúc — Chờ xác nhận hóa đơn
                 </div>
                 <div style={{ fontSize: 13, color: "#c2410c", lineHeight: 1.6 }}>
-                  Owner đã dừng phiên sạc. Vui lòng xác nhận hóa đơn để hoàn tất và chuyển tiền cho chủ trạm.
+                  Owner đã dừng phiên sạc. Vui lòng xác nhận hóa đơn để hoàn tất.
                   <br /><strong>Nếu có vấn đề → dùng nút Khiếu nại bên dưới.</strong>
                 </div>
               </div>
