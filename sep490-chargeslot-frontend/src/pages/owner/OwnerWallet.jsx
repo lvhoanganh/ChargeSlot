@@ -40,6 +40,7 @@ export default function OwnerWallet() {
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("transactions");
+  const [selectedTx, setSelectedTx] = useState(null);
 
   // Payout form
   const [showPayout, setShowPayout] = useState(false);
@@ -353,11 +354,15 @@ export default function OwnerWallet() {
                   const direction = (tx.direction || "").toLowerCase();
                   const isIncome = direction === "credit";
                   return (
-                    <div key={tx.id} style={{
+                    <div key={tx.id} onClick={() => setSelectedTx(tx)} style={{
                       background: "#fff", borderRadius: 16, padding: "16px 20px",
                       boxShadow: "0 2px 8px rgba(0,0,0,0.04)", display: "flex",
-                      alignItems: "center", gap: 12,
-                    }}>
+                      alignItems: "center", gap: 12, cursor: "pointer",
+                      transition: "transform 0.1s, box-shadow 0.1s"
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"; }}
+                    >
                       <div style={{
                         width: 42, height: 42, borderRadius: 12,
                         background: `${typeInfo.color}15`, display: "flex",
@@ -506,6 +511,76 @@ export default function OwnerWallet() {
           </>
         )}
       </div>
+
+      {/* Transaction Detail Modal */}
+      {selectedTx && (
+        <div 
+          onClick={() => setSelectedTx(null)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 20
+          }}
+        >
+          <div 
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "#fff", borderRadius: 24, width: "100%", maxWidth: 400, overflow: "hidden",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column"
+            }}
+          >
+            {/* Header */}
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: 0 }}>Chi tiết giao dịch</h3>
+              <button 
+                onClick={() => setSelectedTx(null)} 
+                style={{ background: "none", border: "none", fontSize: 24, color: "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8 }}
+                onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
+                onMouseLeave={e => e.currentTarget.style.background = "none"}
+              >&times;</button>
+            </div>
+            
+            {/* Content */}
+            <div style={{ padding: 24 }}>
+              <div style={{ textAlign: "center", marginBottom: 24 }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>
+                  {txTypeLabels[selectedTx.type || selectedTx.transactionType]?.icon || "📄"}
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: (selectedTx.direction || "").toLowerCase() === "credit" ? "#22c55e" : "#ef4444" }}>
+                  {(selectedTx.direction || "").toLowerCase() === "credit" ? "+" : "−"}{Math.abs(selectedTx.amount || 0).toLocaleString("vi-VN")}đ
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#475569", marginTop: 4 }}>
+                  {txTypeLabels[selectedTx.type || selectedTx.transactionType]?.label || selectedTx.type || selectedTx.transactionType}
+                </div>
+              </div>
+              
+              <div style={{ background: "#f8fafc", borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#64748b", fontSize: 13 }}>Mã giao dịch</span>
+                  <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 600 }}>#{selectedTx.id}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#64748b", fontSize: 13 }}>Thời gian</span>
+                  <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 600 }}>{toLocal(selectedTx.createdAt)}</span>
+                </div>
+                {selectedTx.bookingId && (
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#64748b", fontSize: 13 }}>Mã Booking</span>
+                    <span style={{ color: "#1e293b", fontSize: 13, fontWeight: 600 }}>#{selectedTx.bookingId}</span>
+                  </div>
+                )}
+                {(selectedTx.memo || selectedTx.description || selectedTx.note) && (
+                  <div style={{ borderTop: "1px dashed #cbd5e1", paddingTop: 12, marginTop: 4 }}>
+                    <div style={{ color: "#64748b", fontSize: 13, marginBottom: 4 }}>Chi tiết</div>
+                    <div style={{ color: "#1e293b", fontSize: 14, fontWeight: 500, lineHeight: 1.5 }}>
+                      {selectedTx.memo || selectedTx.description || selectedTx.note}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

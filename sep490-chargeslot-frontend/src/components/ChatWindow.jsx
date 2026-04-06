@@ -7,7 +7,7 @@ const API_BASE = "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebs
  * Reusable ChatWindow component — used by both Driver and Owner
  * Props: { conversationId, bookingId, messages: [], onNewMessage, currentUserId }
  */
-export default function ChatWindow({ conversationId, bookingId, messages = [], onNewMessage, currentUserId }) {
+export default function ChatWindow({ conversationId, bookingId, messages = [], onNewMessage, currentUserId, readOnly = false }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [connection, setConnection] = useState(null);
@@ -143,39 +143,54 @@ export default function ChatWindow({ conversationId, bookingId, messages = [], o
         })}
       </div>
 
-      {/* Input */}
-      <div style={{
-        padding: "12px 16px", background: "#fff",
-        borderTop: "1px solid #e5e7eb",
-        display: "flex", alignItems: "center", gap: 8,
-      }}>
-        <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSend()}
-          placeholder="Nhập tin nhắn..."
-          style={{
-            flex: 1, padding: "10px 14px", borderRadius: 12,
-            border: "1.5px solid #e5e7eb", fontSize: 14, outline: "none",
-          }}
-        />
-        <button
-          onClick={handleSend}
-          disabled={!input.trim() || sending}
-          style={{
-            width: 42, height: 42, borderRadius: 12, border: "none",
-            background: input.trim() ? "linear-gradient(135deg, #f97316, #ea580c)" : "#e5e7eb",
-            color: "#fff", cursor: input.trim() ? "pointer" : "not-allowed",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "all .15s",
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+      {/* Input — ẩn khi chat bị khoá */}
+      {readOnly ? (
+        <div style={{
+          padding: "14px 16px", background: "#f8fafc",
+          borderTop: "1px solid #e5e7eb",
+          textAlign: "center", fontSize: 13, color: "#94a3b8",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-        </button>
-      </div>
+          Cuộc trò chuyện đã kết thúc
+        </div>
+      ) : (
+        <div style={{
+          padding: "12px 16px", background: "#fff",
+          borderTop: "1px solid #e5e7eb",
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSend()}
+            placeholder="Nhập tin nhắn..."
+            style={{
+              flex: 1, padding: "10px 14px", borderRadius: 12,
+              border: "1.5px solid #e5e7eb", fontSize: 14, outline: "none",
+            }}
+          />
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || sending}
+            style={{
+              width: 42, height: 42, borderRadius: 12, border: "none",
+              background: input.trim() ? "linear-gradient(135deg, #f97316, #ea580c)" : "#e5e7eb",
+              color: "#fff", cursor: input.trim() ? "pointer" : "not-allowed",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "all .15s",
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

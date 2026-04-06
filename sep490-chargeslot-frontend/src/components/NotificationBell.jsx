@@ -13,41 +13,118 @@ function extractId(content) {
 }
 
 /**
- * Build a navigation path based on notification type, user role, and extracted ID.
+ * Build a navigation path based on notification content keywords (priority),
+ * then type, then role fallback.
+ * Routes must match exactly what's defined in App.jsx.
  */
 function getNotificationRoute(notification, role) {
-  const id = extractId(notification.content);
+  const id = extractId(notification.content || notification.title || "");
   const type = (notification.type || "").toLowerCase();
   const r = (role || "").toLowerCase();
+  // Gộp title + content để tìm keyword
+  const text = ((notification.title || "") + " " + (notification.content || "")).toLowerCase();
 
-  switch (type) {
-    case "booking":
-      if (r === "driver") return id ? `/driver/booking/${id}` : "/driver/my-bookings";
-      if (r === "owner") return "/owner/booking-requests";
-      if (r === "admin") return "/admin/disputes";
-      break;
-    case "dispute":
-      if (r === "driver") return id ? `/driver/dispute/${id}` : "/driver/my-bookings";
-      if (r === "owner") return id ? `/owner/dispute/${id}` : "/owner/booking-requests";
-      if (r === "admin") return id ? `/admin/disputes/${id}` : "/admin/disputes";
-      break;
-    case "charging":
-      if (r === "driver") return "/driver/charging-active";
-      if (r === "owner") return "/owner/booking-requests";
-      break;
-    case "payment":
-      if (r === "driver") return id ? `/driver/booking/${id}` : "/driver/my-bookings";
-      if (r === "owner") return "/owner/booking-requests";
-      break;
-    case "stationapproval":
-      if (r === "owner") return "/owner";
-      if (r === "admin") return "/admin/stations";
-      break;
-    case "system":
-    default:
-      break;
+  // ════════════════════════════════════════════════════════════
+  // BƯỚC 1: Content keyword — ưu tiên cao hơn type
+  // (Vì BE hay gửi type "Booking" cho nhiều loại sự kiện khác nhau)
+  // ════════════════════════════════════════════════════════════
+
+  // Đánh giá / Review
+  if (text.includes("đánh giá") || text.includes("review")) {
+    if (r === "owner") return "/owner/reviews";
+    if (r === "driver") return "/driver/reviews";
   }
 
+  // Phiên sạc / kết thúc sớm / check-in / active session
+  if (
+    text.includes("kết thúc sớm") ||
+    text.includes("yêu cầu kết thúc") ||
+    text.includes("phiên sạc") ||
+    text.includes("đang sạc") ||
+    text.includes("check-in") ||
+    text.includes("checkin") ||
+    text.includes("sạc tại slot")
+  ) {
+    if (r === "owner") return "/owner/active-sessions";
+    if (r === "driver") return "/driver/charging";
+  }
+
+  // Xác nhận hoàn thành phiên sạc → owner xem active sessions / driver xem charging-complete
+  if (text.includes("hoàn thành") && (text.includes("sạc") || text.includes("phiên"))) {
+    if (r === "owner") return "/owner/active-sessions";
+    if (r === "driver") return "/driver/charging-complete";
+  }
+
+  // Tiền chuyển vào ví / thanh toán vào ví → owner wallet
+  if (text.includes("chuyển vào ví") || text.includes("đã chuyển")) {
+    if (r === "owner") return "/owner/wallet";
+    if (r === "driver") return "/driver/wallet";
+  }
+
+  // Chat / tin nhắn
+  if (text.includes("tin nhắn") || text.includes("nhắn tin") || text.includes("chat")) {
+    if (r === "driver") return id ? `/driver/chat/${id}` : "/driver/chat-list";
+    if (r === "owner") return id ? `/owner/chat/${id}` : "/owner/chat-list";
+  }
+
+  // Ví / rút tiền / nạp tiền
+  if (text.includes("rút tiền") || text.includes("nạp tiền") || text.includes("số dư")) {
+    if (r === "driver") return "/driver/wallet";
+    if (r === "owner") return "/owner/wallet";
+    if (r === "admin") return "/admin/withdraws";
+  }
+
+  // Loyalty / điểm thưởng
+  if (text.includes("điểm thưởng") || text.includes("loyalty") || text.includes("tích điểm")) {
+    if (r === "driver") return "/driver/loyalty";
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // BƯỚC 2: Type-based routing (fallback khi không match keyword)
+  // ════════════════════════════════════════════════════════════
+
+  if (type === "booking") {
+    if (r === "driver") return id ? `/driver/booking/${id}` : "/driver/my-bookings";
+    if (r === "owner") return id ? `/owner/booking/${id}` : "/owner/booking-requests";
+    if (r === "admin") return "/admin/disputes";
+  }
+
+  if (type === "dispute") {
+    if (r === "driver") return id ? `/driver/dispute/${id}` : "/driver/my-bookings";
+    if (r === "owner") return id ? `/owner/dispute/${id}` : "/owner/booking-requests";
+    if (r === "admin") return id ? `/admin/disputes/${id}` : "/admin/disputes";
+  }
+
+  if (type === "charging") {
+    if (r === "driver") return "/driver/charging";
+    if (r === "owner") return "/owner/active-sessions";
+  }
+
+  if (type === "payment") {
+    if (r === "driver") return id ? `/driver/booking/${id}` : "/driver/my-bookings";
+    if (r === "owner") return "/owner/wallet";
+    if (r === "admin") return "/admin/view-financial-report";
+  }
+
+  if (type === "stationapproval") {
+    if (r === "owner") return "/owner/booking-requests";
+    if (r === "admin") return "/admin/approve-station";
+  }
+
+  if (type === "review") {
+    if (r === "owner") return "/owner/reviews";
+    if (r === "driver") return "/driver/reviews";
+  }
+
+  if (type === "wallet") {
+    if (r === "driver") return "/driver/wallet";
+    if (r === "owner") return "/owner/wallet";
+    if (r === "admin") return "/admin/withdraws";
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // BƯỚC 3: Default fallback theo role
+  // ════════════════════════════════════════════════════════════
   if (r === "driver") return "/driver/my-bookings";
   if (r === "owner") return "/owner/booking-requests";
   if (r === "admin") return "/admin/disputes";

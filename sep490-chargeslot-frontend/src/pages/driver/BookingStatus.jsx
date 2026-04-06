@@ -29,8 +29,10 @@ const toLocal = (dt) => {
   });
 };
 
-export default function BookingStatus() {
-  const { id } = useParams();
+export default function BookingStatus({ bookingIdParam, onClose }) {
+  const { id: routeId } = useParams();
+  const id = bookingIdParam || routeId;
+  const isEmbedded = !!bookingIdParam;
   const navigate = useNavigate();
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -203,7 +205,7 @@ export default function BookingStatus() {
   const st = statusStyles[booking.status] || statusStyles.WaitingOwner;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 84 }}>
+    <div style={{ minHeight: isEmbedded ? "auto" : "100vh", background: isEmbedded ? "transparent" : "#f8fafc", paddingTop: isEmbedded ? 0 : 84 }}>
 
       {/* ======= PAYMENT SUCCESS OVERLAY ======= */}
       {showPaymentSuccess && (
@@ -267,7 +269,11 @@ export default function BookingStatus() {
             {/* Actions */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <button
-                onClick={() => { setShowPaymentSuccess(false); navigate("/driver/my-bookings"); }}
+                onClick={() => { 
+                  setShowPaymentSuccess(false); 
+                  if (isEmbedded && onClose) onClose();
+                  else navigate("/driver/my-bookings"); 
+                }}
                 style={{
                   width: "100%", padding: "14px 0", borderRadius: 14, border: "none",
                   background: "linear-gradient(135deg, #22c55e, #16a34a)",
@@ -306,7 +312,10 @@ export default function BookingStatus() {
 
         {/* Back button */}
         <button
-          onClick={() => navigate("/driver/my-bookings")}
+          onClick={() => {
+            if (isEmbedded && onClose) onClose();
+            else navigate("/driver/my-bookings");
+          }}
           style={{
             background: "none", border: "none", cursor: "pointer",
             color: "#64748b", fontSize: 13, marginBottom: 16,
@@ -440,8 +449,8 @@ export default function BookingStatus() {
           </div>
         )}
 
-        {/* Chat button */}
-        {booking.status !== "Cancelled" && booking.status !== "Rejected" && booking.status !== "Expired" && booking.status !== "NoShow" && (
+        {/* Chat button — ẩn khi booking đã kết thúc */}
+        {!["Cancelled", "Rejected", "Expired", "NoShow", "Completed", "CompletedPendingInvoice"].includes(booking.status) && (
           <button
             onClick={() => navigate(`/driver/chat/${booking.id}`)}
             style={{
@@ -629,17 +638,22 @@ export default function BookingStatus() {
           </div>
         )}
 
-        {/* Dispute */}
-        {(booking.status === "CompletedPendingInvoice" || booking.status === "Completed") && (
-          <ActionButton
-            onClick={() => navigate(`/driver/dispute/submit/${booking.id}`)}
-            bg="linear-gradient(135deg, #dc2626, #b91c1c)"
-            shadow="rgba(220,38,38,0.25)"
-            style={{ marginBottom: 16 }}
-          >
-            ⚠️ Khiếu nại
-          </ActionButton>
-        )}
+        {/* Dispute — chỉ trong vòng 24h sau khi kết thúc */}
+        {(booking.status === "CompletedPendingInvoice" || booking.status === "Completed") && (() => {
+          const endMs = booking.endTime ? new Date(String(booking.endTime).replace("Z", "")).getTime() : 0;
+          const within24h = endMs && (Date.now() - endMs) < 24 * 60 * 60 * 1000;
+          if (!within24h) return null;
+          return (
+            <ActionButton
+              onClick={() => navigate(`/driver/dispute/submit/${booking.id}`)}
+              bg="linear-gradient(135deg, #dc2626, #b91c1c)"
+              shadow="rgba(220,38,38,0.25)"
+              style={{ marginBottom: 16 }}
+            >
+              ⚠️ Khiếu nại
+            </ActionButton>
+          );
+        })()}
 
         {booking.status === "Disputed" && (
           <DisputeLink bookingId={booking.id} navigate={navigate} />

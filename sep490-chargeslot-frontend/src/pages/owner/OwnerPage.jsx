@@ -4,6 +4,7 @@ import { showConfirm } from "@/components/ConfirmDialog";
 import { stationApi, slotApi, stationPricingApi } from "@/services/api";
 import { QRCodeSVG } from "qrcode.react";
 import { showToast } from "@/components/Toast";
+import TimePicker24h from "@/components/TimePicker24h";
 
 const statusConfig = {
   Draft: { label: "Nháp", color: "#6b7280", bg: "#f3f4f6", icon: "📝" },
@@ -152,15 +153,36 @@ export default function OwnerPage() {
                     <div className="border-t border-slate-100 px-5 pb-5">
                       {/* Actions */}
                       <div className="flex gap-2 py-4 flex-wrap">
-                        {/* Edit station info button (always visible) */}
-                        <button
-                          onClick={() => navigate(`/stations/edit/${s.id}`)}
-                          className="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1.5"
-                        >
-                          ✏️ Chỉnh sửa trạm
-                        </button>
+                        {/* Ban banner — hiện khi admin đã khóa trạm */}
+                        {s.bannedUntil && (
+                          <div style={{
+                            width: "100%", marginBottom: 8,
+                            background: "linear-gradient(135deg, #fef2f2, #fecaca)",
+                            border: "1.5px solid #f87171",
+                            borderRadius: 12, padding: "10px 14px",
+                            display: "flex", alignItems: "center", gap: 10,
+                            fontSize: 13, color: "#991b1b", fontWeight: 600,
+                          }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            Trạm đang bị khóa bởi Admin.
+                          </div>
+                        )}
 
-                        {(s.approvalStatus === "Draft" || s.approvalStatus === "Rejected") && (
+                        {/* Edit station info button — ẩn khi bị ban */}
+                        {!s.bannedUntil && (
+                          <button
+                            onClick={() => navigate(`/stations/edit/${s.id}`)}
+                            className="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1.5"
+                          >
+                            ✏️ Chỉnh sửa trạm
+                          </button>
+                        )}
+
+                        {/* Gửi duyệt — ẩn khi bị ban */}
+                        {!s.bannedUntil && (s.approvalStatus === "Draft" || s.approvalStatus === "Rejected") && (
                           <button
                             onClick={() => handleSubmitForApproval(s.id)}
                             disabled={actionLoading === s.id}
@@ -169,7 +191,9 @@ export default function OwnerPage() {
                             📤 Gửi duyệt
                           </button>
                         )}
-                        {s.approvalStatus === "Approved" && (
+
+                        {/* Bật/Tắt trạm — ẩn khi bị ban */}
+                        {!s.bannedUntil && s.approvalStatus === "Approved" && (
                           <button
                             onClick={async () => {
                               const newStatus = s.operationalStatus === "Active" ? "Inactive" : "Active";
@@ -685,13 +709,18 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-[10px] text-slate-400 mb-0.5">Bắt đầu</label>
-              <input type="time" value={newTier.startTime} onChange={(e) => { setNewTier(p => ({ ...p, startTime: e.target.value })); setPricingError(""); }}
-                className="h-7 w-full rounded border border-slate-200 px-2 text-xs outline-none" />
+              <TimePicker24h
+                value={newTier.startTime}
+                onChange={(v) => { setNewTier(p => ({ ...p, startTime: v })); setPricingError(""); }}
+              />
             </div>
             <div className="flex-1">
               <label className="block text-[10px] text-slate-400 mb-0.5">Kết thúc</label>
-              <input type="time" value={newTier.endTime} onChange={(e) => { setNewTier(p => ({ ...p, endTime: e.target.value })); setPricingError(""); }}
-                className="h-7 w-full rounded border border-slate-200 px-2 text-xs outline-none" />
+              <TimePicker24h
+                value={newTier.endTime}
+                minAfter={newTier.startTime}
+                onChange={(v) => { setNewTier(p => ({ ...p, endTime: v })); setPricingError(""); }}
+              />
             </div>
           </div>
           <div>

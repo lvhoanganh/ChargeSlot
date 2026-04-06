@@ -122,9 +122,9 @@ export default function StationMap() {
     );
   }, []);
 
-  function fetchStations(kw, rating, sort, pos) {
+  function fetchStations(rating, sort, pos) {
     setLoading(true);
-    const opts = { keyword: kw || undefined, minRating: rating || undefined, sortBy: sort || undefined };
+    const opts = { minRating: rating || undefined, sortBy: sort || undefined };
     if (pos) {
       opts.lat = pos[0];
       opts.lng = pos[1];
@@ -141,13 +141,10 @@ export default function StationMap() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { fetchStations(search, minRating, sortBy, nearbyMode ? userPos : null); }, [minRating, sortBy, nearbyMode, maxRadius]);
-
-  useEffect(() => {
-    clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => fetchStations(search, minRating, sortBy, nearbyMode ? userPos : null), 400);
-    return () => clearTimeout(searchTimer.current);
-  }, [search]);
+  // Lấy dữ liệu mỗi khi bộ lọc (không bao gồm từ khoá tìm kiếm) thay đổi
+  useEffect(() => { 
+    fetchStations(minRating, sortBy, nearbyMode ? userPos : null); 
+  }, [minRating, sortBy, nearbyMode, maxRadius, userPos]);
 
   useEffect(() => {
     if (!token) return;

@@ -11,6 +11,7 @@ import { showToast } from "@/components/Toast";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import TimePicker24h from "@/components/TimePicker24h";
 
 /* Fix default marker icon */
 delete L.Icon.Default.prototype._getIconUrl;
@@ -51,8 +52,38 @@ function MapPicker({ lat, lng, onSelect }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [gettingLocation, setGettingLocation] = useState(false);
   const [markerPos, setMarkerPos] = useState(null);
   const debounceRef = useRef(null);
+
+  // Get current location
+  function handleGetLocation() {
+    if (!navigator.geolocation) {
+      alert("Trình duyệt không hỗ trợ lấy vị trí");
+      return;
+    }
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const cLat = position.coords.latitude;
+      const cLng = position.coords.longitude;
+      setMarkerPos([cLat, cLng]);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${cLat}&lon=${cLng}&format=json&accept-language=vi`);
+        const data = await res.json();
+        const addr = data.display_name || "Vị trí hiện tại";
+        setQuery(addr);
+        onSelect(cLat, cLng, addr);
+      } catch {
+        const addr = "Vị trí hiện tại";
+        setQuery(addr);
+        onSelect(cLat, cLng, addr);
+      }
+      setGettingLocation(false);
+    }, () => {
+      alert("Không thể lấy vị trí hiện tại. Vui lòng cấp quyền.");
+      setGettingLocation(false);
+    }, { timeout: 10000, enableHighAccuracy: true });
+  }
 
   // Debounced search
   function handleQueryChange(value) {
@@ -89,56 +120,84 @@ function MapPicker({ lat, lng, onSelect }) {
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Search box */}
-      <div style={{ position: "relative", marginBottom: 8 }}>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => handleQueryChange(e.target.value)}
-          placeholder="🔍 Tìm kiếm địa chỉ"
+      {/* Search box & Get Current Location */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 8, position: "relative" }}>
+        <div style={{ position: "relative", flex: 1 }}>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            placeholder="🔍 Tìm kiếm địa chỉ"
+            style={{
+              width: "100%", padding: "10px 14px 10px 14px", borderRadius: 12,
+              border: "1.5px solid #e2e8f0", fontSize: 14, outline: "none",
+              boxSizing: "border-box", background: "#fff",
+              transition: "border-color 0.2s",
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "#f97316")}
+            onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+          />
+          {searching && (
+            <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#94a3b8" }}>
+              Đang tìm...
+            </span>
+          )}
+          {/* Dropdown results */}
+          {results.length > 0 && (
+            <div style={{
+              position: "absolute", top: "100%", left: 0, right: 0, zIndex: 1000,
+              background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4,
+              maxHeight: 220, overflowY: "auto",
+            }}>
+              {results.map((item, idx) => (
+                <button
+                  key={item.place_id || idx}
+                  type="button"
+                  onClick={() => handleSelectResult(item)}
+                  style={{
+                    width: "100%", textAlign: "left", padding: "10px 14px",
+                    border: "none", background: "transparent", cursor: "pointer",
+                    fontSize: 13, color: "#1e293b", borderBottom: idx < results.length - 1 ? "1px solid #f1f5f9" : "none",
+                    display: "flex", alignItems: "flex-start", gap: 8,
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#fff7ed")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span style={{ flexShrink: 0, fontSize: 16, marginTop: 1 }}>📍</span>
+                  <span style={{ lineHeight: 1.4 }}>{item.display_name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleGetLocation}
+          disabled={gettingLocation}
           style={{
-            width: "100%", padding: "10px 14px 10px 14px", borderRadius: 12,
-            border: "1.5px solid #e2e8f0", fontSize: 14, outline: "none",
-            boxSizing: "border-box", background: "#fff",
-            transition: "border-color 0.2s",
+            flexShrink: 0, padding: "0 16px", height: 42, borderRadius: 12, border: "none",
+            background: gettingLocation ? "#e2e8f0" : "linear-gradient(135deg, #3b82f6, #2563eb)",
+            color: gettingLocation ? "#94a3b8" : "#fff", fontWeight: 600, fontSize: 13,
+            cursor: gettingLocation ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6,
+            boxShadow: gettingLocation ? "none" : "0 2px 8px rgba(59,130,246,0.25)", transition: "all 0.2s"
           }}
-          onFocus={(e) => (e.target.style.borderColor = "#f97316")}
-          onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
-        />
-        {searching && (
-          <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#94a3b8" }}>
-            Đang tìm...
-          </span>
-        )}
-        {/* Dropdown results */}
-        {results.length > 0 && (
-          <div style={{
-            position: "absolute", top: "100%", left: 0, right: 0, zIndex: 1000,
-            background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4,
-            maxHeight: 220, overflowY: "auto",
-          }}>
-            {results.map((item, idx) => (
-              <button
-                key={item.place_id || idx}
-                type="button"
-                onClick={() => handleSelectResult(item)}
-                style={{
-                  width: "100%", textAlign: "left", padding: "10px 14px",
-                  border: "none", background: "transparent", cursor: "pointer",
-                  fontSize: 13, color: "#1e293b", borderBottom: idx < results.length - 1 ? "1px solid #f1f5f9" : "none",
-                  display: "flex", alignItems: "flex-start", gap: 8,
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#fff7ed")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <span style={{ flexShrink: 0, fontSize: 16, marginTop: 1 }}>📍</span>
-                <span style={{ lineHeight: 1.4 }}>{item.display_name}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        >
+          {gettingLocation ? (
+            <>
+              <div style={{ width: 14, height: 14, border: "2px solid #94a3b8", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+              Đang lấy...
+            </>
+          ) : (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2a10 10 0 1 0 10 10H12V2z" /><path d="M12 12L2.1 12" /><path d="M12 12L12 22" /><path d="M12 12L21.9 12" /><circle cx="12" cy="12" r="3" />
+              </svg>
+              Vị trí của tôi
+            </>
+          )}
+        </button>
       </div>
 
       {/* Map */}
@@ -512,10 +571,19 @@ export default function CreateChargingStation() {
                       </label>
                     </div>
                     <div>
-                      <input type="time" step="1" disabled={isClosed} {...register(`operatingHours.${index}.openTime`)} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none disabled:bg-slate-100" />
+                      <TimePicker24h
+                        value={(operatingHours?.[index]?.openTime || "06:00").substring(0,5)}
+                        disabled={isClosed}
+                        onChange={(v) => setValue(`operatingHours.${index}.openTime`, v)}
+                      />
                     </div>
                     <div>
-                      <input type="time" step="1" disabled={isClosed} {...register(`operatingHours.${index}.closeTime`)} className="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none disabled:bg-slate-100" />
+                      <TimePicker24h
+                        value={(operatingHours?.[index]?.closeTime || "23:00").substring(0,5)}
+                        disabled={isClosed}
+                        minAfter={isClosed ? undefined : (operatingHours?.[index]?.openTime || "06:00").substring(0,5)}
+                        onChange={(v) => setValue(`operatingHours.${index}.closeTime`, v)}
+                      />
                     </div>
                     <input type="hidden" {...register(`operatingHours.${index}.dayOfWeek`)} />
                   </div>

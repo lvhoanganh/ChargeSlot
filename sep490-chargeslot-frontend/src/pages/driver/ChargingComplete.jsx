@@ -178,8 +178,14 @@ export default function ChargingComplete() {
               <p className="text-sm font-semibold text-green-700">✅ Đã xác nhận hoàn thành!</p>
             </div>
             <button
+              onClick={() => navigate("/driver/reviews")}
+              className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-200 transition-all hover:shadow-xl cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>⭐</span> Đánh giá trạm sạc
+            </button>
+            <button
               onClick={() => navigate("/driver/my-bookings")}
-              className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-200 transition-all hover:shadow-xl cursor-pointer"
+              className="w-full h-11 border border-gray-200 text-gray-500 font-medium text-sm rounded-xl hover:bg-gray-50 cursor-pointer transition-all"
             >
               Về danh sách booking
             </button>

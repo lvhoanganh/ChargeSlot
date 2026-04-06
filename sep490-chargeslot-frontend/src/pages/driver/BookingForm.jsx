@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { publicStationApi, bookingApi, loyaltyApi } from "@/services/api";
+import TimePicker24h from "@/components/TimePicker24h";
 
 export default function BookingForm() {
   const { stationId } = useParams();
@@ -80,6 +81,21 @@ export default function BookingForm() {
     if (!selectedDate || !startHHMM) return;
     setStartTime(`${selectedDate}T${startHHMM}`);
   }, [selectedDate, startHHMM]);
+
+  // Khi giờ bắt đầu thay đổi: tự động đẩy giờ kết thúc lên startHHMM+1 phút nếu cần
+  useEffect(() => {
+    if (!startHHMM || !endHHMM) return;
+    const [sh, sm] = startHHMM.split(":").map(Number);
+    const [eh, em] = endHHMM.split(":").map(Number);
+    const startTotal = sh * 60 + sm;
+    const endTotal   = eh * 60 + em;
+    if (endTotal <= startTotal) {
+      let next = startTotal + 1;
+      if (next >= 24 * 60) next = 23 * 60 + 59;
+      setEndHHMM(`${String(Math.floor(next / 60)).padStart(2, "0")}:${String(next % 60).padStart(2, "0")}`);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startHHMM]);
 
   // Tính duration tự động từ startHHMM đến endHHMM
   useEffect(() => {
@@ -212,14 +228,7 @@ export default function BookingForm() {
     const maxTier = Math.max(...tierEnds);
     const fmtMin = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
-    // Validate endHHMM > startHHMM
-    if (startHHMM && endHHMM) {
-      const [sh, sm] = startHHMM.split(":").map(Number);
-      const [eh, em] = endHHMM.split(":").map(Number);
-      if ((eh * 60 + em) <= (sh * 60 + sm)) {
-        return "⚠️ Giờ kết thúc phải sau giờ bắt đầu";
-      }
-    }
+
 
     const startObj = new Date(startTime);
     const endObj = new Date(startObj.getTime() + duration * 3600000);
@@ -233,6 +242,27 @@ export default function BookingForm() {
       return `⚠️ Giờ kết thúc (${fmtMin(bookEndMin > 24 * 60 ? bookEndMin - 24 * 60 : bookEndMin)}) vượt quá khung giá (${fmtMin(maxTier)}). Giảm thời lượng!`;
     }
     return "";
+  })();
+
+  // Kiểm tra khung giờ hiện tại có tiếr giá hợp lệ không
+  const hasNoPriceForTime = (() => {
+    if (!station || !startHHMM) return false;
+    const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
+    if (tiers.length === 0) return false; // không có tier nào → không chặn (bản thân ko có giá)
+    const toMin = (str) => {
+      if (!str) return 0;
+      const [h, m] = String(str).split(':');
+      return parseInt(h) * 60 + parseInt(m);
+    };
+    const [sh, sm] = startHHMM.split(':').map(Number);
+    const bookStartMin = sh * 60 + sm;
+    // Tìm tier chứa giờ bắt đầu
+    const matchedTier = tiers.find(t => {
+      const tS = toMin(t.startTime), tE = toMin(t.endTime);
+      return bookStartMin >= tS && bookStartMin < tE;
+    });
+    if (!matchedTier) return false; // không match tier → timeError sẽ bắt trước
+    return !(matchedTier.pricePerHour > 0);
   })();
 
   async function handleSubmit(e) {
@@ -564,33 +594,33 @@ export default function BookingForm() {
               )}
 
 
-              {/* 2 time inputs */}
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>Bắt đầu</div>
-                  <input type="time" step="900" value={startHHMM}
-                    onChange={e => setStartHHMM(e.target.value)}
-                    style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "2px solid #f97316", fontSize: 18, fontWeight: 700, color: "#ea580c", outline: "none", boxSizing: "border-box", textAlign: "center", background: "#fff7ed" }} />
+              {/* 2 time pickers — 24h popup grid */}
+              <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center" }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 5, textAlign: "center" }}>Bắt đầu</div>
+                  <TimePicker24h
+                    value={startHHMM}
+                    onChange={setStartHHMM}
+                  />
                 </div>
                 <div style={{ fontSize: 22, color: "#f97316", fontWeight: 700, paddingTop: 18 }}>→</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>Kết thúc</div>
-                  <input type="time" step="900" value={endHHMM}
-                    onChange={e => setEndHHMM(e.target.value)}
-                    style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: hasConflict ? "2px solid #ef4444" : "2px solid #e5e7eb", fontSize: 18, fontWeight: 700, color: "#374151", outline: "none", boxSizing: "border-box", textAlign: "center" }} />
+                <div>
+                  <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 5, textAlign: "center" }}>Kết thúc</div>
+                  <TimePicker24h
+                    value={endHHMM}
+                    minAfter={startHHMM}
+                    onChange={setEndHHMM}
+                  />
                 </div>
               </div>
+
 
               {/* Duration badge + conflict warning */}
               {startHHMM && endHHMM && (() => {
                 const [sh, sm] = startHHMM.split(":").map(Number);
                 const [eh, em] = endHHMM.split(":").map(Number);
                 const diffMin = (eh * 60 + em) - (sh * 60 + sm);
-                if (diffMin <= 0) return (
-                  <div style={{ marginTop: 8, fontSize: 12, color: "#ef4444", fontWeight: 600 }}>
-                    ⚠️ Giờ kết thúc phải sau giờ bắt đầu
-                  </div>
-                );
+                if (diffMin <= 0) return null;
                 const h = Math.floor(diffMin / 60), m = diffMin % 60;
                 return (
                   <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -703,6 +733,16 @@ export default function BookingForm() {
               </div>
             )}
 
+            {hasNoPriceForTime && (
+              <div style={{ background: "#fffbeb", color: "#92400e", padding: "12px 16px", borderRadius: 10, fontSize: 13, marginBottom: 16, border: "1px solid #fde68a", display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+                <div>
+                  <div style={{ fontWeight: 700, marginBottom: 2 }}>Khung giờ này chưa được thiết lập giá</div>
+                  <div style={{ fontSize: 12, color: "#a16207" }}>Vui lòng chọn khung giờ khác hoặc quay lại sau khi chủ trạm cập nhật giá.</div>
+                </div>
+              </div>
+            )}
+
             {apiError && (
               <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px 14px", borderRadius: 10, fontSize: 13, marginBottom: 16 }}>
                 ⚠️ {apiError}
@@ -710,14 +750,14 @@ export default function BookingForm() {
             )}
 
             <button type="submit"
-              disabled={submitting || !selectedSlot || !!timeError || !startHHMM || !endHHMM || hasConflict}
+              disabled={submitting || !selectedSlot || !!timeError || !startHHMM || !endHHMM || hasConflict || hasNoPriceForTime}
               style={{
                 width: "100%", padding: "14px 0", borderRadius: 14, border: "none",
-                background: submitting || !selectedSlot || timeError || !startHHMM || !endHHMM || hasConflict
+                background: submitting || !selectedSlot || timeError || !startHHMM || !endHHMM || hasConflict || hasNoPriceForTime
                   ? "#d1d5db"
                   : "linear-gradient(135deg, #f97316, #ea580c)",
                 color: "#fff", fontWeight: 700, fontSize: 15,
-                cursor: submitting || !selectedSlot || timeError || !startHHMM || !endHHMM || hasConflict ? "not-allowed" : "pointer",
+                cursor: submitting || !selectedSlot || timeError || !startHHMM || !endHHMM || hasConflict || hasNoPriceForTime ? "not-allowed" : "pointer",
               }}>
               {submitting ? "Đang xử lý..." : "Đặt lịch sạc"}
             </button>

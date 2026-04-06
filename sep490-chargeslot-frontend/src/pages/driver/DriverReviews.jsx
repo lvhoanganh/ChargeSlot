@@ -14,7 +14,9 @@ export default function DriverReviews() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    bookingApi.getDriverBookings()
+    // Dùng history endpoint: trả về booking Completed/Cancelled/Rejected/Expired
+    // pageSize=200 để tránh bị mất booking cũ
+    bookingApi.getDriverHistory(1, 200)
       .then((data) => {
         const list = Array.isArray(data) ? data : data?.items || [];
         setBookings(list);
@@ -23,9 +25,20 @@ export default function DriverReviews() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Lọc booking đã hoàn thành (có thể đánh giá)
+  // Chỉ lọc Completed (bỏ Cancelled/Rejected)
   const completedBookings = bookings.filter(
     (b) => b.status === "Completed" || b.status === "completed"
+  );
+
+  // Với cùng 1 trạm → chỉ hiển thị booking mới nhất (endTime lớn nhất)
+  const latestPerStation = Object.values(
+    completedBookings.reduce((acc, b) => {
+      const key = b.stationId || b.stationName || b.id;
+      if (!acc[key] || new Date(b.endTime) > new Date(acc[key].endTime)) {
+        acc[key] = b;
+      }
+      return acc;
+    }, {})
   );
 
   const handleOpenReview = (bookingId) => {
@@ -85,7 +98,7 @@ export default function DriverReviews() {
         </div>
       )}
 
-      {completedBookings.length === 0 ? (
+      {latestPerStation.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 20px", background: "#f8fafc", borderRadius: 16 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
           <p style={{ fontSize: 16, color: "#64748b", fontWeight: 600 }}>Chưa có booking nào hoàn thành</p>
@@ -99,7 +112,7 @@ export default function DriverReviews() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {completedBookings.map((b) => (
+          {latestPerStation.map((b) => (
             <div
               key={b.id}
               style={{

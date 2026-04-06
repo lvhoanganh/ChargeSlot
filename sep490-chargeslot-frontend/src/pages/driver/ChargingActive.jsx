@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { chargingApi } from "@/services/api";
+import { chargingApi, bookingApi } from "@/services/api";
 import { showConfirm } from "@/components/ConfirmDialog";
 
 // Parse datetime từ BE:
@@ -9,11 +9,7 @@ import { showConfirm } from "@/components/ConfirmDialog";
 const toLocal = (dt) => {
   if (!dt) return new Date(NaN);
   const s = String(dt).trim();
-  // Đã có timezone info (Z hoặc +xx:xx) → parse trực tiếp
-  if (s.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(s)) {
-    return new Date(s);
-  }
-  // Không có timezone → BE trả giờ VN (Unspecified) → thêm +07:00
+  if (s.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(s)) return new Date(s);
   return new Date(s + "+07:00");
 };
 
@@ -24,6 +20,12 @@ function formatDuration(s) {
   return `${h}:${m}:${sec}`;
 }
 
+function formatTime(dt) {
+  const d = toLocal(dt);
+  if (isNaN(d)) return "—";
+  return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+}
+
 export default function ChargingActive() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,12 +33,15 @@ export default function ChargingActive() {
 
   const lsKey = `activeChargingBooking_${localStorage.getItem("userId") || "guest"}`;
   const [sessionData, setSessionData] = useState(session || null);
+  const [bookingStartMs, setBookingStartMs] = useState(null); // giờ BẮT ĐẦU đặt lịch (ms)
+
   // Khởi tạo elapsed ngay từ session để tránh hiện 00:00:00 lần đầu render
   const [elapsed, setElapsed] = useState(() => {
     if (!session?.actualStartTime) return 0;
     const ms = toLocal(session.actualStartTime).getTime();
     return isNaN(ms) ? 0 : Math.max(0, Math.floor((Date.now() - ms) / 1000));
   });
+  const [waitRemaining, setWaitRemaining] = useState(0); // giây còn lại để chờ
   const [loading, setLoading] = useState(!session);
   const [confirming, setConfirming] = useState(false);
   const [requestingEarlyEnd, setRequestingEarlyEnd] = useState(false);
@@ -48,13 +53,18 @@ export default function ChargingActive() {
     if (session) {
       if (session.bookingId) localStorage.setItem(lsKey, String(session.bookingId));
       if (session.earlyEndRequestedAt) setEarlyEndRequested(true);
+      // Lấy bookingStartTime từ session nếu có, hoặc fetch booking API
+      if (session.bookingStartTime) {
+        setBookingStartMs(toLocal(session.bookingStartTime).getTime());
+      } else if (session.bookingId) {
+        bookingApi.getById(session.bookingId)
+          .then(b => { if (b?.startTime) setBookingStartMs(toLocal(b.startTime).getTime()); })
+          .catch(() => {});
+      }
       return;
     }
     const bookingId = location.state?.bookingId || localStorage.getItem(lsKey);
-    if (!bookingId) {
-      navigate("/driver/my-bookings");
-      return;
-    }
+    if (!bookingId) { navigate("/driver/my-bookings"); return; }
     chargingApi.getByBookingId(Number(bookingId))
       .then(data => {
         if (!data || data.actualEndTime) {
@@ -64,6 +74,12 @@ export default function ChargingActive() {
         }
         setSessionData(data);
         if (data?.earlyEndRequestedAt) setEarlyEndRequested(true);
+        // Fetch booking để lấy startTime
+        if (data?.bookingId) {
+          bookingApi.getById(data.bookingId)
+            .then(b => { if (b?.startTime) setBookingStartMs(toLocal(b.startTime).getTime()); })
+            .catch(() => {});
+        }
         setLoading(false);
       })
       .catch(() => {
@@ -72,7 +88,19 @@ export default function ChargingActive() {
       });
   }, []);
 
-  // Timer — tính elapsed ngay khi sessionData có, sau đó mỗi giây
+  // Timer đếm ngược chờ (nếu chưa đến giờ)
+  useEffect(() => {
+    if (!bookingStartMs) return;
+    const update = () => {
+      const diff = Math.floor((bookingStartMs - Date.now()) / 1000);
+      setWaitRemaining(diff > 0 ? diff : 0);
+    };
+    update();
+    const iv = setInterval(update, 1000);
+    return () => clearInterval(iv);
+  }, [bookingStartMs]);
+
+  // Timer đếm elapsed (phiên đang sạc)
   useEffect(() => {
     if (!sessionData) return;
     const calcElapsed = () => {
@@ -82,7 +110,7 @@ export default function ChargingActive() {
       if (isNaN(startTimeMs)) return;
       setElapsed(Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000)));
     };
-    calcElapsed(); // Tính ngay khi mount/sessionData thay đổi
+    calcElapsed();
     const interval = setInterval(calcElapsed, 1000);
     return () => clearInterval(interval);
   }, [sessionData]);
@@ -96,7 +124,6 @@ export default function ChargingActive() {
         if (updated) {
           setSessionData(updated);
           if (updated.earlyEndRequestedAt) setEarlyEndRequested(true);
-          // If session was stopped by owner or completed
           if (updated.actualEndTime || updated.bookingStatus === "Completed") {
             localStorage.removeItem(lsKey);
             navigate("/driver/charging-complete", { state: { session: updated } });
@@ -148,8 +175,8 @@ export default function ChargingActive() {
     );
   }
 
-  const startTimeMs = sessionData.actualStartTime 
-    ? toLocal(sessionData.actualStartTime).getTime() 
+  const startTimeMs = sessionData.actualStartTime
+    ? toLocal(sessionData.actualStartTime).getTime()
     : Date.now();
   const endTimeMs = toLocal(sessionData.bookingEndTime).getTime();
   const totalDuration = Math.max(0, Math.floor((endTimeMs - startTimeMs) / 1000));
@@ -157,6 +184,85 @@ export default function ChargingActive() {
   const progress = totalDuration > 0 ? Math.min(100, (elapsed / totalDuration) * 100) : 0;
   const isTimeUp = remaining <= 0;
 
+  // ── Đang chờ đến giờ bắt đầu ──
+  const isWaiting = bookingStartMs != null && waitRemaining > 0;
+
+  if (isWaiting) {
+    const scheduledTime = formatTime(bookingStartMs);
+    const wH = String(Math.floor(waitRemaining / 3600)).padStart(2, "0");
+    const wM = String(Math.floor((waitRemaining % 3600) / 60)).padStart(2, "0");
+    const wS = String(waitRemaining % 60).padStart(2, "0");
+
+    return (
+      <div
+        className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24"
+        style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}
+      >
+        <div className="max-w-md mx-auto">
+          {/* Waiting card */}
+          <div
+            className="rounded-2xl overflow-hidden shadow-xl mb-6"
+            style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)" }}
+          >
+            <div className="relative px-8 py-10 flex flex-col items-center text-center">
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-white rounded-full -translate-y-24 translate-x-24" />
+              </div>
+              <div className="relative">
+                {/* Animated waiting icon */}
+                <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mb-4 mx-auto ring-4 ring-white/30 ring-offset-0">
+                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-white/80 text-sm mb-1">⏳ Đang chờ đến giờ sạc...</p>
+                <p className="text-5xl font-bold text-white font-mono tracking-wider mb-2">
+                  {wH}:{wM}:{wS}
+                </p>
+                <p className="text-white/70 text-sm">
+                  Phiên sạc sẽ bắt đầu lúc{" "}
+                  <strong className="text-white">{scheduledTime}</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Info card */}
+          <div className="rounded-2xl bg-white shadow-lg overflow-hidden mb-6">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-bold text-gray-700">ℹ️ Thông tin phiên sạc</h2>
+            </div>
+            <div className="px-6 py-5 space-y-3">
+              <InfoRow label="Cổng sạc" value={sessionData.slotName || `Slot ${sessionData.slotId}`} />
+              <InfoRow label="Trạm" value={sessionData.stationName || "—"} />
+              <InfoRow label="Giờ bắt đầu" value={scheduledTime} highlight />
+              <InfoRow label="Giờ kết thúc" value={formatTime(sessionData.bookingEndTime)} />
+            </div>
+          </div>
+
+          {/* Notice box */}
+          <div className="rounded-2xl border border-purple-200 bg-purple-50 px-5 py-4 mb-6">
+            <p className="text-sm font-semibold text-purple-800 mb-1">Bạn đã check-in sớm hơn giờ đặt</p>
+            <p className="text-xs text-purple-600 leading-relaxed">
+              Cổng sạc đã được xác nhận. Hệ thống sẽ tự động kích hoạt phiên sạc khi đến{" "}
+              <strong>{scheduledTime}</strong>. Vui lòng ở lại cổng sạc và chờ timer này về 0.
+            </p>
+          </div>
+
+          {/* Back button */}
+          <button
+            onClick={() => navigate("/driver/my-bookings")}
+            className="w-full h-12 border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 cursor-pointer transition-all text-sm"
+          >
+            ← Quay lại danh sách booking
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Đang sạc bình thường ──
   return (
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
       <div className="max-w-md mx-auto">
@@ -236,20 +342,34 @@ export default function ChargingActive() {
           </button>
         )}
 
-        <button
-          onClick={handleConfirm}
-          disabled={confirming}
-          className="w-full h-14 bg-green-500 hover:bg-green-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-green-200 transition-all hover:shadow-xl cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          {confirming ? (
-            <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
-          ) : (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          )}
-          {confirming ? "Đang xử lý..." : "Hoàn thành phiên sạc"}
-        </button>
+        {/* Nút Hoàn thành: chỉ hiện khi BE chuyển sang CompletedPendingInvoice */}
+        {sessionData.bookingStatus === "CompletedPendingInvoice" ? (
+          <div>
+            <div className="mb-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">
+              <p className="text-sm font-semibold text-green-700">✅ Phôi sạc đã kết thúc!</p>
+              <p className="text-xs text-green-600 mt-0.5">Xác nhận để nhận hóa đơn và đóng phôi sạc.</p>
+            </div>
+            <button
+              onClick={handleConfirm}
+              disabled={confirming}
+              className="w-full h-14 bg-green-500 hover:bg-green-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-green-200 transition-all hover:shadow-xl cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {confirming ? (
+                <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              {confirming ? "Đang xử lý..." : "Hoàn thành phiên sạc"}
+            </button>
+          </div>
+        ) : (
+          <div className="w-full h-14 bg-gray-100 rounded-xl flex items-center justify-center gap-2">
+            <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+            <span className="text-sm text-gray-500 font-medium">Đang sạc — chờ kết thúc tự động...</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -261,6 +381,15 @@ function StatCard({ icon, label, value }) {
       <span className="text-2xl">{icon}</span>
       <p className="text-xs text-gray-500 mt-1">{label}</p>
       <p className="text-sm font-bold text-gray-800 mt-0.5">{value}</p>
+    </div>
+  );
+}
+
+function InfoRow({ label, value, highlight }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-sm text-gray-500">{label}</span>
+      <span className={`text-sm font-semibold ${highlight ? "text-purple-700" : "text-gray-800"}`}>{value}</span>
     </div>
   );
 }

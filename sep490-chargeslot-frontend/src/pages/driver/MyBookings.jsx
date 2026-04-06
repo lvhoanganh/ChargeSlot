@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { bookingApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+import BookingStatus from "./BookingStatus";
 
 const statusStyles = {
   WaitingOwner: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "⏳", group: "active" },
@@ -40,6 +41,7 @@ export default function MyBookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("all");
+  const [selectedDetailId, setSelectedDetailId] = useState(null);
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelPreviewData, setCancelPreviewData] = useState(null);
@@ -110,7 +112,19 @@ export default function MyBookings() {
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #f8fafc 0%, #f1f5f9 100%)", paddingTop: 68 }}>
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 14px", paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+      <div style={{ 
+        maxWidth: selectedDetailId ? 1100 : 720, 
+        margin: "0 auto", padding: "0 14px", 
+        paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
+        display: "flex", gap: 20, alignItems: "flex-start",
+        transition: "max-width 0.3s ease-in-out" 
+      }}>
+        
+        {/* Left Column: List */}
+        <div style={{ 
+          flex: selectedDetailId ? "0 0 420px" : "1 1 100%", 
+          transition: "all 0.3s ease-in-out", minWidth: 320 
+        }}>
 
         {/* Header */}
         <div style={{ padding: "16px 0 12px" }}>
@@ -185,16 +199,22 @@ export default function MyBookings() {
               return (
                 <div
                   key={b.id}
-                  onClick={() => navigate(`/driver/booking/${b.id}`)}
+                  onClick={() => {
+                    if (window.innerWidth < 768) {
+                      navigate(`/driver/booking/${b.id}`);
+                    } else {
+                      setSelectedDetailId(b.id);
+                    }
+                  }}
                   style={{
                     background: "#fff",
                     borderRadius: 18,
                     overflow: "hidden",
                     boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
                     cursor: "pointer",
-                    transition: "transform 0.15s, box-shadow 0.15s",
+                    transition: "transform 0.15s, box-shadow 0.15s, border 0.15s",
                     WebkitTapHighlightColor: "transparent",
-                    border: isActive ? `1.5px solid ${st.color}22` : "1.5px solid transparent",
+                    border: selectedDetailId === b.id ? `2px solid ${st.color}` : (isActive ? `1.5px solid ${st.color}22` : "1.5px solid transparent"),
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.1)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.05)"; e.currentTarget.style.transform = "translateY(0)"; }}
@@ -295,6 +315,20 @@ export default function MyBookings() {
                 </div>
               );
             })}
+          </div>
+        )}
+        </div>
+        
+        {/* Right Column: Detail Pane */}
+        {selectedDetailId && (
+          <div style={{ 
+            flex: "1 1 500px", minWidth: 0, 
+            background: "#fff", borderRadius: 24, boxShadow: "0 10px 40px rgba(0,0,0,0.08)",
+            overflow: "hidden", border: "1px solid #e2e8f0",
+            position: "sticky", top: 88, maxHeight: "calc(100vh - 120px)",
+            overflowY: "auto", overflowX: "hidden"
+          }}>
+            <BookingStatus bookingIdParam={selectedDetailId} onClose={() => setSelectedDetailId(null)} />
           </div>
         )}
       </div>
