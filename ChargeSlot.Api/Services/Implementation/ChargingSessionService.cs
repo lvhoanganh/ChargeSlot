@@ -1,3 +1,4 @@
+using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.DTOs.Booking;
 using ChargeSlot.Api.DTOs.ChargingSession;
 using ChargeSlot.Api.DTOs.Invoice;
@@ -373,11 +374,11 @@ namespace ChargeSlot.Api.Services.Implementation
             var totalDeducted = ownerNet + platformFee; // VAT stays in ESCROW (paid to tax authority later)
 
             // 1. ESCROW → Owner: net amount atomically
-            await _db.Database.ExecuteSqlRawAsync(
+            await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
                 ownerNet, escrowWallet.Id);
                 
-            await _db.Database.ExecuteSqlRawAsync(
+            await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 ownerNet, ownerWallet.Id);
 
@@ -397,11 +398,11 @@ namespace ChargeSlot.Api.Services.Implementation
             await _walletRepo.AddLedgerTransactionAsync(ownerLedger);
 
             // 2. ESCROW → PLATFORM_REVENUE: platform fee atomically
-            await _db.Database.ExecuteSqlRawAsync(
+            await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
                 platformFee, escrowWallet.Id);
                 
-            await _db.Database.ExecuteSqlRawAsync(
+            await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 platformFee, platformWallet.Id);
 
@@ -697,3 +698,4 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+

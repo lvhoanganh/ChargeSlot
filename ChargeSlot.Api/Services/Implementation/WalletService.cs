@@ -1,3 +1,4 @@
+using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Wallet;
 using ChargeSlot.Api.Enums;
@@ -110,7 +111,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     $"Số dư ví không đủ. Cần {booking.TotalAmount:N0} VND, hiện có {wallet.AvailableBalance:N0} VND.");
 
             // BUG-1 FIX: Atomic SQL update tránh race condition
-            var rowsAffected = await _db.Database.ExecuteSqlRawAsync(
+            var rowsAffected = await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1} AND AvailableBalance >= {0}",
                 booking.TotalAmount, wallet.Id);
             if (rowsAffected == 0)
@@ -120,7 +121,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // Cộng tiền vào ESCROW (Atomic SQL update)
             var escrowWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.SystemCode == "ESCROW") 
                 ?? throw new InvalidOperationException("Ví hệ thống ESCROW chưa được cấu hình. Vui lòng liên hệ Admin.");
-            await _db.Database.ExecuteSqlRawAsync(
+            await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 booking.TotalAmount, escrowWallet.Id);
 
@@ -261,7 +262,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     $"Số dư không đủ. Hiện có {wallet.AvailableBalance:N0} VND.");
 
             // Atomic SQL: chống race condition khi rút tiền 2 lần cùng lúc
-            var rowsAffected = await _db.Database.ExecuteSqlRawAsync(
+            var rowsAffected = await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0}, FrozenBalance = FrozenBalance + {0} WHERE Id = {1} AND AvailableBalance >= {0}",
                 dto.Amount, wallet.Id);
             if (rowsAffected == 0)
@@ -713,3 +714,4 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+

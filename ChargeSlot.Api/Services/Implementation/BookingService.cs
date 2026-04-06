@@ -1,3 +1,4 @@
+using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Booking;
 using ChargeSlot.Api.Enums;
@@ -54,7 +55,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 // Cấp khóa lock đồng bộ (Prevent Simultaneous Double Booking)
                 var lockResource = $"SlotLock_{dto.SlotId}";
-                await _context.Database.ExecuteSqlRawAsync(
+                await _context.Database.ExecuteSqlRawSafeAsync(
                     "EXEC sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000",
                     lockResource);
 
@@ -263,7 +264,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 // Lock độc quyền trên Slot này để chống việc Accept 2 Booking cùng 1 lúc (Double-Booking Race Condition)
                 var lockResource = $"SlotLock_{booking.SlotId}";
-                await _context.Database.ExecuteSqlRawAsync(
+                await _context.Database.ExecuteSqlRawSafeAsync(
                     "EXEC sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000",
                     lockResource);
 
@@ -646,18 +647,18 @@ namespace ChargeSlot.Api.Services.Implementation
             }
 
             // Chuyển tiền nét cho Owner (Atomic để tránh lỗ hổng Lost Update tranh chấp luồng)
-            await _context.Database.ExecuteSqlRawAsync(
+            await _context.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
                 ownerNet, escrowWallet.Id);
-            await _context.Database.ExecuteSqlRawAsync(
+            await _context.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 ownerNet, ownerWallet.Id);
 
             // Chuyển phí nền tảng (Atomic)
-            await _context.Database.ExecuteSqlRawAsync(
+            await _context.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
                 platformFee, escrowWallet.Id);
-            await _context.Database.ExecuteSqlRawAsync(
+            await _context.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 platformFee, platformWallet.Id);
 
@@ -700,10 +701,10 @@ namespace ChargeSlot.Api.Services.Implementation
             }
 
             // Sử dụng SQL Atomic nguyên thủy để chống đè tiền Escrow
-            await _context.Database.ExecuteSqlRawAsync(
+            await _context.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
                 amount, escrowWallet.Id);
-            await _context.Database.ExecuteSqlRawAsync(
+            await _context.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 amount, userWallet.Id);
 
@@ -965,3 +966,4 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+

@@ -1,3 +1,4 @@
+using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.DTOs.Dispute;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
@@ -106,7 +107,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 // Freeze ESCROW balance (Atomic SQL update)
                 var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-                await _db.Database.ExecuteSqlRawAsync(
+                await _db.Database.ExecuteSqlRawSafeAsync(
                     "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0}, FrozenBalance = FrozenBalance + {0} WHERE Id = {1}",
                     booking.TotalAmount, escrowWallet.Id);
 
@@ -400,10 +401,10 @@ namespace ChargeSlot.Api.Services.Implementation
             var refundAmount = booking.TotalAmount;
 
             // Unfreeze from ESCROW.FrozenBalance (Atomic SQL update)
-            await _db.Database.ExecuteSqlRawAsync(
+            await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET FrozenBalance = FrozenBalance - {0} WHERE Id = {1}",
                 refundAmount, escrowWallet.Id);
-            await _db.Database.ExecuteSqlRawAsync(
+            await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 refundAmount, driverWallet.Id);
 
@@ -455,10 +456,10 @@ namespace ChargeSlot.Api.Services.Implementation
             var vatAmount = invoice.VatAmount;
 
             // Unfreeze from ESCROW.FrozenBalance → distribute (Atomic SQL update)
-            await _db.Database.ExecuteSqlRawAsync(
+            await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET FrozenBalance = FrozenBalance - {0}, AvailableBalance = AvailableBalance + {1} WHERE Id = {2}",
                 (ownerNet + platformFee + vatAmount), vatAmount, escrowWallet.Id);
-            await _db.Database.ExecuteSqlRawAsync(
+            await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 ownerNet, ownerWallet.Id);
 
@@ -476,7 +477,7 @@ namespace ChargeSlot.Api.Services.Implementation
             });
 
             // ESCROW → PLATFORM_REVENUE (already unfrozen above, Atomic logic)
-            await _db.Database.ExecuteSqlRawAsync(
+            await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 platformFee, platformWallet.Id);
             // VAT stays as revenue in ESCROW for tax authority payment later
@@ -699,3 +700,4 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+

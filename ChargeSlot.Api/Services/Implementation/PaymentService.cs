@@ -1,3 +1,4 @@
+using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
@@ -64,7 +65,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // Cộng tiền vào ESCROW wallet (Atomic)
             var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
             var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
-            await _db.Database.ExecuteSqlRawAsync(
+            await _db.Database.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 booking.TotalAmount, escrowWallet.Id);
             await _db.SaveChangesAsync();
@@ -500,3 +501,4 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+
