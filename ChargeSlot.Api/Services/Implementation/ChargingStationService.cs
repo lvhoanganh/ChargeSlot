@@ -562,7 +562,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<string> ToggleBanStationAsync(int id, int adminUserId)
         {
-            var station = await _stationRepo.GetByIdAsync(id);
+            var station = await _stationRepo.GetByIdAsync(id, tracking: true);
             if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
 
             if (station.BannedUntil == null)
