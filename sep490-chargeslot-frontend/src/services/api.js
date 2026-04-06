@@ -121,7 +121,13 @@ export async function apiFetch(endpoint, options = {}) {
     // Lỗi khác
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || error.error || `Lỗi ${response.status}`);
+        // Xử lý ASP.NET model validation errors: { errors: { Field: ["msg"] }, title: "..." }
+        const msg = error.message
+            || error.error
+            || (error.errors ? Object.values(error.errors).flat().join('; ') : null)
+            || error.title
+            || `Lỗi ${response.status}`;
+        throw new Error(msg);
     }
 
     return response.json();

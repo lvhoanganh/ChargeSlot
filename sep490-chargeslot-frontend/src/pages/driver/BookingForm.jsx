@@ -241,14 +241,16 @@ export default function BookingForm() {
     if (!startTime) return setApiError("Vui lòng chọn thời gian bắt đầu");
     if (!endHHMM) return setApiError("Vui lòng chọn giờ kết thúc");
 
-    // BE rule: DurationHours > 0 and ≤ 24
-    if (duration <= 0) return setApiError("Thời lượng phải lớn hơn 0");
+    // BE rule: DurationHours >= 0.5 và ≤ 24
+    if (duration < 0.5) return setApiError("⚠️ Thời lượng tối thiểu là 30 phút");
     if (duration > 24) return setApiError("⚠️ Tối đa 24 giờ mỗi lần đặt (backend giới hạn)");
 
-    // BE rule: StartTime phải cách hiện tại ≥ 30 phút
-    const startObj30 = new Date(startTime);
-    const nowPlus30 = new Date(Date.now() + 30 * 60 * 1000);
-    if (startObj30 < nowPlus30) return setApiError("⚠️ Giờ bắt đầu phải cách hiện tại ít nhất 30 phút");
+    // BE rule: StartTime phải cách hiện tại ≥ 30 phút (so sánh theo giờ VN)
+    // Dùng string "YYYY-MM-DDTHH:MM:00+07:00" để parse đúng giờ VN
+    const startVN = new Date(`${selectedDate}T${startHHMM}:00+07:00`);
+    const nowVN = new Date(); // browser Date.now() là UTC, nhưng JavaScript Date tự xử lý đúng
+    const diffMinutes = (startVN - nowVN) / 60000;
+    if (diffMinutes < 30) return setApiError("⚠️ Giờ bắt đầu phải cách hiện tại ít nhất 30 phút");
 
 
     const startObj = new Date(startTime);
@@ -304,9 +306,15 @@ export default function BookingForm() {
         .filter(([, qty]) => qty > 0)
         .map(([id, qty]) => ({ serviceId: Number(id), quantity: qty }));
 
+      // QUAN TRỌNG: KHÔNG gửi offset timezone lên BE
+      // BE (Azure UTC+0) dùng DateTimeHelper.VietnamNow() trả về DateTime Unspecified
+      // có giá trị VN time. Muốn so sánh đúng, dto.StartTime cũng phải là Unspecified VN.
+      // Nếu gửi +07:00 → Azure convert sang 04:36 local → so sánh với 11:05 → âm → 400!
+      const startTimeVN = `${selectedDate}T${startHHMM}:00`; // Unspecified = VN time value
+
       await bookingApi.create({
         slotId: selectedSlot,
-        startTime: startTime + ":00",
+        startTime: startTimeVN,
         durationHours: parseFloat(duration),
         note: note || undefined,
         extraServices: extraServices.length > 0 ? extraServices : undefined,

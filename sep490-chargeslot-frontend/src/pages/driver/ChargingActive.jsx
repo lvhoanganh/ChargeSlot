@@ -3,10 +3,18 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { chargingApi } from "@/services/api";
 import { showConfirm } from "@/components/ConfirmDialog";
 
+// Parse datetime từ BE:
+// - Nếu có "Z" (UTC) → giữ nguyên, JS Date tự convert sang local
+// - Nếu không có "Z" và không có offset → BE trả giờ VN Unspecified → thêm +07:00
 const toLocal = (dt) => {
-  if (!dt) return "";
-  const s = String(dt);
-  return new Date(String(s).replace("Z", ""));
+  if (!dt) return new Date(NaN);
+  const s = String(dt).trim();
+  // Đã có timezone info (Z hoặc +xx:xx) → parse trực tiếp
+  if (s.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(s)) {
+    return new Date(s);
+  }
+  // Không có timezone → BE trả giờ VN (Unspecified) → thêm +07:00
+  return new Date(s + "+07:00");
 };
 
 function formatDuration(s) {
@@ -23,7 +31,12 @@ export default function ChargingActive() {
 
   const lsKey = `activeChargingBooking_${localStorage.getItem("userId") || "guest"}`;
   const [sessionData, setSessionData] = useState(session || null);
-  const [elapsed, setElapsed] = useState(0);
+  // Khởi tạo elapsed ngay từ session để tránh hiện 00:00:00 lần đầu render
+  const [elapsed, setElapsed] = useState(() => {
+    if (!session?.actualStartTime) return 0;
+    const ms = toLocal(session.actualStartTime).getTime();
+    return isNaN(ms) ? 0 : Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  });
   const [loading, setLoading] = useState(!session);
   const [confirming, setConfirming] = useState(false);
   const [requestingEarlyEnd, setRequestingEarlyEnd] = useState(false);
@@ -59,16 +72,18 @@ export default function ChargingActive() {
       });
   }, []);
 
-  // Timer
+  // Timer — tính elapsed ngay khi sessionData có, sau đó mỗi giây
   useEffect(() => {
     if (!sessionData) return;
-    const interval = setInterval(() => {
-      const startTimeMs = sessionData.actualStartTime 
-        ? toLocal(sessionData.actualStartTime).getTime() 
+    const calcElapsed = () => {
+      const startTimeMs = sessionData.actualStartTime
+        ? toLocal(sessionData.actualStartTime).getTime()
         : Date.now();
-      const sec = Math.floor((Date.now() - startTimeMs) / 1000);
-      setElapsed(Math.max(0, sec));
-    }, 1000);
+      if (isNaN(startTimeMs)) return;
+      setElapsed(Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000)));
+    };
+    calcElapsed(); // Tính ngay khi mount/sessionData thay đổi
+    const interval = setInterval(calcElapsed, 1000);
     return () => clearInterval(interval);
   }, [sessionData]);
 

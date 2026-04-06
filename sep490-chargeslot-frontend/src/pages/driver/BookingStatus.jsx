@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { bookingApi, paymentApi, walletApi, disputeApi } from "@/services/api";
+import { bookingApi, paymentApi, walletApi, disputeApi, chargingApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 import QRCodeModal from "@/components/QRCodeModal";
 
@@ -41,7 +41,8 @@ export default function BookingStatus() {
   const [sepayOpen, setSepayOpen] = useState(false);
   const [sepayUrl, setSepayUrl] = useState("");
   const [walletReceivedAlert, setWalletReceivedAlert] = useState(false);
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false); // Full-screen success overlay
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [confirmingInvoice, setConfirmingInvoice] = useState(false); // Xác nhận hóa đơn
   const initialWalletBalanceRef = useRef(0);
 
   function fetchBooking() {
@@ -154,6 +155,22 @@ export default function BookingStatus() {
     } catch (err) {
       showToast.error(err.message || "Lỗi hủy booking");
     } finally { setCancelLoading(false); }
+  }
+
+  async function handleConfirmInvoice() {
+    setConfirmingInvoice(true);
+    try {
+      // Lấy session theo bookingId, sau đó xác nhận
+      const session = await chargingApi.getByBookingId(Number(id));
+      if (!session?.id) throw new Error("Không tìm thấy phiên sạc.");
+      await chargingApi.confirmCompletion(session.id);
+      showToast.success("✅ Xác nhận hóa đơn thành công!");
+      await fetchBooking();
+    } catch (err) {
+      showToast.error(err?.message || "Lỗi xác nhận hóa đơn");
+    } finally {
+      setConfirmingInvoice(false);
+    }
   }
 
   if (loading) {
@@ -573,6 +590,42 @@ export default function BookingStatus() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Xác nhận hóa đơn — hiện ngay khi Owner đã dừng phiên sạc */}
+        {booking.status === "CompletedPendingInvoice" && (
+          <div style={{
+            background: "linear-gradient(135deg, #fff7ed, #fed7aa)",
+            border: "2px solid #f97316",
+            borderRadius: 20, padding: "20px 24px",
+            marginBottom: 16,
+          }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
+              <span style={{ fontSize: 28, flexShrink: 0 }}>🧾</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: "#9a3412", marginBottom: 4 }}>
+                  Phiên sạc đã kết thúc — Chờ xác nhận hóa đơn
+                </div>
+                <div style={{ fontSize: 13, color: "#c2410c", lineHeight: 1.6 }}>
+                  Owner đã dừng phiên sạc. Vui lòng xác nhận hóa đơn để hoàn tất và chuyển tiền cho chủ trạm.
+                  <br /><strong>Nếu có vấn đề → dùng nút Khiếu nại bên dưới.</strong>
+                </div>
+              </div>
+            </div>
+            <ActionButton
+              onClick={handleConfirmInvoice}
+              disabled={confirmingInvoice}
+              bg="linear-gradient(135deg, #f97316, #ea580c)"
+              shadow="rgba(249,115,22,0.3)"
+            >
+              {confirmingInvoice ? (
+                <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  <span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spin 1s linear infinite" }} />
+                  Đang xác nhận...
+                </span>
+              ) : "✅ Xác nhận hóa đơn"}
+            </ActionButton>
           </div>
         )}
 
