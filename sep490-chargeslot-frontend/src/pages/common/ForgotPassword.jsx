@@ -30,19 +30,26 @@ export default function ForgotPassword() {
   const [resendLoading, setResendLoading] = useState(false);
   const countdownRef = useRef(null);
 
+  // Trạng thái lưu ID của thẻ reCAPTCHA để React render
+  const [captchaId, setCaptchaId] = useState(() => 'recaptcha-container-' + Date.now());
+
   // Khởi tạo hoặc tái tạo recaptchaVerifier
-  const initRecaptcha = () => {
+  const initRecaptcha = (targetId = captchaId) => {
     if (window.recaptchaVerifier) {
       try { window.recaptchaVerifier.clear(); } catch (_) { }
       window.recaptchaVerifier = null;
     }
-    try {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        'size': 'invisible',
-      });
-    } catch (e) {
-      console.error("Lỗi khởi tạo RecaptchaVerifier", e);
-    }
+    
+    // Đợi một chút để đảm bảo DOM (React) đã mount thẻ div với id = targetId
+    setTimeout(() => {
+      try {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, targetId, {
+          'size': 'invisible',
+        });
+      } catch (e) {
+        console.error("Lỗi khởi tạo RecaptchaVerifier", e);
+      }
+    }, 100);
   };
 
   useEffect(() => {
@@ -59,14 +66,33 @@ export default function ForgotPassword() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Tự động xoá trắng mã OTP khi đồng hồ đếm ngược về 0
+  useEffect(() => {
+    if (otpCountdown === 0) {
+      setOtp("");
+    }
+  }, [otpCountdown]);
+
   // Hàm gửi lại OTP
   const handleResendOtp = async () => {
     if (otpCountdown > 0 || resendLoading) return;
     setResendLoading(true);
     try {
-      initRecaptcha();
-      // Chờ một chút để recaptcha sẵn sàng
-      await new Promise(r => setTimeout(r, 300));
+      // Sinh ID siêu mới, React sẽ unmount node cũ và mount node mới sạch sẽ!
+      const newId = 'recaptcha-container-' + Date.now();
+      
+      // Xoá dứt điểm memory cũ
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear(); } catch (_) { }
+        window.recaptchaVerifier = null;
+      }
+      
+      setCaptchaId(newId);
+      await new Promise(r => setTimeout(r, 200)); // Đợi React unmount thẻ ID cũ và mount thẻ ID mới
+
+      initRecaptcha(newId);
+      await new Promise(r => setTimeout(r, 600)); // Đợi Firebase script inject iframe mới vào DOM
+
       const appVerifier = window.recaptchaVerifier;
       const result = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
       setConfirmationResult(result);
@@ -83,7 +109,6 @@ export default function ForgotPassword() {
       showToast.success("Đã gửi lại mã OTP!");
     } catch (error) {
       console.error("Lỗi gửi lại OTP:", error);
-      initRecaptcha();
       if (error.code === 'auth/too-many-requests') {
         showToast.error("Quá nhiều lần thử. Vui lòng chờ 15-30 phút.");
       } else {
@@ -93,6 +118,7 @@ export default function ForgotPassword() {
       setResendLoading(false);
     }
   };
+
 
   const handleSendOtp = async (e) => {
     if (e) e.preventDefault();
@@ -128,16 +154,21 @@ export default function ForgotPassword() {
       showToast.success("Mã OTP đã được gửi đến điện thoại (Bởi Firebase)!");
     } catch (error) {
       console.error("Lỗi gửi OTP Firebase:", error);
-      // Reset reCAPTCHA sau khi lỗi để cho phép gửi lại
-      initRecaptcha();
+      // Reset reCAPTCHA sau khi lỗi để cho phép người dùng click Nhận Mã lại
+      const newId = 'recaptcha-container-' + Date.now();
+      setCaptchaId(newId);
+      setTimeout(() => initRecaptcha(newId), 200);
+
       if (error.code === 'auth/invalid-phone-number') {
-        showToast.error("Số điện thoại không hợp lệ.");
+        showToast.error("Số điện thoại không hợp lệ (Phải đúng định dạng nhà mạng).");
       } else if (error.code === 'auth/billing-not-enabled') {
         showToast.error("Lỗi Google Firebase: Chưa bật thanh toán hoặc bị khóa số.");
       } else if (error.code === 'auth/too-many-requests') {
-        showToast.error("Bạn thao tác quá nhiều lần! Vui lòng chờ 15-30 phút rồi thử lại.");
+        showToast.error("Bạn đã thao tác quá giới hạn! Vui lòng chờ 15-30 phút rồi thử lại.");
+      } else if (error.message?.includes("reCAPTCHA")) {
+        showToast.error("Xung đột reCAPTCHA. Hệ thống vừa làm mới, vui lòng bấm Nhận Mã lại!");
       } else {
-        showToast.error("Không thể gửi OTP. Vui lòng thử lại sau.");
+        showToast.error("Không thể gửi tin nhắn SMS (" + (error.code || error.message) + ").");
       }
     } finally {
       setIsLoading(false);
@@ -242,8 +273,8 @@ export default function ForgotPassword() {
       </div>
 
       <div className="cs-auth-right">
-        {/* THẺ FIREBASE RECAPTCHA: Bắt buộc để ngoài cùng rễ để vĩnh viễn không bị Unmount => Chống lỗi removed 0 */}
-        <div id="recaptcha-container"></div>
+        {/* THẺ FIREBASE RECAPTCHA: Gán Key và ID Động để React tự xóa/tạo DOM khi Gửi lại OTP */}
+        <div key={captchaId} id={captchaId}></div>
 
         {step === 1 && (
           <form className="cs-auth-form" onSubmit={handleSendOtp}>
@@ -319,24 +350,59 @@ export default function ForgotPassword() {
             {/* Countdown + Resend */}
             <div style={{ textAlign: "center", marginTop: 20, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
 
-              {/* Vòng tròn đếm ngược */}
-              <div className="cs-otp-countdown">
-                <div className={`cs-otp-countdown__circle${otpCountdown === 0 ? ' cs-otp-countdown__circle--expired' : ''}`}>
-                  <svg className="cs-otp-countdown__svg" viewBox="0 0 36 36">
-                    <circle className="cs-otp-countdown__track" cx="18" cy="18" r="16" />
-                    <circle
-                      className="cs-otp-countdown__progress"
-                      cx="18" cy="18" r="16"
-                      strokeDasharray="100.53"
-                      strokeDashoffset={100.53 - (otpCountdown / OTP_TTL) * 100.53}
-                    />
-                  </svg>
-                  <span className="cs-otp-countdown__time">{otpCountdown}s</span>
+              {/* Countdown or Resend */}
+              {otpCountdown > 0 ? (
+                /* Vòng tròn đếm ngược */
+                <div className="cs-otp-countdown">
+                  <div className="cs-otp-countdown__circle">
+                    <svg className="cs-otp-countdown__svg" viewBox="0 0 36 36">
+                      <circle className="cs-otp-countdown__track" cx="18" cy="18" r="16" />
+                      <circle
+                        className="cs-otp-countdown__progress"
+                        cx="18" cy="18" r="16"
+                        strokeDasharray="100.53"
+                        strokeDashoffset={100.53 - (otpCountdown / OTP_TTL) * 100.53}
+                      />
+                    </svg>
+                    <span className="cs-otp-countdown__time">{otpCountdown}s</span>
+                  </div>
                 </div>
-                <span className="cs-otp-countdown__label">
-                  {otpCountdown > 0 ? "Mã OTP còn hiệu lực" : "Mã OTP đã hết hạn"}
-                </span>
-              </div>
+              ) : (
+                /* Nút Gửi lại OTP — chỉ hoạt động khi đếm ngược hết */
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={resendLoading}
+                  style={{
+                    marginTop: 4,
+                    padding: "8px 22px",
+                    borderRadius: 8,
+                    border: "1.5px solid",
+                    borderColor: !resendLoading ? "#f97316" : "#e2e8f0",
+                    background: !resendLoading ? "#fff7ed" : "#f1f5f9",
+                    color: !resendLoading ? "#f97316" : "#94a3b8",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: !resendLoading ? "pointer" : "not-allowed",
+                    transition: "all 0.2s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  {resendLoading ? (
+                    <>
+                      <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid #f97316", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                      Đang gửi lại...
+                    </>
+                  ) : (
+                    <>
+                      🔄 Gửi lại OTP
+                    </>
+                  )}
+                </button>
+              )}
+
               {/* Chỉnh sửa SĐT */}
               <button
                 type="button"
