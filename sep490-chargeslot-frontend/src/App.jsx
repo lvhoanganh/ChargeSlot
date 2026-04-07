@@ -35,7 +35,6 @@ const DisputeList = lazy(() => import("./pages/admin/DisputeList"));
 const AdminDisputeDetail = lazy(() => import("./pages/admin/AdminDisputeDetail"));
 const AdminRevenue = lazy(() => import("./pages/admin/AdminRevenue"));
 const AdminSystemConfig = lazy(() => import("./pages/admin/AdminSystemConfig"));
-const AdminPayouts = lazy(() => import("./pages/admin/AdminPayouts"));
 const AdminWithdraws = lazy(() => import("./pages/admin/AdminWithdraws"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 
@@ -186,7 +185,6 @@ export default function App() {
                 <Route path="edit-admin-profile" element={<EditAdminProfile />} />
                 <Route path="view-financial-report" element={<AdminRevenue />} />
                 <Route path="system-config" element={<AdminSystemConfig />} />
-                <Route path="payouts" element={<AdminPayouts />} />
                 <Route path="withdraws" element={<AdminWithdraws />} />
                 <Route path="change-password" element={<ChangePassword />} />
                 <Route path="dashboard" element={<AdminDashboard />} />

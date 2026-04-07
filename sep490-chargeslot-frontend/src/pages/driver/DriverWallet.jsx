@@ -4,6 +4,7 @@ import { walletApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 import QRCodeModal from "@/components/QRCodeModal";
 import BankCombobox from "@/components/BankCombobox";
+import { showConfirm } from "@/components/ConfirmDialog";
 
 const txTypeLabels = {
   TopUp: { label: "Nạp tiền", icon: "💰", color: "#22c55e" },
@@ -12,13 +13,18 @@ const txTypeLabels = {
   Payment: { label: "Thanh toán", icon: "💳", color: "#ef4444" },
   Refund: { label: "Hoàn tiền", icon: "↩️", color: "#3b82f6" },
   Withdraw: { label: "Rút tiền", icon: "🏦", color: "#f59e0b" },
+  WithdrawRequest: { label: "Tạm giữ lệnh Rút tiền", icon: "⏳", color: "#f59e0b" },
+  WithdrawRejected: { label: "Hoàn tiền huỷ lệnh rút", icon: "↩️", color: "#3b82f6" },
   Earning: { label: "Thu nhập", icon: "📈", color: "#22c55e" },
   OwnerPayout: { label: "Nhận thanh toán", icon: "💰", color: "#22c55e" },
 };
 
 const withdrawStatusLabels = {
-  Pending: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb" },
-  Approved: { label: "Đã duyệt", color: "#22c55e", bg: "#f0fdf4" },
+  Pending: { label: "Chờ xử lý", color: "#f59e0b", bg: "#fffbeb" },
+  Approved: { label: "Đã duyệt", color: "#3b82f6", bg: "#eff6ff" },
+  TransferCompleted: { label: "Đã chuyển khoản", color: "#22c55e", bg: "#f0fdf4" },
+  Completed: { label: "Thành công", color: "#16a34a", bg: "#dcfce7" },
+  IssueReported: { label: "Báo lỗi", color: "#ef4444", bg: "#fef2f2" },
   Rejected: { label: "Từ chối", color: "#ef4444", bg: "#fef2f2" },
 };
 
@@ -53,6 +59,38 @@ export default function DriverWallet() {
     amount: "", bankName: "", bankAccountNumber: "", bankAccountHolder: "", userNote: "",
   });
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+  const [issueForm, setIssueForm] = useState({ id: null, reason: "" });
+  const [issueLoading, setIssueLoading] = useState(false);
+
+  async function handleConfirmWithdraw(id) {
+    if (!(await showConfirm("Bạn xác nhận đã nhận được tiền rút trong tài khoản?", "Xác nhận nhận tiền"))) return;
+    try {
+      await walletApi.confirmWithdrawal(id);
+      showToast.success("Cảm ơn bạn đã xác nhận!");
+      fetchAll();
+    } catch (err) {
+      showToast.error(err.message || "Lỗi xác nhận");
+    }
+  }
+
+  async function handleReportIssue() {
+    if (!issueForm.reason.trim()) {
+      showToast.error("Vui lòng nhập lý do");
+      return;
+    }
+    setIssueLoading(true);
+    try {
+      await walletApi.reportWithdrawalIssue(issueForm.id, issueForm.reason);
+      showToast.success("Đã gửi báo cáo lỗi thành công");
+      setIssueForm({ id: null, reason: "" });
+      fetchAll();
+    } catch (err) {
+      showToast.error(err.message || "Lỗi báo cáo");
+    } finally {
+      setIssueLoading(false);
+    }
+  }
 
   function fetchAll() {
     Promise.all([
@@ -299,7 +337,19 @@ export default function DriverWallet() {
               <EmptyState icon="📋" text="Chưa có giao dịch nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {transactions.map((tx) => {
+                {transactions.filter(tx => {
+                  const txType = tx.type || tx.transactionType || "";
+                  if (txType === "WithdrawRequest") {
+                    // Chỉ hiển thị giao dịch rút tiền nếu lệnh rút đã Hoàn tất (Completed)
+                    const txTime = new Date(String(tx.createdAt).replace("Z", "")).getTime();
+                    return withdrawRequests.some(wr => {
+                      if (wr.status !== "Completed") return false;
+                      const wrTime = new Date(String(wr.requestedAt).replace("Z", "")).getTime();
+                      return Math.abs(txTime - wrTime) < 5000;
+                    });
+                  }
+                  return true;
+                }).map((tx) => {
                   const txType = tx.type || tx.transactionType || "";
                   const typeInfo = txTypeLabels[txType] || { label: txType, icon: "📄", color: "#6b7280" };
                   const amount = tx.amount || 0;
@@ -375,10 +425,52 @@ export default function DriverWallet() {
                       <div style={{ fontSize: 13, color: "#64748b", display: "flex", flexDirection: "column", gap: 2 }}>
                         <div>🏦 {wr.bankName} · {wr.bankAccountNumber}</div>
                         <div>👤 {wr.bankAccountHolder}</div>
-                        {wr.userNote && <div>📝 {wr.userNote}</div>}
-                        {wr.adminNote && <div style={{ color: "#dc2626" }}>⚠️ Admin: {wr.adminNote}</div>}
-                        <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 2 }}>{toLocal(wr.createdAt)}</div>
+                        {wr.userNote && <div style={{ marginTop: 4 }}>📝 Ghi chú: {wr.userNote}</div>}
+                        {wr.adminNote && <div style={{ color: "#dc2626", marginTop: 4 }}>⚠️ Admin: {wr.adminNote}</div>}
+                        {wr.issueReason && <div style={{ color: "#ef4444", marginTop: 4, fontWeight: 600 }}>🔴 Báo lỗi: {wr.issueReason}</div>}
+                        <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 6 }}>{toLocal(wr.requestedAt)}</div>
                       </div>
+
+                      {wr.transferReceiptUrl && (
+                        <div style={{ marginTop: 12, padding: 12, background: "#f8fafc", borderRadius: 12 }}>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>🧾 Biên lai giao dịch (từ Kế toán):</p>
+                          <a href={wr.transferReceiptUrl} target="_blank" rel="noreferrer">
+                            <img src={wr.transferReceiptUrl} alt="Biên lai" style={{ width: "100%", maxWidth: 300, objectFit: "contain", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff" }} />
+                          </a>
+                        </div>
+                      )}
+
+                      {wr.status === "TransferCompleted" && (
+                        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px dashed #e2e8f0" }}>
+                          <p style={{ fontSize: 13, color: "#475569", marginBottom: 10, fontWeight: 500 }}>
+                            Hệ thống đã chuyển khoản. Vui lòng xác nhận hoặc báo lỗi nếu chưa nhận được tiền:
+                          </p>
+                          {issueForm.id === wr.id ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                              <input 
+                                type="text"
+                                placeholder="Nhập lý do chưa nhận được tiền..."
+                                value={issueForm.reason}
+                                onChange={(e) => setIssueForm({ ...issueForm, reason: e.target.value })}
+                                style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #ef4444", outline: "none", fontSize: 13, boxSizing: "border-box" }}
+                              />
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <button onClick={handleReportIssue} disabled={issueLoading} style={{ flex: 1, padding: "10px", background: "#ef4444", color: "#fff", borderRadius: 10, border: "none", fontWeight: 600, cursor: "pointer" }}>Gửi báo cáo</button>
+                                <button onClick={() => setIssueForm({ id: null, reason: "" })} disabled={issueLoading} style={{ flex: 1, padding: "10px", background: "#f1f5f9", color: "#475569", borderRadius: 10, border: "none", fontWeight: 600, cursor: "pointer" }}>Hủy</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", gap: 10 }}>
+                              <button onClick={() => handleConfirmWithdraw(wr.id)} style={{ flex: 1, padding: "10px", background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff", borderRadius: 10, border: "none", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 10px rgba(34,197,94,0.2)" }}>
+                                🟢 Đã nhận tiền
+                              </button>
+                              <button onClick={() => setIssueForm({ id: wr.id, reason: "" })} style={{ flex: 1, padding: "10px", background: "#fff", color: "#ef4444", borderRadius: 10, border: "1.5px solid #fca5a5", fontWeight: 700, cursor: "pointer" }}>
+                                🔴 Báo lỗi
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

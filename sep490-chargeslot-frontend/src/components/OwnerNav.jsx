@@ -417,7 +417,6 @@ export default function OwnerNav() {
             { emoji: "💬", label: "Nhắn tin", to: "/owner/chat-list" },
             { emoji: "⭐", label: "Đánh giá", to: "/owner/reviews" },
             { emoji: "⚠️", label: "Khiếu nại", to: "/owner/disputes" },
-            { emoji: "🏦", label: "Rút tiền", to: "/owner/withdraw" },
           ].map((item) => (
             <button
               key={item.to}

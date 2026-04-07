@@ -6,6 +6,7 @@ const statusLabels = {
   Pending: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb" },
   Approved: { label: "Đã duyệt (Chờ CK)", color: "#3b82f6", bg: "#eff6ff" },
   TransferCompleted: { label: "Đã chuyển khoản", color: "#22c55e", bg: "#f0fdf4" },
+  Completed: { label: "Thành công", color: "#16a34a", bg: "#dcfce7" },
   Rejected: { label: "Từ chối", color: "#ef4444", bg: "#fef2f2" },
   IssueReported: { label: "Báo lỗi", color: "#dc2626", bg: "#fef2f2" },
 };
@@ -36,9 +37,19 @@ export default function AdminWithdraws() {
 
   function fetchData() {
     setLoading(true);
-    const apiCall = activeTab === "pending" ? adminWithdrawApi.getPending() : adminWithdrawApi.getIssueReported();
+    let apiCall;
+    if (activeTab === "pending") apiCall = adminWithdrawApi.getPending();
+    else if (activeTab === "issue") apiCall = adminWithdrawApi.getIssueReported();
+    else apiCall = adminWithdrawApi.getAll();
+
     apiCall
-      .then(data => setWithdraws(Array.isArray(data) ? data : []))
+      .then(data => {
+        let list = Array.isArray(data) ? data : [];
+        if (activeTab === "approved") {
+          list = list.filter(w => w.status === "Approved");
+        }
+        setWithdraws(list);
+      })
       .catch(() => setWithdraws([]))
       .finally(() => setLoading(false));
   }
@@ -115,19 +126,26 @@ export default function AdminWithdraws() {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 24, padding: 4, background: "#e2e8f0", borderRadius: 12, width: "fit-content" }}>
-        <button
-          onClick={() => setActiveTab("pending")}
-          style={{ padding: "8px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", transition: "0.2s", background: activeTab === "pending" ? "#fff" : "transparent", color: activeTab === "pending" ? "#0f172a" : "#64748b", boxShadow: activeTab === "pending" ? "0 2px 4px rgba(0,0,0,0.05)" : "none" }}
-        >
-          Yêu cầu Rút tiền
-        </button>
-        <button
-          onClick={() => setActiveTab("issue")}
-          style={{ padding: "8px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", transition: "0.2s", background: activeTab === "issue" ? "#fff" : "transparent", color: activeTab === "issue" ? "#dc2626" : "#64748b", boxShadow: activeTab === "issue" ? "0 2px 4px rgba(0,0,0,0.05)" : "none" }}
-        >
-          Sự cố Giao dịch
-        </button>
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, padding: 4, background: "#e2e8f0", borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
+        {[
+          { id: "pending", label: "Yêu cầu Rút tiền", color: "#0f172a" },
+          { id: "approved", label: "Chờ chuyển khoản", color: "#3b82f6" },
+          { id: "issue", label: "Sự cố Giao dịch", color: "#dc2626" },
+          { id: "all", label: "Lịch sử chung", color: "#16a34a" },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: "8px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", transition: "0.2s",
+              background: activeTab === tab.id ? "#fff" : "transparent",
+              color: activeTab === tab.id ? tab.color : "#64748b",
+              boxShadow: activeTab === tab.id ? "0 2px 4px rgba(0,0,0,0.05)" : "none"
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -162,8 +180,17 @@ export default function AdminWithdraws() {
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span>👤</span> {w.bankAccountHolder}</div>
                   {w.userNote && <div>📝 Ghi chú: {w.userNote}</div>}
                   {w.issueNote && <div style={{ color: "#dc2626", padding: "8px 12px", background: "#fef2f2", borderRadius: 8, marginTop: 4 }}>🚨 Khách Báo Lỗi: {w.issueNote}</div>}
-                  <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>🕒 {toLocal(w.createdAt)}</div>
+                  <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>🕒 Bắt đầu tạo: {toLocal(w.requestedAt)}</div>
                 </div>
+
+                {w.transferReceiptUrl && (
+                  <div style={{ marginTop: 8, marginBottom: 20, padding: 12, background: "#f8fafc", borderRadius: 12, border: "1px dashed #cbd5e1" }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "#3b82f6", marginBottom: 8 }}>🧾 Biên lai đã tải lên:</p>
+                    <a href={w.transferReceiptUrl} target="_blank" rel="noreferrer">
+                      <img src={w.transferReceiptUrl} alt="Biên lai" style={{ width: "100%", maxWidth: 300, objectFit: "contain", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff" }} />
+                    </a>
+                  </div>
+                )}
 
                 <div style={{ display: "flex", gap: 10 }}>
                   {w.status === "Pending" && (
@@ -173,7 +200,7 @@ export default function AdminWithdraws() {
                     </>
                   )}
                   {w.status === "Approved" && (
-                    <button onClick={() => setReceiptModal({ id: w.id })} style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: "#3b82f6", color: "#fff", fontWeight: 600, cursor: "pointer" }}>📤 Úp ảnh Biên lai & Xác nhận Ck</button>
+                    <button onClick={() => setReceiptModal({ id: w.id })} style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: "#3b82f6", color: "#fff", fontWeight: 600, cursor: "pointer" }}>📤 Úp ảnh Biên lai & Xác nhận chuyển khoản</button>
                   )}
                   {w.status === "IssueReported" && (
                     <button onClick={() => handleResolveIssue(w.id)} disabled={processing === w.id} style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: processing === w.id ? "#d1d5db" : "#f97316", color: "#fff", fontWeight: 600, cursor: processing === w.id ? "not-allowed" : "pointer" }}>{processing === w.id ? "..." : "🛠️ Đã giải quyết / Đóng sự cố"}</button>
@@ -216,7 +243,7 @@ export default function AdminWithdraws() {
       {receiptModal && (
         <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(4px)" }}>
           <div style={{ background: "#fff", borderRadius: 20, padding: 32, maxWidth: 400, width: "100%", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#3b82f6", marginBottom: 16 }}>📤 Xác nhận Đã CK</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#3b82f6", marginBottom: 16 }}>📤 Xác nhận đã chuyển khoản</h2>
             <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>Tải ảnh biên lai ngân hàng lên hệ thống để gửi đến người dùng.</p>
             <form onSubmit={submitReceipt} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
