@@ -5,8 +5,9 @@ import { instance } from "@/lib/httpRequest";
 
 /* ─── API helper ─── */
 const disputeApiAdmin = {
-  getPending: async () => {
-    const { data } = await instance.get("/dispute/pending");
+  getAll: async (status) => {
+    const url = status && status !== "ALL" ? `/dispute/all?status=${status}` : "/dispute/all";
+    const { data } = await instance.get(url);
     return data;
   },
 };
@@ -46,8 +47,9 @@ export default function DisputeList() {
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   const { data: disputes = [], isLoading, error } = useQuery({
-    queryKey: ["admin-disputes-pending"],
-    queryFn: disputeApiAdmin.getPending,
+    queryKey: ["admin-disputes-all"],
+    queryFn: () => disputeApiAdmin.getAll(),
+    refetchInterval: 30000,
   });
 
   const filtered = useMemo(() => {
@@ -70,9 +72,10 @@ export default function DisputeList() {
         acc.total += 1;
         if (d.status === "WaitingOwnerEvidence") acc.waiting += 1;
         if (d.status === "PendingReview") acc.pending += 1;
+        if (d.status === "ResolvedRefund" || d.status === "ResolvedPayout") acc.resolved += 1;
         return acc;
       },
-      { total: 0, waiting: 0, pending: 0 }
+      { total: 0, waiting: 0, pending: 0, resolved: 0 }
     );
   }, [disputes]);
 
@@ -145,6 +148,17 @@ export default function DisputeList() {
             <p className="cs-admin-stat-card__value" style={{ color: "#3b82f6" }}>{summary.pending}</p>
           </div>
         </div>
+        <div className="cs-admin-stat-card">
+          <div className="cs-admin-stat-card__icon" style={{ background: "#f0fdf4", color: "#16a34a" }}>
+            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <p className="cs-admin-stat-card__label">Đã giải quyết</p>
+            <p className="cs-admin-stat-card__value" style={{ color: "#16a34a" }}>{summary.resolved}</p>
+          </div>
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -169,6 +183,8 @@ export default function DisputeList() {
           <option value="ALL">Tất cả trạng thái</option>
           <option value="WaitingOwnerEvidence">Chờ Owner phản hồi</option>
           <option value="PendingReview">Chờ xem xét</option>
+          <option value="ResolvedRefund">Hoàn tiền Driver</option>
+          <option value="ResolvedPayout">Thanh toán Owner</option>
         </select>
         <button onClick={() => { setSearch(""); setStatusFilter("ALL"); }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -266,11 +282,11 @@ const styles = `
   /* Stats */
   .cs-admin-stats {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 20px;
     margin-bottom: 24px;
   }
-  @media (max-width: 640px) {
+  @media (max-width: 900px) {
     .cs-admin-stats { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 400px) {

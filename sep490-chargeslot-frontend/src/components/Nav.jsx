@@ -225,7 +225,7 @@ export default function Nav() {
     {
       icon: "⚠️",
       label: "Khiếu nại",
-      to: "/driver/my-bookings",
+      to: "/driver/disputes",
       loginMsg: "gửi khiếu nại",
       matchDispute: true,
     },

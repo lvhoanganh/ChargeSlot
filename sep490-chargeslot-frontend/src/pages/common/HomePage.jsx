@@ -1,10 +1,18 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useState } from "react";
 import ChargeSlotLogo from "@/components/ChargeSlotLogo";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { token, role } = useAuthStore();
   const [expandedFeature, setExpandedFeature] = useState(null);
+
+  // Redirect theo role nếu đã đăng nhập
+  if (token) {
+    if (role === "Admin") return <Navigate to="/admin/manage-users" replace />;
+    if (role === "Owner") return <Navigate to="/stations" replace />;
+  }
 
   const features = [
     {

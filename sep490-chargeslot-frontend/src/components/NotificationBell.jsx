@@ -5,10 +5,11 @@ import { useAuthStore } from "@/stores/authStore";
 
 /**
  * Extract the first numeric ID from a notification's content.
+ * Searches both title AND content to ensure IDs aren't missed.
  */
-function extractId(content) {
-  if (!content) return null;
-  const match = content.match(/#(\d+)/);
+function extractId(text) {
+  if (!text) return null;
+  const match = text.match(/#(\d+)/);
   return match ? match[1] : null;
 }
 
@@ -18,11 +19,11 @@ function extractId(content) {
  * Routes must match exactly what's defined in App.jsx.
  */
 function getNotificationRoute(notification, role) {
-  const id = extractId(notification.content || notification.title || "");
   const type = (notification.type || "").toLowerCase();
   const r = (role || "").toLowerCase();
-  // Gộp title + content để tìm keyword
+  // Gộp title + content để tìm keyword VÀ extract ID
   const text = ((notification.title || "") + " " + (notification.content || "")).toLowerCase();
+  const id = extractId(text);
 
   // ════════════════════════════════════════════════════════════
   // BƯỚC 1: Content keyword — ưu tiên cao hơn type
@@ -79,6 +80,19 @@ function getNotificationRoute(notification, role) {
     if (r === "driver") return "/driver/loyalty";
   }
 
+  // Khiếu nại / dispute — ưu tiên cao, đặt trước type-based để tránh bị routing nhầm sang Booking
+  if (
+    text.includes("khiếu nại") ||
+    text.includes("dispute") ||
+    text.includes("tranh chấp") ||
+    text.includes("phản ánh") ||
+    text.includes("giải quyết khiếu")
+  ) {
+    if (r === "driver") return id ? `/driver/dispute/${id}` : "/driver/disputes";
+    if (r === "owner") return id ? `/owner/dispute/${id}` : "/owner/disputes";
+    if (r === "admin") return id ? `/admin/disputes/${id}` : "/admin/disputes";
+  }
+
   // ════════════════════════════════════════════════════════════
   // BƯỚC 2: Type-based routing (fallback khi không match keyword)
   // ════════════════════════════════════════════════════════════
@@ -90,8 +104,8 @@ function getNotificationRoute(notification, role) {
   }
 
   if (type === "dispute") {
-    if (r === "driver") return id ? `/driver/dispute/${id}` : "/driver/my-bookings";
-    if (r === "owner") return id ? `/owner/dispute/${id}` : "/owner/booking-requests";
+    if (r === "driver") return id ? `/driver/dispute/${id}` : "/driver/disputes";
+    if (r === "owner") return id ? `/owner/dispute/${id}` : "/owner/disputes";
     if (r === "admin") return id ? `/admin/disputes/${id}` : "/admin/disputes";
   }
 

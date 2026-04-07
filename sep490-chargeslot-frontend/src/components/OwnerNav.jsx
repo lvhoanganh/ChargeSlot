@@ -117,7 +117,7 @@ export default function OwnerNav() {
     {
       icon: "⚠️",
       label: "Khiếu nại",
-      to: "/owner/booking-requests",
+      to: "/owner/disputes",
       matchDispute: true,
     },
     {
@@ -373,12 +373,11 @@ export default function OwnerNav() {
 
         {/* Tôi — mở bottom sheet */}
         <button
-          className={`cs-owner-bnav__item ${
-            location.pathname.startsWith("/owner/owner-profile") ||
-            location.pathname.startsWith("/owner/wallet") ||
-            location.pathname.startsWith("/owner/reviews") ||
-            mobileMoreOpen ? "cs-owner-bnav__item--active" : ""
-          }`}
+          className={`cs-owner-bnav__item ${location.pathname.startsWith("/owner/owner-profile") ||
+              location.pathname.startsWith("/owner/wallet") ||
+              location.pathname.startsWith("/owner/reviews") ||
+              mobileMoreOpen ? "cs-owner-bnav__item--active" : ""
+            }`}
           onClick={() => setMobileMoreOpen(true)}
         >
           <img

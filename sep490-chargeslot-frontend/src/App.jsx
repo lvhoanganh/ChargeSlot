@@ -54,6 +54,7 @@ const BookingStatus = lazy(() => import("./pages/driver/BookingStatus"));
 const DriverWallet = lazy(() => import("./pages/driver/DriverWallet"));
 const SubmitDispute = lazy(() => import("./pages/driver/SubmitDispute"));
 const DisputeDetail = lazy(() => import("./pages/driver/DisputeDetail"));
+const DriverDisputeList = lazy(() => import("./pages/driver/DriverDisputeList"));
 const DriverReviews = lazy(() => import("./pages/driver/DriverReviews"));
 const FavoriteStations = lazy(() => import("./pages/driver/FavoriteStations"));
 const DriverLoyalty = lazy(() => import("./pages/driver/DriverLoyalty"));
@@ -67,6 +68,7 @@ const OwnerEditProfile = lazy(() => import("./pages/owner/EditOwnerProfile"));
 const BookingRequests = lazy(() => import("./pages/owner/BookingRequests"));
 const BookingRequestDetail = lazy(() => import("./pages/owner/BookingRequestDetail"));
 const OwnerDisputeDetail = lazy(() => import("./pages/owner/OwnerDisputeDetail"));
+const OwnerDisputeList = lazy(() => import("./pages/owner/OwnerDisputeList"));
 const OwnerActiveSessions = lazy(() => import("./pages/owner/OwnerActiveSessions"));
 const OwnerWallet = lazy(() => import("./pages/owner/OwnerWallet"));
 const OwnerReviews = lazy(() => import("./pages/owner/OwnerReviews"));
@@ -150,6 +152,7 @@ export default function App() {
               <Route path="booking/:id" element={<BookingStatus />} />
               <Route path="dispute/submit/:bookingId" element={<SubmitDispute />} />
               <Route path="dispute/:disputeId" element={<DisputeDetail />} />
+              <Route path="disputes" element={<DriverDisputeList />} />
               <Route path="wallet" element={<DriverWallet />} />
               <Route path="reviews" element={<DriverReviews />} />
               <Route path="favorites" element={<FavoriteStations />} />
@@ -167,6 +170,7 @@ export default function App() {
               <Route path="booking-requests" element={<BookingRequests />} />
               <Route path="booking/:id" element={<BookingRequestDetail />} />
               <Route path="dispute/:disputeId" element={<OwnerDisputeDetail />} />
+              <Route path="disputes" element={<OwnerDisputeList />} />
               <Route path="active-sessions" element={<OwnerActiveSessions />} />
               <Route path="wallet" element={<OwnerWallet />} />
               <Route path="reviews" element={<OwnerReviews />} />

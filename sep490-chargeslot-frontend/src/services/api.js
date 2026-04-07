@@ -585,6 +585,12 @@ export const disputeApi = {
 
     /** Tất cả dispute — Admin, filter theo status nếu cần */
     getAll: (status) => apiFetch(`/dispute/all${status ? `?status=${status}` : ""}`),
+
+    /** Danh sách dispute của Driver đang đăng nhập */
+    getMyDisputes: () => apiFetch("/dispute/my"),
+
+    /** Danh sách dispute liên quan đến Owner đang đăng nhập */
+    getOwnerDisputes: () => apiFetch("/dispute/owner"),
 };
 
 // ============================
