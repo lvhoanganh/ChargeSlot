@@ -708,7 +708,7 @@ export default function BookingForm() {
                 </div>
                 <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <span>Thời lượng</span>
-                  <span style={{ fontWeight: 600, color: "#1e293b" }}>{duration} giờ</span>
+                  <span style={{ fontWeight: 600, color: "#1e293b" }}>{Math.round(duration * 60)} phút</span>
                 </div>
                 <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <span>Phí sạc</span>

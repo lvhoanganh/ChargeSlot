@@ -361,7 +361,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             <InfoRow icon="⚡" label="Slot" value={booking.slotName} />
             <InfoRow icon="📅" label="Bắt đầu" value={toLocal(booking.startTime)} />
             <InfoRow icon="🏁" label="Kết thúc" value={toLocal(booking.endTime)} />
-            <InfoRow icon="⏱" label="Thời lượng" value={`${booking.durationHours} giờ`} />
+            <InfoRow icon="⏱" label="Thời lượng" value={`${Math.round(booking.durationHours * 60)} phút`} />
 
             {/* Phí sạc & dịch vụ tách riêng khi có extras */}
             {booking.extraServices && booking.extraServices.length > 0 ? (

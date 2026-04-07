@@ -142,7 +142,7 @@ export default function DriverReviews() {
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, color: "#64748b", marginBottom: 10 }}>
                 <span>Tổng: <strong style={{ color: "#f97316" }}>{b.totalAmount?.toLocaleString("vi-VN")}đ</strong></span>
-                <span>Thời lượng: {b.durationHours}h</span>
+                <span>Thời lượng: {Math.round(b.durationHours * 60)} phút</span>
               </div>
 
               {/* Review form or button */}

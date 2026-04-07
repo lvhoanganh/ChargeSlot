@@ -115,7 +115,7 @@ export default function BookingRequests() {
                   Driver: {b.driverName} | Slot: {b.slotName}
                 </div>
                 <div style={{ display: "flex", gap: 16, fontSize: 13, color: "#64748b" }}>
-                  <span>🕐 {toLocal(b.startTime)} — {b.durationHours}h</span>
+                  <span>🕐 {toLocal(b.startTime)} — {Math.round(b.durationHours * 60)} phút</span>
                   <span style={{ fontWeight: 700, color: "#f97316" }}>{(b.totalAmount || 0).toLocaleString("vi-VN")}đ</span>
                 </div>
 

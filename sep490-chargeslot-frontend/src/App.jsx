@@ -82,6 +82,8 @@ const PageLoader = () => (
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    flexDirection: "column",
+    gap: 12,
   }}>
     <div style={{
       width: 40,
@@ -95,10 +97,59 @@ const PageLoader = () => (
   </div>
 );
 
+// ErrorBoundary — bắt lỗi lazy load (chunk fail) thông báo thay vì màn trắng
+import { Component } from "react";
+class AppErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, isChunkError: false };
+  }
+  static getDerivedStateFromError(error) {
+    const isChunkError =
+      error?.name === "ChunkLoadError" ||
+      error?.message?.includes("Loading chunk") ||
+      error?.message?.includes("Failed to fetch dynamically imported module") ||
+      error?.message?.includes("Importing a module script failed");
+    return { hasError: true, isChunkError };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: "60vh", display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", gap: 16, padding: 24,
+        }}>
+          <div style={{ fontSize: 48 }}>{this.state.isChunkError ? "🔄" : "⚠️"}</div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b", margin: 0 }}>
+            {this.state.isChunkError ? "Cần tải lại trang" : "Có lỗi xảy ra"}
+          </h2>
+          <p style={{ fontSize: 14, color: "#64748b", margin: 0, textAlign: "center" }}>
+            {this.state.isChunkError
+              ? "Tài nguyên đã được cập nhật. Vui lòng tải lại trang để tiếp tục."
+              : "Một lỗi không mong muốn đã xảy ra. Vui lòng thử lại."}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: "10px 24px", borderRadius: 12, border: "none",
+              background: "linear-gradient(135deg, #f97316, #ea580c)",
+              color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer",
+            }}
+          >
+            🔄 Tải lại trang
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
     <div>
-      <Suspense fallback={<PageLoader />}>
+      <AppErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route element={<MainLayout />}>
             <Route index element={<HomePage />} />
@@ -185,6 +236,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </AppErrorBoundary>
       <ConfirmDialogContainer />
       <ToastContainer />
       <AiCopilot />

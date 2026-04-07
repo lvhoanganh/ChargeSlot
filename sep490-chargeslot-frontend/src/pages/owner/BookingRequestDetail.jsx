@@ -108,7 +108,7 @@ export default function BookingRequestDetail() {
             <InfoRow label="Slot" value={booking.slotName} />
             <InfoRow label="Bắt đầu" value={toLocal(booking.startTime)} />
             <InfoRow label="Kết thúc" value={toLocal(booking.endTime)} />
-            <InfoRow label="Thời lượng" value={`${booking.durationHours} giờ`} />
+            <InfoRow label="Thời lượng" value={`${Math.round(booking.durationHours * 60)} phút`} />
 
             {/* Split costs when extras exist */}
             {booking.extraServices && booking.extraServices.length > 0 ? (

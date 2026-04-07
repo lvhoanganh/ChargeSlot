@@ -263,7 +263,7 @@ export default function MyBookings() {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                         <span style={{ fontSize: 14 }}>⏱</span>
-                        <span>{b.durationHours}h sạc</span>
+                        <span>{Math.round(b.durationHours * 60)} phút sạc</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 5, gridColumn: "1/-1" }}>
                         <span style={{ fontSize: 14 }}>🕐</span>
