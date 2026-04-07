@@ -96,12 +96,13 @@ export default function DriverWallet() {
   function fetchAll() {
     Promise.all([
       walletApi.getWallet().catch(() => null),
-      walletApi.getTransactions().catch(() => []),
-      walletApi.getWithdrawRequests().catch(() => []),
-    ]).then(([w, txs, wrs]) => {
+      walletApi.getTransactions().catch(() => ({})),
+      walletApi.getWithdrawRequests().catch(() => ({})),
+    ]).then(([w, txsData, wrsData]) => {
       setWallet(w);
-      setTransactions(Array.isArray(txs) ? txs : []);
-      setWithdrawRequests(Array.isArray(wrs) ? wrs : []);
+      // BE trả { total, page, pageSize, items } — phải unpack .items
+      setTransactions(txsData?.items ?? (Array.isArray(txsData) ? txsData : []));
+      setWithdrawRequests(wrsData?.items ?? (Array.isArray(wrsData) ? wrsData : []));
     }).finally(() => setLoading(false));
   }
 

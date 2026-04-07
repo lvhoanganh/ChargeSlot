@@ -1,16 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { instance } from "@/lib/httpRequest";
-
-/* ─── API helper ─── */
-const disputeApiAdmin = {
-  getAll: async (status) => {
-    const url = status && status !== "ALL" ? `/dispute/all?status=${status}` : "/dispute/all";
-    const { data } = await instance.get(url);
-    return data;
-  },
-};
+import { disputeApi } from "@/services/api";
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -46,11 +37,14 @@ export default function DisputeList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  const { data: disputes = [], isLoading, error } = useQuery({
+  const { data: rawData, isLoading, error } = useQuery({
     queryKey: ["admin-disputes-all"],
-    queryFn: () => disputeApiAdmin.getAll(),
+    queryFn: () => disputeApi.getAll(),
     refetchInterval: 30000,
   });
+
+  // BE trả { total, page, pageSize, items } — phải unpack .items
+  const disputes = rawData?.items ?? (Array.isArray(rawData) ? rawData : []);
 
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase();

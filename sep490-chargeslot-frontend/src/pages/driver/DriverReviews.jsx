@@ -60,9 +60,9 @@ export default function DriverReviews() {
       });
       setSuccessMsg("Đánh giá thành công! Cảm ơn bạn ⭐");
       setReviewForm(null);
-      // Reload bookings
-      const data = await bookingApi.getDriverBookings();
-      setBookings(Array.isArray(data) ? data : data?.items || []);
+      // Reload bookings sau khi đánh giá — dùng getDriverHistory (pageSize lớn để lấy đủ)
+      const refreshData = await bookingApi.getDriverHistory(1, 200);
+      setBookings(refreshData?.items ?? (Array.isArray(refreshData) ? refreshData : []));
     } catch (err) {
       const msg = err?.message || "Gửi đánh giá thất bại. Có thể bạn đã đánh giá booking này.";
       setErrorMsg(msg);

@@ -25,7 +25,11 @@ export default function OwnerDisputeList() {
   useEffect(() => {
     disputeApi
       .getOwnerDisputes()
-      .then((data) => setDisputes(Array.isArray(data) ? data : []))
+      .then((data) => {
+        // BE trả { total, page, pageSize, items } — phải unpack .items
+        const list = data?.items ?? (Array.isArray(data) ? data : []);
+        setDisputes(list);
+      })
       .catch((e) => setError(e?.message || "Không thể tải danh sách khiếu nại."))
       .finally(() => setLoading(false));
   }, []);

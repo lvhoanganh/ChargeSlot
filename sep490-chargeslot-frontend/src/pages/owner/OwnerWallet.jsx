@@ -58,13 +58,14 @@ export default function OwnerWallet() {
   function fetchAll() {
     Promise.all([
       walletApi.getWallet().catch(() => null),
-      walletApi.getTransactions().catch(() => []),
-      walletApi.getWithdrawRequests().catch(() => []),
+      walletApi.getTransactions().catch(() => ({})),
+      walletApi.getWithdrawRequests().catch(() => ({})),
       bankAccountApi.getAll().catch(() => []),
-    ]).then(([w, txs, wds, bas]) => {
+    ]).then(([w, txsData, wdsData, bas]) => {
       setWallet(w);
-      setTransactions(Array.isArray(txs) ? txs : []);
-      setWithdraws(Array.isArray(wds) ? wds : []);
+      // BE trả { total, page, pageSize, items } — phải unpack .items
+      setTransactions(txsData?.items ?? (Array.isArray(txsData) ? txsData : []));
+      setWithdraws(wdsData?.items ?? (Array.isArray(wdsData) ? wdsData : []));
       setBankAccounts(Array.isArray(bas) ? bas : []);
     }).finally(() => setLoading(false));
   }

@@ -402,7 +402,17 @@ export const bookingApi = {
     getDriverHistory: (page = 1, pageSize = 50) =>
         apiFetch(`/Booking/driver/history?page=${page}&pageSize=${pageSize}`),
 
-    getOwnerBookings: () => apiFetch("/Booking/owner"),
+    /**
+     * Owner xem danh sách booking (phân trang + filter status)
+     * Response: { total, page, pageSize, items }
+     */
+    getOwnerBookings: (status = null, page = 1, pageSize = 20) => {
+        const params = new URLSearchParams();
+        if (status) params.set("status", status);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
+        return apiFetch(`/Booking/owner?${params.toString()}`);
+    },
 
     getById: (id) => apiFetch(`/Booking/${id}`),
 
@@ -518,9 +528,19 @@ export const walletApi = {
             body: JSON.stringify({ amount, bankName, bankAccountNumber, bankAccountHolder, userNote }),
         }),
 
-    getTransactions: () => apiFetch("/Wallet/transactions"),
+    /**
+     * Lịch sử giao dịch ví (phân trang)
+     * Response: { total, page, pageSize, items }
+     */
+    getTransactions: (page = 1, pageSize = 50) =>
+        apiFetch(`/Wallet/transactions?page=${page}&pageSize=${pageSize}`),
 
-    getWithdrawRequests: () => apiFetch("/Wallet/withdraw-requests"),
+    /**
+     * Danh sách yêu cầu rút tiền (phân trang)
+     * Response: { total, page, pageSize, items }
+     */
+    getWithdrawRequests: (page = 1, pageSize = 50) =>
+        apiFetch(`/Wallet/withdraw-requests?page=${page}&pageSize=${pageSize}`),
 
     /** Báo đã nhận được tiền */
     confirmWithdrawal: (id) => apiFetch(`/Wallet/withdraw-requests/${id}/confirm`, { method: "PUT" }),
@@ -537,8 +557,12 @@ export const walletApi = {
 // ============================
 
 export const notificationApi = {
-    /** GET /api/Notification */
-    getAll: () => apiFetch("/Notification"),
+    /**
+     * GET /api/Notification?page=&pageSize=
+     * Response: { total, page, pageSize, items }
+     */
+    getAll: (page = 1, pageSize = 20) =>
+        apiFetch(`/Notification?page=${page}&pageSize=${pageSize}`),
     /** PUT /api/Notification/{id}/read */
     markAsRead: (id) => apiFetch(`/Notification/${id}/read`, { method: "PUT" }),
     // markAllAsRead: BE chưa có endpoint này (chỉ có mark 1 cái)
@@ -574,8 +598,12 @@ export const disputeApi = {
             body: JSON.stringify(data),
         }),
 
-    /** Danh sách dispute chờ xử lý (Admin) */
-    getPending: () => apiFetch("/dispute/pending"),
+    /**
+     * Danh sách dispute chờ xử lý (Admin, phân trang)
+     * Response: { total, page, pageSize, items }
+     */
+    getPending: (page = 1, pageSize = 20) =>
+        apiFetch(`/dispute/pending?page=${page}&pageSize=${pageSize}`),
 
     /** Chi tiết dispute */
     getById: (disputeId) => apiFetch(`/dispute/${disputeId}`),
@@ -583,14 +611,31 @@ export const disputeApi = {
     /** Dispute theo booking */
     getByBookingId: (bookingId) => apiFetch(`/dispute/booking/${bookingId}`),
 
-    /** Tất cả dispute — Admin, filter theo status nếu cần */
-    getAll: (status) => apiFetch(`/dispute/all${status ? `?status=${status}` : ""}`),
+    /**
+     * Tất cả dispute (Admin, phân trang), filter theo status
+     * Response: { total, page, pageSize, items }
+     */
+    getAll: (status, page = 1, pageSize = 20) => {
+        const params = new URLSearchParams();
+        if (status && status !== "ALL") params.set("status", status);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
+        return apiFetch(`/dispute/all?${params.toString()}`);
+    },
 
-    /** Danh sách dispute của Driver đang đăng nhập */
-    getMyDisputes: () => apiFetch("/dispute/my"),
+    /**
+     * Danh sách dispute của Driver đang đăng nhập (phân trang)
+     * Response: { total, page, pageSize, items }
+     */
+    getMyDisputes: (page = 1, pageSize = 20) =>
+        apiFetch(`/dispute/my?page=${page}&pageSize=${pageSize}`),
 
-    /** Danh sách dispute liên quan đến Owner đang đăng nhập */
-    getOwnerDisputes: () => apiFetch("/dispute/owner"),
+    /**
+     * Danh sách dispute liên quan đến Owner đang đăng nhập (phân trang)
+     * Response: { total, page, pageSize, items }
+     */
+    getOwnerDisputes: (page = 1, pageSize = 20) =>
+        apiFetch(`/dispute/owner?page=${page}&pageSize=${pageSize}`),
 };
 
 // ============================
@@ -756,11 +801,19 @@ export const adminConfigApi = {
 // ============================
 
 export const chatApi = {
-    /** Danh sách conversations */
-    getConversations: () => apiFetch("/chat"),
+    /**
+     * Danh sách conversations (phân trang)
+     * Response: { total, page, pageSize, items }
+     */
+    getConversations: (page = 1, pageSize = 20) =>
+        apiFetch(`/chat?page=${page}&pageSize=${pageSize}`),
 
-    /** Lịch sử tin nhắn theo booking */
-    getMessages: (bookingId) => apiFetch(`/chat/${bookingId}`),
+    /**
+     * Lịch sử tin nhắn theo booking (phân trang)
+     * Response: { conversationId, total, page, pageSize, messages }
+     */
+    getMessages: (bookingId, page = 1, pageSize = 50) =>
+        apiFetch(`/chat/${bookingId}?page=${page}&pageSize=${pageSize}`),
 
     /** Gửi tin nhắn */
     sendMessage: (bookingId, content) =>
@@ -847,10 +900,16 @@ export const adminAccountApi = {
 // ============================
 
 export const adminWithdrawApi = {
-    /** Lấy danh sách chờ duyệt (Pending) */
+    /**
+     * Lấy danh sách chờ duyệt (Pending) — BE trả array thẳng (không phân trang)
+     * Response: Array (không bọc PagedResult)
+     */
     getPending: () => apiFetch("/admin/withdraws/pending"),
 
-    /** Lấy tất cả yêu cầu rút tiền mọi trạng thái */
+    /**
+     * Lấy tất cả yêu cầu rút tiền mọi trạng thái — BE trả array thẳng
+     * Response: Array (không bọc PagedResult)
+     */
     getAll: () => apiFetch("/admin/withdraws"),
 
     /**
@@ -884,6 +943,92 @@ export const adminWithdrawApi = {
             body: JSON.stringify({ refund: !!refund, adminNote: adminNote || null }),
         }),
 };
+
+// ============================
+// ADMIN — Operations DataGrid
+// GET /api/admin/operations/{bookings|sessions|invoices}
+// Response: { total, page, pageSize, items }
+// ============================
+
+export const adminOperationsApi = {
+    /**
+     * Tất cả Bookings (Lọc động + Phân trang)
+     * @param {{ status, driverUserId, ownerUserId, stationId, fromDate, toDate, page, pageSize }} filter
+     */
+    getBookings: (filter = {}) => {
+        const params = new URLSearchParams();
+        if (filter.status) params.set("status", filter.status);
+        if (filter.driverUserId) params.set("driverUserId", String(filter.driverUserId));
+        if (filter.ownerUserId) params.set("ownerUserId", String(filter.ownerUserId));
+        if (filter.stationId) params.set("stationId", String(filter.stationId));
+        if (filter.fromDate) params.set("fromDate", filter.fromDate);
+        if (filter.toDate) params.set("toDate", filter.toDate);
+        params.set("page", String(filter.page || 1));
+        params.set("pageSize", String(filter.pageSize || 20));
+        return apiFetch(`/admin/operations/bookings?${params.toString()}`);
+    },
+
+    /**
+     * Tất cả Phiên sạc (Lọc động + Phân trang)
+     * @param {{ status, bookingId, page, pageSize }} filter
+     */
+    getSessions: (filter = {}) => {
+        const params = new URLSearchParams();
+        if (filter.status) params.set("status", filter.status);
+        if (filter.bookingId) params.set("bookingId", String(filter.bookingId));
+        params.set("page", String(filter.page || 1));
+        params.set("pageSize", String(filter.pageSize || 20));
+        return apiFetch(`/admin/operations/sessions?${params.toString()}`);
+    },
+
+    /**
+     * Tất cả Hóa đơn (Lọc động + Phân trang)
+     * @param {{ status, isPaid, page, pageSize }} filter
+     */
+    getInvoices: (filter = {}) => {
+        const params = new URLSearchParams();
+        if (filter.status) params.set("status", filter.status);
+        if (filter.isPaid != null) params.set("isPaid", String(filter.isPaid));
+        params.set("page", String(filter.page || 1));
+        params.set("pageSize", String(filter.pageSize || 20));
+        return apiFetch(`/admin/operations/invoices?${params.toString()}`);
+    },
+};
+
+// ============================
+// ADMIN — Finance DataGrid
+// GET /api/admin/finance/{wallets|wallets/{id}/transactions}
+// Response: { total, page, pageSize, items }
+// ============================
+
+export const adminFinanceApi = {
+    /**
+     * Soi tình trạng tất cả ví (Lọc động + Phân trang)
+     * @param {{ walletType, systemCode, page, pageSize }} filter
+     */
+    getWallets: (filter = {}) => {
+        const params = new URLSearchParams();
+        if (filter.walletType) params.set("walletType", filter.walletType);
+        if (filter.systemCode) params.set("systemCode", filter.systemCode);
+        params.set("page", String(filter.page || 1));
+        params.set("pageSize", String(filter.pageSize || 20));
+        return apiFetch(`/admin/finance/wallets?${params.toString()}`);
+    },
+
+    /**
+     * Sổ cái chi tiết của một ví (Phân trang)
+     * @param {number} walletId
+     * @param {{ transactionType, page, pageSize }} filter
+     */
+    getWalletTransactions: (walletId, filter = {}) => {
+        const params = new URLSearchParams();
+        if (filter.transactionType) params.set("transactionType", filter.transactionType);
+        params.set("page", String(filter.page || 1));
+        params.set("pageSize", String(filter.pageSize || 20));
+        return apiFetch(`/admin/finance/wallets/${walletId}/transactions?${params.toString()}`);
+    },
+};
+
 // Removed duplicate adminAccountApi
 
 // ============================

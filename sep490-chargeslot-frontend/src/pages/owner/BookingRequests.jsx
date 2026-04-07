@@ -29,8 +29,12 @@ export default function BookingRequests() {
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
+    // BE trả { total, page, pageSize, items } — phải unpack .items
     bookingApi.getOwnerBookings()
-      .then((data) => setBookings(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const list = data?.items ?? (Array.isArray(data) ? data : []);
+        setBookings(list);
+      })
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
   }, []);
