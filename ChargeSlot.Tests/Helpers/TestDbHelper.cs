@@ -59,6 +59,17 @@ namespace ChargeSlot.Tests.Helpers
             return (user, owner);
         }
 
+        /// <summary>
+        /// Tạo StartTime rơi đúng block 30 phút (xx:00 hoặc xx:30).
+        /// </summary>
+        public static DateTime NextAlignedStartTime(int addHours = 2)
+        {
+            var now = DateTime.Now.AddHours(addHours);
+            // Đưa về đầu giờ :00 nếu minute < 30, hoặc :30 nếu >= 30
+            var minute = now.Minute < 30 ? 0 : 30;
+            return new DateTime(now.Year, now.Month, now.Day, now.Hour, minute, 0);
+        }
+
         public static async Task<(ChargingStation station, List<ChargingSlot> slots)> SeedStationWithSlotsAsync(
             ChargeSlotDbContext db, int ownerId, int slotCount = 3, OperationalStatus operationalStatus = OperationalStatus.Active)
         {
@@ -83,9 +94,7 @@ namespace ChargeSlot.Tests.Helpers
                     Id = 100 + i,
                     StationId = station.Id,
                     ChargingStation = station,
-                    SlotName = "Slot 1",
-                    
-                    
+                    SlotName = $"Slot {i}",
                     Status = SlotStatus.Active,
                     CreatedAt = DateTime.Now
                 });
@@ -101,11 +110,13 @@ namespace ChargeSlot.Tests.Helpers
         public static async Task<Booking> SeedBookingAsync(ChargeSlotDbContext db, int driverId, int stationOwnerId, int bookingId = 1, BookingStatus status = BookingStatus.WaitingOwner)
         {
             var (station, slots) = await SeedStationWithSlotsAsync(db, stationOwnerId, 1);
+            var startTime = NextAlignedStartTime(2);
             var booking = new Booking
             {
                 Id = bookingId, DriverUserId = driverId,
                 SlotId = slots[0].Id, ChargingSlot = slots[0],
-                Status = status, StartTime = DateTime.Now.AddHours(2), EndTime = DateTime.Now.AddHours(3),
+                Status = status, StartTime = startTime, EndTime = startTime.AddHours(1),
+                DurationHours = 1,
                 TotalAmount = 100_000, CreatedAt = DateTime.Now
             };
             db.Bookings.Add(booking);
@@ -117,17 +128,23 @@ namespace ChargeSlot.Tests.Helpers
         {
             return new UpdateSystemConfigsDto
             {
-                
-                
-                
-                
-                
-                
-                
+                RefundPolicy100_Hrs = 24,
+                RefundPolicy50_Hrs = 2,
+                Payment_Expiry_Minutes = 30,
+                CheckIn_Window_Minutes = 15,
+                NoShow_Grace_Minutes = 30,
+                Slot_Buffer_Minutes = 15,
+                VAT_Rate = 0.08m,
+                Platform_Fee_Rate = 0.05m,
+                Loyalty_Earn_Rate = 0.05m,
+                Dispute_Limit_Per_Month = 5,
+                Dispute_OwnerEvidence_Hours = 48,
+                Dispute_AdminReview_Hours = 72,
+                Ban_Duration_Days_Permanent = 365,
+                Ban_Duration_Days_FirstOffense = 30,
+                OTP_Expiry_Minutes = 5,
                 SecondaryPassword = "Mock"
             };
         }
     }
 }
-
-

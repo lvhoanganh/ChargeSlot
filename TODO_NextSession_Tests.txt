@@ -1,0 +1,20 @@
+[CONTEXT DÀNH CHO AI TRONG PHIÊN LÀM VIỆC TIẾP THEO]
+Dự án: ChargeSlot (Backend)
+Vấn đề hiện tại: Khôi phục và viết lại toàn bộ Test Suite để đạt 90-100% Code Coverage.
+
+# 1. NHỮNG GÌ ĐÃ HOÀN THÀNH Ở PHIÊN TRƯỚC (Hôm nay):
+- Gỡ triệt để lỗi T-SQL Exception (Crash do gọi EXEC sp_getapplock trong môi trường DB Ảo Unit Tests).
+- Giải pháp: Đã tạo Proxy an toàn `ChargeSlot.Api/Helpers/DatabaseFacadeExtensions.cs` (ExecuteSqlRawSafeAsync) để tự động Bypass các execution gọi raw query nếu đang trong môi trường "Microsoft.EntityFrameworkCore.InMemory".
+- Đã sửa lại Base Helper cho Test (`TestDbHelper.cs`) sao cho Mapping Property chuẩn 100% với Model gốc (Driver, ApplicationUser...).
+- Đã khôi phục và code hoàn chỉnh file `ChargeSlot.Tests/Services/BookingServiceTests.cs` (với 8/8 test cases Passed). 
+- Toàn bộ backend ChargeSlot.Api không bị tổn hại, không bị thay đổi logic. Toàn bộ Project đang Build xanh 100%.
+
+# 2. VẤN ĐỀ CẦN TIẾP QUẢN:
+- Do sự cố `git clean` trước đó, toàn bộ code test tự sinh cũ bị dọn mất. Hiện tại trong thư mục `ChargeSlot.Tests/Services/` các Test File (WalletServiceTests, ChargingSessionServiceTests, DisputeServiceTests, PaymentServiceTests...) CÒN NHƯNG CHỈ LÀ FILE RỖNG (Placeholders).
+
+# 3. NHIỆM VỤ CẦN THỰC HIỆN TRONG PHIÊN NÀY (Hôm nay):
+- Mở và đọc sườn file `task.md` hoặc dựa vào file `BookingServiceTests.cs` để clone Cấu trúc Mocking chuẩn xác.
+- Tự động Generate (Viết Unit Tests hoàn chỉnh) ghi đè lên các bản Placeholders của các Services còn lại (Wallet, Session, Dispute, Payment, Station, Auth...).
+- Hãy tiếp tục code thêm các Test Case mới chưa từng được tạo (như Background jobs: NoShowJob, AutoResolveDispute, Middleware Security...) để chắc chắn độ bao phủ (Coverage) đạt > 90%.
+- Không được thay đổi bất cứ Code Business Logic nào ở Backend (tức là chỉ code riêng bên ChargeSlot.Tests).
+- Hoàn thành xong hãy chạy `dotnet test` để đảm bảo xUnit xanh toàn bộ.

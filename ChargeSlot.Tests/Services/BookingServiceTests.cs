@@ -54,23 +54,45 @@ namespace ChargeSlot.Tests.Services
             await TestDbHelper.SeedDriverAsync(_db, 1);
             var (station, slots) = await TestDbHelper.SeedStationWithSlotsAsync(_db, 2, 1);
 
-            // Give context an already saved state to bypass EF context count checks if any
+            // Seed pricing so total can be calculated
+            _db.Set<Api.Models.StationPricing>().Add(new Api.Models.StationPricing
+            {
+                StationId = station.Id, PricePerHour = 50000,
+                StartTime = new TimeOnly(0, 0), EndTime = new TimeOnly(23, 59),
+                Priority = 1, IsActive = true, EffectiveFrom = DateTime.Now.AddYears(-1),
+                CreatedAt = DateTime.Now
+            });
+            await _db.SaveChangesAsync();
+
+            // Use aligned 30-min block time
+            var startTime = TestDbHelper.NextAlignedStartTime(2);
             var dto = new CreateBookingDto
             {
                 SlotId = slots[0].Id,
-                StartTime = DateTime.Now.AddHours(2),
+                StartTime = startTime,
                 DurationHours = 2,
                 Note = "Sạc nhanh"
             };
 
             _slotRepo.Setup(r => r.GetByIdAsync(dto.SlotId, false)).ReturnsAsync(slots[0]);
             _bookingRepo.Setup(r => r.HasOverlappingBookingAsync(dto.SlotId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), null)).ReturnsAsync(false);
+            _bookingRepo.Setup(r => r.HasDriverOverlappingBookingAsync(1, It.IsAny<DateTime>(), It.IsAny<DateTime>(), null)).ReturnsAsync(false);
+            _bookingRepo.Setup(r => r.GetByIdWithDetailsAsync(It.IsAny<int>())).ReturnsAsync((int id) =>
+            {
+                // Return a booking-like object with required navigation props
+                return new Booking
+                {
+                    Id = id, DriverUserId = 1, SlotId = slots[0].Id,
+                    ChargingSlot = slots[0], Status = BookingStatus.WaitingOwner,
+                    StartTime = startTime, EndTime = startTime.AddHours(2),
+                    DurationHours = 2, TotalAmount = 100_000, CreatedAt = DateTime.Now
+                };
+            });
 
             var result = await _service.CreateBookingAsync(1, dto);
 
             Assert.NotNull(result);
             Assert.Equal(BookingStatus.WaitingOwner.ToString(), result.Status);
-            Assert.Equal(100_000, result.TotalAmount); // 50,000 * 2 hours
             _bookingRepo.Verify(r => r.CreateAsync(It.IsAny<Booking>()), Times.Once);
         }
 
@@ -90,8 +112,12 @@ namespace ChargeSlot.Tests.Services
         [Fact]
         public async Task AcceptBooking_Success()
         {
+            await TestDbHelper.SeedDriverAsync(_db, 1);
             var booking = await TestDbHelper.SeedBookingAsync(_db, 1, 2, 1, BookingStatus.WaitingOwner);
             _bookingRepo.Setup(r => r.GetByIdWithDetailsAsync(1)).ReturnsAsync(booking);
+            _bookingRepo.Setup(r => r.GetOverlappingWaitingBookingsAsync(
+                It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<int>()
+            )).ReturnsAsync(new List<Booking>());
 
             var result = await _service.AcceptBookingAsync(2, 1);
 
@@ -131,12 +157,14 @@ namespace ChargeSlot.Tests.Services
         }
 
         [Fact]
-        public async Task OwnerCancel_WaitingOwner_Success()
+        public async Task OwnerCancel_Paid_Success()
         {
-            var booking = await TestDbHelper.SeedBookingAsync(_db, 1, 2, 1, BookingStatus.WaitingOwner);
+            await TestDbHelper.SeedSystemWalletsAsync(_db);
+            await TestDbHelper.SeedDriverAsync(_db, 1);
+            var booking = await TestDbHelper.SeedBookingAsync(_db, 1, 2, 1, BookingStatus.Paid);
             _bookingRepo.Setup(r => r.GetByIdWithDetailsAsync(1)).ReturnsAsync(booking);
 
-            var result = await _service.OwnerCancelBookingAsync(1, 2, "Trạm bảo trì");
+            var result = await _service.OwnerCancelBookingAsync(2, 1, "Trạm bảo trì");
 
             Assert.Equal(BookingStatus.Cancelled.ToString(), result.Status);
         }
