@@ -240,6 +240,7 @@ builder.Services.AddHostedService<NoShowJob>();
 builder.Services.AddHostedService<WithdrawAutoConfirmJob>();
 // builder.Services.AddHostedService<UnbanAutoJob>();
 builder.Services.AddHostedService<EmailVerificationCleanupJob>();
+builder.Services.AddHostedService<DeadlineReminderJob>();
 
 // =======================
 // CONTROLLERS & SWAGGER

@@ -20,21 +20,40 @@ namespace ChargeSlot.Api.Controllers
         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         /// <summary>
-        /// Lấy danh sách notification của user hiện tại
+        /// Lấy danh sách notification của user hiện tại (phân trang)
         /// </summary>
         [HttpGet]
-        public async Task<IActionResult> GetNotifications()
+        public async Task<IActionResult> GetNotifications(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
-            var notifications = await _notificationRepo.GetByUserAsync(GetUserId());
-            return Ok(notifications.Select(n => new
-            {
-                n.Id,
-                n.Title,
-                n.Content,
-                Type = n.Type.ToString(),
-                n.IsRead,
-                n.CreatedAt
-            }));
+            var all = await _notificationRepo.GetByUserAsync(GetUserId());
+            var total = all.Count;
+            var items = all
+                .OrderByDescending(n => n.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(n => new
+                {
+                    n.Id,
+                    n.Title,
+                    n.Content,
+                    Type = n.Type.ToString(),
+                    n.IsRead,
+                    n.CreatedAt
+                }).ToList();
+            return Ok(new { total, page, pageSize, items });
+        }
+
+        /// <summary>
+        /// Đếm số notification chưa đọc
+        /// </summary>
+        [HttpGet("unread-count")]
+        public async Task<IActionResult> GetUnreadCount()
+        {
+            var all = await _notificationRepo.GetByUserAsync(GetUserId());
+            var count = all.Count(n => !n.IsRead);
+            return Ok(new { unreadCount = count });
         }
 
         /// <summary>

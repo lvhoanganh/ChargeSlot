@@ -92,23 +92,31 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
-        /// Xem danh sách yêu cầu rút tiền của mình
+        /// Xem danh sách yêu cầu rút tiền của mình (phân trang)
         /// </summary>
         [HttpGet("withdraw-requests")]
-        public async Task<IActionResult> GetWithdrawRequests()
+        public async Task<IActionResult> GetWithdrawRequests(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var result = await _walletService.GetUserWithdrawRequestsAsync(GetUserId());
-            return Ok(result);
+            var total = result.Count;
+            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new { total, page, pageSize, items });
         }
 
         /// <summary>
-        /// Lịch sử giao dịch ví
+        /// Lịch sử giao dịch ví (phân trang)
         /// </summary>
         [HttpGet("transactions")]
-        public async Task<IActionResult> GetTransactions()
+        public async Task<IActionResult> GetTransactions(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var result = await _walletService.GetTransactionHistoryAsync(GetUserId());
-            return Ok(result);
+            var total = result.Count;
+            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new { total, page, pageSize, items });
         }
 
         /// <summary>

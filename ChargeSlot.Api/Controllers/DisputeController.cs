@@ -75,40 +75,57 @@ namespace ChargeSlot.Api.Controllers
             }
         }
 
-        /// <summary>Danh sách dispute chờ xử lý (Admin).</summary>
+        /// <summary>Danh sách dispute chờ xử lý (Admin, phân trang).</summary>
         [HttpGet("pending")]
         [Authorize(Roles = RoleConstants.Admin)]
-        public async Task<IActionResult> GetPending()
+        public async Task<IActionResult> GetPending(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var result = await _disputeService.GetPendingAsync();
-            return Ok(result);
+            var total = result.Count;
+            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new { total, page, pageSize, items });
         }
 
-        /// <summary>Tất cả dispute (Admin), filter theo status nếu cần.</summary>
+        /// <summary>Tất cả dispute (Admin, phân trang), filter theo status.</summary>
         [HttpGet("all")]
         [Authorize(Roles = RoleConstants.Admin)]
-        public async Task<IActionResult> GetAll([FromQuery] string? status = null)
+        public async Task<IActionResult> GetAll(
+            [FromQuery] string? status = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var result = await _disputeService.GetAllAsync(status);
-            return Ok(result);
+            var total = result.Count;
+            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new { total, page, pageSize, items });
         }
 
-        /// <summary>Driver xem danh sách khiếu nại của mình.</summary>
+        /// <summary>Driver xem danh sách khiếu nại của mình (phân trang).</summary>
         [HttpGet("my")]
         [Authorize(Roles = "Driver")]
-        public async Task<IActionResult> GetMyDisputes()
+        public async Task<IActionResult> GetMyDisputes(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var result = await _disputeService.GetMyDisputesAsync(GetUserId());
-            return Ok(result);
+            var total = result.Count;
+            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new { total, page, pageSize, items });
         }
 
-        /// <summary>Owner xem danh sách khiếu nại liên quan đến trạm của mình.</summary>
+        /// <summary>Owner xem danh sách khiếu nại liên quan (phân trang).</summary>
         [HttpGet("owner")]
         [Authorize(Roles = "Owner")]
-        public async Task<IActionResult> GetOwnerDisputes()
+        public async Task<IActionResult> GetOwnerDisputes(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var result = await _disputeService.GetOwnerDisputesAsync(GetUserId());
-            return Ok(result);
+            var total = result.Count;
+            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new { total, page, pageSize, items });
         }
 
         /// <summary>Chi tiết dispute.</summary>

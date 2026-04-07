@@ -31,6 +31,8 @@ namespace ChargeSlot.Api.Models
         // Snapshot Configurations
         public DateTime? OwnerEvidenceDeadlineAt { get; set; }
         public DateTime? AdminReviewDeadlineAt { get; set; }
+        public DateTime? OwnerReminderSentAt { get; set; }
+        public DateTime? AdminReminderSentAt { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 

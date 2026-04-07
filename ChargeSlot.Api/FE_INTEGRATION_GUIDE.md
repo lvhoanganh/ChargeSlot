@@ -1,121 +1,95 @@
-# 🚀 TÀI LIỆU TÍCH HỢP FRONTEND (KYC & ADMIN GOD MODE)
+# 🚀 TÀI LIỆU TÍCH HỢP FRONTEND 
+**Phiên bản: Hoàn chỉnh & Chi tiết nhất (Cập nhật ngày 07/04/2026)**
 
-Tài liệu này mô tả chi tiết quy trình luồng dữ liệu (Standard Flow) và danh sách các API mới nhất để team Frontend (FE) tích hợp, đảm bảo hệ thống chặn mọi lỗ hổng hoạt động (Operational Vulnerabilities) và cho phép Admin quan sát toàn cục.
+Tài liệu này là đặc tả kiến trúc kỹ thuật nghiêm ngặt dành cho Frontend. Mọi tính năng cốt lõi hôm nay bao gồm: **Xếp lịch trạm sạc theo thời gian thực (Real-time Availability)**, **Bảo mật khung giờ (30-Minute Blocks)**, **Quy trình KYC**, và **Admin God Mode**.
 
----
-
-## PHẦN 1: TÍCH HỢP LUỒNG XÁC THỰC DANH TÍNH CHỦ TRẠM (OWNER KYC)
-
-### 1 MÔ TẢ LUỒNG CHUẨN (STANDARD KYC FLOW)
-
-Tại sao phải có KYC? Để ngăn chặn rửa tiền và trạm sạc "ma", Account Role `Owner` bị khóa phần lớn các thao tác nhạy cảm (Tạo trạm, Rút tiền ví) cho đến khi được Admin duyệt hồ sơ kinh doanh.
-
-**BƯỚC 1: KIỂM TRA TRẠNG THÁI KYC CỦA OWNER**
-1. FE gọi API lấy thông tin Profile sau khi Login `GET /api/auth/me`.
-2. Kiểm tra thuộc tính `kycStatus` (Kiểu `string`).
-3. Các trạng thái:
-   - `Unverified`: Mặc định, FE hiển thị Banner "Vui lòng xác minh danh tính để tạo trạm".
-   - `Pending`: Đã nộp, FE hiển thị "Hồ sơ đang chờ duyệt, KHÔNG cho nộp lại".
-   - `Approved`: Tuyệt vời, FE ẩn cờ chặn, mở nút "Tạo Trạm", "Rút tiền".
-   - `Rejected`: Bị Admin từ chối. FE hiển thị lý do đỏ chót `rejectionReason`, hiện nút "Nộp lại hồ sơ".
-
-**BƯỚC 2: MÀN HÌNH NỘP HỒ SƠ (OWNER PORTAL)**
-1. Màn hình yêu cầu Owner cung cấp:
-   - CMND/CCCD/Passport (Mặt trước + Mặt sau). Tối đa 5MB.
-   - Giấy phép kinh doanh (Kinh doanh hộ gia đình/Doanh nghiệp). PDF hoặc Ảnh.
-   - Business Name (Tên đăng ký kinh doanh).
-   - Tax Code (Mã số thuế).
-2. FE bọc các file này vào chuẩn `multipart/form-data` và gọi API Submit.
-
-**BƯỚC 3: MÀN HÌNH PHÊ DUYỆT HỒ SƠ (ADMIN PORTAL)**
-1. Admin vào "Quản lý KYC Chủ Trạm".
-2. FE gọi API Backend kéo danh sách hồ sơ `Pending`.
-3. Admin xem ảnh -> Duyệt: Gọi API `Approve` hoặc `Reject` (bắt buộc nhập lý do).
-
-### 2. DANH SÁCH API (KYC)
-
-#### Dành cho Owner (App/Web Owner)
-- **Kiểm tra trạng thái cá nhân**: 
-  - `GET /api/owner-kyc/status`
-  - *Response*: `{ "status": "Pending", "submittedAt": "...", "rejectionReason": null }`
-- **Gửi hồ sơ KYC**: 
-  - `POST /api/owner-kyc/submit` (Cần Header: `Content-Type: multipart/form-data`)
-  - *Payload*: `identityDocumentFront` (File), `identityDocumentBack` (File), `businessLicense` (File), `businessName` (Text), `taxCode` (Text).
-
-#### Dành cho Admin (Web Admin)
-- **Lấy danh sách các hồ sơ đang treo (Pending)**: 
-  - `GET /api/admin-kyc/pending`
-- **Thực thi duyệt hồ sơ (Approve / Reject)**: 
-  - `PUT /api/admin-kyc/review`
-  - *Payload (JSON)*: 
-    ```json
-    {
-      "ownerUserId": 12,
-      "kycStatus": "Approved", // Hoặc "Rejected"
-      "rejectionReason": "" // Bắt buộc nếu là Rejected
-    }
-    ```
+Yêu cầu đội ngũ Frontend tuân thủ tuyệt đối các ràng buộc (Constraints) dưới đây để xây dựng UI (Giao diện) tránh bị Backend chối bỏ (400 Bad Request).
 
 ---
 
-## PHẦN 2: TÍCH HỢP TÍNH NĂNG "ADMIN GOD MODE" (KIỂM SOÁT TOÀN TRI)
+## 🔥 PHẦN 1: TÍNH NĂNG CHỌN TRẠM & ĐẶT LỊCH (TRỌNG TÂM MỚI CHUẨN XÁC)
 
-### 1 MÔ TẢ LUỒNG CHUẨN (STANDARD ADMIN OVERVIEW FLOW)
+Hệ thống đã chuyển đổi toàn bộ cấu trúc sang cơ chế **Slot Thời Gian Chẵn (Block Scheduling)** và kiểm tra trùng lịch kép. Các sai lầm về giờ giấc sẽ bị Backend block thẳng tay.
 
-Backend đã cung cấp vũ khí Lọc từ Server Server-Side Pagination siêu nhẹ. Nghĩa là DB có 5 triệu dòng, Admin bấm cũng không lag. 
-FE tuyệt đối **KHÔNG ĐƯỢC** lấy toàn bộ dữ liệu về rồi Lọc ở mảng Local Memory (Array.filter), mà phải **chuyền Parameter** qua URL cho Backend.
+### 1.1 Tìm Kiếm Trạm Khả Dụng Theo Vị Trí & Khung Giờ (Map / List Screen)
+Khi Driver mở bản đồ hoặc danh sách trạm, FE phải tải các trạm có **chỗ trống (Available Slots)** tương ứng với khoảng thời gian dự định sạc.
 
-**GIAO DIỆN KHUYẾN NGHỊ CHO FE:**
-1. Sử dụng Component bảng kiểu dữ liệu **DataGrid (Ant Design, MUI Table)** có cơ chế `Serevr-Side Pagination`.
-2. Tạo một thanh Header bên trên bảng chứa các **Filter Bar** (Ví dụ: Dropdown Status, Component Date Range Picker (Từ ngày - Đến ngày)).
-3. Mỗi khi User gõ hoặc chọn Filter -> Setup ngắt nhịp debounce (300ms) -> Reload lại Grid bằng API mới.
+**API:** `GET /api/public/stations`
+**Tham số Filter bắt buộc (Cho UI Pick Giờ):**
+- `startTime` (ISO 8601): Thời gian dự định vào sạc (Ví dụ: `2026-04-07T10:00:00Z`).
+- `endTime` (ISO 8601): Thời gian dự định sạc xong (Ví dụ: `2026-04-07T11:00:00Z`).
+- `lat`, `lng`, `radiusKm`: Tọa độ hiện tại của tài xế.
 
-### 2. DANH SÁCH API VÀ CÁCH GỌI (ADMIN)
+**Response Mới Nhất Dành Cho FE:**
+Mỗi đối tượng trạm trả về giờ đây có thêm thuộc tính cốt lõi:
+- `distanceKm`: Khoảng cách thực tế.
+- `availableSlotsCount`: Số lượng Slot **đang trống hoàn toàn** trong khung giờ `startTime` -> `endTime` mà FE đã gửi. (Backend đã tính cả khoảng đệm 15 phút giữa các ca).
 
-TẤT CẢ các API dưới đây đều dùng Method `GET` và nhận tham số qua Query URL (`?page=1&pageSize=20...`).  
-Tham số gốc luôn luôn có:
-- `page` (Mặc định: 1)
-- `pageSize` (Mặc định: 20)
-- `fromDate` (Chuẩn ISO: `2026-04-07T00:00:00Z`)
-- `toDate`
+*Hành động của FE:* Nếu `availableSlotsCount == 0`, mờ trạm đi (Disabled) hoặc gắn nhãn "Kín lịch".
 
-**Response Khung Chuẩn Tự Động Trả Về Mọi Bảng:**
+### 1.2 Ràng Buộc Form Đặt Chỗ (Booking Form) - QUAN TRỌNG
+Khi FE thiết kế giao diện chọn giờ sạc (Time Picker component), **phải khóa (disable)** các lựa chọn không hợp lệ theo quy chế Backend:
+
+1. **Khóa Múi Phút Lẻ:** Giờ bắt đầu (`StartTime`) **BẮT BUỘC** phải nằm ở vạch `00` phút hoặc `30` phút (VD: 10:00, 10:30, 23:30). Không nhận 10:15 hay 10:45.
+2. **Khóa Giây:** Thuộc tính `Second` và `Millisecond` phải truyền lên là `00`.
+3. **Khóa Múi Thời Lượng (Duration):** Tham số `DurationHours` bắt buộc phải là bội số của `0.5` (Cụ thể: `0.5h`, `1h`, `1.5h`, `2h`...).
+4. Nếu FE cố tình đẩy giờ sai, Backend lập tức văng `400 BadRequest: "Giờ bắt đầu sạc bắt buộc phải chẵn theo block 30 phút..."`.
+
+### 1.3 Ngày Khóa Trạm (Unavailable Dates)
+Owner có quyền đóng cửa trạm nguyên ngày (đi nghỉ lễ, cúp điện). FE phải chốt sổ chặn đặt lịch các ngày này.
+- **Lấy ngày khóa:** `GET /api/charging-stations/{id}/unavailable-dates`
+- *Hành động của FE:* Thiết lập hàm `disabledDate` trên thẻ Calendar/Datepicker để chặn Driver bấm vào các ngày này.
+
+---
+
+## 🛡️ PHẦN 2: TÍCH HỢP LUỒNG XÁC THỰC DANH TÍNH (OWNER KYC)
+
+Owner bị khóa quyền tạo Trạm / Rút tiền cho đến khi hồ sơ kinh doanh được chốt duyệt.
+1. FE Get `/api/auth/me` -> Đọc thuộc tính `kycStatus`.
+   - `Unverified`: Mở Component giục nộp KYC.
+   - `Pending`: Render luồng "Đang xử lý". Khóa form.
+   - `Approved`: Trải thảm đỏ, mở mọi tính năng kinh doanh.
+   - `Rejected`: Đọc thuộc tính `rejectionReason` (để chữ đỏ), cho phép Submit lại.
+
+2. **Cổng Nộp Hồ Sơ:** `POST /api/owner/kyc/submit`
+   - Payload: FormData. Up đủ thẻ CMND Trước/Sau (`identityDocumentFront`, `identityDocumentBack`) và Giấy Kinh Doanh (`businessLicense`).
+3. **Cổng Admin Duyệt:** `PUT /api/admin/kyc/{ownerUserId}/review`
+   - Phải có `{ "isApproved": true/false, "rejectReason": "..." }`.
+
+---
+
+## 👁️ PHẦN 3: TÍCH HỢP "ADMIN GOD MODE" DATAGRIDS
+
+Đây là tính năng DataGrid Backend. Backend áp dụng `.AsNoTracking` cắt giảm 99% RAM. Backend chỉ trả về giới hạn trang hiện tại. FE tuyệt đố kỵ cắm List lớn rồi Filter bằng Local JS.
+
+**Khung Response Bắt Buộc Của Grid:**
 ```json
 {
   "items": [{...}, {...}],
   "totalCount": 105,
   "page": 1,
-  "pageSize": 20,
-  "totalPages": 6
+  "pageSize": 20
 }
 ```
 
-#### A. Nhóm Quản Lý Vận Hành (Operations)
+Trang bị thanh Filter động cho mỗi bảng, bắn lên URL Query như sau:
 
-**1. Liệt kê Đặt chỗ (Bookings)**
-- **API:** `GET /api/admin/operations/bookings`
-- **Params Lọc thêm:** `status` (Draft, Cancelled, Completed, Paid...), `driverUserId`, `ownerUserId`, `stationId`
-- **Ví dụ FE Gọi:** `/api/admin/operations/bookings?page=1&status=Paid&stationId=5`
+**1. Bảng 1: Liệt kê Bookings Toàn Hệ Thống**
+- `GET /api/admin/operations/bookings`
+- Thêm Query: `status` (Paid, Cancelled...), `driverUserId`, `ownerUserId`, `stationId`, `fromDate`, `toDate`.
 
-**2. Liệt kê Phiên Sạc Thực Tế (Charging Sessions)**
-- **API:** `GET /api/admin/operations/sessions`
-- **Params Lọc thêm:** `status` (Active, Completed, Faulted), `bookingId`
+**2. Bảng 2: Liệt kê Phiên Sạc Thực Tế (Bắt Lỗi Server/Trạm)**
+- `GET /api/admin/operations/sessions`
+- Thêm Query: `status` (Active, Completed, Faulted), `bookingId`.
 
-**3. Liệt kê Hóa Đơn Trạm (Invoices)**
-- **API:** `GET /api/admin/operations/invoices`
-- **Params Lọc thêm:** `status` (Confirmed, PendingConfirm, UnderDispute), `isPaid` (true/false)
+**3. Bảng 3: Kiểm Kê Hóa Đơn Trạm**
+- `GET /api/admin/operations/invoices`
+- Thêm Query: `status` (Confirmed, PendingConfirm, UnderDispute), `isPaid`. (Cho kế toán dò nợ hệ thống).
 
-#### B. Nhóm Giám Sát Tài Chính (Finance)
+**4. Bảng 4: Soi Tình Trạng Trữ Tiền (Các Ví)**
+- `GET /api/admin/finance/wallets`
+- Thêm Query: `walletType` (Owner, Driver, System), `systemCode` (ESCROW, CLEARING). (Kiểm soát nợ xấu, nợ ký quỹ).
 
-**4. Dò Tìm Tất Cả Các Ví (Wallets)**
-- **API:** `GET /api/admin/finance/wallets`
-- **Params Lọc thêm:** `walletType` (Owner, Driver, System), `userId`, `systemCode` (ESCROW, CLEARING).
-- **Mục đích:** Admin xem tổng nợ tiền của hệ thống so với số dư khả dụng thực tế.
-
-**5. Kiểm Toán Riêng Sổ Kế Toán 1 Ví (Ledger Transactions)**
-- **API:** `GET /api/admin/finance/wallets/{walletId}/transactions`
-- **Params Lọc thêm:** `transactionType` (Credit - Nhận tiền, Debit - Bị Trừ tiền).
-- **Mục đích:** Nếu Driver kêu mất tiền, truyền WalletID của nó bảo đây bấm lọc Debit là ra chi tiết biến động.
-
----
-**TIPS CHO TEAM FE:** Hãy dán ngay cái Tài liệu API này lên Swagger hoặc lưu ở thư mục doc. Các bạn không cần đau đầu xử lý Filter khó nữa, hãy cứ map đúng URL và tham số thôi! Chúc code giao diện thật ngầu!
+**5. Bảng 5: Kính Lúp Sổ Cái Dòng Tiền (Ledger)**
+- `GET /api/admin/finance/wallets/{walletId}/transactions`
+- Thêm Query: `transactionType` (Credit, Debit). Vạch mặt dòng tiền thất thoát trong tích tắc.

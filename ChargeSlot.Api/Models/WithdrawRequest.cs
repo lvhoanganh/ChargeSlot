@@ -46,5 +46,8 @@ namespace ChargeSlot.Api.Models
         public DateTime? IssueReportedAt { get; set; }
         /// <summary>Ghi chú lý do chưa nhận được tiền.</summary>
         public string? IssueNote { get; set; }
+
+        /// <summary>Đã gửi nhắc nhở trước auto-confirm (tránh gửi trùng).</summary>
+        public DateTime? ReminderSentAt { get; set; }
     }
 }

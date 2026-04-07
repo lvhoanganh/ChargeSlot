@@ -36,9 +36,11 @@ namespace ChargeSlot.Api.Controllers
             return int.Parse(id);
         }
 
-        /// <summary>Danh sách conversations của user hiện tại.</summary>
+        /// <summary>Danh sách conversations của user hiện tại (phân trang).</summary>
         [HttpGet]
-        public async Task<IActionResult> GetConversations()
+        public async Task<IActionResult> GetConversations(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var userId = GetUserId();
 
@@ -51,18 +53,16 @@ namespace ChargeSlot.Api.Controllers
                 .ToListAsync();
 
             if (!conversations.Any())
-                return Ok(new List<ChatConversationDto>());
+                return Ok(new { total = 0, page, pageSize, items = new List<ChatConversationDto>() });
 
             var convIds = conversations.Select(c => c.Id).ToList();
 
-            // Batch query: last message per conversation
             var lastMessages = await _db.ChatMessages
                 .Where(m => convIds.Contains(m.ConversationId))
                 .GroupBy(m => m.ConversationId)
                 .Select(g => g.OrderByDescending(m => m.CreatedAt).First())
                 .ToDictionaryAsync(m => m.ConversationId);
 
-            // Batch query: unread count per conversation
             var unreadCounts = await _db.ChatMessages
                 .Where(m => convIds.Contains(m.ConversationId)
                          && m.SenderUserId != userId
@@ -71,7 +71,7 @@ namespace ChargeSlot.Api.Controllers
                 .Select(g => new { ConversationId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.ConversationId, x => x.Count);
 
-            var result = conversations.Select(conv =>
+            var allItems = conversations.Select(conv =>
             {
                 var isDriver = conv.DriverUserId == userId;
                 var otherUser = isDriver ? conv.Owner : conv.Driver;
@@ -91,12 +91,17 @@ namespace ChargeSlot.Api.Controllers
                 };
             }).ToList();
 
-            return Ok(result);
+            var total = allItems.Count;
+            var items = allItems.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new { total, page, pageSize, items });
         }
 
-        /// <summary>Lấy lịch sử chat theo bookingId.</summary>
+        /// <summary>Lấy lịch sử chat theo bookingId (phân trang).</summary>
         [HttpGet("{bookingId:int}")]
-        public async Task<IActionResult> GetMessages(int bookingId)
+        public async Task<IActionResult> GetMessages(
+            int bookingId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
         {
             var userId = GetUserId();
 
@@ -104,14 +109,19 @@ namespace ChargeSlot.Api.Controllers
                 .FirstOrDefaultAsync(c => c.BookingId == bookingId);
 
             if (conv == null)
-                return Ok(new { conversationId = (int?)null, messages = new List<ChatMessageDto>() });
+                return Ok(new { conversationId = (int?)null, total = 0, page, pageSize, messages = new List<ChatMessageDto>() });
 
             if (conv.DriverUserId != userId && conv.OwnerUserId != userId)
                 return Forbid();
 
-            var messages = await _db.ChatMessages
+            var query = _db.ChatMessages
                 .Where(m => m.ConversationId == conv.Id)
-                .OrderBy(m => m.CreatedAt)
+                .OrderByDescending(m => m.CreatedAt);
+
+            var total = await query.CountAsync();
+            var messages = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(m => new ChatMessageDto
                 {
                     Id = m.Id,
@@ -123,7 +133,10 @@ namespace ChargeSlot.Api.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(new { conversationId = conv.Id, messages });
+            // Reverse to show oldest first within page
+            messages.Reverse();
+
+            return Ok(new { conversationId = conv.Id, total, page, pageSize, messages });
         }
 
         /// <summary>Gửi tin nhắn via REST (fallback khi không dùng SignalR). Tự tạo conversation nếu chưa có.</summary>

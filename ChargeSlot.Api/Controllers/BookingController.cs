@@ -39,14 +39,22 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
-        /// Owner xem danh sách booking requests (Step 10)
+        /// Owner xem danh sách booking requests (phân trang + filter status)
         /// </summary>
         [HttpGet("owner")]
         [Authorize(Roles = "Owner")]
-        public async Task<IActionResult> GetOwnerBookings()
+        public async Task<IActionResult> GetOwnerBookings(
+            [FromQuery] string? status = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var result = await _bookingService.GetByOwnerAsync(GetUserId());
-            return Ok(result);
+            if (!string.IsNullOrEmpty(status))
+                result = result.Where(b => b.Status.Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            var total = result.Count;
+            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new { total, page, pageSize, items });
         }
 
         /// <summary>

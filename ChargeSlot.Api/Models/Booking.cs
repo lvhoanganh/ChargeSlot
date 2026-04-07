@@ -50,6 +50,9 @@ namespace ChargeSlot.Api.Models
         /// <summary>Driver gửi yêu cầu xác nhận thủ công (khi không check-in được do lỗi mạng/app).</summary>
         public DateTime? ManualCheckinRequestedAt { get; set; }
 
+        /// <summary>Đã gửi nhắc nhở trước giờ sạc (tránh gửi trùng).</summary>
+        public DateTime? ReminderSentAt { get; set; }
+
         public ICollection<BookingExtraService> BookingExtraServices { get; set; } = new List<BookingExtraService>();
         public Payment? Payment { get; set; }
         public ChargingSession? ChargingSession { get; set; }
