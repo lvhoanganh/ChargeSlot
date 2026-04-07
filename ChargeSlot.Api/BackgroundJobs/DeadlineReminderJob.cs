@@ -85,11 +85,13 @@ namespace ChargeSlot.Api.BackgroundJobs
                 try
                 {
                     var booking = invoice.Booking;
-                    var stationName = booking?.ChargingSlot?.ChargingStation?.Name ?? "Trạm";
-                    var slotName = booking?.ChargingSlot?.SlotName ?? "Slot";
+                    if (booking == null) continue; // Safety: Invoice thiếu Booking nav
+
+                    var stationName = booking.ChargingSlot?.ChargingStation?.Name ?? "Trạm";
+                    var slotName = booking.ChargingSlot?.SlotName ?? "Slot";
 
                     await notificationService.SendAsync(
-                        booking!.DriverUserId,
+                        booking.DriverUserId,
                         "⏰ Nhắc nhở: Hóa đơn sắp tự động xác nhận",
                         $"Hóa đơn tại {slotName} — {stationName} sẽ được tự động xác nhận sau 1 giờ nữa. "
                         + "Nếu có vấn đề, vui lòng tạo khiếu nại ngay.",
@@ -172,7 +174,7 @@ namespace ChargeSlot.Api.BackgroundJobs
             var disputes = await db.Disputes
                 .AsNoTracking()
                 .Include(d => d.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Where(d => d.Status == DisputeStatus.Open
+                .Where(d => d.Status == DisputeStatus.WaitingOwnerEvidence
                          && d.OwnerEvidenceDeadlineAt.HasValue
                          && d.OwnerEvidenceDeadlineAt.Value > now
                          && d.OwnerEvidenceDeadlineAt.Value <= reminderCutoff
