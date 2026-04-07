@@ -11,5 +11,14 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task ResetPasswordAsync(string phoneNumber, string newPassword, string firebaseIdToken);
         Task ChangePasswordAsync(int userId, string currentPassword, string newPassword);
         Task<bool> CheckPhoneExistsAsync(string phoneNumber);
+
+        // Email Verification
+        Task VerifyEmailAsync(int userId, string token);
+        Task AddEmailAsync(int userId, string email);
+        Task ResendVerificationEmailAsync(int userId);
+
+        // User Info
+        Task<DTOs.Auth.UserInfoDto> GetCurrentUserInfoAsync(int userId);
+        Task UpdateCurrentUserInfoAsync(int userId, DTOs.Auth.UpdateUserInfoDto dto);
     }
 }

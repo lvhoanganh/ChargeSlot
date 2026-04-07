@@ -498,19 +498,41 @@ namespace ChargeSlot.Api.Services.Implementation
             await _db.SaveChangesAsync();
         }
 
-        public async Task<DisputeDto?> GetByIdAsync(int disputeId)
+        public async Task<DisputeDto?> GetByIdAsync(int disputeId, int currentUserId, string currentUserRole)
         {
             var dispute = await LoadDisputeWithDetailsAsync(disputeId);
-            return dispute == null ? null : MapToDto(dispute);
+            if (dispute == null) return null;
+
+            if (currentUserRole == Constants.RoleConstants.Driver && dispute.CreatedByUserId != currentUserId)
+                throw new UnauthorizedAccessException("Bạn không có quyền xem khiếu nại này.");
+            
+            if (currentUserRole == Constants.RoleConstants.Owner && dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId != currentUserId)
+                throw new UnauthorizedAccessException("Bạn không có quyền xem khiếu nại này.");
+
+            return MapToDto(dispute);
         }
 
-        public async Task<DisputeDto?> GetByBookingIdAsync(int bookingId)
+        public async Task<DisputeDto?> GetByBookingIdAsync(int bookingId, int currentUserId, string currentUserRole)
         {
             var dispute = await _db.Disputes
+                .Include(d => d.Booking)
+                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(d => d.Booking)
+                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
+                .Include(d => d.Invoice)
                 .Include(d => d.Evidences)
                 .Include(d => d.CreatedByUser)
                 .FirstOrDefaultAsync(d => d.BookingId == bookingId);
-            return dispute == null ? null : MapToDto(dispute);
+            
+            if (dispute == null) return null;
+
+            if (currentUserRole == Constants.RoleConstants.Driver && dispute.CreatedByUserId != currentUserId)
+                throw new UnauthorizedAccessException("Bạn không có quyền xem khiếu nại này.");
+            
+            if (currentUserRole == Constants.RoleConstants.Owner && dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId != currentUserId)
+                throw new UnauthorizedAccessException("Bạn không có quyền xem khiếu nại này.");
+
+            return MapToDto(dispute);
         }
 
         public async Task<List<DisputeDto>> GetPendingAsync()
@@ -552,6 +574,40 @@ namespace ChargeSlot.Api.Services.Implementation
                 .OrderByDescending(d => d.CreatedAt)
                 .ToListAsync();
 
+            return disputes.Select(MapToDto).ToList();
+        }
+
+        public async Task<List<DisputeDto>> GetMyDisputesAsync(int driverUserId)
+        {
+            var disputes = await _db.Disputes
+                .Include(d => d.Booking)
+                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(d => d.Booking)
+                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
+                .Include(d => d.Invoice)
+                .Include(d => d.CreatedByUser)
+                .Include(d => d.Evidences)
+                    .ThenInclude(e => e.UploadedByUser)
+                .Where(d => d.CreatedByUserId == driverUserId)
+                .OrderByDescending(d => d.CreatedAt)
+                .ToListAsync();
+            return disputes.Select(MapToDto).ToList();
+        }
+
+        public async Task<List<DisputeDto>> GetOwnerDisputesAsync(int ownerUserId)
+        {
+            var disputes = await _db.Disputes
+                .Include(d => d.Booking)
+                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(d => d.Booking)
+                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
+                .Include(d => d.Invoice)
+                .Include(d => d.CreatedByUser)
+                .Include(d => d.Evidences)
+                    .ThenInclude(e => e.UploadedByUser)
+                .Where(d => d.Booking.ChargingSlot.ChargingStation.OwnerUserId == ownerUserId)
+                .OrderByDescending(d => d.CreatedAt)
+                .ToListAsync();
             return disputes.Select(MapToDto).ToList();
         }
 

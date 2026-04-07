@@ -158,6 +158,49 @@ namespace ChargeSlot.Api.Controllers
             return Ok(new { message = $"Station đã chuyển sang {newStatus}.", operationalStatus = newStatus.ToString() });
         }
 
+        // ─────────────── UNAVAILABLE DATES ───────────────
+
+        /// <summary>Lấy danh sách các ngày trạm báo bận (không hoạt động).</summary>
+        [HttpGet("{id:int}/unavailable-dates")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetUnavailableDates(int id)
+        {
+            var dates = await _stationService.GetUnavailableDatesAsync(id);
+            return Ok(dates);
+        }
+
+        /// <summary>Thêm các ngày báo bận cho trạm.</summary>
+        [HttpPost("{id:int}/unavailable-dates")]
+        public async Task<IActionResult> AddUnavailableDates(int id, [FromBody] AddUnavailableDatesDto dto)
+        {
+            try
+            {
+                var result = await _stationService.AddUnavailableDatesAsync(id, GetUserId(), dto);
+                return Ok(result);
+            }
+            catch (Exceptions.BookingConflictException ex)
+            {
+                return BadRequest(new { message = ex.Message, conflicts = ex.Conflicts });
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        /// <summary>Xóa các ngày báo bận đã được cài đặt.</summary>
+        [HttpDelete("{id:int}/unavailable-dates")]
+        public async Task<IActionResult> RemoveUnavailableDates(int id, [FromBody] RemoveUnavailableDatesDto dto)
+        {
+            try
+            {
+                await _stationService.RemoveUnavailableDatesAsync(id, GetUserId(), dto);
+                return NoContent();
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
         // ─────────────── STATION PRICING (giá theo khung giờ) ───────────────
 
         /// <summary>List all pricing rules for a station.</summary>

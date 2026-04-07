@@ -52,25 +52,16 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<ChargingStationDto> CreateAsync(int ownerUserId, CreateChargingStationDto dto)
         {
-            // Ensure Owner profile record exists (FK: ChargingStation.OwnerUserId → Owner.UserId)
-            var ownerExists = await _context.Owner.AnyAsync(o => o.UserId == ownerUserId);
-            if (!ownerExists)
+            var ownerExists = await _context.Owner.FirstOrDefaultAsync(o => o.UserId == ownerUserId);
+            if (ownerExists == null)
             {
-                // Auto-create Owner profile from ApplicationUser data
-                var user = await _context.Users.FindAsync(ownerUserId);
-                if (user == null)
-                    throw new InvalidOperationException("User not found.");
-
-                _context.Owner.Add(new Owner
-                {
-                    UserId = ownerUserId,
-                    BusinessName = user.FullName,
-                    TaxCode = "N/A",
-                    CreatedAt = DateTimeHelper.VietnamNow()
-                });
-                await _context.SaveChangesAsync();
+                throw new InvalidOperationException("Chưa tìm thấy hồ sơ Chủ trạm. Vui lòng xác thực danh tính (KYC) trước khi tạo trạm sạc.");
             }
 
+            if (ownerExists.KycStatus != KycStatus.Approved)
+            {
+                throw new InvalidOperationException("Hồ sơ doanh nghiệp chưa được duyệt. Vui lòng xác thực danh tính (KYC) và chờ Admin kiểm duyệt trước khi tạo trạm sạc.");
+            }
             var station = new ChargingStation
             {
                 OwnerUserId = ownerUserId,
@@ -428,6 +419,134 @@ namespace ChargeSlot.Api.Services.Implementation
             }
 
             await _stationRepo.SaveChangesAsync();
+        }
+
+        // ─────────────── UNAVAILABLE DATES ───────────────
+
+        public async Task<List<UnavailableDateDto>> GetUnavailableDatesAsync(int stationId)
+        {
+            var dates = await _context.StationUnavailableDates
+                .Where(x => x.StationId == stationId)
+                .OrderBy(x => x.Date)
+                .ToListAsync();
+
+            return dates.Select(x => new UnavailableDateDto
+            {
+                Id = x.Id,
+                StationId = x.StationId,
+                Date = x.Date,
+                Reason = x.Reason
+            }).ToList();
+        }
+
+        public async Task<List<UnavailableDateDto>> AddUnavailableDatesAsync(int stationId, int ownerUserId, AddUnavailableDatesDto dto)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId);
+            if (station == null) throw new KeyNotFoundException("Trạm không tồn tại");
+            if (station.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Bạn không phải chủ trạm");
+
+            if (dto.Dates == null || dto.Dates.Count == 0) return new List<UnavailableDateDto>();
+
+            // Distinct dates to process
+            var requestedDates = dto.Dates.Distinct().OrderBy(d => d).ToList();
+
+            // Check for overlaps with active bookings
+            var activeStatuses = new[]
+            {
+                BookingStatus.WaitingOwner, BookingStatus.PendingPayment,
+                BookingStatus.Paid, BookingStatus.CheckedIn, BookingStatus.InProgress
+            };
+
+            var slotIds = await _context.ChargingSlots
+                .Where(s => s.StationId == stationId)
+                .Select(s => s.Id)
+                .ToListAsync();
+
+            // Only check bookings that end after VietnamNow
+            var now = DateTimeHelper.VietnamNow();
+            var activeBookings = await _context.Bookings
+                .Where(b => slotIds.Contains(b.SlotId) && activeStatuses.Contains(b.Status) && b.EndTime > now)
+                .Select(b => new { b.Id, b.StartTime, b.EndTime })
+                .ToListAsync();
+
+            var conflicts = new List<string>();
+
+            // Map booking start/end times to Vietnam timezone Dates
+            foreach (var b in activeBookings)
+            {
+                // We compare the request dates which are assumed to be Vietnam local DateOnly
+                var bStartDt = b.StartTime;
+                var bEndDt = b.EndTime;
+                var bStartDate = DateOnly.FromDateTime(bStartDt);
+                var bEndDate = DateOnly.FromDateTime(bEndDt);
+
+                // If any requested date falls between bStartDate and bEndDate inclusive, it's a conflict
+                foreach (var rd in requestedDates)
+                {
+                    if (rd >= bStartDate && rd <= bEndDate)
+                    {
+                        conflicts.Add(rd.ToString("yyyy-MM-dd"));
+                    }
+                }
+            }
+
+            var distinctConflicts = conflicts.Distinct().OrderBy(c => c).ToList();
+            if (distinctConflicts.Count > 0)
+            {
+                throw new Exceptions.BookingConflictException("Có booking tồn tại trong các ngày được chọn.", distinctConflicts);
+            }
+
+            // If no conflicts, save the non-duplicate ones
+            var existingDates = await _context.StationUnavailableDates
+                .Where(x => x.StationId == stationId)
+                .Select(x => x.Date)
+                .ToListAsync();
+
+            var addedRecords = new List<StationUnavailableDate>();
+            foreach (var rd in requestedDates)
+            {
+                if (!existingDates.Contains(rd))
+                {
+                    var record = new StationUnavailableDate
+                    {
+                        StationId = stationId,
+                        Date = rd,
+                        Reason = dto.Reason,
+                        CreatedAt = DateTimeHelper.VietnamNow()
+                    };
+                    _context.StationUnavailableDates.Add(record);
+                    addedRecords.Add(record);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return addedRecords.Select(x => new UnavailableDateDto
+            {
+                Id = x.Id,
+                StationId = x.StationId,
+                Date = x.Date,
+                Reason = x.Reason
+            }).ToList();
+        }
+
+        public async Task RemoveUnavailableDatesAsync(int stationId, int ownerUserId, RemoveUnavailableDatesDto dto)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId);
+            if (station == null) throw new KeyNotFoundException("Trạm không tồn tại");
+            if (station.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Bạn không phải chủ trạm");
+
+            if (dto.Ids == null || dto.Ids.Count == 0) return;
+
+            var records = await _context.StationUnavailableDates
+                .Where(x => x.StationId == stationId && dto.Ids.Contains(x.Id))
+                .ToListAsync();
+
+            if (records.Count > 0)
+            {
+                _context.StationUnavailableDates.RemoveRange(records);
+                await _context.SaveChangesAsync();
+            }
         }
 
         // ─────────────── ADMIN ───────────────

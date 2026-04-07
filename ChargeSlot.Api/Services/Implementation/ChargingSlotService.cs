@@ -95,11 +95,24 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task DeleteAsync(int stationId, int slotId, int ownerUserId)
         {
-            await ValidateStationOwnershipAsync(stationId, ownerUserId);
+            var station = await _stationRepo.GetByIdAsync(stationId, includeDetails: false);
+            if (station == null)
+                throw new KeyNotFoundException($"Station {stationId} not found.");
+            if (station.OwnerUserId != ownerUserId)
+                throw new UnauthorizedAccessException("You do not own this station.");
 
             var slot = await _slotRepo.GetByIdAsync(slotId, tracking: true);
             if (slot == null || slot.StationId != stationId)
                 throw new KeyNotFoundException($"Slot {slotId} not found in station {stationId}.");
+
+            if (station.ApprovalStatus != ApprovalStatus.Draft && station.ApprovalStatus != ApprovalStatus.Rejected)
+            {
+                var hasBookings = await _db.Bookings.AnyAsync(b => b.SlotId == slotId);
+                if (hasBookings)
+                {
+                    throw new InvalidOperationException("Không thể xóa khoảng sạc/slot này vì đã từng có booking liên quan. Bạn chỉ có thể chuyển sang trạng thái ngưng hoạt động (Inactive) thay vì xóa.");
+                }
+            }
 
             _slotRepo.Remove(slot);
             await _slotRepo.SaveChangesAsync();
@@ -205,7 +218,9 @@ namespace ChargeSlot.Api.Services.Implementation
             var bookedRanges = bookings.Select(b => new BookedTimeRangeDto
             {
                 StartTime = b.StartTime,
-                EndTime = b.EndTime.AddMinutes(BufferMinutes), // Bao gồm 15 phút buffer
+                EndTime = (b.ChargingSession != null && b.ChargingSession.ActualEndTime.HasValue 
+                            ? b.ChargingSession.ActualEndTime.Value 
+                            : b.EndTime).AddMinutes(BufferMinutes), // Bao gồm 15 phút buffer
                 Status = b.Status.ToString()
             }).ToList();
 

@@ -19,5 +19,7 @@ namespace ChargeSlot.Api.Services.Interfaces
         /// Trả Stock, nhả Slot, hoàn tiền 100% nếu đã Paid.
         /// </summary>
         Task CancelSystemBookingAsync(int bookingId, string systemReason);
+
+        Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<BookingDto>> GetAdminAllBookingsAsync(ChargeSlot.Api.DTOs.Admin.Overview.BookingFilterDto filter);
     }
 }

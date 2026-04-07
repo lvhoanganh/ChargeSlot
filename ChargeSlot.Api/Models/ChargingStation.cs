@@ -43,6 +43,7 @@ namespace ChargeSlot.Api.Models
 
         public ICollection<StationImage> Images { get; set; } = new List<StationImage>();
         public ICollection<StationOperatingHours> OperatingHours { get; set; } = new List<StationOperatingHours>();
+        public ICollection<StationUnavailableDate> UnavailableDates { get; set; } = new List<StationUnavailableDate>();
         public ICollection<ExtraService> ExtraServices { get; set; } = new List<ExtraService>();
         public ICollection<ChargingSlot> ChargingSlots { get; set; } = new List<ChargingSlot>();
         public ICollection<StationPricing> StationPricings { get; set; } = new List<StationPricing>();

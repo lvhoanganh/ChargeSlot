@@ -1,3 +1,4 @@
+using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.DTOs.Slot;
 using ChargeSlot.Api.DTOs.Station;
 using ChargeSlot.Api.Enums;
@@ -36,6 +37,8 @@ namespace ChargeSlot.Api.Controllers
             [FromQuery] double? lat = null,
             [FromQuery] double? lng = null,
             [FromQuery] double radiusKm = 50,
+            [FromQuery] DateTime? startTime = null,
+            [FromQuery] DateTime? endTime = null,
             [FromQuery] string? sortBy = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
@@ -46,6 +49,7 @@ namespace ChargeSlot.Api.Controllers
                 .Include(s => s.ChargingSlots)
                 .Include(s => s.StationPricings)
                 .Include(s => s.ExtraServices)
+                .Include(s => s.UnavailableDates)
                 .Where(s => s.ApprovalStatus == ApprovalStatus.Approved
                     && s.OperationalStatus == OperationalStatus.Active
                     && s.Owner.User.Status == UserStatusConstants.Active);
@@ -63,55 +67,115 @@ namespace ChargeSlot.Api.Controllers
                 query = query.Where(s => s.AverageRating >= minRating.Value);
             }
 
-            var stations = await query.ToListAsync();
+            var rawStations = await query.ToListAsync();
 
-            // Location-based filter + distance calculation
-            List<(ChargingStation station, double? distanceKm)> stationsWithDistance;
+            // ─── LỌC THEO THỜI GIAN (Availability Filtering) ───
+            var now = DateTimeHelper.VietnamNow();
+            DateTime filterStart = startTime ?? now;
+            DateTime filterEnd = endTime ?? (startTime.HasValue ? startTime.Value.AddHours(1) : new DateTime(now.Year, now.Month, now.Day, 23, 59, 59));
+
+            // Đưa Start và End về đúng trình tự nếu truyền ngược
+            if (filterStart > filterEnd) (filterStart, filterEnd) = (filterEnd, filterStart);
+
+            // Query Overlapping Bookings trực tiếp từ Database cho tất cả các trạm hợp lệ
+            var stationIds = rawStations.Select(s => s.Id).ToList();
+            var activeStatuses = new[]
+            {
+                BookingStatus.PendingPayment, BookingStatus.Paid, BookingStatus.CheckedIn,
+                BookingStatus.InProgress, BookingStatus.CompletedPendingInvoice, BookingStatus.Completed
+            };
+
+            var overlappingBookings = await _db.Bookings
+                .Include(b => b.ChargingSession)
+                .Where(b => stationIds.Contains(b.ChargingSlot.StationId)
+                    && activeStatuses.Contains(b.Status)
+                    && b.StartTime < filterEnd.AddMinutes(15) // +15 phút đệm
+                    && (b.ChargingSession != null && b.ChargingSession.ActualEndTime != null
+                            ? b.ChargingSession.ActualEndTime.Value
+                            : b.EndTime).AddMinutes(15) > filterStart)
+                .ToListAsync();
+
+            var availableStations = new List<(ChargingStation station, int availableSlots)>();
+
+            foreach (var station in rawStations)
+            {
+                // Kiểm tra UnavailableDates
+                var isUnavailable = false;
+                for (var d = filterStart.Date; d <= filterEnd.Date; d = d.AddDays(1))
+                {
+                    if (station.UnavailableDates.Any(ud => ud.Date == DateOnly.FromDateTime(d)))
+                    {
+                        isUnavailable = true;
+                        break;
+                    }
+                }
+                // Tạm bỏ qua check OperatingHours phức tạp vì yêu cầu không nhắc tới cụ thể giờ nghỉ trạm, chủ yếu là Booking overlap.
+                if (isUnavailable) continue;
+
+                var stationSlots = station.ChargingSlots.Where(s => s.Status == SlotStatus.Active).ToList();
+                int availableCount = 0;
+
+                foreach (var slot in stationSlots)
+                {
+                    bool isSlotBooked = overlappingBookings.Any(b => b.SlotId == slot.Id);
+                    if (!isSlotBooked) availableCount++;
+                }
+
+                // Giữ lại trạm nếu có ít nhất 1 slot trống trong khoảng thời gian
+                if (availableCount > 0)
+                {
+                    availableStations.Add((station, availableCount));
+                }
+            }
+
+            // ─── LỌC VÀ TÍNH KHOẢNG CÁCH KÉP TỌA ĐỘ ───
+            List<(ChargingStation station, double? distanceKm, int availableSlots)> stationsWithCalculations;
             if (lat.HasValue && lng.HasValue)
             {
-                stationsWithDistance = stations
-                    .Where(s => s.Latitude.HasValue && s.Longitude.HasValue)
-                    .Select(s => (station: s, distanceKm: (double?)HaversineKm(lat.Value, lng.Value, (double)s.Latitude!.Value, (double)s.Longitude!.Value)))
+                stationsWithCalculations = availableStations
+                    .Where(x => x.station.Latitude.HasValue && x.station.Longitude.HasValue)
+                    .Select(x => (x.station, distanceKm: (double?)HaversineKm(lat.Value, lng.Value, (double)x.station.Latitude!.Value, (double)x.station.Longitude!.Value), x.availableSlots))
                     .Where(x => x.distanceKm <= radiusKm)
                     .ToList();
 
-                // Thêm lại các trạm chưa có tọa độ (hiển thị cuối, distance = null)
-                var noCoordStations = stations
-                    .Where(s => !s.Latitude.HasValue || !s.Longitude.HasValue)
-                    .Select(s => (station: s, distanceKm: (double?)null));
-                stationsWithDistance.AddRange(noCoordStations);
+                // Thêm lại các trạm không có tọa độ
+                var noCoordStations = availableStations
+                    .Where(x => !x.station.Latitude.HasValue || !x.station.Longitude.HasValue)
+                    .Select(x => (x.station, distanceKm: (double?)null, x.availableSlots));
+                stationsWithCalculations.AddRange(noCoordStations);
             }
             else
             {
-                stationsWithDistance = stations.Select(s => (station: s, distanceKm: (double?)null)).ToList();
+                stationsWithCalculations = availableStations.Select(x => (x.station, distanceKm: (double?)null, x.availableSlots)).ToList();
             }
 
             // Sort
-            stationsWithDistance = sortBy?.ToLower() switch
+            stationsWithCalculations = sortBy?.ToLower() switch
             {
                 "distance" when lat.HasValue && lng.HasValue =>
-                    stationsWithDistance.OrderBy(x => x.distanceKm ?? double.MaxValue).ToList(),
+                    stationsWithCalculations.OrderBy(x => x.distanceKm ?? double.MaxValue).ToList(),
                 "rating" =>
-                    stationsWithDistance.OrderByDescending(x => x.station.AverageRating)
+                    stationsWithCalculations.OrderByDescending(x => x.station.AverageRating)
                         .ThenByDescending(x => x.station.TotalReviews).ToList(),
                 "reviews" =>
-                    stationsWithDistance.OrderByDescending(x => x.station.TotalReviews)
+                    stationsWithCalculations.OrderByDescending(x => x.station.TotalReviews)
                         .ThenByDescending(x => x.station.AverageRating).ToList(),
                 _ when lat.HasValue && lng.HasValue =>
-                    stationsWithDistance.OrderBy(x => x.distanceKm ?? double.MaxValue).ToList(),
+                    stationsWithCalculations.OrderBy(x => x.distanceKm ?? double.MaxValue).ToList(),
                 _ =>
-                    stationsWithDistance.OrderBy(x => x.station.Name).ToList()
+                    stationsWithCalculations.OrderBy(x => x.station.Name).ToList()
             };
 
             // Pagination
-            var total = stationsWithDistance.Count;
-            var items = stationsWithDistance
+            var total = stationsWithCalculations.Count;
+            var items = stationsWithCalculations
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(x =>
                 {
                     var dto = MapToPublicDto(x.station);
                     dto.DistanceKm = x.distanceKm.HasValue ? Math.Round(x.distanceKm.Value, 2) : null;
+                    dto.AvailableSlotsCount = x.availableSlots;
                     return dto;
                 })
                 .ToList();

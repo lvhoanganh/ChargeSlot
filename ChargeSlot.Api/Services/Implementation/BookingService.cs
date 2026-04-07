@@ -52,6 +52,14 @@ namespace ChargeSlot.Api.Services.Implementation
                     throw new InvalidOperationException("Thời lượng sạc phải lớn hơn 0.");
                 if (dto.DurationHours > 24)
                     throw new InvalidOperationException("Thời lượng sạc tối đa là 24 giờ.");
+                if (dto.DurationHours % 0.5m != 0)
+                    throw new InvalidOperationException("Thời lượng sạc phải là bội số của 30 phút (VD: 0.5h, 1h, 1.5h).");
+
+                // Validate: StartTime block scheduling (chỉ nhận phút 00 hoặc 30)
+                if (dto.StartTime.Minute != 0 && dto.StartTime.Minute != 30)
+                    throw new InvalidOperationException("Giờ bắt đầu sạc bắt buộc phải chẵn theo block 30 phút (VD: 10:00, 10:30).");
+                if (dto.StartTime.Second != 0 || dto.StartTime.Millisecond != 0)
+                    throw new InvalidOperationException("Hệ thống chỉ nhận khung giờ chẵn tới mức giây (00s). Không nhận giờ phân mảnh.");
 
                 // Cấp khóa lock đồng bộ (Prevent Simultaneous Double Booking)
                 var lockResource = $"SlotLock_{dto.SlotId}";
@@ -90,6 +98,20 @@ namespace ChargeSlot.Api.Services.Implementation
                         throw new InvalidOperationException("Trạm sạc chưa được phê duyệt hoạt động.");
                     if (slot.ChargingStation.OperationalStatus == OperationalStatus.Inactive)
                         throw new InvalidOperationException("Trạm sạc hiện đang ngừng hoạt động.");
+
+                    // Check StationUnavailableDates
+                    var bookingStartDate = DateOnly.FromDateTime(dto.StartTime);
+                    var bookingEndDate = DateOnly.FromDateTime(endTime);
+                    var unavailableDates = await _context.StationUnavailableDates
+                        .Where(u => u.StationId == slot.StationId && u.Date >= bookingStartDate && u.Date <= bookingEndDate)
+                        .Select(u => u.Date)
+                        .ToListAsync();
+
+                    if (unavailableDates.Count > 0)
+                    {
+                        var datesStr = string.Join(", ", unavailableDates.Select(d => d.ToString("dd/MM/yyyy")));
+                        throw new InvalidOperationException($"Trạm sạc đóng cửa/bảo trì vào các ngày: {datesStr}. Vui lòng chọn thời gian khác.");
+                    }
                 }
 
                 // Step 6: Validate slot availability (check overlap)
@@ -963,6 +985,65 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Làm tròn đến hàng đơn vị
             return Math.Round(total, 0);
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<BookingDto>> GetAdminAllBookingsAsync(ChargeSlot.Api.DTOs.Admin.Overview.BookingFilterDto filter)
+        {
+            var query = _context.Bookings
+                .Include(b => b.ChargingSlot).ThenInclude(cs => cs.ChargingStation)
+                .Include(b => b.Payment)
+                .Include(b => b.Driver).ThenInclude(u => u.User)
+                .Include(b => b.BookingExtraServices).ThenInclude(es => es.ExtraService)
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(filter.Status))
+            {
+                if (System.Enum.TryParse<ChargeSlot.Api.Enums.BookingStatus>(filter.Status, true, out var statusEnum))
+                {
+                    query = query.Where(b => b.Status == statusEnum);
+                }
+            }
+
+            if (filter.DriverUserId.HasValue)
+            {
+                query = query.Where(b => b.DriverUserId == filter.DriverUserId.Value);
+            }
+
+            if (filter.OwnerUserId.HasValue)
+            {
+                query = query.Where(b => b.ChargingSlot.ChargingStation.OwnerUserId == filter.OwnerUserId.Value);
+            }
+
+            if (filter.StationId.HasValue)
+            {
+                query = query.Where(b => b.ChargingSlot.StationId == filter.StationId.Value);
+            }
+
+            if (filter.FromDate.HasValue)
+            {
+                query = query.Where(b => b.CreatedAt >= filter.FromDate.Value);
+            }
+            if (filter.ToDate.HasValue)
+            {
+                query = query.Where(b => b.CreatedAt <= filter.ToDate.Value);
+            }
+
+            int totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(b => b.CreatedAt)
+                .Skip((filter.Page - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync();
+
+            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<BookingDto>
+            {
+                Items = items.Select(MapToDto).ToList(),
+                TotalCount = totalCount,
+                Page = filter.Page,
+                PageSize = filter.PageSize
+            };
         }
     }
 }

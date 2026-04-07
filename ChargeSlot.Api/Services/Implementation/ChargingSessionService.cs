@@ -696,6 +696,98 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw;
             }
         }
+
+        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<ChargingSessionDto>> GetAdminAllSessionsAsync(ChargeSlot.Api.DTOs.Admin.Overview.SessionFilterDto filter)
+        {
+            IQueryable<ChargingSession> query = _db.ChargingSessions
+                .Include(s => s.Booking).ThenInclude(b => b.Driver).ThenInclude(u => u.User)
+                .Include(s => s.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(cs => cs.ChargingStation)
+                .AsNoTracking();
+
+            if (!string.IsNullOrEmpty(filter.Status))
+            {
+                if (System.Enum.TryParse<ChargeSlot.Api.Enums.BookingStatus>(filter.Status, true, out var statusEnum))
+                {
+                    query = query.Where(s => s.Booking.Status == statusEnum);
+                }
+            }
+
+            if (filter.BookingId.HasValue)
+            {
+                query = query.Where(s => s.BookingId == filter.BookingId.Value);
+            }
+
+            if (filter.FromDate.HasValue)
+            {
+                query = query.Where(s => s.ActualStartTime >= filter.FromDate.Value || s.CreatedAt >= filter.FromDate.Value);
+            }
+            if (filter.ToDate.HasValue)
+            {
+                query = query.Where(s => s.ActualStartTime <= filter.ToDate.Value || s.CreatedAt <= filter.ToDate.Value);
+            }
+
+            int totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(s => s.CreatedAt)
+                .Skip((filter.Page - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync();
+
+            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<ChargingSessionDto>
+            {
+                Items = items.Select(s => MapToDto(s, s.Booking)).ToList(),
+                TotalCount = totalCount,
+                Page = filter.Page,
+                PageSize = filter.PageSize
+            };
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<InvoiceDto>> GetAdminAllInvoicesAsync(ChargeSlot.Api.DTOs.Admin.Overview.InvoiceFilterDto filter)
+        {
+            IQueryable<Invoice> query = _db.Invoices.AsNoTracking();
+
+            if (!string.IsNullOrEmpty(filter.Status))
+            {
+                if (Enum.TryParse<InvoiceStatus>(filter.Status, true, out var statusEnum))
+                {
+                    query = query.Where(i => i.Status == statusEnum);
+                }
+            }
+
+            if (filter.IsPaid.HasValue)
+            {
+                if (filter.IsPaid.Value)
+                    query = query.Where(i => i.Status == InvoiceStatus.Confirmed);
+                else
+                    query = query.Where(i => i.Status != InvoiceStatus.Confirmed);
+            }
+
+            if (filter.FromDate.HasValue)
+            {
+                query = query.Where(i => i.CreatedAt >= filter.FromDate.Value);
+            }
+            if (filter.ToDate.HasValue)
+            {
+                query = query.Where(i => i.CreatedAt <= filter.ToDate.Value);
+            }
+
+            int totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(i => i.CreatedAt)
+                .Skip((filter.Page - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync();
+
+            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<InvoiceDto>
+            {
+                Items = items.Select(MapToInvoiceDto).ToList(),
+                TotalCount = totalCount,
+                Page = filter.Page,
+                PageSize = filter.PageSize
+            };
+        }
     }
 }
 

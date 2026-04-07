@@ -45,6 +45,8 @@ namespace ChargeSlot.Api.Seeds
                 UserName = "0900000001",
                 FullName = "Admin Hệ Thống",
                 PhoneNumber = "0900000001",
+                Email = "laivuhoanganh.fj@gmail.com",
+                EmailConfirmed = true,
                 IsPhoneVerified = true,
                 Status = "ACTIVE",
                 CreatedAt = now
@@ -57,6 +59,8 @@ namespace ChargeSlot.Api.Seeds
                 UserName = "0911111111",
                 FullName = "Trần Văn Minh",
                 PhoneNumber = "0911111111",
+                Email = "owner1@chargeslot.demo",
+                EmailConfirmed = true,
                 IsPhoneVerified = true,
                 Status = "ACTIVE",
                 CreatedAt = now
@@ -68,6 +72,8 @@ namespace ChargeSlot.Api.Seeds
                 UserName = "0911111112",
                 FullName = "Nguyễn Thị Lan",
                 PhoneNumber = "0911111112",
+                Email = "owner2@chargeslot.demo",
+                EmailConfirmed = true,
                 IsPhoneVerified = true,
                 Status = "ACTIVE",
                 CreatedAt = now
@@ -80,6 +86,8 @@ namespace ChargeSlot.Api.Seeds
                 UserName = "0922222221",
                 FullName = "Lê Văn An",
                 PhoneNumber = "0922222221",
+                Email = "driver1@chargeslot.demo",
+                EmailConfirmed = true,
                 IsPhoneVerified = true,
                 Status = "ACTIVE",
                 CreatedAt = now
@@ -91,6 +99,8 @@ namespace ChargeSlot.Api.Seeds
                 UserName = "0922222222",
                 FullName = "Phạm Văn Bình",
                 PhoneNumber = "0922222222",
+                Email = "driver2@chargeslot.demo",
+                EmailConfirmed = true,
                 IsPhoneVerified = true,
                 Status = "ACTIVE",
                 CreatedAt = now
@@ -102,6 +112,8 @@ namespace ChargeSlot.Api.Seeds
                 UserName = "0922222223",
                 FullName = "Hoàng Thị Chi",
                 PhoneNumber = "0922222223",
+                Email = "driver3@chargeslot.demo",
+                EmailConfirmed = true,
                 IsPhoneVerified = true,
                 Status = "ACTIVE",
                 CreatedAt = now

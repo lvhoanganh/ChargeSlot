@@ -22,6 +22,7 @@ namespace ChargeSlot.Api.Data
         public DbSet<ChargingStation> ChargingStations => Set<ChargingStation>();
         public DbSet<StationImage> StationImages => Set<StationImage>();
         public DbSet<StationOperatingHours> StationOperatingHours => Set<StationOperatingHours>();
+        public DbSet<StationUnavailableDate> StationUnavailableDates => Set<StationUnavailableDate>();
         public DbSet<ExtraService> ExtraServices => Set<ExtraService>();
         public DbSet<ChargingSlot> ChargingSlots => Set<ChargingSlot>();
         public DbSet<StationPricing> StationPricings => Set<StationPricing>();

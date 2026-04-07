@@ -32,5 +32,6 @@ namespace ChargeSlot.Api.DTOs.Station
         public decimal AverageRating { get; set; }
         public int TotalReviews { get; set; }
         public double? DistanceKm { get; set; }
+        public int? AvailableSlotsCount { get; set; }
     }
 }

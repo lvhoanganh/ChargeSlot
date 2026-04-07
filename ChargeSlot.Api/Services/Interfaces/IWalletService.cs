@@ -24,5 +24,9 @@ namespace ChargeSlot.Api.Services.Interfaces
 
         // Finalize withdraw: trừ frozen + ghi ledger (dùng bởi WithdrawAutoConfirmJob)
         Task FinalizeWithdrawCompletedAsync(Models.WithdrawRequest request, int? confirmedByUserId = null);
+
+        // Admin Overview
+        Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<WalletDto>> GetAdminAllWalletsAsync(ChargeSlot.Api.DTOs.Admin.Overview.WalletFilterDto filter);
+        Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<TransactionHistoryDto>> GetAdminWalletTransactionsAsync(int walletId, ChargeSlot.Api.DTOs.Admin.Overview.TransactionFilterDto filter);
     }
 }

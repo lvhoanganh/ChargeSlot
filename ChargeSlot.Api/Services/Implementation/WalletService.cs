@@ -252,6 +252,11 @@ namespace ChargeSlot.Api.Services.Implementation
             if (dto.Amount > 100_000_000)
                 throw new InvalidOperationException("Số tiền rút tối đa là 100,000,000 VND.");
 
+            // Hệ thống chỉ cho Owner rút tiền, và Owner phải KYC thành công (Chống Rửa Tiền - AML).
+            var owner = await _db.Owner.FirstOrDefaultAsync(o => o.UserId == userId);
+            if (owner != null && owner.KycStatus != ChargeSlot.Api.Enums.KycStatus.Approved)
+                throw new InvalidOperationException("Chức năng Rút tiền tạm khóa. Vui lòng hoàn tất xác minh danh tính (KYC) để tiếp tục.");
+
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
@@ -710,6 +715,109 @@ namespace ChargeSlot.Api.Services.Implementation
                 UserConfirmedAt = r.UserConfirmedAt,
                 IssueReportedAt = r.IssueReportedAt,
                 IssueNote = r.IssueNote
+            };
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<WalletDto>> GetAdminAllWalletsAsync(ChargeSlot.Api.DTOs.Admin.Overview.WalletFilterDto filter)
+        {
+            var query = _db.Wallets
+                .Include(w => w.User) // Để lấy FullName nếu cần mở rộng DTO
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(filter.WalletType))
+            {
+                if (Enum.TryParse<WalletType>(filter.WalletType, true, out var typeEnum))
+                {
+                    query = query.Where(w => w.WalletType == typeEnum);
+                }
+            }
+
+            if (filter.UserId.HasValue)
+            {
+                query = query.Where(w => w.UserId == filter.UserId.Value);
+            }
+
+            if (!string.IsNullOrEmpty(filter.SystemCode))
+            {
+                query = query.Where(w => w.SystemCode == filter.SystemCode);
+            }
+
+            if (filter.FromDate.HasValue)
+            {
+                query = query.Where(w => w.CreatedAt >= filter.FromDate.Value);
+            }
+            if (filter.ToDate.HasValue)
+            {
+                query = query.Where(w => w.CreatedAt <= filter.ToDate.Value);
+            }
+
+            int totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(w => w.CreatedAt)
+                .Skip((filter.Page - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync();
+
+            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<WalletDto>
+            {
+                Items = items.Select(MapToDto).ToList(),
+                TotalCount = totalCount,
+                Page = filter.Page,
+                PageSize = filter.PageSize
+            };
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<TransactionHistoryDto>> GetAdminWalletTransactionsAsync(int walletId, ChargeSlot.Api.DTOs.Admin.Overview.TransactionFilterDto filter)
+        {
+            var query = _db.LedgerEntries
+                .Include(e => e.LedgerTransaction)
+                .Where(e => e.WalletId == walletId)
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(filter.TransactionType))
+            {
+                if (System.Enum.TryParse<ChargeSlot.Api.Enums.LedgerDirection>(filter.TransactionType, true, out var dirEnum))
+                {
+                    query = query.Where(e => e.Direction == dirEnum);
+                }
+            }
+
+            if (filter.FromDate.HasValue)
+            {
+                query = query.Where(e => e.CreatedAt >= filter.FromDate.Value);
+            }
+            if (filter.ToDate.HasValue)
+            {
+                query = query.Where(e => e.CreatedAt <= filter.ToDate.Value);
+            }
+
+            int totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(e => e.CreatedAt)
+                .Skip((filter.Page - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync();
+
+            var dtoList = items.Select(e => new TransactionHistoryDto
+            {
+                Id = e.LedgerTransactionId,
+                Type = e.LedgerTransaction?.ReferenceType ?? "Transfer",
+                Direction = e.Direction.ToString(),
+                Amount = e.Amount,
+                Memo = e.LedgerTransaction?.Memo,
+                CreatedAt = e.CreatedAt
+            }).ToList();
+
+            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<TransactionHistoryDto>
+            {
+                Items = dtoList,
+                TotalCount = totalCount,
+                Page = filter.Page,
+                PageSize = filter.PageSize
             };
         }
     }

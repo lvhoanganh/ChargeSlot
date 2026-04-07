@@ -111,6 +111,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     Id = u.Id,
                     FullName = u.FullName,
                     PhoneNumber = u.PhoneNumber,
+                    Email = u.Email,
                     Role = roles.FirstOrDefault(),
                     Status = u.Status,
                     BanCount = u.BanCount,
@@ -297,9 +298,8 @@ namespace ChargeSlot.Api.Services.Implementation
             await _otpRepository.AddAsync(entity);
             await _otpRepository.SaveChangesAsync();
 
-            // Send via mocked / real email service
-            // Gửi OTP thẳng tới laivuhoanganh.fj@gmail.com như Sếp chỉ định
-            string targetEmail = "laivuhoanganh.fj@gmail.com"; 
+            // Gửi OTP tới email của admin (fallback → email mặc định)
+            string targetEmail = adminUser.Email ?? "laivuhoanganh.fj@gmail.com";
             
             await _emailService.SendEmailAsync(
                 to: targetEmail, 

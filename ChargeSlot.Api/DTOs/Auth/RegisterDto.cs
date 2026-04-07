@@ -21,6 +21,14 @@ namespace ChargeSlot.Api.DTOs.Auth
         public string? Role { get; set; }
 
         /// <summary>
+        /// Email bắt buộc — sẽ nhận link xác thực sau khi đăng ký.
+        /// </summary>
+        [Required]
+        [EmailAddress]
+        [MaxLength(256)]
+        public string Email { get; set; } = null!;
+
+        /// <summary>
         /// Firebase ID Token để xác thực SĐT (thay thế OTP cũ).
         /// Frontend gửi OTP qua Firebase → verify → lấy token → gửi kèm khi register.
         /// </summary>

@@ -93,22 +93,56 @@ namespace ChargeSlot.Api.Controllers
             return Ok(result);
         }
 
+        /// <summary>Driver xem danh sách khiếu nại của mình.</summary>
+        [HttpGet("my")]
+        [Authorize(Roles = "Driver")]
+        public async Task<IActionResult> GetMyDisputes()
+        {
+            var result = await _disputeService.GetMyDisputesAsync(GetUserId());
+            return Ok(result);
+        }
+
+        /// <summary>Owner xem danh sách khiếu nại liên quan đến trạm của mình.</summary>
+        [HttpGet("owner")]
+        [Authorize(Roles = "Owner")]
+        public async Task<IActionResult> GetOwnerDisputes()
+        {
+            var result = await _disputeService.GetOwnerDisputesAsync(GetUserId());
+            return Ok(result);
+        }
+
         /// <summary>Chi tiết dispute.</summary>
         [HttpGet("{disputeId}")]
         public async Task<IActionResult> GetById(int disputeId)
         {
-            var result = await _disputeService.GetByIdAsync(disputeId);
-            if (result == null) return NotFound();
-            return Ok(result);
+            var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
+            try
+            {
+                var result = await _disputeService.GetByIdAsync(disputeId, GetUserId(), role);
+                if (result == null) return NotFound();
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
         }
 
         /// <summary>Dispute theo booking.</summary>
         [HttpGet("booking/{bookingId}")]
         public async Task<IActionResult> GetByBookingId(int bookingId)
         {
-            var result = await _disputeService.GetByBookingIdAsync(bookingId);
-            if (result == null) return NotFound();
-            return Ok(result);
+            var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
+            try
+            {
+                var result = await _disputeService.GetByBookingIdAsync(bookingId, GetUserId(), role);
+                if (result == null) return NotFound();
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
         }
     }
 }

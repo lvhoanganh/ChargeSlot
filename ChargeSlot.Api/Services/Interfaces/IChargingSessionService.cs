@@ -32,5 +32,9 @@ namespace ChargeSlot.Api.Services.Interfaces
 
         /// <summary>Owner xác nhận manual check-in → tạo session + invoice + hoàn thành booking.</summary>
         Task<BookingDto> ConfirmManualCheckinAsync(int ownerUserId, int bookingId);
+
+        Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<ChargingSessionDto>> GetAdminAllSessionsAsync(ChargeSlot.Api.DTOs.Admin.Overview.SessionFilterDto filter);
+
+        Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<InvoiceDto>> GetAdminAllInvoicesAsync(ChargeSlot.Api.DTOs.Admin.Overview.InvoiceFilterDto filter);
     }
 }

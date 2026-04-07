@@ -52,7 +52,7 @@ builder.Services
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
 
-        options.User.RequireUniqueEmail = false;
+        options.User.RequireUniqueEmail = true;
     })
     .AddEntityFrameworkStores<ChargeSlotDbContext>()
     .AddDefaultTokenProviders();
@@ -209,6 +209,9 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IWalletRepository, WalletRepository>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 
+// KYC
+builder.Services.AddScoped<IKycService, KycService>();
+
 // Charging Session & Invoice
 builder.Services.AddScoped<IChargingSessionRepository, ChargingSessionRepository>();
 builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
@@ -235,7 +238,8 @@ builder.Services.AddHostedService<InvoiceAutoConfirmJob>();
 builder.Services.AddHostedService<DisputeAutoResolveJob>();
 builder.Services.AddHostedService<NoShowJob>();
 builder.Services.AddHostedService<WithdrawAutoConfirmJob>();
-builder.Services.AddHostedService<UnbanAutoJob>();
+// builder.Services.AddHostedService<UnbanAutoJob>();
+builder.Services.AddHostedService<EmailVerificationCleanupJob>();
 
 // =======================
 // CONTROLLERS & SWAGGER

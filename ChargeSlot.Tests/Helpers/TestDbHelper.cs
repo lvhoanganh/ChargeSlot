@@ -36,7 +36,7 @@ namespace ChargeSlot.Tests.Helpers
         public static async Task<(ApplicationUser user, Driver driver)> SeedDriverAsync(
             ChargeSlotDbContext db, int userId = 1, string phone = "0912345678", string status = "ACTIVE", decimal walletBalance = 5_000_000)
         {
-            var user = new ApplicationUser { Id = userId, PhoneNumber = phone, Status = status, CreatedAt = DateTime.Now, };
+            var user = new ApplicationUser { Id = userId, UserName = phone, PhoneNumber = phone, FullName = $"Driver_{userId}", Email = $"driver{userId}@test.com", EmailConfirmed = true, Status = status, CreatedAt = DateTime.Now, };
             var driver = new Driver { UserId = userId, User = user };
             var wallet = new Wallet { WalletType = WalletType.Driver, UserId = userId, AvailableBalance = walletBalance, CreatedAt = DateTime.Now };
             db.Users.Add(user);
@@ -49,8 +49,8 @@ namespace ChargeSlot.Tests.Helpers
         public static async Task<(ApplicationUser user, Owner owner)> SeedOwnerAsync(
             ChargeSlotDbContext db, int userId = 2, string phone = "0987654321", string status = "ACTIVE", decimal walletBalance = 2_000_000)
         {
-            var user = new ApplicationUser { Id = userId, PhoneNumber = phone, Status = status, CreatedAt = DateTime.Now, };
-            var owner = new Owner { UserId = userId, User = user };
+            var user = new ApplicationUser { Id = userId, UserName = phone, PhoneNumber = phone, FullName = $"Owner_{userId}", Email = $"owner{userId}@test.com", EmailConfirmed = true, Status = status, CreatedAt = DateTime.Now, };
+            var owner = new Owner { UserId = userId, User = user, BusinessName = "Mock Business", TaxCode = "N/A" };
             var wallet = new Wallet { WalletType = WalletType.Owner, UserId = userId, AvailableBalance = walletBalance, CreatedAt = DateTime.Now };
             db.Users.Add(user);
             db.Owner.Add(owner);

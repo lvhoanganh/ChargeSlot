@@ -65,14 +65,18 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 BookingStatus.PendingPayment,
                 BookingStatus.Paid,
                 BookingStatus.CheckedIn,
-                BookingStatus.InProgress
+                BookingStatus.InProgress,
+                BookingStatus.CompletedPendingInvoice,
+                BookingStatus.Completed
             };
 
             var query = _db.Bookings
                 .Where(b => b.SlotId == slotId
                     && activeStatuses.Contains(b.Status)
                     && b.StartTime < endTime.AddMinutes(bufferMinutes)
-                    && b.EndTime.AddMinutes(bufferMinutes) > startTime);
+                    && (b.ChargingSession != null && b.ChargingSession.ActualEndTime != null 
+                            ? b.ChargingSession.ActualEndTime.Value 
+                            : b.EndTime).AddMinutes(bufferMinutes) > startTime);
 
             if (excludeBookingId.HasValue)
                 query = query.Where(b => b.Id != excludeBookingId.Value);
@@ -160,14 +164,19 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 BookingStatus.PendingPayment,
                 BookingStatus.Paid,
                 BookingStatus.CheckedIn,
-                BookingStatus.InProgress
+                BookingStatus.InProgress,
+                BookingStatus.CompletedPendingInvoice,
+                BookingStatus.Completed
             };
 
             return await _db.Bookings
+                .Include(b => b.ChargingSession)
                 .Where(b => b.SlotId == slotId
                     && activeStatuses.Contains(b.Status)
                     && b.StartTime < dayEnd
-                    && b.EndTime > dayStart)
+                    && (b.ChargingSession != null && b.ChargingSession.ActualEndTime != null 
+                            ? b.ChargingSession.ActualEndTime.Value 
+                            : b.EndTime) > dayStart)
                 .OrderBy(b => b.StartTime)
                 .ToListAsync();
         }

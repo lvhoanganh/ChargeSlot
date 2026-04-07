@@ -946,6 +946,18 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BackIdCardUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BusinessLicenseNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BusinessLicenseUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("BusinessName")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -954,12 +966,38 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("FrontIdCardUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("IdCardDate")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("IdCardNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("KycRejectReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("KycReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("KycReviewedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("KycStatus")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("KycSubmittedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("TaxCode")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("UserId");
+
+                    b.HasIndex("KycReviewedByUserId");
 
                     b.ToTable("Owner", (string)null);
                 });
@@ -1190,6 +1228,33 @@ namespace ChargeSlot.Api.Migrations
                     b.HasIndex("StationId", "IsActive");
 
                     b.ToTable("StationPricing", (string)null);
+                });
+
+            modelBuilder.Entity("ChargeSlot.Api.Models.StationUnavailableDate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StationId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StationId");
+
+                    b.ToTable("StationUnavailableDates");
                 });
 
             modelBuilder.Entity("ChargeSlot.Api.Models.SystemConfig", b =>
@@ -1871,11 +1936,18 @@ namespace ChargeSlot.Api.Migrations
 
             modelBuilder.Entity("ChargeSlot.Api.Models.Owner", b =>
                 {
+                    b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "KycReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("KycReviewedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "User")
                         .WithOne("OwnerProfile")
                         .HasForeignKey("ChargeSlot.Api.Models.Owner", "UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("KycReviewedByUser");
 
                     b.Navigation("User");
                 });
@@ -1964,6 +2036,17 @@ namespace ChargeSlot.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("ChargingStation");
+                });
+
+            modelBuilder.Entity("ChargeSlot.Api.Models.StationUnavailableDate", b =>
+                {
+                    b.HasOne("ChargeSlot.Api.Models.ChargingStation", "Station")
+                        .WithMany("UnavailableDates")
+                        .HasForeignKey("StationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Station");
                 });
 
             modelBuilder.Entity("ChargeSlot.Api.Models.UserOtp", b =>
@@ -2089,6 +2172,8 @@ namespace ChargeSlot.Api.Migrations
                     b.Navigation("Ratings");
 
                     b.Navigation("StationPricings");
+
+                    b.Navigation("UnavailableDates");
                 });
 
             modelBuilder.Entity("ChargeSlot.Api.Models.ChatConversation", b =>

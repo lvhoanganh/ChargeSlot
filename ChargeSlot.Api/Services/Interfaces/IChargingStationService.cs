@@ -16,6 +16,11 @@ namespace ChargeSlot.Api.Services.Interfaces
         // Approval Flow
         Task SubmitForApprovalAsync(int id, int ownerUserId);
 
+        // ─────────────── UNAVAILABLE DATES ───────────────
+        Task<List<UnavailableDateDto>> GetUnavailableDatesAsync(int stationId);
+        Task<List<UnavailableDateDto>> AddUnavailableDatesAsync(int stationId, int ownerUserId, AddUnavailableDatesDto dto);
+        Task RemoveUnavailableDatesAsync(int stationId, int ownerUserId, RemoveUnavailableDatesDto dto);
+
         // Admin
         Task<PagedResultDto<ChargingStationDto>> GetAdminStationsAsync(string? status, string? search, int page, int pageSize);
         Task<List<ChargingStationDto>> GetPendingStationsAsync();
