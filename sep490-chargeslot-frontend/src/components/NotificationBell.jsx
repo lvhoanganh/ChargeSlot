@@ -30,6 +30,13 @@ function getNotificationRoute(notification, role) {
   // (Vì BE hay gửi type "Booking" cho nhiều loại sự kiện khác nhau)
   // ════════════════════════════════════════════════════════════
 
+  // Ví / rút tiền / nạp tiền / thanh toán (ƯU TIÊN CAO NHẤT)
+  if (text.includes("rút tiền") || text.includes("nạp tiền") || text.includes("số dư") || text.includes("thanh toán") || text.includes("hoàn tiền") || text.includes("tiền") || text.includes("vào ví") || text.includes("từ ví") || text.includes("bằng ví") || text.includes("đã hoàn") || text.includes("phí phạt")) {
+    if (r === "driver") return "/driver/wallet";
+    if (r === "owner") return "/owner/wallet";
+    if (r === "admin") return "/admin/withdraws";
+  }
+
   // Đánh giá / Review
   if (text.includes("đánh giá") || text.includes("review")) {
     if (r === "owner") return "/owner/reviews";
@@ -68,12 +75,6 @@ function getNotificationRoute(notification, role) {
     if (r === "owner") return id ? `/owner/chat/${id}` : "/owner/chat-list";
   }
 
-  // Ví / rút tiền / nạp tiền
-  if (text.includes("rút tiền") || text.includes("nạp tiền") || text.includes("số dư")) {
-    if (r === "driver") return "/driver/wallet";
-    if (r === "owner") return "/owner/wallet";
-    if (r === "admin") return "/admin/withdraws";
-  }
 
   // Loyalty / điểm thưởng
   if (text.includes("điểm thưởng") || text.includes("loyalty") || text.includes("tích điểm")) {
@@ -115,7 +116,7 @@ function getNotificationRoute(notification, role) {
   }
 
   if (type === "payment") {
-    if (r === "driver") return id ? `/driver/booking/${id}` : "/driver/my-bookings";
+    if (r === "driver") return "/driver/wallet";
     if (r === "owner") return "/owner/wallet";
     if (r === "admin") return "/admin/view-financial-report";
   }

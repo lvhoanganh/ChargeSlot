@@ -58,6 +58,8 @@ const DriverDisputeList = lazy(() => import("./pages/driver/DriverDisputeList"))
 const DriverReviews = lazy(() => import("./pages/driver/DriverReviews"));
 const FavoriteStations = lazy(() => import("./pages/driver/FavoriteStations"));
 const DriverLoyalty = lazy(() => import("./pages/driver/DriverLoyalty"));
+const PaymentResult = lazy(() => import("./pages/driver/PaymentResult"));
+const WalletTopUpResult = lazy(() => import("./pages/driver/WalletTopUpResult"));
 
 // ── Owner pages ───────────────────────────────────────────────
 const OwnerPage = lazy(() => import("./pages/owner/OwnerPage"));
@@ -150,92 +152,94 @@ export default function App() {
     <div>
       <AppErrorBoundary>
         <Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route element={<MainLayout />}>
-            <Route index element={<HomePage />} />
-            <Route path="service" element={<Service />} />
-            <Route path="news" element={<News />} />
-            <Route path="about" element={<About />} />
-            <Route path="driver/map" element={<StationMap />} />
-            <Route path="driver/station/:id" element={<StationDetailDriver />} />
-            <Route path="driver/station/:stationId/book" element={<BookingForm />} />
-            <Route path="forgotPassword" element={<ForgotPassword />} />
-            <Route element={<PublicMiddleware />}>
-              <Route path="login" element={<Login />} />
-              <Route path="register" element={<Register />} />
+          <Routes>
+            <Route element={<MainLayout />}>
+              <Route index element={<HomePage />} />
+              <Route path="service" element={<Service />} />
+              <Route path="news" element={<News />} />
+              <Route path="about" element={<About />} />
+              <Route path="driver/map" element={<StationMap />} />
+              <Route path="driver/station/:id" element={<StationDetailDriver />} />
+              <Route path="driver/station/:stationId/book" element={<BookingForm />} />
+              <Route path="forgotPassword" element={<ForgotPassword />} />
+              <Route element={<PublicMiddleware />}>
+                <Route path="login" element={<Login />} />
+                <Route path="register" element={<Register />} />
+              </Route>
             </Route>
-          </Route>
 
-          <Route element={<AuthOwnerMiddleware />}>
-            <Route element={<OwnerLayout />}>
-              <Route path="stations" element={<OwnerPage />} />
-              <Route path="stations/add" element={<CreateChargingStation />} />
-              <Route path="stations/edit/:id" element={<EditChargingStation />} />
+            <Route element={<AuthOwnerMiddleware />}>
+              <Route element={<OwnerLayout />}>
+                <Route path="stations" element={<OwnerPage />} />
+                <Route path="stations/add" element={<CreateChargingStation />} />
+                <Route path="stations/edit/:id" element={<EditChargingStation />} />
+              </Route>
             </Route>
-          </Route>
 
-          <Route element={<AuthAdminMiddleware />}>
-            <Route path="admin" element={<AdminLayout />}>
-              <Route path="manage-users" element={<ManageUser />} />
-              <Route path="approve-station" element={<ApproveStation />} />
-              <Route path="disputes" element={<DisputeList />} />
-              <Route path="disputes/:disputeId" element={<AdminDisputeDetail />} />
-              <Route path="admin-profile" element={<AdminProfile />} />
-              <Route path="edit-admin-profile" element={<EditAdminProfile />} />
-              <Route path="view-financial-report" element={<AdminRevenue />} />
-              <Route path="system-config" element={<AdminSystemConfig />} />
-              <Route path="payouts" element={<AdminPayouts />} />
-              <Route path="withdraws" element={<AdminWithdraws />} />
-              <Route path="change-password" element={<ChangePassword />} />
-              <Route path="dashboard" element={<AdminDashboard />} />
+            <Route element={<AuthAdminMiddleware />}>
+              <Route path="admin" element={<AdminLayout />}>
+                <Route path="manage-users" element={<ManageUser />} />
+                <Route path="approve-station" element={<ApproveStation />} />
+                <Route path="disputes" element={<DisputeList />} />
+                <Route path="disputes/:disputeId" element={<AdminDisputeDetail />} />
+                <Route path="admin-profile" element={<AdminProfile />} />
+                <Route path="edit-admin-profile" element={<EditAdminProfile />} />
+                <Route path="view-financial-report" element={<AdminRevenue />} />
+                <Route path="system-config" element={<AdminSystemConfig />} />
+                <Route path="payouts" element={<AdminPayouts />} />
+                <Route path="withdraws" element={<AdminWithdraws />} />
+                <Route path="change-password" element={<ChangePassword />} />
+                <Route path="dashboard" element={<AdminDashboard />} />
+              </Route>
             </Route>
-          </Route>
 
-          <Route element={<AuthDriverMiddleware />}>
-            <Route path="driver" element={<MainLayout />}>
-              <Route path="driver-profile" element={<DriverProfile />} />
-              <Route path="update-driver-profile" element={<DriverEditProfile />} />
-              <Route path="scan-qr" element={<ScanQR />} />
-              <Route path="check-in-result" element={<CheckInResult />} />
-              <Route path="charging" element={<ChargingActive />} />
-              <Route path="charging-complete" element={<ChargingComplete />} />
-              <Route path="my-bookings" element={<MyBookings />} />
-              <Route path="booking/:id" element={<BookingStatus />} />
-              <Route path="dispute/submit/:bookingId" element={<SubmitDispute />} />
-              <Route path="dispute/:disputeId" element={<DisputeDetail />} />
-              <Route path="disputes" element={<DriverDisputeList />} />
-              <Route path="wallet" element={<DriverWallet />} />
-              <Route path="reviews" element={<DriverReviews />} />
-              <Route path="favorites" element={<FavoriteStations />} />
-              <Route path="loyalty" element={<DriverLoyalty />} />
-              <Route path="chat-list" element={<ChatList />} />
-              <Route path="chat/:bookingId" element={<ChatPage />} />
-              <Route path="change-password" element={<ChangePassword />} />
+            <Route element={<AuthDriverMiddleware />}>
+              <Route path="driver" element={<MainLayout />}>
+                <Route path="driver-profile" element={<DriverProfile />} />
+                <Route path="update-driver-profile" element={<DriverEditProfile />} />
+                <Route path="scan-qr" element={<ScanQR />} />
+                <Route path="check-in-result" element={<CheckInResult />} />
+                <Route path="charging" element={<ChargingActive />} />
+                <Route path="charging-complete" element={<ChargingComplete />} />
+                <Route path="my-bookings" element={<MyBookings />} />
+                <Route path="booking/:id" element={<BookingStatus />} />
+                <Route path="dispute/submit/:bookingId" element={<SubmitDispute />} />
+                <Route path="dispute/:disputeId" element={<DisputeDetail />} />
+                <Route path="disputes" element={<DriverDisputeList />} />
+                <Route path="wallet" element={<DriverWallet />} />
+                <Route path="reviews" element={<DriverReviews />} />
+                <Route path="favorites" element={<FavoriteStations />} />
+                <Route path="loyalty" element={<DriverLoyalty />} />
+                <Route path="chat-list" element={<ChatList />} />
+                <Route path="chat/:bookingId" element={<ChatPage />} />
+                <Route path="change-password" element={<ChangePassword />} />
+                <Route path="payment-result" element={<PaymentResult />} />
+                <Route path="wallet-topup-result" element={<WalletTopUpResult />} />
+              </Route>
             </Route>
-          </Route>
 
-          <Route element={<AuthOwnerMiddleware />}>
-            <Route path="owner" element={<OwnerLayout />}>
-              <Route path="owner-profile" element={<OwnerProfile />} />
-              <Route path="update-owner-profile" element={<OwnerEditProfile />} />
-              <Route path="booking-requests" element={<BookingRequests />} />
-              <Route path="booking/:id" element={<BookingRequestDetail />} />
-              <Route path="dispute/:disputeId" element={<OwnerDisputeDetail />} />
-              <Route path="disputes" element={<OwnerDisputeList />} />
-              <Route path="active-sessions" element={<OwnerActiveSessions />} />
-              <Route path="wallet" element={<OwnerWallet />} />
-              <Route path="reviews" element={<OwnerReviews />} />
-              <Route path="extra-services" element={<OwnerExtraServices />} />
-              <Route path="chat-list" element={<ChatList />} />
-              <Route path="chat/:bookingId" element={<ChatPage />} />
-              <Route path="change-password" element={<ChangePassword />} />
-              <Route path="dashboard" element={<OwnerDashboard />} />
+            <Route element={<AuthOwnerMiddleware />}>
+              <Route path="owner" element={<OwnerLayout />}>
+                <Route path="owner-profile" element={<OwnerProfile />} />
+                <Route path="update-owner-profile" element={<OwnerEditProfile />} />
+                <Route path="booking-requests" element={<BookingRequests />} />
+                <Route path="booking/:id" element={<BookingRequestDetail />} />
+                <Route path="dispute/:disputeId" element={<OwnerDisputeDetail />} />
+                <Route path="disputes" element={<OwnerDisputeList />} />
+                <Route path="active-sessions" element={<OwnerActiveSessions />} />
+                <Route path="wallet" element={<OwnerWallet />} />
+                <Route path="reviews" element={<OwnerReviews />} />
+                <Route path="extra-services" element={<OwnerExtraServices />} />
+                <Route path="chat-list" element={<ChatList />} />
+                <Route path="chat/:bookingId" element={<ChatPage />} />
+                <Route path="change-password" element={<ChangePassword />} />
+                <Route path="dashboard" element={<OwnerDashboard />} />
+              </Route>
             </Route>
-          </Route>
 
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </AppErrorBoundary>
       <ConfirmDialogContainer />
       <ToastContainer />
