@@ -30,6 +30,17 @@ function getNotificationRoute(notification, role) {
   // (Vì BE hay gửi type "Booking" cho nhiều loại sự kiện khác nhau)
   // ════════════════════════════════════════════════════════════
 
+  // Trạm sạc chờ duyệt / từ chối / duyệt thành công
+  if (
+    text.includes("trạm sạc bị từ chối") ||
+    text.includes("trạm sạc đã được duyệt") ||
+    text.includes("trạm sạc mới") ||
+    (text.includes("trạm sạc") && text.includes("từ chối"))
+  ) {
+    if (r === "owner") return "/stations";
+    if (r === "admin") return "/admin/approve-station";
+  }
+
   // Ví / rút tiền / nạp tiền / thanh toán (ƯU TIÊN CAO NHẤT)
   if (text.includes("rút tiền") || text.includes("nạp tiền") || text.includes("số dư") || text.includes("thanh toán") || text.includes("hoàn tiền") || text.includes("tiền") || text.includes("vào ví") || text.includes("từ ví") || text.includes("bằng ví") || text.includes("đã hoàn") || text.includes("phí phạt")) {
     if (r === "driver") return "/driver/wallet";
@@ -94,6 +105,17 @@ function getNotificationRoute(notification, role) {
     if (r === "admin") return id ? `/admin/disputes/${id}` : "/admin/disputes";
   }
 
+  // Trạm sạc chờ duyệt / từ chối / duyệt thành công
+  if (
+    text.includes("trạm sạc bị từ chối") ||
+    text.includes("trạm sạc đã được duyệt") ||
+    text.includes("trạm sạc mới") ||
+    (text.includes("trạm sạc") && text.includes("từ chối"))
+  ) {
+    if (r === "owner") return "/stations";
+    if (r === "admin") return "/admin/approve-station";
+  }
+
   // ════════════════════════════════════════════════════════════
   // BƯỚC 2: Type-based routing (fallback khi không match keyword)
   // ════════════════════════════════════════════════════════════
@@ -122,7 +144,7 @@ function getNotificationRoute(notification, role) {
   }
 
   if (type === "stationapproval") {
-    if (r === "owner") return "/owner/booking-requests";
+    if (r === "owner") return "/stations";
     if (r === "admin") return "/admin/approve-station";
   }
 
@@ -251,8 +273,12 @@ export default function NotificationBell() {
   useEffect(() => {
     const fetchNoti = () => {
       notificationApi.getAll()
-        .then(data => { if (Array.isArray(data)) setNotifications(data); })
-        .catch(() => {});
+        .then(data => {
+          // BE có thể trả về mảng thẳng hoặc object phân trang {total, page, pageSize, items:[...]}
+          const list = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
+          setNotifications(list);
+        })
+        .catch(() => { });
     };
     fetchNoti();
     const interval = setInterval(fetchNoti, 15000);
@@ -266,7 +292,7 @@ export default function NotificationBell() {
       try {
         await notificationApi.markAsRead(n.id);
         setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, isRead: true } : x));
-      } catch {}
+      } catch { }
     }
     const route = getNotificationRoute(n, role);
     if (route) {
@@ -280,8 +306,8 @@ export default function NotificationBell() {
       const unread = notifications.filter(n => !n.isRead);
       if (unread.length === 0) return;
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      await Promise.all(unread.map(n => notificationApi.markAsRead(n.id).catch(() => {})));
-    } catch {}
+      await Promise.all(unread.map(n => notificationApi.markAsRead(n.id).catch(() => { })));
+    } catch { }
   }
 
   return (

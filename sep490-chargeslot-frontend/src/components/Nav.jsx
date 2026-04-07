@@ -148,14 +148,39 @@ export default function Nav() {
     return () => clearInterval(interval);
   }, [token, normalizedRole]);
 
+  const [sessionWait, setSessionWait] = useState(0);
+  const [isEarlyNav, setIsEarlyNav] = useState(false);
+
   // Timer for active session banner
   useEffect(() => {
     if (!activeSession) return;
     const interval = setInterval(() => {
-      const startMs = activeSession.actualStartTime
-        ? new Date(String(activeSession.actualStartTime).replace("Z", "")).getTime()
-        : Date.now();
-      setSessionElapsed(Math.floor((Date.now() - startMs) / 1000));
+      let scheduledMs = 0;
+      if (activeSession.bookingStartTime) {
+        const t = String(activeSession.bookingStartTime).replace("Z", "");
+        let parsedMs = new Date(t).getTime();
+        if (isNaN(parsedMs)) parsedMs = new Date(t + "+07:00").getTime();
+        if (!isNaN(parsedMs)) scheduledMs = parsedMs;
+      }
+
+      if (scheduledMs > Date.now()) {
+        // Chờ đến giờ sạc
+        const diff = Math.floor((scheduledMs - Date.now()) / 1000);
+        setIsEarlyNav(true);
+        setSessionWait(diff);
+      } else {
+        // Đang sạc -> Đổi thành đếm ngược (Remaining Time)
+        let endMs = Date.now();
+        if (activeSession.bookingEndTime) {
+          const t = String(activeSession.bookingEndTime).replace("Z", "");
+          let parsedMs = new Date(t).getTime();
+          if (isNaN(parsedMs)) parsedMs = new Date(t + "+07:00").getTime();
+          if (!isNaN(parsedMs)) endMs = parsedMs;
+        }
+        
+        setSessionElapsed(Math.max(0, Math.floor((endMs - Date.now()) / 1000)));
+        setIsEarlyNav(false);
+      }
     }, 1000);
     return () => clearInterval(interval);
   }, [activeSession]);
@@ -665,10 +690,10 @@ export default function Nav() {
         >
           <div className="cs-charging-banner__pulse" />
           <span className="cs-charging-banner__label">
-            ⚡ Đang sạc — {activeSession.stationName || "Phiên sạc"}
+            {isEarlyNav ? "⏳ Chờ giờ sạc" : "⚡ Đang sạc"} — {activeSession.stationName || "Phiên sạc"}
           </span>
           <span className="cs-charging-banner__timer">
-            {String(Math.floor(sessionElapsed / 3600)).padStart(2, "0")}:{String(Math.floor((sessionElapsed % 3600) / 60)).padStart(2, "0")}:{String(sessionElapsed % 60).padStart(2, "0")}
+            {String(Math.floor((isEarlyNav ? sessionWait : sessionElapsed) / 3600)).padStart(2, "0")}:{String(Math.floor(((isEarlyNav ? sessionWait : sessionElapsed) % 3600) / 60)).padStart(2, "0")}:{String((isEarlyNav ? sessionWait : sessionElapsed) % 60).padStart(2, "0")}
           </span>
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

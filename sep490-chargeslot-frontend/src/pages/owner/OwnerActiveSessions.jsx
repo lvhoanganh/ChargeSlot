@@ -4,16 +4,16 @@ import { showToast } from "@/components/Toast";
 
 const toLocal = (dt) => {
   if (!dt) return "—";
+  if (typeof dt === "number") return new Date(dt).toLocaleString("vi-VN");
   const s = String(dt);
   return new Date(String(s).replace("Z", "")).toLocaleString("vi-VN");
 };
 
 function formatElapsed(startTime) {
   if (!startTime) return "—";
-  const s = String(startTime);
-  const start = new Date(String(s).replace("Z", ""));
-  const now = new Date();
-  const diff = Math.floor((now - start) / 1000);
+  const startMs = typeof startTime === "number" ? startTime : new Date(String(startTime).replace("Z", "")).getTime();
+  const diff = Math.floor((Date.now() - startMs) / 1000);
+  if (diff < 0) return "Chờ đến giờ sạc...";
   const h = Math.floor(diff / 3600);
   const m = Math.floor((diff % 3600) / 60);
   return h > 0 ? `${h} giờ ${m} phút` : `${m} phút`;
@@ -87,7 +87,12 @@ export default function OwnerActiveSessions() {
             <p style={{ color: "#6b7280", fontSize: 14 }}>Các phiên sạc đang diễn ra sẽ hiển thị tại đây</p>
           </div>
         ) : (
-          sessions.map((s) => (
+          sessions.map((s) => {
+            const actMs = s.actualStartTime ? new Date(String(s.actualStartTime).replace("Z", "")).getTime() : Date.now();
+            const schedMs = s.bookingStartTime ? new Date(String(s.bookingStartTime).replace("Z", "")).getTime() : actMs;
+            const effectiveStartMs = Math.max(isNaN(actMs) ? Date.now() : actMs, isNaN(schedMs) ? 0 : schedMs);
+
+            return (
             <div
               key={s.id}
               style={{
@@ -111,8 +116,8 @@ export default function OwnerActiveSessions() {
                 <InfoItem label="Driver" value={s.driverName || "—"} />
                 <InfoItem label="Trạm" value={s.stationName || "—"} />
                 <InfoItem label="Cổng sạc" value={s.slotName || `Slot ${s.slotId}`} />
-                <InfoItem label="Đã sạc" value={formatElapsed(s.actualStartTime)} highlight />
-                <InfoItem label="Bắt đầu" value={toLocal(s.actualStartTime)} />
+                <InfoItem label="Đã sạc" value={formatElapsed(effectiveStartMs)} highlight />
+                <InfoItem label="Bắt đầu" value={toLocal(effectiveStartMs)} />
                 <InfoItem label="Booking kết thúc" value={toLocal(s.bookingEndTime)} />
                 <InfoItem label="Tổng tiền" value={`${(s.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
               </div>
@@ -131,7 +136,8 @@ export default function OwnerActiveSessions() {
                 {stoppingId === s.id ? "Đang xử lý..." : "⏹️ Dừng phiên sạc & Tạo hóa đơn"}
               </button>
             </div>
-          ))
+          );
+        })
         )}
       </div>
 

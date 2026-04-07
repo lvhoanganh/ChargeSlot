@@ -21,6 +21,11 @@ function formatDuration(s) {
 }
 
 function formatTime(dt) {
+  if (typeof dt === "number") {
+    const d = new Date(dt);
+    if (isNaN(d)) return "—";
+    return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+  }
   const d = toLocal(dt);
   if (isNaN(d)) return "—";
   return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
@@ -104,11 +109,11 @@ export default function ChargingActive() {
   useEffect(() => {
     if (!sessionData) return;
     const calcElapsed = () => {
-      const startTimeMs = sessionData.actualStartTime
-        ? toLocal(sessionData.actualStartTime).getTime()
-        : Date.now();
-      if (isNaN(startTimeMs)) return;
-      setElapsed(Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000)));
+      const actMs = sessionData.actualStartTime ? toLocal(sessionData.actualStartTime).getTime() : Date.now();
+      const schedMs = sessionData.bookingStartTime ? toLocal(sessionData.bookingStartTime).getTime() : actMs;
+      const effectiveStartMs = Math.max(isNaN(actMs) ? Date.now() : actMs, isNaN(schedMs) ? 0 : schedMs);
+      
+      setElapsed(Math.max(0, Math.floor((Date.now() - effectiveStartMs) / 1000)));
     };
     calcElapsed();
     const interval = setInterval(calcElapsed, 1000);
@@ -175,9 +180,9 @@ export default function ChargingActive() {
     );
   }
 
-  const startTimeMs = sessionData.actualStartTime
-    ? toLocal(sessionData.actualStartTime).getTime()
-    : Date.now();
+  const actMs = sessionData.actualStartTime ? toLocal(sessionData.actualStartTime).getTime() : Date.now();
+  const schedMs = sessionData.bookingStartTime ? toLocal(sessionData.bookingStartTime).getTime() : actMs;
+  const startTimeMs = Math.max(isNaN(actMs) ? Date.now() : actMs, isNaN(schedMs) ? 0 : schedMs);
   const endTimeMs = toLocal(sessionData.bookingEndTime).getTime();
   const totalDuration = Math.max(0, Math.floor((endTimeMs - startTimeMs) / 1000));
   const remaining = Math.max(0, totalDuration - elapsed);

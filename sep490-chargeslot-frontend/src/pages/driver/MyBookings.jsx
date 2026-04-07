@@ -156,7 +156,7 @@ export default function MyBookings() {
                   key={t.key}
                   onClick={() => { setTab(t.key); setSubFilter("all"); }}
                   style={{
-                    flex: 1, padding: "9px 4px", borderRadius: 12, border: "none",
+                    flex: 1, height: 38, padding: "0 4px", borderRadius: 12, border: "none",
                     background: isActive ? "#f97316" : "#fff",
                     color: isActive ? "#fff" : "#64748b",
                     fontWeight: isActive ? 700 : 500,
@@ -175,7 +175,7 @@ export default function MyBookings() {
             value={subFilter}
             onChange={(e) => setSubFilter(e.target.value)}
             style={{
-              padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0",
+              height: 38, padding: "0 12px", borderRadius: 12, border: "1px solid #e2e8f0",
               background: "#fff", color: "#475569", fontSize: 13, fontWeight: 600, 
               outline: "none", cursor: "pointer", flexShrink: 0
             }}
