@@ -42,6 +42,7 @@ export default function OwnerWallet() {
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("transactions");
+  const [withdrawFilter, setWithdrawFilter] = useState("all");
   const [selectedTx, setSelectedTx] = useState(null);
 
   // Withdraw form
@@ -402,11 +403,43 @@ export default function OwnerWallet() {
         {activeTab === "withdraws" && (
           <>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", marginBottom: 16 }}>Lịch sử rút tiền</h2>
+            
+            {withdraws.length > 0 && (
+              <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
+                {[
+                  { key: "all", label: "Tất cả" },
+                  { key: "Pending", label: "Chờ duyệt" },
+                  { key: "Approved", label: "Chờ CK" },
+                  { key: "TransferCompleted", label: "Đã CK" },
+                  { key: "Completed", label: "Thành công" },
+                  { key: "Failed", label: "Lỗi/Từ chối" },
+                ].map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setWithdrawFilter(t.key)}
+                    style={{
+                      flexShrink: 0, padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600,
+                      border: "none", cursor: "pointer", transition: "all 0.15s",
+                      background: withdrawFilter === t.key ? "#f97316" : "#f1f5f9",
+                      color: withdrawFilter === t.key ? "#fff" : "#64748b",
+                      boxShadow: withdrawFilter === t.key ? "0 2px 8px rgba(249,115,22,0.3)" : "none",
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {withdraws.length === 0 ? (
               <EmptyState icon="🏦" text="Chưa có yêu cầu rút tiền nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {withdraws.map((p) => {
+                {withdraws.filter(p => {
+                  if (withdrawFilter === "all") return true;
+                  if (withdrawFilter === "Failed") return p.status === "Rejected" || p.status === "IssueReported";
+                  return p.status === withdrawFilter;
+                }).map((p) => {
                   const st = withdrawStatusLabels[p.status] || withdrawStatusLabels.Pending;
                   return (
                     <div key={p.id} style={{

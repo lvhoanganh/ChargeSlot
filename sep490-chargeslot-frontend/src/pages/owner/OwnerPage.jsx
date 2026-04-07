@@ -30,6 +30,7 @@ export default function OwnerPage() {
   const [expandedStation, setExpandedStation] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [filter, setFilter] = useState("all");
 
   function fetchStations() {
     setLoading(true);
@@ -102,10 +103,37 @@ export default function OwnerPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
-            {stations.map((s) => {
-              const st = statusConfig[s.approvalStatus] || statusConfig[s.operationalStatus] || statusConfig.Draft;
-              const isExpanded = expandedStation === s.id;
+          <div>
+            <div className="mb-4 flex flex-wrap gap-2">
+              {[
+                { key: "all", label: "Tất cả" },
+                { key: "Draft", label: "Nháp" },
+                { key: "PendingApproval", label: "Chờ duyệt" },
+                { key: "Active", label: "Hoạt động" },
+                { key: "Inactive", label: "Đang ngưng" },
+                { key: "Rejected", label: "Từ chối" },
+              ].map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setFilter(t.key)}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${filter === t.key ? "bg-orange-500 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-50 ring-1 ring-slate-200"}`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            
+            <div className="space-y-4">
+              {stations.filter(s => {
+                if (filter === "all") return true;
+                const dKey = s.approvalStatus === "Approved" ? (s.operationalStatus || "Approved") : s.approvalStatus;
+                return dKey === filter || s.approvalStatus === filter;
+              }).map((s) => {
+                const st = s.approvalStatus === "Approved" 
+                  ? (statusConfig[s.operationalStatus] || statusConfig.Approved) 
+                  : (statusConfig[s.approvalStatus] || statusConfig.Draft);
+                
+                const isExpanded = expandedStation === s.id;
               const slots = s.chargingSlots || [];
               const layoutW = s.layoutWidth || 6;
               const layoutH = s.layoutHeight || 4;
@@ -383,45 +411,47 @@ export default function OwnerPage() {
                                   )}
 
                                   {/* Slot status controls */}
-                                  <div className="pt-2 border-t border-slate-200">
-                                    <p className="text-xs font-medium text-slate-600 mb-2">Đổi trạng thái</p>
-                                    <div className="flex gap-1.5 flex-wrap">
-                                      {["Active", "Inactive", "Maintenance"].map((key) => {
-                                        const isCurrentStatus = slot.status === key;
-                                        const labels = { Active: "Hoạt động", Inactive: "Ngưng", Maintenance: "Bảo trì" };
-                                        const colors = { Active: "#22c55e", Inactive: "#94a3b8", Maintenance: "#f97316" };
+                                  {s.approvalStatus === "Approved" && (
+                                    <div className="pt-2 border-t border-slate-200">
+                                      <p className="text-xs font-medium text-slate-600 mb-2">Đổi trạng thái</p>
+                                      <div className="flex gap-1.5 flex-wrap">
+                                        {["Active", "Inactive", "Maintenance"].map((key) => {
+                                          const isCurrentStatus = slot.status === key;
+                                          const labels = { Active: "Hoạt động", Inactive: "Ngưng", Maintenance: "Bảo trì" };
+                                          const colors = { Active: "#22c55e", Inactive: "#94a3b8", Maintenance: "#f97316" };
 
-                                        // BE Enum mapping
-                                        const statusValues = { Active: 0, Inactive: 1, Maintenance: 2 };
+                                          // BE Enum mapping
+                                          const statusValues = { Active: 0, Inactive: 1, Maintenance: 2 };
 
-                                        return (
-                                          <button
-                                            key={key}
-                                            disabled={isCurrentStatus || actionLoading === slot.id}
-                                            onClick={async () => {
-                                              setActionLoading(slot.id);
-                                              try {
-                                                await slotApi.updateStatus(s.id, slot.id, { status: statusValues[key] });
-                                                fetchStations();
-                                              } catch (err) {
-                                                showToast.error("Lỗi: " + (err.message || "Không rõ"));
-                                              } finally {
-                                                setActionLoading(null);
-                                              }
-                                            }}
-                                            className="px-2.5 py-1 text-[10px] font-semibold rounded-lg border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition"
-                                            style={{
-                                              color: isCurrentStatus ? "#fff" : colors[key],
-                                              background: isCurrentStatus ? colors[key] : "transparent",
-                                              borderColor: colors[key],
-                                            }}
-                                          >
-                                            {labels[key]}
-                                          </button>
-                                        );
-                                      })}
+                                          return (
+                                            <button
+                                              key={key}
+                                              disabled={isCurrentStatus || actionLoading === slot.id}
+                                              onClick={async () => {
+                                                setActionLoading(slot.id);
+                                                try {
+                                                  await slotApi.updateStatus(s.id, slot.id, { status: statusValues[key] });
+                                                  fetchStations();
+                                                } catch (err) {
+                                                  showToast.error("Lỗi: " + (err.message || "Không rõ"));
+                                                } finally {
+                                                  setActionLoading(null);
+                                                }
+                                              }}
+                                              className="px-2.5 py-1 text-[10px] font-semibold rounded-lg border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                              style={{
+                                                color: isCurrentStatus ? "#fff" : colors[key],
+                                                background: isCurrentStatus ? colors[key] : "transparent",
+                                                borderColor: colors[key],
+                                              }}
+                                            >
+                                              {labels[key]}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
-                                  </div>
+                                  )}
 
                                   {/* Delete slot */}
                                   <button
@@ -432,8 +462,14 @@ export default function OwnerPage() {
                                         await slotApi.delete(s.id, slot.id);
                                         setSelectedSlot(null);
                                         fetchStations();
+                                        showToast.success(`Trụ sạc ${slot.slotName} đã bị xóa.`);
                                       } catch (err) {
-                                        showToast.error("Lỗi xóa: " + (err.message || "Không rõ"));
+                                        const errMsg = err.message || "";
+                                        if (s.approvalStatus !== "Draft" && (errMsg.includes("500") || errMsg.includes("400") || errMsg.toLowerCase().includes("booking"))) {
+                                          showToast.error("⚠️ Không thể xóa trụ sạc vì đã từng có giao dịch liên quan! Xin hãy dùng tính năng 'Đổi trạng thái' sang 'Ngưng' để ẩn trụ này thay vì xóa.");
+                                        } else {
+                                          showToast.error("Lỗi xóa: " + (errMsg || "Không rõ"));
+                                        }
                                       } finally {
                                         setActionLoading(null);
                                       }
@@ -465,6 +501,7 @@ export default function OwnerPage() {
               );
             })}
           </div>
+         </div>
         )}
       </div>
     </div>

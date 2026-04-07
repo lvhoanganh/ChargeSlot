@@ -41,6 +41,7 @@ export default function MyBookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("all");
+  const [subFilter, setSubFilter] = useState("all");
   const [selectedDetailId, setSelectedDetailId] = useState(null);
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -94,9 +95,15 @@ export default function MyBookings() {
     }
   };
 
-  const filtered = tab === "all"
-    ? bookings
-    : bookings.filter((b) => (statusStyles[b.status]?.group || "done") === tab);
+  const filtered = bookings.filter((b) => {
+    const groupMatch = tab === "all" || (statusStyles[b.status]?.group || "done") === tab;
+    if (!groupMatch) return false;
+    
+    if (subFilter === "all") return true;
+    if (subFilter === "Cancelled") return ["Cancelled", "Rejected", "Expired", "NoShow"].includes(b.status);
+    if (subFilter === "ActiveGroup") return statusStyles[b.status]?.group === "active";
+    return b.status === subFilter;
+  });
 
   if (loading) {
     return (
@@ -136,31 +143,60 @@ export default function MyBookings() {
           </p>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs and Filter */}
         <div style={{
-          display: "flex", gap: 6, marginBottom: 14,
+          display: "flex", gap: 10, marginBottom: 14, alignItems: "center", flexWrap: "wrap"
         }}>
-          {TABS.map((t) => {
-            const count = t.key === "all" ? bookings.length : bookings.filter(b => (statusStyles[b.status]?.group || "done") === t.key).length;
-            const isActive = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                style={{
-                  flex: 1, padding: "9px 4px", borderRadius: 12, border: "none",
-                  background: isActive ? "#f97316" : "#fff",
-                  color: isActive ? "#fff" : "#64748b",
-                  fontWeight: isActive ? 700 : 500,
-                  fontSize: 13, cursor: "pointer",
-                  boxShadow: isActive ? "0 4px 14px rgba(249,115,22,0.3)" : "0 1px 4px rgba(0,0,0,0.06)",
-                  transition: "all 0.2s",
-                }}
-              >
-                {t.label} <span style={{ opacity: 0.8 }}>({count})</span>
-              </button>
-            );
-          })}
+          <div style={{ display: "flex", gap: 6, flex: 1, minWidth: 260 }}>
+            {TABS.map((t) => {
+              const count = t.key === "all" ? bookings.length : bookings.filter(b => (statusStyles[b.status]?.group || "done") === t.key).length;
+              const isActive = tab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => { setTab(t.key); setSubFilter("all"); }}
+                  style={{
+                    flex: 1, padding: "9px 4px", borderRadius: 12, border: "none",
+                    background: isActive ? "#f97316" : "#fff",
+                    color: isActive ? "#fff" : "#64748b",
+                    fontWeight: isActive ? 700 : 500,
+                    fontSize: 13, cursor: "pointer",
+                    boxShadow: isActive ? "0 4px 14px rgba(249,115,22,0.3)" : "0 1px 4px rgba(0,0,0,0.06)",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {t.label} <span style={{ opacity: 0.8 }}>({count})</span>
+                </button>
+              );
+            })}
+          </div>
+          
+          <select
+            value={subFilter}
+            onChange={(e) => setSubFilter(e.target.value)}
+            style={{
+              padding: "8px 12px", borderRadius: 10, border: "1px solid #e2e8f0",
+              background: "#fff", color: "#475569", fontSize: 13, fontWeight: 600, 
+              outline: "none", cursor: "pointer", flexShrink: 0
+            }}
+          >
+            <option value="all">Mọi trạng thái</option>
+            {(tab === "all" || tab === "active") && (
+              <>
+                {tab === "all" && <option value="ActiveGroup">Đang xử lý</option>}
+                <option value="WaitingOwner">Chờ duyệt</option>
+                <option value="PendingPayment">Chờ thanh toán</option>
+                <option value="InProgress">Đang sạc</option>
+              </>
+            )}
+            {(tab === "all" || tab === "done") && (
+              <>
+                <option value="Completed">Thành công</option>
+                <option value="Cancelled">Huỷ / Từ chối</option>
+                <option value="Disputed">Tranh chấp</option>
+              </>
+            )}
+          </select>
         </div>
 
         {/* Booking list */}

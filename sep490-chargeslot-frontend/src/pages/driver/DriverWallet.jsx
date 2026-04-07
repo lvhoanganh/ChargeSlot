@@ -43,6 +43,7 @@ export default function DriverWallet() {
   const [withdrawRequests, setWithdrawRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("transactions"); // transactions | withdraw-history
+  const [withdrawFilter, setWithdrawFilter] = useState("all");
   const [selectedTx, setSelectedTx] = useState(null);
 
   // Top-up
@@ -401,11 +402,43 @@ export default function DriverWallet() {
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", marginBottom: 16 }}>
               Lịch sử rút tiền
             </h2>
+            
+            {withdrawRequests.length > 0 && (
+              <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
+                {[
+                  { key: "all", label: "Tất cả" },
+                  { key: "Pending", label: "Chờ duyệt" },
+                  { key: "Approved", label: "Chờ CK" },
+                  { key: "TransferCompleted", label: "Đã CK" },
+                  { key: "Completed", label: "Thành công" },
+                  { key: "Failed", label: "Lỗi/Từ chối" },
+                ].map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setWithdrawFilter(t.key)}
+                    style={{
+                      flexShrink: 0, padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600,
+                      border: "none", cursor: "pointer", transition: "all 0.15s",
+                      background: withdrawFilter === t.key ? "#f97316" : "#f1f5f9",
+                      color: withdrawFilter === t.key ? "#fff" : "#64748b",
+                      boxShadow: withdrawFilter === t.key ? "0 2px 8px rgba(249,115,22,0.3)" : "none",
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {withdrawRequests.length === 0 ? (
               <EmptyState icon="🏦" text="Chưa có yêu cầu rút tiền nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {withdrawRequests.map((wr) => {
+                {withdrawRequests.filter(wr => {
+                  if (withdrawFilter === "all") return true;
+                  if (withdrawFilter === "Failed") return wr.status === "Rejected" || wr.status === "IssueReported";
+                  return wr.status === withdrawFilter;
+                }).map((wr) => {
                   const st = withdrawStatusLabels[wr.status] || withdrawStatusLabels.Pending;
                   return (
                     <div key={wr.id} style={{
