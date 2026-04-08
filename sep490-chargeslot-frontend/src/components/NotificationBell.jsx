@@ -69,6 +69,23 @@ function getNotificationRoute(notification, role) {
     if (r === "driver") return "/driver/reviews";
   }
 
+  // Hóa đơn chờ xác nhận / tự động chốt (Invoice PendingConfirm)
+  if (text.includes("hóa đơn sắp tự động") || text.includes("hóa đơn") || text.includes("invoice")) {
+    if (r === "driver") return "/driver/my-bookings";
+    if (r === "owner") return "/owner/booking-requests";
+  }
+
+  // Cảnh báo Booking sắp đến giờ check-in (Deadline 1h)
+  if (
+    text.includes("sắp đến giờ sạc") ||
+    text.includes("khách sắp đến sạc") ||
+    text.includes("tới hạn check-in") ||
+    text.includes("chuẩn bị tới trạm")
+  ) {
+    if (r === "owner") return "/owner/booking-requests";
+    if (r === "driver") return "/driver/my-bookings";
+  }
+
   // Phiên sạc / kết thúc sớm / check-in / active session
   if (
     text.includes("kết thúc sớm") ||

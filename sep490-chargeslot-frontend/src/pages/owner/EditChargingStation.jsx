@@ -242,7 +242,10 @@ export default function EditChargingStation() {
   const [stationName, setStationName] = useState("");
   const [description, setDescription] = useState("");
   const [layoutImageFile, setLayoutImageFile] = useState(null);
-  const [imageFiles, setImageFiles] = useState([]);
+  
+  // Image handling
+  const [existingImages, setExistingImages] = useState([]);
+  const [newImageFiles, setNewImageFiles] = useState([]);
 
   // Load existing station data
   useEffect(() => {
@@ -263,6 +266,7 @@ export default function EditChargingStation() {
           lng: data.longitude || 106.7218,
           address: data.address || "",
         });
+        setExistingImages(data.images?.map(i => i.imgUrl) || []);
         // Merge operating hours — fill with defaults for any missing days
         const oh = dayOptions.map((d) => {
           const found = (data.operatingHours || []).find((h) => h.dayOfWeek === d.value);
@@ -314,8 +318,15 @@ export default function EditChargingStation() {
     if (mapData.lng) fd.append("longitude", String(mapData.lng));
     
     if (layoutImageFile) fd.append("LayoutImage", layoutImageFile);
-    imageFiles.forEach(file => {
+    
+    // Append new images
+    newImageFiles.forEach(file => {
       fd.append("Images", file);
+    });
+
+    // Append existing images that are kept
+    existingImages.forEach(url => {
+        fd.append("ExistingImageUrls", url);
     });
 
     // Operating hours — dùng index-based key giống CreateChargingStation
@@ -408,10 +419,37 @@ export default function EditChargingStation() {
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">Ảnh trạm sạc thực tế</label>
-                  <label className="flex flex-col items-center justify-center h-32 w-full rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 cursor-pointer hover:bg-slate-100 transition">
-                    <span className="text-2xl mb-1">📸</span>
-                    <span className="text-xs text-slate-500 font-medium">{imageFiles.length > 0 ? `Đã chọn ${imageFiles.length} ảnh` : "Bấm để chọn nhiều ảnh..."}</span>
-                    <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setImageFiles(Array.from(e.target.files))} />
+                  
+                  {/* Photo Gallery preview */}
+                  {(existingImages.length > 0 || newImageFiles.length > 0) && (
+                     <div className="flex flex-wrap gap-3 mb-3">
+                         {existingImages.map((url, idx) => (
+                            <div key={`exist-${idx}`} className="relative w-20 h-20 rounded-xl border border-slate-200 overflow-hidden group">
+                                <img src={url} alt="existing" className="w-full h-full object-cover" />
+                                <button type="button" onClick={() => setExistingImages(prev => prev.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-white/80 hover:bg-white text-red-500 rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow">✕</button>
+                            </div>
+                         ))}
+                         {newImageFiles.map((file, idx) => {
+                             const previewUrl = URL.createObjectURL(file);
+                             return (
+                                <div key={`new-${idx}`} className="relative w-20 h-20 rounded-xl border-2 border-orange-200 overflow-hidden group">
+                                    <div className="absolute top-0 left-0 bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded-br-lg z-10 font-bold">MỚI</div>
+                                    <img src={previewUrl} alt="new" className="w-full h-full object-cover" onLoad={() => URL.revokeObjectURL(previewUrl)} />
+                                    <button type="button" onClick={() => setNewImageFiles(prev => prev.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-white/80 hover:bg-white text-red-500 rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow z-10">✕</button>
+                                </div>
+                             );
+                         })}
+                     </div>
+                  )}
+
+                  <label className="flex flex-col items-center justify-center h-20 w-full rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 cursor-pointer hover:bg-slate-100 transition">
+                    <span className="text-xl mb-1">📸</span>
+                    <span className="text-xs text-slate-500 font-medium">Bấm để tải thêm ảnh MỚI...</span>
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => {
+                        const files = Array.from(e.target.files);
+                        setNewImageFiles(prev => [...prev, ...files]);
+                        e.target.value = null; // reset input
+                    }} />
                   </label>
                 </div>
               </div>

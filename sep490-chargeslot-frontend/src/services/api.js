@@ -170,7 +170,12 @@ async function apiFetchFormData(endpoint, formData, method = "POST") {
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || error.error || `Lỗi ${response.status}`);
+        const msg = error.message
+            || error.error
+            || (error.errors ? Object.values(error.errors).flat().join('; ') : null)
+            || error.title
+            || `Lỗi ${response.status}`;
+        throw new Error(msg);
     }
 
     return response.json();
@@ -181,6 +186,8 @@ async function apiFetchFormData(endpoint, formData, method = "POST") {
 // ============================
 
 export const authApi = {
+    getMe: () => apiFetch("/auth/me"),
+
     login: (phoneNumber, password) =>
         apiFetch("/auth/login", {
             method: "POST",
@@ -277,6 +284,24 @@ export const adminStationApi = {
         apiFetch(`/admin/stations/${id}/review`, {
             method: "POST",
             body: JSON.stringify({ isApproved, adminNote }),
+        }),
+};
+
+// ============================
+// KYC
+// ============================
+
+export const ownerKycApi = {
+    getStatus: () => apiFetch("/owner/kyc/status"),
+    submit: (formData) => apiFetchFormData("/owner/kyc/submit", formData, "POST"),
+};
+
+export const adminKycApi = {
+    getPending: () => apiFetch("/admin/kyc/pending"),
+    review: (ownerUserId, isApproved, rejectReason) =>
+        apiFetch(`/admin/kyc/${ownerUserId}/review`, {
+            method: "PUT",
+            body: JSON.stringify({ isApproved, rejectReason }),
         }),
 };
 

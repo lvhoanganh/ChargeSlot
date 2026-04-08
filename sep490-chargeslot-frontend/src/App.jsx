@@ -37,6 +37,7 @@ const AdminRevenue = lazy(() => import("./pages/admin/AdminRevenue"));
 const AdminSystemConfig = lazy(() => import("./pages/admin/AdminSystemConfig"));
 const AdminWithdraws = lazy(() => import("./pages/admin/AdminWithdraws"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminKycRequests = lazy(() => import("./pages/admin/AdminKycRequests"));
 
 // ── Driver pages ──────────────────────────────────────────────
 const DriverProfile = lazy(() => import("./pages/driver/DriverProfile"));
@@ -179,6 +180,7 @@ export default function App() {
               <Route path="admin" element={<AdminLayout />}>
                 <Route path="manage-users" element={<ManageUser />} />
                 <Route path="approve-station" element={<ApproveStation />} />
+                <Route path="manage-kyc" element={<AdminKycRequests />} />
                 <Route path="disputes" element={<DisputeList />} />
                 <Route path="disputes/:disputeId" element={<AdminDisputeDetail />} />
                 <Route path="admin-profile" element={<AdminProfile />} />

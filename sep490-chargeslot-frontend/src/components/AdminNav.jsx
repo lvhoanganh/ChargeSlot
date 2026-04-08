@@ -76,6 +76,11 @@ export default function AdminNav() {
   // Secondary items (in "Khác" dropdown)
   const moreItems = [
     {
+      to: "/admin/manage-kyc",
+      label: "Duyệt KYC",
+      icon: "🛡️",
+    },
+    {
       to: "/admin/disputes",
       label: "Tranh chấp",
       icon: "⚠️",
@@ -332,6 +337,7 @@ export default function AdminNav() {
         <div className="cs-more-sheet__grid">
           {[
             { emoji: "👤", label: "Hồ sơ", to: "/admin/admin-profile" },
+            { emoji: "🛡️", label: "Duyệt KYC", to: "/admin/manage-kyc" },
             { emoji: "⚠️", label: "Tranh chấp", to: "/admin/disputes" },
             { emoji: "💸", label: "Rút tiền", to: "/admin/withdraws" },
             { emoji: "⚙️", label: "Cấu hình", to: "/admin/system-config" },
