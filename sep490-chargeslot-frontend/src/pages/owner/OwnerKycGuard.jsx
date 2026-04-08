@@ -2,6 +2,21 @@ import React, { useEffect, useState } from "react";
 import { authApi, ownerKycApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 
+const KycContainer = ({ children }) => (
+  <div className="min-h-screen bg-slate-100 flex justify-center pt-24 pb-12 px-4 sm:px-6">
+    <div className="max-w-5xl w-full bg-white rounded-3xl shadow-sm ring-1 ring-slate-200 p-6 sm:p-10">
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-white text-3xl shadow-orange-500/30 shadow-lg">
+          🛡️
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Xác thực danh tính chủ trạm</h1>
+        <p className="text-slate-500 mt-2 max-w-2xl mx-auto">Theo quy định pháp luật, chủ trạm sạc điện cần xác thực định danh trước khi bắt đầu kinh doanh.</p>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
 export default function OwnerKycGuard({ children }) {
   const [loading, setLoading] = useState(true);
   const [kycStatus, setKycStatus] = useState(null);
@@ -84,22 +99,6 @@ export default function OwnerKycGuard({ children }) {
   if (kycStatus === "Approved") {
     return children;
   }
-
-  // Common wrapper for KYC Screens
-  const KycContainer = ({ children }) => (
-    <div className="min-h-screen bg-slate-100 flex justify-center pt-24 pb-12 px-4 sm:px-6">
-      <div className="max-w-5xl w-full bg-white rounded-3xl shadow-sm ring-1 ring-slate-200 p-6 sm:p-10">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-white text-3xl shadow-orange-500/30 shadow-lg">
-            🛡️
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Xác thực danh tính chủ trạm</h1>
-          <p className="text-slate-500 mt-2 max-w-2xl mx-auto">Theo quy định pháp luật, chủ trạm sạc điện cần xác thực định danh trước khi bắt đầu kinh doanh.</p>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
 
   if (kycStatus === "Pending") {
     return (
@@ -191,15 +190,23 @@ export default function OwnerKycGuard({ children }) {
           </div>
 
           <div className="pt-2">
-            <label className="flex items-start gap-2.5 mb-4 cursor-pointer">
+            <div className="flex items-start gap-2.5 mb-4">
               <input
                 type="checkbox"
+                id="kyc-agree-checkbox"
                 checked={agreed}
                 onChange={e => setAgreed(e.target.checked)}
-                className="mt-0.5 flex-shrink-0 w-4.5 h-4.5 accent-orange-500 cursor-pointer"
+                onClick={e => e.stopPropagation()}
+                className="mt-0.5 flex-shrink-0 accent-orange-500 cursor-pointer"
+                style={{ width: "18px", height: "18px" }}
               />
-              <span className="text-sm text-slate-600 font-medium">Bằng việc gửi thông tin, tôi cam kết các giấy tờ đều là ảnh chụp bản gốc hợp lệ.</span>
-            </label>
+              <label
+                htmlFor="kyc-agree-checkbox"
+                className="text-sm text-slate-600 font-medium cursor-pointer select-none"
+              >
+                Bằng việc gửi thông tin, tôi cam kết các giấy tờ đều là ảnh chụp bản gốc hợp lệ.
+              </label>
+            </div>
             <button type="submit" disabled={submitting || !agreed} className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-lg transition shadow-xl shadow-orange-500/20 disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none">
               {submitting ? (
                 <>
