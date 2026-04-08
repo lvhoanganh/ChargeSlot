@@ -2,19 +2,27 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { chatApi } from "@/services/api";
 import { getCurrentRole } from "@/services/api";
+import Pagination from "@/components/Pagination";
 
 export default function ChatList() {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const role = (localStorage.getItem("role") || "").toLowerCase();
 
   useEffect(() => {
-    chatApi.getConversations()
-      .then(data => setConversations(Array.isArray(data) ? data : []))
+    setLoading(true);
+    chatApi.getConversations(page, 20)
+      .then(data => {
+        const list = Array.isArray(data) ? data : (data?.items ?? []);
+        setConversations(list);
+        setTotalCount(data?.totalCount ?? data?.total ?? list.length);
+      })
       .catch(() => setConversations([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   if (loading) {
     return (
@@ -108,6 +116,12 @@ export default function ChatList() {
                 </div>
               );
             })}
+            <Pagination 
+              page={page} 
+              totalCount={totalCount} 
+              pageSize={20} 
+              onPageChange={(p) => setPage(p)} 
+            />
           </div>
         )}
       </div>

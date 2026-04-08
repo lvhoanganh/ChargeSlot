@@ -5,6 +5,7 @@ import { showToast } from "@/components/Toast";
 import QRCodeModal from "@/components/QRCodeModal";
 import BankCombobox from "@/components/BankCombobox";
 import { showConfirm } from "@/components/ConfirmDialog";
+import Pagination from "@/components/Pagination";
 
 const txTypeLabels = {
   TopUp: { label: "Nạp tiền", icon: "💰", color: "#22c55e" },
@@ -43,7 +44,12 @@ export default function DriverWallet() {
   const [withdrawRequests, setWithdrawRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("transactions"); // transactions | withdraw-history
-  const [withdrawFilter, setWithdrawFilter] = useState("all");
+  
+  const [txPage, setTxPage] = useState(1);
+  const [txTotal, setTxTotal] = useState(0);
+  const [wrPage, setWrPage] = useState(1);
+  const [wrTotal, setWrTotal] = useState(0);
+
   const [selectedTx, setSelectedTx] = useState(null);
 
   // Top-up
@@ -93,20 +99,48 @@ export default function DriverWallet() {
     }
   }
 
-  function fetchAll() {
-    Promise.all([
-      walletApi.getWallet().catch(() => null),
-      walletApi.getTransactions().catch(() => ({})),
-      walletApi.getWithdrawRequests().catch(() => ({})),
-    ]).then(([w, txsData, wrsData]) => {
-      setWallet(w);
-      // BE trả { total, page, pageSize, items } — phải unpack .items
-      setTransactions(txsData?.items ?? (Array.isArray(txsData) ? txsData : []));
-      setWithdrawRequests(wrsData?.items ?? (Array.isArray(wrsData) ? wrsData : []));
-    }).finally(() => setLoading(false));
+  function fetchWallet() {
+    walletApi.getWallet().then(w => setWallet(w)).catch(() => null);
   }
 
-  useEffect(() => { fetchAll(); }, []);
+  function fetchTransactions() {
+    walletApi.getTransactions(txPage, 20)
+      .then(data => {
+        const list = Array.isArray(data) ? data : (data?.items ?? []);
+        setTransactions(list);
+        setTxTotal(data?.totalCount ?? data?.total ?? list.length);
+      }).catch(() => setTransactions([]));
+  }
+
+  function fetchWithdraws() {
+    walletApi.getWithdrawRequests(wrPage, 20)
+      .then(data => {
+        const list = Array.isArray(data) ? data : (data?.items ?? []);
+        setWithdrawRequests(list);
+        setWrTotal(data?.totalCount ?? data?.total ?? list.length);
+      }).catch(() => setWithdrawRequests([]));
+  }
+
+  useEffect(() => {
+    fetchWallet();
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchTransactions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [txPage]);
+
+  useEffect(() => {
+    fetchWithdraws();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wrPage]);
+
+  function fetchAll() {
+    fetchWallet();
+    fetchTransactions();
+    fetchWithdraws();
+  }
 
   useEffect(() => {
     if (!sepayOpen) return;
@@ -392,6 +426,12 @@ export default function DriverWallet() {
                     </div>
                   );
                 })}
+                <Pagination
+                  page={txPage}
+                  totalCount={txTotal}
+                  pageSize={20}
+                  onPageChange={(p) => setTxPage(p)}
+                />
               </div>
             )}
           </>
@@ -404,42 +444,11 @@ export default function DriverWallet() {
               Lịch sử rút tiền
             </h2>
             
-            {withdrawRequests.length > 0 && (
-              <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
-                {[
-                  { key: "all", label: "Tất cả" },
-                  { key: "Pending", label: "Chờ duyệt" },
-                  { key: "Approved", label: "Chờ CK" },
-                  { key: "TransferCompleted", label: "Đã CK" },
-                  { key: "Completed", label: "Thành công" },
-                  { key: "Failed", label: "Lỗi/Từ chối" },
-                ].map(t => (
-                  <button
-                    key={t.key}
-                    onClick={() => setWithdrawFilter(t.key)}
-                    style={{
-                      flexShrink: 0, padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600,
-                      border: "none", cursor: "pointer", transition: "all 0.15s",
-                      background: withdrawFilter === t.key ? "#f97316" : "#f1f5f9",
-                      color: withdrawFilter === t.key ? "#fff" : "#64748b",
-                      boxShadow: withdrawFilter === t.key ? "0 2px 8px rgba(249,115,22,0.3)" : "none",
-                    }}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {withdrawRequests.length === 0 ? (
               <EmptyState icon="🏦" text="Chưa có yêu cầu rút tiền nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {withdrawRequests.filter(wr => {
-                  if (withdrawFilter === "all") return true;
-                  if (withdrawFilter === "Failed") return wr.status === "Rejected" || wr.status === "IssueReported";
-                  return wr.status === withdrawFilter;
-                }).map((wr) => {
+                {withdrawRequests.map((wr) => {
                   const st = withdrawStatusLabels[wr.status] || withdrawStatusLabels.Pending;
                   return (
                     <div key={wr.id} style={{

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { notificationApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
+import Pagination from "@/components/Pagination";
 
 /**
  * Extract the first numeric ID from a notification's content.
@@ -29,6 +30,20 @@ function getNotificationRoute(notification, role) {
   // BƯỚC 1: Content keyword — ưu tiên cao hơn type
   // (Vì BE hay gửi type "Booking" cho nhiều loại sự kiện khác nhau)
   // ════════════════════════════════════════════════════════════
+
+  // Khiếu nại / dispute — ƯU TIÊN CAO NHẤT ĐỂ TRÁNH BỊ BẮT NHẦM VÀO VÍ NẾU CÓ CHỮ "HOÀN TIỀN" / "PHÍ PHẠT"
+  if (
+    text.includes("khiếu nại") ||
+    text.includes("dispute") ||
+    text.includes("tranh chấp") ||
+    text.includes("phản ánh") ||
+    text.includes("giải quyết khiếu") ||
+    text.includes("khiếu") 
+  ) {
+    if (r === "driver") return id ? `/driver/dispute/${id}` : "/driver/disputes";
+    if (r === "owner") return id ? `/owner/dispute/${id}` : "/owner/disputes";
+    if (r === "admin") return id ? `/admin/disputes/${id}` : "/admin/disputes";
+  }
 
   // Trạm sạc chờ duyệt / từ chối / duyệt thành công
   if (
@@ -92,18 +107,6 @@ function getNotificationRoute(notification, role) {
     if (r === "driver") return "/driver/loyalty";
   }
 
-  // Khiếu nại / dispute — ưu tiên cao, đặt trước type-based để tránh bị routing nhầm sang Booking
-  if (
-    text.includes("khiếu nại") ||
-    text.includes("dispute") ||
-    text.includes("tranh chấp") ||
-    text.includes("phản ánh") ||
-    text.includes("giải quyết khiếu")
-  ) {
-    if (r === "driver") return id ? `/driver/dispute/${id}` : "/driver/disputes";
-    if (r === "owner") return id ? `/owner/dispute/${id}` : "/owner/disputes";
-    if (r === "admin") return id ? `/admin/disputes/${id}` : "/admin/disputes";
-  }
 
   // Trạm sạc chờ duyệt / từ chối / duyệt thành công
   if (
@@ -255,6 +258,8 @@ function timeAgo(dateStr) {
 
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
@@ -272,18 +277,18 @@ export default function NotificationBell() {
   // Fetch & poll notifications
   useEffect(() => {
     const fetchNoti = () => {
-      notificationApi.getAll()
+      notificationApi.getAll(page, 10)
         .then(data => {
-          // BE có thể trả về mảng thẳng hoặc object phân trang {total, page, pageSize, items:[...]}
           const list = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
           setNotifications(list);
+          setTotalCount(data?.totalCount ?? data?.total ?? list.length);
         })
         .catch(() => { });
     };
     fetchNoti();
     const interval = setInterval(fetchNoti, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [page]);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -365,21 +370,31 @@ export default function NotificationBell() {
                 <p className="cs-nbell__empty-sub">Mọi cập nhật sẽ xuất hiện ở đây</p>
               </div>
             ) : (
-              notifications.slice(0, 20).map(n => (
-                <div
-                  key={n.id}
-                  onClick={() => handleClick(n)}
-                  className={`cs-nbell__item ${!n.isRead ? "cs-nbell__item--unread" : ""}`}
-                >
-                  <NotifIcon type={n.type} />
-                  <div className="cs-nbell__item-body">
-                    <p className="cs-nbell__item-title">{n.title}</p>
-                    <p className="cs-nbell__item-content">{n.content}</p>
-                    <p className="cs-nbell__item-time">{timeAgo(n.createdAt)}</p>
+              <>
+                {notifications.map(n => (
+                  <div
+                    key={n.id}
+                    onClick={() => handleClick(n)}
+                    className={`cs-nbell__item ${!n.isRead ? "cs-nbell__item--unread" : ""}`}
+                  >
+                    <NotifIcon type={n.type} />
+                    <div className="cs-nbell__item-body">
+                      <p className="cs-nbell__item-title">{n.title}</p>
+                      <p className="cs-nbell__item-content">{n.content}</p>
+                      <p className="cs-nbell__item-time">{timeAgo(n.createdAt)}</p>
+                    </div>
+                    {!n.isRead && <span className="cs-nbell__unread-dot" />}
                   </div>
-                  {!n.isRead && <span className="cs-nbell__unread-dot" />}
+                ))}
+                <div style={{ padding: "0 10px", borderTop: "1px solid #f3f4f6" }}>
+                  <Pagination
+                    page={page}
+                    totalCount={totalCount}
+                    pageSize={10}
+                    onPageChange={(p) => setPage(p)}
+                  />
                 </div>
-              ))
+              </>
             )}
           </div>
         </div>

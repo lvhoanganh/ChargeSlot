@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { bookingApi } from "@/services/api";
+import Pagination from "@/components/Pagination";
 
 const statusStyles = {
   WaitingOwner: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "⏳" },
@@ -26,21 +27,41 @@ export default function BookingRequests() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all");
+  
+  // Main group tab
+  const [tabType, setTabType] = useState("ongoing"); // "ongoing" | "history"
+  // Specific status filter (for history, we can pass status)
+  const [statusFilter, setStatusFilter] = useState("all");
+  
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
-  useEffect(() => {
-    // BE trả { total, page, pageSize, items } — phải unpack .items
-    bookingApi.getOwnerBookings()
+  const fetchBookings = () => {
+    setLoading(true);
+    let promise;
+    if (tabType === "ongoing") {
+      promise = bookingApi.getOwnerOngoingBookings(page, 20);
+    } else {
+      const st = statusFilter !== "all" ? statusFilter : null;
+      promise = bookingApi.getOwnerHistoryBookings(st, page, 20);
+    }
+
+    promise
       .then((data) => {
-        const list = data?.items ?? (Array.isArray(data) ? data : []);
+        const list = Array.isArray(data) ? data : (data?.items ?? []);
         setBookings(list);
+        setTotalCount(data?.totalCount ?? data?.total ?? list.length);
       })
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
-  }, []);
+  };
 
-  const filtered = filter === "all" ? bookings : bookings.filter((b) => b.status === filter);
-  const pendingCount = bookings.filter((b) => b.status === "WaitingOwner").length;
+  useEffect(() => {
+    fetchBookings();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, tabType, statusFilter]);
+
+  const pendingCount = tabType === "ongoing" ? bookings.filter((b) => b.status === "WaitingOwner").length : 0;
 
   if (loading) {
     return (
@@ -65,37 +86,68 @@ export default function BookingRequests() {
           </h1>
         </div>
 
-        {/* Filter tabs */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
-          {[
-            { key: "all", label: "Tất cả" },
-            { key: "WaitingOwner", label: "Chờ duyệt" },
-            { key: "PendingPayment", label: "Chờ thanh toán" },
-            { key: "Paid", label: "Đã thanh toán" },
-            { key: "Completed", label: "Hoàn thành" },
-            { key: "Rejected", label: "Từ chối" },
-          ].map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              style={{
-                padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: "pointer",
-                border: filter === f.key ? "none" : "1.5px solid #e5e7eb",
-                background: filter === f.key ? "#f97316" : "#fff",
-                color: filter === f.key ? "#fff" : "#374151",
-              }}
-            >{f.label}</button>
-          ))}
+        {/* Tabs for Ongoing / History */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+          <button
+            onClick={() => { setTabType("ongoing"); setStatusFilter("all"); setPage(1); }}
+            style={{
+              padding: "8px 16px", borderRadius: 20, fontSize: 14, fontWeight: 700, cursor: "pointer",
+              border: tabType === "ongoing" ? "none" : "1.5px solid #e5e7eb",
+              background: tabType === "ongoing" ? "#f97316" : "#fff",
+              color: tabType === "ongoing" ? "#fff" : "#374151",
+            }}
+          >
+            🔥 Đang xử lý
+          </button>
+          <button
+            onClick={() => { setTabType("history"); setStatusFilter("all"); setPage(1); }}
+            style={{
+              padding: "8px 16px", borderRadius: 20, fontSize: 14, fontWeight: 700, cursor: "pointer",
+              border: tabType === "history" ? "none" : "1.5px solid #e5e7eb",
+              background: tabType === "history" ? "#f97316" : "#fff",
+              color: tabType === "history" ? "#fff" : "#374151",
+            }}
+          >
+            📚 Lịch sử
+          </button>
         </div>
 
-        {filtered.length === 0 ? (
+        {tabType === "history" && (
+          <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+            {[
+              { key: "all", label: "Tất cả lịch sử" },
+              { key: "Completed", label: "Hoàn thành" },
+              { key: "Rejected", label: "Từ chối" },
+              { key: "Cancelled", label: "Đã hủy" },
+            ].map((f) => (
+              <button
+                key={f.key}
+                onClick={() => { setStatusFilter(f.key); setPage(1); }}
+                style={{
+                  padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  border: statusFilter === f.key ? "none" : "1px solid #e5e7eb",
+                  background: statusFilter === f.key ? "#475569" : "#fff",
+                  color: statusFilter === f.key ? "#fff" : "#374151",
+                }}
+              >{f.label}</button>
+            ))}
+          </div>
+        )}
+
+        {/* Local filter only for ongoing to switch between WaitingOwner, PendingPayment... if needed.
+            But the user said "Frontend tuyệt đối không gọi full list rồi tự cắt bằng JS nữa".
+            If backend ongoing doesn't support status filter, we just show them all in ongoing.
+        */}
+
+        {bookings.length === 0 ? (
           <div style={{ textAlign: "center", padding: 40, background: "#fff", borderRadius: 16 }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>📋</div>
             <p style={{ color: "#6b7280" }}>Không có booking nào</p>
           </div>
         ) : (
-          filtered.map((b) => {
-            const st = statusStyles[b.status] || statusStyles.WaitingOwner;
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {bookings.map((b) => {
+              const st = statusStyles[b.status] || statusStyles.WaitingOwner;
             return (
               <div
                 key={b.id}
@@ -137,7 +189,14 @@ export default function BookingRequests() {
                 )}
               </div>
             );
-          })
+          })}
+            <Pagination 
+              page={page} 
+              totalCount={totalCount} 
+              pageSize={20} 
+              onPageChange={(p) => setPage(p)} 
+            />
+          </div>
         )}
       </div>
     </div>

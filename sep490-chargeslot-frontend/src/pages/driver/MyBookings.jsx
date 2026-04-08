@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { bookingApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 import BookingStatus from "./BookingStatus";
+import Pagination from "@/components/Pagination";
 
 const statusStyles = {
   WaitingOwner: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "⏳", group: "active" },
@@ -21,8 +22,7 @@ const statusStyles = {
 
 const TABS = [
   { key: "all", label: "Tất cả" },
-  { key: "active", label: "Đang xử lý" },
-  { key: "done", label: "Đã kết thúc" },
+  { key: "done", label: "Lịch sử (Đã kết thúc)" },
 ];
 
 const toLocal = (dt) => {
@@ -43,6 +43,8 @@ export default function MyBookings() {
   const [tab, setTab] = useState("all");
   const [subFilter, setSubFilter] = useState("all");
   const [selectedDetailId, setSelectedDetailId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelPreviewData, setCancelPreviewData] = useState(null);
@@ -51,15 +53,31 @@ export default function MyBookings() {
   const [cancelLoading, setCancelLoading] = useState(false);
 
   const fetchBookings = () => {
-    bookingApi.getDriverBookings()
-      .then((data) => setBookings(Array.isArray(data) ? data : (data?.items ?? [])))
+    setLoading(true);
+    let fetchPromise;
+    
+    // Choose endpoint based on tab/filter
+    if (tab === "done" && subFilter === "all") {
+      fetchPromise = bookingApi.getDriverHistory(page, 20);
+    } else {
+      const statusArg = subFilter !== "all" ? subFilter : null;
+      fetchPromise = bookingApi.getDriverBookings(statusArg, page, 20);
+    }
+
+    fetchPromise
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data?.items ?? []);
+        setBookings(list);
+        setTotalCount(data?.totalCount ?? data?.total ?? list.length);
+      })
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, tab, subFilter]);
 
   const handleStartCancel = async (e, b) => {
     e.stopPropagation();
@@ -95,16 +113,6 @@ export default function MyBookings() {
     }
   };
 
-  const filtered = bookings.filter((b) => {
-    const groupMatch = tab === "all" || (statusStyles[b.status]?.group || "done") === tab;
-    if (!groupMatch) return false;
-    
-    if (subFilter === "all") return true;
-    if (subFilter === "Cancelled") return ["Cancelled", "Rejected", "Expired", "NoShow"].includes(b.status);
-    if (subFilter === "ActiveGroup") return statusStyles[b.status]?.group === "active";
-    return b.status === subFilter;
-  });
-
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -139,7 +147,7 @@ export default function MyBookings() {
             Booking của tôi
           </h1>
           <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 3 }}>
-            {bookings.length} booking · {bookings.filter(b => (statusStyles[b.status]?.group) === "active").length} đang xử lý
+            Tổng cộng: {totalCount} booking
           </p>
         </div>
 
@@ -149,12 +157,11 @@ export default function MyBookings() {
         }}>
           <div style={{ display: "flex", gap: 6, flex: 1, minWidth: 260 }}>
             {TABS.map((t) => {
-              const count = t.key === "all" ? bookings.length : bookings.filter(b => (statusStyles[b.status]?.group || "done") === t.key).length;
               const isActive = tab === t.key;
               return (
                 <button
                   key={t.key}
-                  onClick={() => { setTab(t.key); setSubFilter("all"); }}
+                  onClick={() => { setTab(t.key); setSubFilter("all"); setPage(1); }}
                   style={{
                     flex: 1, height: 38, padding: "0 4px", borderRadius: 12, border: "none",
                     background: isActive ? "#f97316" : "#fff",
@@ -165,7 +172,7 @@ export default function MyBookings() {
                     transition: "all 0.2s",
                   }}
                 >
-                  {t.label} <span style={{ opacity: 0.8 }}>({count})</span>
+                  {t.label}
                 </button>
               );
             })}
@@ -173,7 +180,7 @@ export default function MyBookings() {
           
           <select
             value={subFilter}
-            onChange={(e) => setSubFilter(e.target.value)}
+            onChange={(e) => { setSubFilter(e.target.value); setPage(1); }}
             style={{
               height: 38, padding: "0 12px", borderRadius: 12, border: "1px solid #e2e8f0",
               background: "#fff", color: "#475569", fontSize: 13, fontWeight: 600, 
@@ -181,9 +188,8 @@ export default function MyBookings() {
             }}
           >
             <option value="all">Mọi trạng thái</option>
-            {(tab === "all" || tab === "active") && (
+            {tab === "all" && (
               <>
-                {tab === "all" && <option value="ActiveGroup">Đang xử lý</option>}
                 <option value="WaitingOwner">Chờ duyệt</option>
                 <option value="PendingPayment">Chờ thanh toán</option>
                 <option value="InProgress">Đang sạc</option>
@@ -193,6 +199,7 @@ export default function MyBookings() {
               <>
                 <option value="Completed">Thành công</option>
                 <option value="Cancelled">Huỷ / Từ chối</option>
+                <option value="Expired">Hết hạn</option>
                 <option value="Disputed">Tranh chấp</option>
               </>
             )}
@@ -200,7 +207,7 @@ export default function MyBookings() {
         </div>
 
         {/* Booking list */}
-        {filtered.length === 0 ? (
+        {bookings.length === 0 ? (
           <div style={{
             textAlign: "center", padding: "52px 20px",
             background: "#fff", borderRadius: 20,
@@ -229,7 +236,7 @@ export default function MyBookings() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {filtered.map((b) => {
+            {bookings.map((b) => {
               const st = statusStyles[b.status] || statusStyles.WaitingOwner;
               const isActive = st.group === "active";
               return (
@@ -351,6 +358,12 @@ export default function MyBookings() {
                 </div>
               );
             })}
+            <Pagination 
+              page={page} 
+              totalCount={totalCount} 
+              pageSize={20} 
+              onPageChange={(p) => setPage(p)} 
+            />
           </div>
         )}
         </div>

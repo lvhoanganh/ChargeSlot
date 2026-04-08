@@ -21,7 +21,11 @@ export default function ChatPage() {
       bookingApi.getById(Number(bookingId)).catch(() => null),
     ]).then(([chatData, booking]) => {
       setConversationId(chatData?.conversationId || null);
-      setMessages(chatData?.messages || []);
+      
+      // Support old format ({messages: []}) and new PagedResultDto ({items: []})
+      const fallbackList = Array.isArray(chatData) ? chatData : [];
+      setMessages(chatData?.items || chatData?.messages || fallbackList);
+      
       setBookingStatus(booking?.status || null);
     }).finally(() => setLoading(false));
   }, [bookingId]);

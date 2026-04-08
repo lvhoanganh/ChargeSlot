@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { disputeApi } from "@/services/api";
+import Pagination from "@/components/Pagination";
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -36,42 +37,30 @@ export default function DisputeList() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [page, setPage] = useState(1);
 
   const { data: rawData, isLoading, error } = useQuery({
-    queryKey: ["admin-disputes-all"],
-    queryFn: () => disputeApi.getAll(),
+    queryKey: ["admin-disputes-all", statusFilter, page],
+    queryFn: () => disputeApi.getAll(statusFilter, page, 20),
     refetchInterval: 30000,
   });
 
   // BE trả { total, page, pageSize, items } — phải unpack .items
   const disputes = rawData?.items ?? (Array.isArray(rawData) ? rawData : []);
+  const totalCount = rawData?.totalCount ?? rawData?.total ?? disputes.length;
 
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return disputes.filter((d) => {
-      const matchSearch =
-        !keyword ||
+      if (!keyword) return true;
+      return (
         d.createdByName?.toLowerCase().includes(keyword) ||
         d.reason?.toLowerCase().includes(keyword) ||
         String(d.id).includes(keyword) ||
-        String(d.bookingId).includes(keyword);
-      const matchStatus = statusFilter === "ALL" || d.status === statusFilter;
-      return matchSearch && matchStatus;
+        String(d.bookingId).includes(keyword)
+      );
     });
-  }, [disputes, search, statusFilter]);
-
-  const summary = useMemo(() => {
-    return disputes.reduce(
-      (acc, d) => {
-        acc.total += 1;
-        if (d.status === "WaitingOwnerEvidence") acc.waiting += 1;
-        if (d.status === "PendingReview") acc.pending += 1;
-        if (d.status === "ResolvedRefund" || d.status === "ResolvedPayout") acc.resolved += 1;
-        return acc;
-      },
-      { total: 0, waiting: 0, pending: 0, resolved: 0 }
-    );
-  }, [disputes]);
+  }, [disputes, search]);
 
   if (isLoading) {
     return (
@@ -101,57 +90,8 @@ export default function DisputeList() {
       {/* Page Header */}
       <div className="cs-admin-page__header">
         <div>
-          <h1 className="cs-admin-page__title">Quản lý khiếu nại</h1>
+          <h1 className="cs-admin-page__title">Quản lý khiếu nại (Tổng: {totalCount})</h1>
           <p className="cs-admin-page__subtitle">Xem xét và xử lý các khiếu nại từ Driver</p>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="cs-admin-stats">
-        <div className="cs-admin-stat-card">
-          <div className="cs-admin-stat-card__icon cs-admin-stat-card__icon--total">
-            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          </div>
-          <div>
-            <p className="cs-admin-stat-card__label">Tổng khiếu nại</p>
-            <p className="cs-admin-stat-card__value">{summary.total}</p>
-          </div>
-        </div>
-        <div className="cs-admin-stat-card">
-          <div className="cs-admin-stat-card__icon cs-admin-stat-card__icon--warning">
-            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div>
-            <p className="cs-admin-stat-card__label">Chờ Owner phản hồi</p>
-            <p className="cs-admin-stat-card__value" style={{ color: "#f97316" }}>{summary.waiting}</p>
-          </div>
-        </div>
-        <div className="cs-admin-stat-card">
-          <div className="cs-admin-stat-card__icon cs-admin-stat-card__icon--info">
-            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          </div>
-          <div>
-            <p className="cs-admin-stat-card__label">Sẵn sàng xem xét</p>
-            <p className="cs-admin-stat-card__value" style={{ color: "#3b82f6" }}>{summary.pending}</p>
-          </div>
-        </div>
-        <div className="cs-admin-stat-card">
-          <div className="cs-admin-stat-card__icon" style={{ background: "#f0fdf4", color: "#16a34a" }}>
-            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <div>
-            <p className="cs-admin-stat-card__label">Đã giải quyết</p>
-            <p className="cs-admin-stat-card__value" style={{ color: "#16a34a" }}>{summary.resolved}</p>
-          </div>
         </div>
       </div>
 
@@ -180,7 +120,7 @@ export default function DisputeList() {
           <option value="ResolvedRefund">Hoàn tiền Driver</option>
           <option value="ResolvedPayout">Thanh toán Owner</option>
         </select>
-        <button onClick={() => { setSearch(""); setStatusFilter("ALL"); }} className="cs-admin-filter__reset">
+        <button onClick={() => { setSearch(""); setStatusFilter("ALL"); setPage(1); }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
@@ -243,6 +183,15 @@ export default function DisputeList() {
             )}
           </tbody>
         </table>
+        
+        <div style={{ marginTop: 20 }}>
+          <Pagination 
+            page={page} 
+            totalCount={totalCount} 
+            pageSize={20} 
+            onPageChange={(p) => setPage(p)} 
+          />
+        </div>
       </div>
 
       <style>{styles}</style>

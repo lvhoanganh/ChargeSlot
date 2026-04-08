@@ -403,15 +403,20 @@ export const bookingApi = {
         apiFetch(`/Booking/driver/history?page=${page}&pageSize=${pageSize}`),
 
     /**
-     * Owner xem danh sách booking (phân trang + filter status)
-     * Response: { total, page, pageSize, items }
+     * Owner xem danh sách booking ongoing (Phân trang)
      */
-    getOwnerBookings: (status = null, page = 1, pageSize = 20) => {
+    getOwnerOngoingBookings: (page = 1, pageSize = 20) =>
+        apiFetch(`/Booking/owner/ongoing?page=${page}&pageSize=${pageSize}`),
+
+    /**
+     * Owner xem danh sách booking history (Phân trang, kèm filter status)
+     */
+    getOwnerHistoryBookings: (status = null, page = 1, pageSize = 20) => {
         const params = new URLSearchParams();
         if (status) params.set("status", status);
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
-        return apiFetch(`/Booking/owner?${params.toString()}`);
+        return apiFetch(`/Booking/owner/history?${params.toString()}`);
     },
 
     getById: (id) => apiFetch(`/Booking/${id}`),
@@ -532,15 +537,15 @@ export const walletApi = {
      * Lịch sử giao dịch ví (phân trang)
      * Response: { total, page, pageSize, items }
      */
-    getTransactions: (page = 1, pageSize = 50) =>
+    getTransactions: (page = 1, pageSize = 20) =>
         apiFetch(`/Wallet/transactions?page=${page}&pageSize=${pageSize}`),
 
     /**
      * Danh sách yêu cầu rút tiền (phân trang)
      * Response: { total, page, pageSize, items }
      */
-    getWithdrawRequests: (page = 1, pageSize = 50) =>
-        apiFetch(`/Wallet/withdraw-requests?page=${page}&pageSize=${pageSize}`),
+    getWithdrawRequests: (page = 1, pageSize = 20) =>
+        apiFetch(`/Wallet/withdrawals?page=${page}&pageSize=${pageSize}`),
 
     /** Báo đã nhận được tiền */
     confirmWithdrawal: (id) => apiFetch(`/Wallet/withdraw-requests/${id}/confirm`, { method: "PUT" }),
@@ -806,14 +811,13 @@ export const chatApi = {
      * Response: { total, page, pageSize, items }
      */
     getConversations: (page = 1, pageSize = 20) =>
-        apiFetch(`/chat?page=${page}&pageSize=${pageSize}`),
+        apiFetch(`/chat/rooms?page=${page}&pageSize=${pageSize}`),
 
     /**
-     * Lịch sử tin nhắn theo booking (phân trang)
-     * Response: { conversationId, total, page, pageSize, messages }
+     * Lịch sử tin nhắn theo roomId (phân trang)
      */
-    getMessages: (bookingId, page = 1, pageSize = 50) =>
-        apiFetch(`/chat/${bookingId}?page=${page}&pageSize=${pageSize}`),
+    getMessages: (roomId, page = 1, pageSize = 50) =>
+        apiFetch(`/chat/room/${roomId}/messages?page=${page}&pageSize=${pageSize}`),
 
     /** Gửi tin nhắn */
     sendMessage: (bookingId, content) =>

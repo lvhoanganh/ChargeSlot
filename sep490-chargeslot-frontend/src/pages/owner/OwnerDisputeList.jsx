@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { disputeApi } from "@/services/api";
+import Pagination from "@/components/Pagination";
 
 const STATUS_MAP = {
   Open: { label: "Mở", color: "#f59e0b", bg: "#fffbeb", icon: "📝" },
@@ -20,37 +21,23 @@ export default function OwnerDisputeList() {
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("all");
+  
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
     disputeApi
-      .getOwnerDisputes()
+      .getOwnerDisputes(page, 20)
       .then((data) => {
-        // BE trả { total, page, pageSize, items } — phải unpack .items
+        // BE trả { totalCount, page, pageSize, items } — phải unpack .items
         const list = data?.items ?? (Array.isArray(data) ? data : []);
         setDisputes(list);
+        setTotalCount(data?.totalCount ?? data?.total ?? list.length);
       })
       .catch((e) => setError(e?.message || "Không thể tải danh sách khiếu nại."))
       .finally(() => setLoading(false));
-  }, []);
-
-  const filtered =
-    filter === "all" ? disputes : disputes.filter((d) => d.status === filter);
-
-  const counts = {
-    all: disputes.length,
-    WaitingOwnerEvidence: disputes.filter((d) => d.status === "WaitingOwnerEvidence").length,
-    PendingReview: disputes.filter((d) => d.status === "PendingReview").length,
-    resolved: disputes.filter((d) =>
-      d.status === "ResolvedRefund" || d.status === "ResolvedPayout"
-    ).length,
-  };
-
-  const TABS = [
-    { key: "all", label: "Tất cả", count: counts.all },
-    { key: "WaitingOwnerEvidence", label: "Cần phản hồi", count: counts.WaitingOwnerEvidence },
-    { key: "PendingReview", label: "Đang xét", count: counts.PendingReview },
-  ];
+  }, [page]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90, paddingBottom: 40 }}>
@@ -72,46 +59,10 @@ export default function OwnerDisputeList() {
             <div>
               <h1 style={{ fontSize: 22, fontWeight: 800, color: "#fff", margin: 0 }}>Khiếu nại trạm của tôi</h1>
               <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: "4px 0 0" }}>
-                {disputes.length} khiếu nại
-                {counts.WaitingOwnerEvidence > 0 && (
-                  <span style={{ marginLeft: 8, background: "rgba(255,255,255,0.2)", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>
-                    {counts.WaitingOwnerEvidence} cần phản hồi
-                  </span>
-                )}
+                Danh sách khiếu nại của trạm
               </p>
             </div>
           </div>
-        </div>
-
-        {/* Filter Tabs */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 20, overflowX: "auto", paddingBottom: 4 }}>
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setFilter(tab.key)}
-              style={{
-                padding: "8px 14px", borderRadius: 20, border: "none", cursor: "pointer",
-                fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
-                background: filter === tab.key ? "#f97316" : "#fff",
-                color: filter === tab.key ? "#fff" : "#6b7280",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-                transition: "all 0.2s",
-                flexShrink: 0,
-              }}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <span style={{
-                  marginLeft: 6, fontSize: 11, fontWeight: 700,
-                  background: filter === tab.key ? "rgba(255,255,255,0.3)" : "#f3f4f6",
-                  color: filter === tab.key ? "#fff" : "#374151",
-                  padding: "1px 6px", borderRadius: 10,
-                }}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
         </div>
 
         {/* Content */}
@@ -134,21 +85,19 @@ export default function OwnerDisputeList() {
               Thử lại
             </button>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : disputes.length === 0 ? (
           <div style={{ background: "#fff", borderRadius: 16, padding: "50px 24px", textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
             <div style={{ fontSize: 56, marginBottom: 12 }}>📋</div>
             <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: "0 0 8px" }}>
-              {filter === "all" ? "Chưa có khiếu nại nào" : "Không có khiếu nại nào"}
+              Chưa có khiếu nại nào
             </h3>
             <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
-              {filter === "all"
-                ? "Khi Driver gửi khiếu nại liên quan đến trạm của bạn, chúng sẽ xuất hiện ở đây."
-                : "Không có khiếu nại nào với trạng thái này."}
+              Khi Driver gửi khiếu nại liên quan đến trạm của bạn, chúng sẽ xuất hiện ở đây.
             </p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {filtered.map((dispute) => {
+            {disputes.map((dispute) => {
               const st = STATUS_MAP[dispute.status] || STATUS_MAP.Open;
               const needsAction = dispute.status === "WaitingOwnerEvidence";
               return (
@@ -231,6 +180,12 @@ export default function OwnerDisputeList() {
                 </div>
               );
             })}
+            <Pagination 
+              page={page} 
+              totalCount={totalCount} 
+              pageSize={20} 
+              onPageChange={(p) => setPage(p)} 
+            />
           </div>
         )}
       </div>

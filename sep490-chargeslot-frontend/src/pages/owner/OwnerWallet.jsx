@@ -4,6 +4,7 @@ import { walletApi, bankAccountApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 import { showConfirm } from "@/components/ConfirmDialog";
 import BankCombobox from "@/components/BankCombobox";
+import Pagination from "@/components/Pagination";
 
 const txTypeLabels = {
   TopUp: { label: "Nạp tiền", icon: "💰", color: "#22c55e" },
@@ -42,7 +43,12 @@ export default function OwnerWallet() {
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("transactions");
-  const [withdrawFilter, setWithdrawFilter] = useState("all");
+  
+  const [txPage, setTxPage] = useState(1);
+  const [txTotal, setTxTotal] = useState(0);
+  const [wrPage, setWrPage] = useState(1);
+  const [wrTotal, setWrTotal] = useState(0);
+
   const [selectedTx, setSelectedTx] = useState(null);
 
   // Withdraw form
@@ -55,22 +61,55 @@ export default function OwnerWallet() {
   const [bankForm, setBankForm] = useState({ bankName: "", bankAccountNumber: "", bankAccountHolder: "", isDefault: false });
   const [bankLoading, setBankLoading] = useState(false);
 
-  function fetchAll() {
-    Promise.all([
-      walletApi.getWallet().catch(() => null),
-      walletApi.getTransactions().catch(() => ({})),
-      walletApi.getWithdrawRequests().catch(() => ({})),
-      bankAccountApi.getAll().catch(() => []),
-    ]).then(([w, txsData, wdsData, bas]) => {
-      setWallet(w);
-      // BE trả { total, page, pageSize, items } — phải unpack .items
-      setTransactions(txsData?.items ?? (Array.isArray(txsData) ? txsData : []));
-      setWithdraws(wdsData?.items ?? (Array.isArray(wdsData) ? wdsData : []));
-      setBankAccounts(Array.isArray(bas) ? bas : []);
-    }).finally(() => setLoading(false));
+  function fetchWallet() {
+    walletApi.getWallet().then(w => setWallet(w)).catch(() => null);
   }
 
-  useEffect(() => { fetchAll(); }, []);
+  function fetchBankAccounts() {
+    bankAccountApi.getAll().then(bas => setBankAccounts(Array.isArray(bas) ? bas : [])).catch(() => []);
+  }
+
+  function fetchTransactions() {
+    walletApi.getTransactions(txPage, 20)
+      .then(data => {
+        const list = Array.isArray(data) ? data : (data?.items ?? []);
+        setTransactions(list);
+        setTxTotal(data?.totalCount ?? data?.total ?? list.length);
+      }).catch(() => setTransactions([]));
+  }
+
+  function fetchWithdraws() {
+    walletApi.getWithdrawRequests(wrPage, 20)
+      .then(data => {
+        const list = Array.isArray(data) ? data : (data?.items ?? []);
+        setWithdraws(list);
+        setWrTotal(data?.totalCount ?? data?.total ?? list.length);
+      }).catch(() => setWithdraws([]));
+  }
+
+  useEffect(() => {
+    fetchWallet();
+    fetchBankAccounts();
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchTransactions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [txPage]);
+
+  useEffect(() => {
+    fetchWithdraws();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wrPage]);
+
+  // Backward compatibility alias
+  function fetchAll() {
+    fetchWallet();
+    fetchTransactions();
+    fetchWithdraws();
+    fetchBankAccounts();
+  }
 
   const [issueForm, setIssueForm] = useState({ id: null, reason: "" });
   const [issueLoading, setIssueLoading] = useState(false);
@@ -395,6 +434,12 @@ export default function OwnerWallet() {
                     </div>
                   );
                 })}
+                <Pagination
+                  page={txPage}
+                  totalCount={txTotal}
+                  pageSize={20}
+                  onPageChange={(p) => setTxPage(p)}
+                />
               </div>
             )}
           </>
@@ -404,43 +449,12 @@ export default function OwnerWallet() {
         {activeTab === "withdraws" && (
           <>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", marginBottom: 16 }}>Lịch sử rút tiền</h2>
-            
-            {withdraws.length > 0 && (
-              <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
-                {[
-                  { key: "all", label: "Tất cả" },
-                  { key: "Pending", label: "Chờ duyệt" },
-                  { key: "Approved", label: "Chờ CK" },
-                  { key: "TransferCompleted", label: "Đã CK" },
-                  { key: "Completed", label: "Thành công" },
-                  { key: "Failed", label: "Lỗi/Từ chối" },
-                ].map(t => (
-                  <button
-                    key={t.key}
-                    onClick={() => setWithdrawFilter(t.key)}
-                    style={{
-                      flexShrink: 0, padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600,
-                      border: "none", cursor: "pointer", transition: "all 0.15s",
-                      background: withdrawFilter === t.key ? "#f97316" : "#f1f5f9",
-                      color: withdrawFilter === t.key ? "#fff" : "#64748b",
-                      boxShadow: withdrawFilter === t.key ? "0 2px 8px rgba(249,115,22,0.3)" : "none",
-                    }}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            )}
 
             {withdraws.length === 0 ? (
               <EmptyState icon="🏦" text="Chưa có yêu cầu rút tiền nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {withdraws.filter(p => {
-                  if (withdrawFilter === "all") return true;
-                  if (withdrawFilter === "Failed") return p.status === "Rejected" || p.status === "IssueReported";
-                  return p.status === withdrawFilter;
-                }).map((p) => {
+                {withdraws.map((p) => {
                   const st = withdrawStatusLabels[p.status] || withdrawStatusLabels.Pending;
                   return (
                     <div key={p.id} style={{
@@ -507,6 +521,12 @@ export default function OwnerWallet() {
                     </div>
                   );
                 })}
+                <Pagination
+                  page={wrPage}
+                  totalCount={wrTotal}
+                  pageSize={20}
+                  onPageChange={(p) => setWrPage(p)}
+                />
               </div>
             )}
           </>
