@@ -440,20 +440,15 @@ export const bookingApi = {
         apiFetch(`/Booking/driver/history?page=${page}&pageSize=${pageSize}`),
 
     /**
-     * Owner xem danh sách booking ongoing (Phân trang)
+     * Owner xem danh sách booking (kèm filter status)
+     * Backend chưa hỗ trợ chia ongoing/history server-side nên sẽ fetch cục lớn
      */
-    getOwnerOngoingBookings: (page = 1, pageSize = 20) =>
-        apiFetch(`/Booking/owner/ongoing?page=${page}&pageSize=${pageSize}`),
-
-    /**
-     * Owner xem danh sách booking history (Phân trang, kèm filter status)
-     */
-    getOwnerHistoryBookings: (status = null, page = 1, pageSize = 20) => {
+    getOwnerBookings: (status = null, page = 1, pageSize = 500) => {
         const params = new URLSearchParams();
         if (status) params.set("status", status);
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
-        return apiFetch(`/Booking/owner/history?${params.toString()}`);
+        return apiFetch(`/Booking/owner?${params.toString()}`);
     },
 
     getById: (id) => apiFetch(`/Booking/${id}`),

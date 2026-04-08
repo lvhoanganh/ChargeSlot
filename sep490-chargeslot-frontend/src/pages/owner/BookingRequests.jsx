@@ -25,43 +25,46 @@ const toLocal = (dt) => {
 
 export default function BookingRequests() {
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState([]);
+  const [allBookings, setAllBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Main group tab
   const [tabType, setTabType] = useState("ongoing"); // "ongoing" | "history"
-  // Specific status filter (for history, we can pass status)
+  // Specific status filter (for history)
   const [statusFilter, setStatusFilter] = useState("all");
-  
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
 
   const fetchBookings = () => {
     setLoading(true);
-    let promise;
-    if (tabType === "ongoing") {
-      promise = bookingApi.getOwnerOngoingBookings(page, 20);
-    } else {
-      const st = statusFilter !== "all" ? statusFilter : null;
-      promise = bookingApi.getOwnerHistoryBookings(st, page, 20);
-    }
-
-    promise
+    bookingApi.getOwnerBookings(null, 1, 500)
       .then((data) => {
         const list = Array.isArray(data) ? data : (data?.items ?? []);
-        setBookings(list);
-        setTotalCount(data?.totalCount ?? data?.total ?? list.length);
+        setAllBookings(list);
       })
-      .catch(() => setBookings([]))
+      .catch(() => setAllBookings([]))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     fetchBookings();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, tabType, statusFilter]);
+  }, []); // Only fetch once initially or when forced
 
-  const pendingCount = tabType === "ongoing" ? bookings.filter((b) => b.status === "WaitingOwner").length : 0;
+  const ongoingStatuses = ["WaitingOwner", "PendingPayment", "Paid", "CheckedIn", "InProgress"];
+
+  const filteredBookings = allBookings.filter(b => {
+    if (tabType === "ongoing") {
+      return ongoingStatuses.includes(b.status);
+    } else {
+      if (ongoingStatuses.includes(b.status)) return false;
+      if (statusFilter !== "all" && b.status !== statusFilter) return false;
+      return true;
+    }
+  });
+
+  const totalCount = filteredBookings.length;
+  const paginatedBookings = filteredBookings.slice((page - 1) * 20, page * 20);
+
+  const pendingCount = allBookings.filter((b) => b.status === "WaitingOwner").length;
 
   if (loading) {
     return (
@@ -139,14 +142,14 @@ export default function BookingRequests() {
             If backend ongoing doesn't support status filter, we just show them all in ongoing.
         */}
 
-        {bookings.length === 0 ? (
+        {paginatedBookings.length === 0 ? (
           <div style={{ textAlign: "center", padding: 40, background: "#fff", borderRadius: 16 }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>📋</div>
             <p style={{ color: "#6b7280" }}>Không có booking nào</p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {bookings.map((b) => {
+            {paginatedBookings.map((b) => {
               const st = statusStyles[b.status] || statusStyles.WaitingOwner;
             return (
               <div
