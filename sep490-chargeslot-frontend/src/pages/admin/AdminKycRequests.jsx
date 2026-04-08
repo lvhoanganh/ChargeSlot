@@ -94,7 +94,7 @@ export default function AdminKycRequests() {
         <div>
           <h1 className="cs-admin-page__title">Xét duyệt danh tính chủ trạm</h1>
           <p className="cs-admin-page__subtitle">
-            Quản lý và phê duyệt hồ sơ KYC của các chủ kinh doanh.
+            Quản lý và phê duyệt hồ sơ của các chủ kinh doanh.
           </p>
         </div>
       </div>
@@ -180,7 +180,6 @@ export default function AdminKycRequests() {
               <div style={{ background: "#f8fafc", padding: 16, borderRadius: 12 }}>
                 <h3 style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: 'uppercase', marginBottom: 12 }}>Thông tin doanh nghiệp / cá nhân</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "8px 12px", fontSize: 14 }}>
-                  {/* <span style={{ color: "#64748b" }}>Chủ tài khoản:</span> <strong>#{selectedKyc.ownerUserId}</strong> */}
                   <span style={{ color: "#64748b" }}>Đơn vị:</span> <strong>{selectedKyc.businessName}</strong>
                   <span style={{ color: "#64748b" }}>Mã số thuế:</span> <strong style={{ color: "#eab308" }}>{selectedKyc.taxCode}</strong>
                   <span style={{ color: "#64748b" }}>Giấy phép KD:</span> <strong>{selectedKyc.businessLicenseNumber}</strong>

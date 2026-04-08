@@ -19,11 +19,10 @@ export default function AdminInvoices() {
   const { data: rawData, isLoading, error } = useQuery({
     queryKey: ["admin-ops-invoices", statusFilter, page],
     queryFn: () => {
-        const filter = { page, pageSize };
-        // IsPaid is boolean, so we map "Paid" to true, "Unpaid" to false
-        if (statusFilter === "Paid") filter.isPaid = true;
-        if (statusFilter === "Unpaid") filter.isPaid = false;
-        return adminOperationsApi.getInvoices(filter);
+      const filter = { page, pageSize };
+      if (statusFilter === "true") filter.isPaid = true;
+      if (statusFilter === "false") filter.isPaid = false;
+      return adminOperationsApi.getInvoices(filter);
     },
     refetchInterval: 30000,
   });
@@ -32,12 +31,16 @@ export default function AdminInvoices() {
   const totalCount = rawData?.totalCount ?? 0;
 
   const filtered = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
+    const normalize = (str) => {
+      if (!str) return "";
+      return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+    };
+    const keyword = normalize(search.trim());
     return invoices.filter((inv) => {
       if (!keyword) return true;
       return (
-        String(inv.bookingId).includes(keyword) ||
-        String(inv.id).includes(keyword)
+        String(inv.id).includes(keyword) ||
+        String(inv.bookingId).includes(keyword)
       );
     });
   }, [invoices, search]);
@@ -82,25 +85,31 @@ export default function AdminInvoices() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm mã Hóa đơn, mã Lịch..."
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Tìm mã Hóa Đơn, Booking..."
             className="cs-admin-filter__input"
           />
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả tình trạng</option>
-          <option value="Paid">Đã thanh toán (Paid)</option>
-          <option value="Unpaid">Chưa thanh toán (Unpaid)</option>
+          <option value="true">Đã thanh toán</option>
+          <option value="false">Đang bị trễ nợ</option>
         </select>
         <button onClick={() => { setSearch(""); setStatusFilter("ALL"); setPage(1); }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Chờ lại
+          Đặt lại
         </button>
       </div>
 
@@ -110,8 +119,8 @@ export default function AdminInvoices() {
             <tr>
               <th>Mã Hóa Đơn (INV)</th>
               <th>Mã Lịch</th>
-              <th>Người Dùng</th>
-              <th>Tiền Gốc</th>
+              <th>Ngày xuất</th>
+              <th>Tiền Sạc</th>
               <th>Thuế VAT</th>
               <th>Tổng Cộng</th>
               <th>Tình trạng (isPaid)</th>
@@ -130,12 +139,12 @@ export default function AdminInvoices() {
                   <tr key={inv.id}>
                     <td className="cs-admin-table__id">INV_{inv.id}</td>
                     <td className="cs-admin-table__name">#{inv.bookingId}</td>
-                    <td>UID_{inv.userId}</td>
-                    <td style={{ color: "#64748b" }}>{inv.baseAmount?.toLocaleString() || "0"} đ</td>
-                    <td style={{ color: "#64748b" }}>{inv.taxAmount?.toLocaleString() || "0"} đ</td>
+                    <td style={{ color: "#64748b", fontSize: "13px" }}>{formatDate(inv.createdAt)}</td>
+                    <td style={{ color: "#64748b" }}>{inv.chargingAmount?.toLocaleString() || "0"} đ</td>
+                    <td style={{ color: "#64748b" }}>{inv.vatAmount?.toLocaleString() || "0"} đ</td>
                     <td style={{ fontWeight: "700", color: "#1e293b" }}>{inv.totalAmount?.toLocaleString() || "0"} đ</td>
                     <td>
-                      {inv.isPaid ? (
+                      {inv.status === "Confirmed" ? (
                         <span className="cs-admin-status-badge cs-admin-status-badge--active">
                           <span className="cs-admin-status-badge__dot" /> Đã thanh toán
                         </span>
@@ -151,13 +160,13 @@ export default function AdminInvoices() {
             )}
           </tbody>
         </table>
-        
+
         <div style={{ marginTop: 20 }}>
-          <Pagination 
-            page={page} 
-            totalCount={totalCount} 
-            pageSize={pageSize} 
-            onPageChange={(p) => setPage(p)} 
+          <Pagination
+            page={page}
+            totalCount={search ? filtered.length : totalCount}
+            pageSize={pageSize}
+            onPageChange={(p) => setPage(p)}
           />
         </div>
       </div>
@@ -202,3 +211,4 @@ const styles = `
   .cs-admin-status-badge--warning { background: #fff7ed; color: #f97316; }
   .cs-admin-status-badge--warning .cs-admin-status-badge__dot { background: #f97316; }
 `;
+

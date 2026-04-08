@@ -12,24 +12,28 @@ function formatDate(dateStr) {
 
 function getStatusLabel(status) {
   switch (status) {
-    case "Pending": return "Chờ sạc";
-    case "Ongoing": return "Đang sạc";
-    case "PaymentPending": return "Chờ thanh toán";
+    case "PendingPayment": return "Chờ thanh toán";
     case "Paid": return "Đã thanh toán";
+    case "CheckedIn": return "Đang sạc";
+    case "CompletedPendingInvoice": return "Chờ xuất HĐ";
     case "Completed": return "Hoàn tất";
     case "Cancelled": return "Đã hủy";
+    case "Rejected": return "Từ chối";
+    case "Expired": return "Quá hạn";
     default: return status;
   }
 }
 
 function getStatusType(status) {
   switch (status) {
-    case "Pending": return "warning";
-    case "Ongoing": return "info";
-    case "PaymentPending": return "pending";
+    case "PendingPayment": return "warning";
     case "Paid": return "active";
+    case "CheckedIn": return "info";
+    case "CompletedPendingInvoice": return "pending";
     case "Completed": return "purple";
     case "Cancelled": return "draft";
+    case "Rejected": return "draft";
+    case "Expired": return "draft";
     default: return "draft";
   }
 }
@@ -43,9 +47,9 @@ export default function AdminBookings() {
   const { data: rawData, isLoading, error } = useQuery({
     queryKey: ["admin-ops-bookings", statusFilter, page],
     queryFn: () => {
-        const filter = { page, pageSize };
-        if (statusFilter !== "ALL") filter.status = statusFilter;
-        return adminOperationsApi.getBookings(filter);
+      const filter = { page, pageSize };
+      if (statusFilter !== "ALL") filter.status = statusFilter;
+      return adminOperationsApi.getBookings(filter);
     },
     refetchInterval: 30000,
   });
@@ -54,12 +58,16 @@ export default function AdminBookings() {
   const totalCount = rawData?.totalCount ?? 0;
 
   const filtered = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
+    const normalize = (str) => {
+      if (!str) return "";
+      return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+    };
+    const keyword = normalize(search.trim());
     return bookings.filter((b) => {
       if (!keyword) return true;
       return (
-        b.driverName?.toLowerCase().includes(keyword) ||
-        b.stationName?.toLowerCase().includes(keyword) ||
+        normalize(b.driverName).includes(keyword) ||
+        normalize(b.stationName).includes(keyword) ||
         String(b.id).includes(keyword)
       );
     });
@@ -105,7 +113,10 @@ export default function AdminBookings() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             placeholder="Tìm mã Booking, Khách hàng, Trạm..."
             className="cs-admin-filter__input"
           />
@@ -116,12 +127,14 @@ export default function AdminBookings() {
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả trạng thái</option>
-          <option value="Pending">Chờ sạc (Pending)</option>
-          <option value="Ongoing">Đang sạc (Ongoing)</option>
-          <option value="PaymentPending">Chờ trả tiền (PaymentPending)</option>
-          <option value="Paid">Đã trả (Paid)</option>
-          <option value="Completed">Hoàn tất (Completed)</option>
-          <option value="Cancelled">Đã hủy (Cancelled)</option>
+          <option value="PendingPayment">Chờ thanh toán</option>
+          <option value="Paid">Đã thanh toán</option>
+          <option value="CheckedIn">Đang sạc</option>
+          <option value="CompletedPendingInvoice">Chờ xuất HĐ</option>
+          <option value="Completed">Hoàn tất</option>
+          <option value="Cancelled">Đã hủy</option>
+          <option value="Rejected">Từ chối</option>
+          <option value="Expired">Quá hạn</option>
         </select>
         <button onClick={() => { setSearch(""); setStatusFilter("ALL"); setPage(1); }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,8 +173,8 @@ export default function AdminBookings() {
                     <td className="cs-admin-table__name">{b.driverName || "N/A"}</td>
                     <td>{b.stationName || "N/A"}</td>
                     <td>{formatDate(b.bookingDate || b.startTime)}</td>
-                    <td style={{ color: "#64748b", fontSize: 13 }}>{b.durationHours} giờ</td>
-                    <td style={{ fontWeight: "600" }}>{b.totalPrice?.toLocaleString()} đ</td>
+                    <td style={{ color: "#64748b", fontSize: 13 }}>{b.durationHours ? Math.round(b.durationHours * 60) : 0} Phút</td>
+                    <td style={{ fontWeight: "600" }}>{b.totalAmount?.toLocaleString() || "0"} đ</td>
                     <td>
                       <span className={`cs-admin-status-badge cs-admin-status-badge--${statusType}`}>
                         <span className="cs-admin-status-badge__dot" />
@@ -174,13 +187,13 @@ export default function AdminBookings() {
             )}
           </tbody>
         </table>
-        
+
         <div style={{ marginTop: 20 }}>
-          <Pagination 
-            page={page} 
-            totalCount={totalCount} 
-            pageSize={pageSize} 
-            onPageChange={(p) => setPage(p)} 
+          <Pagination
+            page={page}
+            totalCount={search ? filtered.length : totalCount}
+            pageSize={pageSize}
+            onPageChange={(p) => setPage(p)}
           />
         </div>
       </div>

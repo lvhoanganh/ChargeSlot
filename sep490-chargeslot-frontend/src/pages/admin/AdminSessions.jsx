@@ -12,18 +12,18 @@ function formatDate(dateStr) {
 
 function getStatusLabel(status) {
   switch (status) {
-    case "Charging": return "Đang truyền tải";
-    case "Completed": return "Đã ngắt kết nối";
-    case "Faulted": return "Lỗi sập nguồn";
+    case "CheckedIn": return "Đang truyền tải";
+    case "CompletedPendingInvoice": return "Đã ngắt (Chờ HĐ)";
+    case "Completed": return "Hoàn thành";
     default: return status;
   }
 }
 
 function getStatusType(status) {
   switch (status) {
-    case "Charging": return "info";
+    case "CheckedIn": return "info";
+    case "CompletedPendingInvoice": return "warning";
     case "Completed": return "active";
-    case "Faulted": return "warning";
     default: return "draft";
   }
 }
@@ -37,9 +37,9 @@ export default function AdminSessions() {
   const { data: rawData, isLoading, error } = useQuery({
     queryKey: ["admin-ops-sessions", statusFilter, page],
     queryFn: () => {
-        const filter = { page, pageSize };
-        if (statusFilter !== "ALL") filter.status = statusFilter;
-        return adminOperationsApi.getSessions(filter);
+      const filter = { page, pageSize };
+      if (statusFilter !== "ALL") filter.status = statusFilter;
+      return adminOperationsApi.getSessions(filter);
     },
     refetchInterval: 30000,
   });
@@ -48,12 +48,18 @@ export default function AdminSessions() {
   const totalCount = rawData?.totalCount ?? 0;
 
   const filtered = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
+    const normalize = (str) => {
+      if (!str) return "";
+      return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+    };
+    const keyword = normalize(search.trim());
     return sessions.filter((s) => {
       if (!keyword) return true;
       return (
         String(s.bookingId).includes(keyword) ||
-        String(s.id).includes(keyword)
+        String(s.id).includes(keyword) ||
+        normalize(s.driverName).includes(keyword) ||
+        normalize(s.stationName).includes(keyword)
       );
     });
   }, [sessions, search]);
@@ -98,7 +104,10 @@ export default function AdminSessions() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             placeholder="Tìm mã Cáp sạc, mã Lịch, mã ID..."
             className="cs-admin-filter__input"
           />
@@ -109,9 +118,9 @@ export default function AdminSessions() {
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả trạng thái</option>
-          <option value="Charging">Liên tục (Charging)</option>
-          <option value="Completed">Ngắt cáp (Completed)</option>
-          <option value="Faulted">Đứt gãy (Faulted)</option>
+          <option value="CheckedIn">Đang sạc (CheckedIn)</option>
+          <option value="CompletedPendingInvoice">Chờ xuất HĐ</option>
+          <option value="Completed">Hoàn thành (Completed)</option>
         </select>
         <button onClick={() => { setSearch(""); setStatusFilter("ALL"); setPage(1); }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,7 +136,7 @@ export default function AdminSessions() {
             <tr>
               <th>Mã Phiên (HW_ID)</th>
               <th>Mã Lịch</th>
-              <th>Tiêu Thụ (KWh)</th>
+              <th>Thời Gian Sạc</th >
               <th>Bắt đầu</th>
               <th>Kết thúc</th>
               <th>Tình Trạng Hardware</th>
@@ -142,18 +151,18 @@ export default function AdminSessions() {
               </tr>
             ) : (
               filtered.map((s) => {
-                const statusType = getStatusType(s.status);
+                const statusType = getStatusType(s.bookingStatus);
                 return (
                   <tr key={s.id}>
                     <td className="cs-admin-table__id">HW_SEQ_{s.id}</td>
                     <td className="cs-admin-table__name">#{s.bookingId}</td>
-                    <td style={{ fontWeight: "600", color: "#3b82f6" }}>{s.consumedKWh?.toFixed(2) || "0.00"} KWh</td>
+                    <td style={{ fontWeight: "600", color: "#3b82f6" }}>{s.actualDurationHours ? Math.round(s.actualDurationHours * 60) : 0} Phút</td>
                     <td style={{ color: "#64748b", fontSize: 13 }}>{formatDate(s.actualStartTime)}</td>
                     <td style={{ color: "#64748b", fontSize: 13 }}>{formatDate(s.actualEndTime)}</td>
                     <td>
                       <span className={`cs-admin-status-badge cs-admin-status-badge--${statusType}`}>
                         <span className="cs-admin-status-badge__dot" />
-                        {getStatusLabel(s.status)}
+                        {getStatusLabel(s.bookingStatus)}
                       </span>
                     </td>
                   </tr>
@@ -162,13 +171,13 @@ export default function AdminSessions() {
             )}
           </tbody>
         </table>
-        
+
         <div style={{ marginTop: 20 }}>
-          <Pagination 
-            page={page} 
-            totalCount={totalCount} 
-            pageSize={pageSize} 
-            onPageChange={(p) => setPage(p)} 
+          <Pagination
+            page={page}
+            totalCount={search ? filtered.length : totalCount}
+            pageSize={pageSize}
+            onPageChange={(p) => setPage(p)}
           />
         </div>
       </div>

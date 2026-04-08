@@ -13,7 +13,9 @@ export default function Register() {
   const [formattedPhone, setFormattedPhone] = useState(""); // +84xxxxxxxxx
   const [otp, setOtp] = useState("");
   const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("Driver");
 
   // Flow states
@@ -226,12 +228,21 @@ export default function Register() {
 
   const handleCompleteRegister = async (e) => {
     e.preventDefault();
-    if (!fullName || !password) {
+    if (!fullName || !email || !password || !confirmPassword) {
       showToast.error("Vui lòng nhập đầy đủ thông tin");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showToast.error("Email không hợp lệ");
       return;
     }
     if (password.length < 6) {
       showToast.error("Mật khẩu phải có ít nhất 6 ký tự");
+      return;
+    }
+    if (password !== confirmPassword) {
+      showToast.error("Mật khẩu xác nhận không khớp");
       return;
     }
 
@@ -242,6 +253,7 @@ export default function Register() {
       await authApi.register({
         phoneNumber: formattedPhone,
         fullName,
+        email,
         password,
         role,
         firebaseIdToken: idToken,
@@ -450,6 +462,19 @@ export default function Register() {
             </div>
 
             <div className="cs-auth-input-group">
+              <label>Email</label>
+              <input
+                type="email"
+                className="cs-auth-input"
+                placeholder="Nhập địa chỉ email..."
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+                required
+              />
+            </div>
+
+            <div className="cs-auth-input-group">
               <label>Mật khẩu</label>
               <input
                 type="password"
@@ -457,6 +482,20 @@ export default function Register() {
                 placeholder="Ít nhất 6 ký tự"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                required
+                minLength={6}
+              />
+            </div>
+
+            <div className="cs-auth-input-group">
+              <label>Nhập lại mật khẩu</label>
+              <input
+                type="password"
+                className="cs-auth-input"
+                placeholder="Xác nhận mật khẩu"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={isLoading}
                 required
                 minLength={6}
@@ -478,7 +517,7 @@ export default function Register() {
               </select>
             </div>
 
-            <button type="submit" className="cs-auth-submit" disabled={isLoading || !fullName || !password}>
+            <button type="submit" className="cs-auth-submit" disabled={isLoading || !fullName || !email || !password || !confirmPassword}>
               {isLoading ? "Đang xử lý..." : "Hoàn tất đăng ký"}
             </button>
           </form>

@@ -77,43 +77,35 @@ export default function AdminNav() {
   const moreItems = [
     {
       to: "/admin/manage-kyc",
-      label: "Duyệt KYC",
-      icon: "🛡️",
+      label: "Duyệt hồ sơ chủ trạm",
     },
     {
       to: "/admin/bookings",
       label: "Tổng Bookings",
-      icon: "📅",
     },
     {
       to: "/admin/sessions",
       label: "Log Phiên sạc",
-      icon: "🔌",
     },
     {
       to: "/admin/invoices",
       label: "Tất cả Hóa đơn",
-      icon: "🧾",
     },
     {
       to: "/admin/wallets",
       label: "Radar Ví (Vốn)",
-      icon: "🏦",
     },
     {
       to: "/admin/disputes",
       label: "Tranh chấp",
-      icon: "⚠️",
     },
     {
       to: "/admin/withdraws",
       label: "Duyệt rút tiền",
-      icon: "💸",
     },
     {
       to: "/admin/system-config",
       label: "Cấu hình",
-      icon: "⚙️",
     },
   ];
 
@@ -319,12 +311,11 @@ export default function AdminNav() {
         </NavLink>
 
         <button
-          className={`cs-admin-bnav__item ${
-            location.pathname.startsWith("/admin/admin-profile") ||
+          className={`cs-admin-bnav__item ${location.pathname.startsWith("/admin/admin-profile") ||
             location.pathname.startsWith("/admin/disputes") ||
             location.pathname.startsWith("/admin/system-config") ||
             mobileMoreOpen ? "cs-admin-bnav__item--active" : ""
-          }`}
+            }`}
           onClick={() => setMobileMoreOpen(true)}
         >
           <img
@@ -356,11 +347,11 @@ export default function AdminNav() {
         </div>
         <div className="cs-more-sheet__grid">
           {[
-            { emoji: "👤", label: "Hồ sơ", to: "/admin/admin-profile" },
-            { emoji: "🛡️", label: "Duyệt KYC", to: "/admin/manage-kyc" },
-            { emoji: "⚠️", label: "Tranh chấp", to: "/admin/disputes" },
-            { emoji: "💸", label: "Rút tiền", to: "/admin/withdraws" },
-            { emoji: "⚙️", label: "Cấu hình", to: "/admin/system-config" },
+            { label: "Hồ sơ", to: "/admin/admin-profile" },
+            { label: "Duyệt hồ sơ chủ trạm", to: "/admin/manage-kyc" },
+            { label: "Tranh chấp", to: "/admin/disputes" },
+            { label: "Rút tiền", to: "/admin/withdraws" },
+            { label: "Cấu hình", to: "/admin/system-config" },
           ].map((item) => (
             <button
               key={item.to}

@@ -120,10 +120,19 @@ export default function AdminWallets() {
   const totalCount = rawData?.totalCount ?? 0;
 
   const filtered = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
+    const normalize = (str) => {
+      if (!str) return "";
+      return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+    };
+    const keyword = normalize(search.trim());
     return wallets.filter((w) => {
       if (!keyword) return true;
-      return (String(w.id).includes(keyword) || String(w.userId).includes(keyword));
+      const typeLabel = w.walletType === "System" ? "Vi He Thong" : 
+                        w.walletType === "Owner" ? "Vi Chu Tram" : "Vi Tai Xe";
+      return (
+        String(w.id).includes(keyword) ||
+        normalize(typeLabel).includes(keyword)
+      );
     });
   }, [wallets, search]);
 
@@ -167,25 +176,32 @@ export default function AdminWallets() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm theo Mã ví HOẶC Mã ID người dùng..."
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Tìm mã Ví, theo loại Ví..."
             className="cs-admin-filter__input"
           />
         </div>
         <select
           value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
+          onChange={(e) => {
+            setTypeFilter(e.target.value);
+            setPage(1);
+          }}
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả loại Ví</option>
           <option value="System">Ví Tổng Hệ Thống (System)</option>
-          <option value="Personal">Ví Cá Nhân (Driver/Owner)</option>
+          <option value="Owner">Ví Chủ Trạm (Owner)</option>
+          <option value="Driver">Ví Tài Xế (Driver)</option>
         </select>
         <button onClick={() => { setSearch(""); setTypeFilter("ALL"); setPage(1); }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Chờ lại
+          Đặt lại
         </button>
       </div>
 
@@ -212,19 +228,26 @@ export default function AdminWallets() {
                 return (
                   <tr key={w.id}>
                     <td className="cs-admin-table__id">WA_{w.id}</td>
-                    <td className="cs-admin-table__name">{w.userId ? `UID_${w.userId}` : "Admin (Ví Tổng)"}</td>
+                    <td className="cs-admin-table__name">
+                      {w.walletType === "System" ? "Hệ Thống" : 
+                       w.walletType === "Owner" ? "Chủ Trạm (Owner)" : "Tài Xế (Driver)"}
+                    </td>
                     <td>
                       {w.walletType === "System" ? (
                         <span className="cs-admin-status-badge cs-admin-status-badge--purple">
-                           <span className="cs-admin-status-badge__dot" /> Ví Tạm Giữ Escrow
+                           <span className="cs-admin-status-badge__dot" /> Ví Hệ Thống
+                        </span>
+                      ) : w.walletType === "Owner" ? (
+                        <span className="cs-admin-status-badge" style={{background: "#fffbeb", color: "#f59e0b"}}>
+                           <span className="cs-admin-status-badge__dot" style={{background: "#f59e0b"}} /> Ví Chủ Trạm
                         </span>
                       ) : (
                         <span className="cs-admin-status-badge cs-admin-status-badge--info">
-                           <span className="cs-admin-status-badge__dot" /> Ví Người Dùng
+                           <span className="cs-admin-status-badge__dot" /> Ví Tài Xế
                         </span>
                       )}
                     </td>
-                    <td style={{ fontWeight: "700", color: "#16a34a", fontSize: "16px" }}>{w.balance?.toLocaleString() || "0"} đ</td>
+                    <td style={{ fontWeight: "700", color: "#16a34a", fontSize: "16px" }}>{w.availableBalance?.toLocaleString() || "0"} đ <br/><span style={{fontSize: "12px", color: "#64748b"}}>(Băng: {w.frozenBalance?.toLocaleString() || "0"} đ)</span></td>
                     <td style={{ textAlign: "center" }}>
                       <button onClick={() => setSelectedWalletId(w.id)} className="cs-admin-btn">
                         Soi Giao Dịch
@@ -240,7 +263,7 @@ export default function AdminWallets() {
         <div style={{ marginTop: 20 }}>
           <Pagination 
             page={page} 
-            totalCount={totalCount} 
+            totalCount={search ? filtered.length : totalCount} 
             pageSize={pageSize} 
             onPageChange={(p) => setPage(p)} 
           />
