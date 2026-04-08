@@ -1,34 +1,50 @@
 import { useEffect, useState, useRef } from "react";
 
 /**
- * TimePicker24h — Popup grid picker định dạng 24h (00:00 – 23:59)
+ * TimePicker24h — Popup grid picker định dạng 24h (00:00 – 23:30)
+ * ⚠️ BE RULE: startTime CHỈ ĐƯỢC là phút 00 hoặc 30 (30-Minute Block)
  * Props:
  *   value      string "HH:MM"
  *   onChange   (newValue: string) => void
  *   disabled   boolean
  *   className  string
- *   minAfter   string "HH:MM" — giá trị kết thúc phải > minAfter ít nhất 1 phút
+ *   minAfter   string "HH:MM" — giá trị kết thúc phải > minAfter
+ *   blockOnly  boolean (default: true) — chỉ cho phép phút 00/30
  */
-export default function TimePicker24h({ value = "00:00", onChange, disabled = false, className = "", minAfter }) {
+export default function TimePicker24h({ value = "00:00", onChange, disabled = false, className = "", minAfter, blockOnly = true }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
   const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
-  const MINS  = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+  // Chỉ cho phép phút 00 hoặc 30 khi blockOnly=true (BE yêu cầu 30-minute block)
+  const MINS = blockOnly ? ["00", "30"] : Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
 
   const [hh, mm] = (value || "00:00").split(":").map(s => (s || "00").padStart(2, "0"));
 
-  // Tính giới hạn tối thiểu
+  // Snap mm về 00 hoặc 30 nếu blockOnly và có giá trị lẻ
+  useEffect(() => {
+    if (!blockOnly || !onChange || !value) return;
+    const [, m] = (value || "00:00").split(":");
+    if (m !== "00" && m !== "30") {
+      const snapped = Number(m) < 30 ? "00" : "30";
+      onChange(`${hh}:${snapped}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blockOnly]);
+
+  // Tính giới hạn tối thiểu (theo block 30 phút)
   let minH = 0, minM = 0;
   if (minAfter) {
     const [mah, mam] = minAfter.split(":").map(Number);
-    const total = mah * 60 + mam + 1;
-    minH = Math.floor(total / 60);
-    minM = total % 60;
-    if (minH >= 24) { minH = 23; minM = 59; }
+    // Tăng lên block 30 phút tiếp theo
+    const nextBlock = mam < 30 ? 30 : 0;
+    const nextHourAdd = mam < 30 ? 0 : 1;
+    minH = mah + nextHourAdd;
+    minM = nextBlock;
+    if (minH >= 24) { minH = 23; minM = 30; }
   }
 
-  // Tự động đẩy giờ kết thúc lên minAfter+1 phút khi minAfter thay đổi
+  // Tự động đẩy giá trị lên block hợp lệ khi minAfter thay đổi
   useEffect(() => {
     if (!minAfter || !onChange) return;
     const [mah, mam] = minAfter.split(":").map(Number);
@@ -36,11 +52,14 @@ export default function TimePicker24h({ value = "00:00", onChange, disabled = fa
     const minTotal = mah * 60 + mam;
     const valTotal = vh * 60 + vm;
     if (valTotal <= minTotal) {
-      let next = minTotal + 1;
-      if (next >= 24 * 60) next = 23 * 60 + 59;
-      onChange(`${String(Math.floor(next / 60)).padStart(2, "0")}:${String(next % 60).padStart(2, "0")}`);
+      // Tăng lên block 30 phút tiếp theo
+      let next = minTotal + 30;
+      if (next >= 24 * 60) next = 23 * 60 + 30;
+      const nh = Math.floor(next / 60);
+      const nm = next % 60 < 30 ? 0 : 30;
+      onChange(`${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minAfter]);
 
   // Đóng khi click ngoài
@@ -54,6 +73,7 @@ export default function TimePicker24h({ value = "00:00", onChange, disabled = fa
 
   function pickHour(h) {
     let newMM = mm;
+    if (blockOnly && (newMM !== "00" && newMM !== "30")) newMM = "00";
     if (minAfter && Number(h) < minH) { h = String(minH).padStart(2, "0"); newMM = String(minM).padStart(2, "0"); }
     else if (minAfter && Number(h) === minH && Number(newMM) < minM) newMM = String(minM).padStart(2, "0");
     onChange?.(`${h}:${newMM}`);
@@ -66,13 +86,13 @@ export default function TimePicker24h({ value = "00:00", onChange, disabled = fa
   }
 
   const btnStyle = (selected, isDisabled) => ({
-    padding: "5px 2px",
+    padding: "6px 4px",
     borderRadius: 7,
     border: "none",
     background: selected ? "linear-gradient(135deg,#f97316,#ea580c)" : "transparent",
     color: selected ? "#fff" : isDisabled ? "#d1d5db" : "#374151",
     fontWeight: selected ? 700 : 400,
-    fontSize: 12,
+    fontSize: 13,
     cursor: isDisabled ? "not-allowed" : "pointer",
     transition: "all 0.12s",
     boxShadow: selected ? "0 2px 8px rgba(249,115,22,0.35)" : "none",
@@ -115,7 +135,7 @@ export default function TimePicker24h({ value = "00:00", onChange, disabled = fa
           border: "1px solid #e2e8f0",
           boxShadow: "0 20px 60px rgba(0,0,0,0.14)",
           zIndex: 9999, padding: "14px 12px 10px",
-          width: 270, animation: "fadeSlideDown .15s ease",
+          width: blockOnly ? 220 : 270, animation: "fadeSlideDown .15s ease",
         }}>
           {/* Current time preview */}
           <div style={{ textAlign: "center", marginBottom: 10 }}>
@@ -149,15 +169,15 @@ export default function TimePicker24h({ value = "00:00", onChange, disabled = fa
 
             <div style={{ width: 1, background: "#f1f5f9", margin: "0 2px" }} />
 
-            {/* Minutes grid */}
+            {/* Minutes grid — chỉ 00 và 30 */}
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textAlign: "center", marginBottom: 5, letterSpacing: 1 }}>PHÚT</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 3, maxHeight: 185, overflowY: "auto" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {MINS.map(m => {
                   const isDis = minAfter && Number(hh) === minH && Number(m) < minM;
                   return (
                     <button key={m} type="button" disabled={isDis} onClick={() => pickMin(m)}
-                      style={btnStyle(m === mm, isDis)}
+                      style={{ ...btnStyle(m === mm, isDis), fontSize: 15, padding: "10px 4px", fontWeight: m === mm ? 800 : 500 }}
                       onMouseEnter={e => { if (!isDis && m !== mm) e.currentTarget.style.background = "#fff7ed"; }}
                       onMouseLeave={e => { if (m !== mm) e.currentTarget.style.background = "transparent"; }}
                     >{m}</button>

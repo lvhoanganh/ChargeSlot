@@ -196,7 +196,8 @@ export default function StationMap() {
   }, [search, stations, nearbyMode, userPos, maxRadius]);
 
   function getAvailableSlots(station) {
-    return station.chargingSlots.filter((s) => s.status === "Active").length;
+    if (station.availableSlotsCount !== undefined) return station.availableSlotsCount;
+    return station.chargingSlots ? station.chargingSlots.filter((s) => s.status === "Active").length : 0;
   }
 
   function handleStationClick(station) {
@@ -259,6 +260,7 @@ export default function StationMap() {
 
         {filtered.map((station) => {
           const available = getAvailableSlots(station);
+          const isFull = available === 0;
           const st = statusConfig[station.operationalStatus] || statusConfig.Open;
           const icon = station.operationalStatus === "Maintenance" ? maintenanceIcon : stationIcon;
 
@@ -274,7 +276,7 @@ export default function StationMap() {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                     <div style={{
                       width: 36, height: 36, borderRadius: 10,
-                      background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                      background: isFull ? "linear-gradient(135deg, #ef4444, #dc2626)" : "linear-gradient(135deg, #22c55e, #16a34a)",
                       display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                     }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
@@ -286,8 +288,17 @@ export default function StationMap() {
                         {station.name}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: st.dot }} />
-                        <span style={{ fontSize: 11, fontWeight: 600, color: st.color }}>{st.label}</span>
+                        {isFull ? (
+                          <>
+                            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444" }} />
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#ef4444" }}>Kín lịch</span>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ width: 6, height: 6, borderRadius: "50%", background: st.dot }} />
+                            <span style={{ fontSize: 11, fontWeight: 600, color: st.color }}>{st.label}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -524,6 +535,7 @@ export default function StationMap() {
         ) : (
           filtered.map((s) => {
             const available = getAvailableSlots(s);
+            const isFull = available === 0;
             const st = statusConfig[s.operationalStatus] || statusConfig.Open;
             const isSelected = selectedStation === s.id;
             const img = getStationImage(s);
@@ -533,6 +545,7 @@ export default function StationMap() {
                 key={s.id}
                 className={`sm-card ${isSelected ? "sm-card--selected" : ""}`}
                 onClick={() => handleStationClick(s)}
+                style={{ opacity: isFull ? 0.65 : 1, transition: "opacity 0.2s" }}
               >
                 {/* Image area */}
                 <div className="sm-card__img-wrap">
@@ -566,8 +579,17 @@ export default function StationMap() {
 
                   {/* Status badge */}
                   <div className="sm-card__status-badge">
-                    <div className="sm-card__status-dot" style={{ background: st.dot, boxShadow: `0 0 5px ${st.dot}` }} />
-                    <span style={{ color: st.color }}>{st.label}</span>
+                    {isFull ? (
+                      <>
+                        <div className="sm-card__status-dot" style={{ background: "#ef4444", boxShadow: `0 0 5px #ef4444` }} />
+                        <span style={{ color: "#ef4444", fontWeight: 700 }}>Kín lịch</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="sm-card__status-dot" style={{ background: st.dot, boxShadow: `0 0 5px ${st.dot}` }} />
+                        <span style={{ color: st.color }}>{st.label}</span>
+                      </>
+                    )}
                   </div>
                 </div>
 

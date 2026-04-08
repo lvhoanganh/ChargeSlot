@@ -21,7 +21,6 @@ export default function BookingForm() {
   // Time picker — ngày + giờ tự do
   const [selectedDate, setSelectedDate] = useState("");
   const [startHHMM, setStartHHMM] = useState(""); // "08:30"
-  const [endHHMM, setEndHHMM] = useState("");     // "10:00"
 
   useEffect(() => {
     publicStationApi.getById(Number(stationId))
@@ -72,8 +71,6 @@ export default function BookingForm() {
     const hh = String(now.getHours()).padStart(2, "0");
     const min = String(now.getMinutes()).padStart(2, "0");
     setStartHHMM(`${hh}:${min}`);
-    const end = new Date(now.getTime() + 3600000);
-    setEndHHMM(`${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`);
   }, []);
 
   // Sync selectedDate + startHHMM → startTime
@@ -82,30 +79,7 @@ export default function BookingForm() {
     setStartTime(`${selectedDate}T${startHHMM}`);
   }, [selectedDate, startHHMM]);
 
-  // Khi giờ bắt đầu thay đổi: tự động đẩy giờ kết thúc lên startHHMM+1 phút nếu cần
-  useEffect(() => {
-    if (!startHHMM || !endHHMM) return;
-    const [sh, sm] = startHHMM.split(":").map(Number);
-    const [eh, em] = endHHMM.split(":").map(Number);
-    const startTotal = sh * 60 + sm;
-    const endTotal   = eh * 60 + em;
-    if (endTotal <= startTotal) {
-      let next = startTotal + 1;
-      if (next >= 24 * 60) next = 23 * 60 + 59;
-      setEndHHMM(`${String(Math.floor(next / 60)).padStart(2, "0")}:${String(next % 60).padStart(2, "0")}`);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startHHMM]);
 
-  // Tính duration tự động từ startHHMM đến endHHMM
-  useEffect(() => {
-    if (!startHHMM || !endHHMM) return;
-    const [sh, sm] = startHHMM.split(":").map(Number);
-    const [eh, em] = endHHMM.split(":").map(Number);
-    let diffMin = (eh * 60 + em) - (sh * 60 + sm);
-    if (diffMin <= 0) diffMin += 24 * 60; // qua đêm
-    setDuration(parseFloat((diffMin / 60).toFixed(2)));
-  }, [startHHMM, endHHMM]);
 
   // Tính tổng tiền giống logic BE: CalculateTotalPrice — chia booking theo từng khung giá
   const calculateChargingAmount = () => {
@@ -269,7 +243,6 @@ export default function BookingForm() {
     e.preventDefault();
     if (!selectedSlot) return setApiError("Vui lòng chọn slot sạc");
     if (!startTime) return setApiError("Vui lòng chọn thời gian bắt đầu");
-    if (!endHHMM) return setApiError("Vui lòng chọn giờ kết thúc");
 
     // BE rule: DurationHours >= 0.5 và ≤ 24
     if (duration < 0.5) return setApiError("⚠️ Thời lượng tối thiểu là 30 phút");
@@ -398,11 +371,10 @@ export default function BookingForm() {
 
   // Helper: check if start/end time overlaps with booked ranges
   const isTimeConflict = () => {
-    if (!startHHMM || !endHHMM || !selectedDate) return false;
+    if (!startHHMM || !selectedDate) return false;
     const [sh, sm] = startHHMM.split(":").map(Number);
-    const [eh, em] = endHHMM.split(":").map(Number);
-    const sMin = sh * 60 + sm, eMin = eh * 60 + em;
-    if (eMin <= sMin) return false;
+    const sMin = sh * 60 + sm;
+    const eMin = sMin +  duration * 60;
     return bookedRanges.some(r => {
       const parseT = (t) => { 
         if (typeof t === "string" && !t.includes("T")) {
@@ -544,7 +516,7 @@ export default function BookingForm() {
 
             {/* ===== TIME INPUTS + TIMELINE ===== */}
             <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle}>Giờ bắt đầu — Kết thúc</label>
+              <label style={labelStyle}>Giờ bắt đầu — Thời lượng sạc</label>
 
               {/* Visual timeline bar */}
               {selectedDate && (
@@ -577,10 +549,9 @@ export default function BookingForm() {
                       </div>
                     );
                   })}
-                  {startHHMM && endHHMM && (() => {
+                  {startHHMM && (() => {
                     const [sh, sm] = startHHMM.split(":").map(Number);
-                    const [eh, em] = endHHMM.split(":").map(Number);
-                    const sMin = sh * 60 + sm, eMin = eh * 60 + em;
+                    const sMin = sh * 60 + sm, eMin = sMin + duration * 60;
                     if (eMin <= sMin) return null;
                     return (
                       <div style={{
@@ -594,47 +565,42 @@ export default function BookingForm() {
               )}
 
 
-              {/* 2 time pickers — 24h popup grid */}
-              <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center" }}>
-                <div>
-                  <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 5, textAlign: "center" }}>Bắt đầu</div>
+              {/* 1 time picker + duration select */}
+              <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>Giờ bắt đầu:</div>
                   <TimePicker24h
                     value={startHHMM}
                     onChange={setStartHHMM}
+                    className="w-full text-center"
                   />
                 </div>
-                <div style={{ fontSize: 22, color: "#f97316", fontWeight: 700, paddingTop: 18 }}>→</div>
-                <div>
-                  <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 5, textAlign: "center" }}>Kết thúc</div>
-                  <TimePicker24h
-                    value={endHHMM}
-                    minAfter={startHHMM}
-                    onChange={setEndHHMM}
-                  />
+                <div style={{ flex: 1, paddingBottom: 1 }}>
+                  <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>Dự kiến sạc:</div>
+                  <select
+                    value={duration}
+                    onChange={(e) => setDuration(Number(e.target.value))}
+                    style={{
+                      width: "100%", padding: "9px 12px", borderRadius: 10,
+                      border: "1.5px solid #e5e7eb", fontSize: 15, fontWeight: 600, color: "#1e293b",
+                      outline: "none", background: "#fff", cursor: "pointer", height: 42
+                    }}
+                  >
+                    {[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10, 12, 18, 24].map(d => (
+                      <option key={d} value={d}>
+                        {d} giờ {d === 0.5 ? "(30 phút)" : ""}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-
-              {/* Duration badge + conflict warning */}
-              {startHHMM && endHHMM && (() => {
-                const [sh, sm] = startHHMM.split(":").map(Number);
-                const [eh, em] = endHHMM.split(":").map(Number);
-                const diffMin = (eh * 60 + em) - (sh * 60 + sm);
-                if (diffMin <= 0) return null;
-                const h = Math.floor(diffMin / 60), m = diffMin % 60;
-                return (
-                  <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg,#fff7ed,#ffedd5)", border: "1.5px solid #fed7aa", borderRadius: 99, padding: "5px 14px", fontSize: 13, fontWeight: 700, color: "#c2410c" }}>
-                      ⏱ {h > 0 ? `${h} giờ ` : ""}{m > 0 ? `${m} phút` : ""}
-                    </div>
-                    {hasConflict && (
-                      <div style={{ fontSize: 12, color: "#ef4444", fontWeight: 600 }}>
-                        🔒 Giờ này trùng với lịch đã đặt!
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+              {/* Conflict warning */}
+              {startHHMM && hasConflict && (
+                <div style={{ marginTop: 12, fontSize: 13, color: "#ef4444", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>🔒</span> Giờ bắt đầu hoặc thời lượng sạc trùng vào lịch đã đặt. Vui lòng giảm thời lượng hoặc chọn lúc khác!
+                </div>
+              )}
             </div>
 
             {timeError && (
@@ -750,14 +716,14 @@ export default function BookingForm() {
             )}
 
             <button type="submit"
-              disabled={submitting || !selectedSlot || !!timeError || !startHHMM || !endHHMM || hasConflict || hasNoPriceForTime}
+              disabled={submitting || !selectedSlot || !!timeError || !startHHMM || hasConflict || hasNoPriceForTime}
               style={{
                 width: "100%", padding: "14px 0", borderRadius: 14, border: "none",
-                background: submitting || !selectedSlot || timeError || !startHHMM || !endHHMM || hasConflict || hasNoPriceForTime
+                background: submitting || !selectedSlot || timeError || !startHHMM || hasConflict || hasNoPriceForTime
                   ? "#d1d5db"
                   : "linear-gradient(135deg, #f97316, #ea580c)",
                 color: "#fff", fontWeight: 700, fontSize: 15,
-                cursor: submitting || !selectedSlot || timeError || !startHHMM || !endHHMM || hasConflict || hasNoPriceForTime ? "not-allowed" : "pointer",
+                cursor: submitting || !selectedSlot || timeError || !startHHMM || hasConflict || hasNoPriceForTime ? "not-allowed" : "pointer",
               }}>
               {submitting ? "Đang xử lý..." : "Đặt lịch sạc"}
             </button>
