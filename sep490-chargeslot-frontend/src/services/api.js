@@ -577,7 +577,7 @@ export const walletApi = {
      * Response: { total, page, pageSize, items }
      */
     getWithdrawRequests: (page = 1, pageSize = 20) =>
-        apiFetch(`/Wallet/withdrawals?page=${page}&pageSize=${pageSize}`),
+        apiFetch(`/Wallet/withdraw-requests?page=${page}&pageSize=${pageSize}`),
 
     /** Báo đã nhận được tiền */
     confirmWithdrawal: (id) => apiFetch(`/Wallet/withdraw-requests/${id}/confirm`, { method: "PUT" }),

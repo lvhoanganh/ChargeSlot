@@ -43,7 +43,7 @@ export default function BookingForm() {
     const base = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
     const token = localStorage.getItem("accessToken");
     const dateParam = selectedDate ? `?date=${selectedDate}` : "";
-    fetch(`${base}/slots/${selectedSlot}/schedule${dateParam}`, {
+    fetch(`${base}/stations/${stationId}/slots/${selectedSlot}/availability${dateParam}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
       .then(r => r.ok ? r.json() : null)
@@ -330,7 +330,7 @@ export default function BookingForm() {
       if (selectedSlot && stationId && selectedDate) {
         const base = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
         const token = localStorage.getItem("accessToken");
-        fetch(`${base}/slots/${selectedSlot}/schedule?date=${selectedDate}`, {
+        fetch(`${base}/stations/${stationId}/slots/${selectedSlot}/availability?date=${selectedDate}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         })
           .then(r => r.ok ? r.json() : null)
@@ -390,6 +390,61 @@ export default function BookingForm() {
   };
 
   const hasConflict = isTimeConflict();
+
+  const maxAvailDuration = (() => {
+    let max = 24;
+    if (!startHHMM || !selectedDate || !station) return max;
+    const [sh, sm] = startHHMM.split(":").map(Number);
+    const startObj = new Date(`${selectedDate}T${startHHMM}:00`);
+    const sMin = sh * 60 + sm;
+
+    // 1. Limit by operating hours
+    const dayOfWeek = startObj.getDay();
+    const opHours = station.operatingHours?.find(h => h.dayOfWeek === dayOfWeek);
+    if (opHours && !opHours.isClosed) {
+      const timeToStrMin = (tStr) => {
+        if (!tStr) return 0;
+        const [h, m] = tStr.split(":");
+        return parseInt(h) * 60 + parseInt(m);
+      };
+      const opStart = timeToStrMin(opHours.openTime);
+      let opEnd = timeToStrMin(opHours.closeTime);
+      if (opStart === 0 && opEnd === 0) { opEnd = 24 * 60; }
+      else if (opEnd <= opStart) { opEnd += 24 * 60; }
+      
+      const availMinutes = opEnd - sMin;
+      if (availMinutes > 0 && (availMinutes / 60) < max) {
+        max = availMinutes / 60;
+      }
+    }
+
+    // 2. Limit by booked ranges
+    const parseT = (t) => { 
+      if (typeof t === "string" && !t.includes("T")) {
+        const [h,m] = t.split(":");
+        return parseInt(h) * 60 + parseInt(m);
+      }
+      const d = new Date(String(t).replace("Z", "")); 
+      return d.getHours() * 60 + d.getMinutes(); 
+    };
+    
+    let firstNextBookingStart = 99999;
+    bookedRanges.forEach(r => {
+      const rS = parseT(r.startTime);
+      if (rS > sMin && rS < firstNextBookingStart) {
+         firstNextBookingStart = rS;
+      }
+    });
+
+    if (firstNextBookingStart < 99999) {
+      const availMinutes = firstNextBookingStart - sMin;
+      if (availMinutes > 0 && (availMinutes / 60) < max) {
+        max = availMinutes / 60;
+      }
+    }
+
+    return Math.max(0.5, Math.floor(max * 2) / 2);
+  })();
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90 }}>
@@ -577,23 +632,34 @@ export default function BookingForm() {
                 </div>
                 <div style={{ flex: 1, paddingBottom: 1 }}>
                   <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>Dự kiến sạc:</div>
-                  <select
-                    value={duration}
-                    onChange={(e) => setDuration(Number(e.target.value))}
-                    style={{
-                      width: "100%", padding: "9px 12px", borderRadius: 10,
-                      border: "1.5px solid #e5e7eb", fontSize: 15, fontWeight: 600, color: "#1e293b",
-                      outline: "none", background: "#fff", cursor: "pointer", height: 42
-                    }}
-                  >
-                    {[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10, 12, 18, 24].map(d => (
-                      <option key={d} value={d}>
-                        {d} giờ {d === 0.5 ? "(30 phút)" : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <div style={{ display: "flex", alignItems: "center", background: "#f8fafc", borderRadius: 10, border: "1.5px solid #e5e7eb", overflow: "hidden", height: 42 }}>
+                    <button 
+                      type="button" 
+                      onClick={() => setDuration(d => Math.max(0.5, d - 0.5))} 
+                      style={{ width: 44, height: 42, background: "#fff", border: "none", cursor: "pointer", fontSize: 20, color: duration > 0.5 ? "#ea580c" : "#cbd5e1", borderRight: "1px solid #e5e7eb", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center" }}
+                      disabled={duration <= 0.5}
+                    >−</button>
+
+                    <div style={{ flex: 1, textAlign: "center", fontSize: 14, fontWeight: 700, color: "#1e293b", userSelect: "none" }}>
+                      {duration} giờ {duration === 0.5 ? <span style={{fontSize: 11, fontWeight: 600, color: "#94a3b8"}}>(30p)</span> : ""}
+                    </div>
+
+                    <button 
+                      type="button" 
+                      onClick={() => setDuration(d => Math.min(maxAvailDuration, d + 0.5))} 
+                      style={{ width: 44, height: 42, background: "#fff", border: "none", cursor: "pointer", fontSize: 20, color: (duration + 0.5) <= maxAvailDuration ? "#ea580c" : "#cbd5e1", borderLeft: "1px solid #e5e7eb", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center" }}
+                      disabled={(duration + 0.5) > maxAvailDuration}
+                    >+</button>
+                  </div>
                 </div>
               </div>
+
+              {/* Warnings */}
+              {duration >= maxAvailDuration && maxAvailDuration < 24 && (
+                <div style={{ marginTop: 8, fontSize: 12, color: "#d97706", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>⏳</span> Bạn đã đạt mốc thời lượng sạc giới hạn (do trạm đóng cửa hoặc có lịch đặt tiếp theo).
+                </div>
+              )}
 
               {/* Conflict warning */}
               {startHHMM && hasConflict && (
