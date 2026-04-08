@@ -12,13 +12,14 @@ export default function AdminKycRequests() {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [selectedKyc, setSelectedKyc] = useState(null);
   const [adminNote, setAdminNote] = useState("");
   const [reviewAction, setReviewAction] = useState(null); // true = approve, false = reject
 
   const { data: kycs = [], isLoading, error } = useQuery({
-    queryKey: ["admin-kyc-pending"],
-    queryFn: () => adminKycApi.getPending(),
+    queryKey: ["admin-kyc-pending", statusFilter],
+    queryFn: () => adminKycApi.getAll(statusFilter),
   });
 
   const reviewMutation = useMutation({
@@ -112,7 +113,18 @@ export default function AdminKycRequests() {
             className="cs-admin-filter__input"
           />
         </div>
-        <button onClick={() => setSearch("")} className="cs-admin-filter__reset">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="cs-admin-filter__select"
+        >
+          <option value="ALL">Tất cả trạng thái</option>
+          <option value="Pending">Chờ duyệt (Pending)</option>
+          <option value="Approved">Đã duyệt (Approved)</option>
+          <option value="Rejected">Từ chối (Rejected)</option>
+          <option value="Unverified">Chưa cập nhật (Unverified)</option>
+        </select>
+        <button onClick={() => { setSearch(""); setStatusFilter("ALL"); }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
@@ -130,13 +142,14 @@ export default function AdminKycRequests() {
               <th>CCCD / CMND</th>
               <th>Địa chỉ ĐKKD</th>
               <th>Ngày gửi</th>
+              <th>Trạng thái</th>
               <th style={{ textAlign: "right" }}>Theo dõi / Xử lý</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="cs-admin-table__empty">
+                <td colSpan={8} className="cs-admin-table__empty">
                   <p>Kho hồ sơ không có dữ liệu 🥳</p>
                 </td>
               </tr>
@@ -149,6 +162,12 @@ export default function AdminKycRequests() {
                   <td>{k.idCardNumber}</td>
                   <td>{k.address}</td>
                   <td>{formatDate(k.kycSubmittedAt)}</td>
+                  <td>
+                    {k.kycStatus === "Approved" && <span className="cs-admin-status-badge cs-admin-status-badge--active"><span className="cs-admin-status-badge__dot" />Đã duyệt</span>}
+                    {k.kycStatus === "Pending" && <span className="cs-admin-status-badge cs-admin-status-badge--pending"><span className="cs-admin-status-badge__dot" />Chờ duyệt</span>}
+                    {k.kycStatus === "Rejected" && <span className="cs-admin-status-badge cs-admin-status-badge--banned"><span className="cs-admin-status-badge__dot" />Từ chối</span>}
+                    {k.kycStatus === "Unverified" && <span className="cs-admin-status-badge" style={{background: "#f1f5f9", color: "#64748b"}}><span className="cs-admin-status-badge__dot" style={{background: "#94a3b8"}}/>Chưa cập nhật</span>}
+                  </td>
                   <td style={{ textAlign: "right" }}>
                     <button
                       onClick={() => { setSelectedKyc(k); setReviewAction(null); setAdminNote(""); }}
@@ -192,7 +211,11 @@ export default function AdminKycRequests() {
                 <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "8px 12px", fontSize: 14 }}>
                   <span style={{ color: "#64748b" }}>Số CCCD:</span> <strong>{selectedKyc.idCardNumber}</strong>
                   <span style={{ color: "#64748b" }}>Ngày cấp:</span> <strong>{selectedKyc.idCardDate}</strong>
-                  <span style={{ color: "#64748b" }}>Trạng thái:</span> <span className="cs-admin-status-badge cs-admin-status-badge--pending" style={{ display: "inline-block", padding: "2px 8px" }}><span className="cs-admin-status-badge__dot"></span>Chờ duyệt</span>
+                  <span style={{ color: "#64748b" }}>Trạng thái:</span> 
+                  {selectedKyc.kycStatus === "Approved" && <span className="cs-admin-status-badge cs-admin-status-badge--active"><span className="cs-admin-status-badge__dot" />Đã duyệt</span>}
+                  {selectedKyc.kycStatus === "Pending" && <span className="cs-admin-status-badge cs-admin-status-badge--pending"><span className="cs-admin-status-badge__dot" />Chờ duyệt</span>}
+                  {selectedKyc.kycStatus === "Rejected" && <span className="cs-admin-status-badge cs-admin-status-badge--banned"><span className="cs-admin-status-badge__dot" />Từ chối</span>}
+                  {selectedKyc.kycStatus === "Unverified" && <span className="cs-admin-status-badge" style={{background: "#f1f5f9", color: "#64748b"}}><span className="cs-admin-status-badge__dot" style={{background: "#94a3b8"}}/>Chưa cập nhật</span>}
                   <span style={{ color: "#64748b" }}>Thời gian gửi:</span> <strong>{formatDate(selectedKyc.kycSubmittedAt)}</strong>
                 </div>
               </div>
@@ -214,55 +237,68 @@ export default function AdminKycRequests() {
               </a>
             </div>
 
-            {reviewAction !== null ? (
-              <div style={{ background: reviewAction ? "#f0fdf4" : "#fef2f2", padding: 20, borderRadius: 16, border: `1px solid ${reviewAction ? "#bbf7d0" : "#fecaca"}` }}>
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: reviewAction ? "#16a34a" : "#dc2626", marginBottom: 12 }}>
-                  {reviewAction ? "✅ Phê duyệt hồ sơ này?" : "🚫 Từ chối hồ sơ này?"}
-                </h3>
+            {selectedKyc.kycStatus === "Pending" ? (
+              reviewAction !== null ? (
+                <div style={{ background: reviewAction ? "#f0fdf4" : "#fef2f2", padding: 20, borderRadius: 16, border: `1px solid ${reviewAction ? "#bbf7d0" : "#fecaca"}` }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 600, color: reviewAction ? "#16a34a" : "#dc2626", marginBottom: 12 }}>
+                    {reviewAction ? "✅ Phê duyệt hồ sơ này?" : "🚫 Từ chối hồ sơ này?"}
+                  </h3>
 
-                {!reviewAction && (
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
-                      Lý do từ chối (Bắt buộc)
-                    </label>
-                    <textarea
-                      value={adminNote}
-                      onChange={(e) => setAdminNote(e.target.value)}
-                      placeholder="Ví dụ: Giấy tờ bị mờ, không khớp mã số thuế..."
-                      rows={3}
-                      style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 14, outline: "none" }}
-                    />
+                  {!reviewAction && (
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+                        Lý do từ chối (Bắt buộc)
+                      </label>
+                      <textarea
+                        value={adminNote}
+                        onChange={(e) => setAdminNote(e.target.value)}
+                        placeholder="Ví dụ: Giấy tờ bị mờ, không khớp mã số thuế..."
+                        rows={3}
+                        style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 14, outline: "none" }}
+                      />
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <button
+                      onClick={() => setReviewAction(null)}
+                      className="cs-admin-action-btn" style={{ flex: 1, background: "white", color: "#374151", border: "1px solid #d1d5db" }}
+                    >Hủy</button>
+                    <button
+                      onClick={confirmReview}
+                      disabled={reviewMutation.isPending || (!reviewAction && !adminNote.trim())}
+                      className="cs-admin-action-btn" style={{ flex: 1, background: reviewAction ? "#22c55e" : "#ef4444", color: "#fff" }}
+                    >
+                      {reviewMutation.isPending ? "Đang xử lý..." : "Xác nhận gửi"}
+                    </button>
                   </div>
-                )}
-
+                </div>
+              ) : (
                 <div style={{ display: "flex", gap: 12 }}>
                   <button
-                    onClick={() => setReviewAction(null)}
-                    className="cs-admin-action-btn" style={{ flex: 1, background: "white", color: "#374151", border: "1px solid #d1d5db" }}
-                  >Hủy</button>
-                  <button
-                    onClick={confirmReview}
-                    disabled={reviewMutation.isPending || (!reviewAction && !adminNote.trim())}
-                    className="cs-admin-action-btn" style={{ flex: 1, background: reviewAction ? "#22c55e" : "#ef4444", color: "#fff" }}
+                    onClick={() => setReviewAction(true)}
+                    className="cs-admin-action-btn" style={{ flex: 1, background: "#22c55e", color: "white", height: 48, fontSize: 15 }}
                   >
-                    {reviewMutation.isPending ? "Đang xử lý..." : "Xác nhận gửi"}
+                    Phê duyệt
+                  </button>
+                  <button
+                    onClick={() => setReviewAction(false)}
+                    className="cs-admin-action-btn" style={{ flex: 1, background: "#ef4444", color: "white", height: 48, fontSize: 15 }}
+                  >
+                    Từ chối
                   </button>
                 </div>
-              </div>
+              )
             ) : (
-              <div style={{ display: "flex", gap: 12 }}>
-                <button
-                  onClick={() => setReviewAction(true)}
-                  className="cs-admin-action-btn" style={{ flex: 1, background: "#22c55e", color: "white", height: 48, fontSize: 15 }}
-                >
-                  Phê duyệt
-                </button>
-                <button
-                  onClick={() => setReviewAction(false)}
-                  className="cs-admin-action-btn" style={{ flex: 1, background: "#ef4444", color: "white", height: 48, fontSize: 15 }}
-                >
-                  Từ chối
-                </button>
+              <div style={{ background: "#f8fafc", padding: 20, borderRadius: 16, border: "1px solid #e2e8f0", textAlign: "center" }}>
+                <p style={{ color: "#64748b", fontWeight: 600, margin: 0 }}>
+                  Hồ sơ này đã được kiểm duyệt vào {formatDate(selectedKyc.kycReviewedAt)} by Hệ thống.
+                </p>
+                {selectedKyc.kycRejectReason && (
+                  <p style={{ color: "#dc2626", marginTop: 8, fontSize: 14 }}>
+                    <strong>Lý do từ chối:</strong> {selectedKyc.kycRejectReason}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -453,4 +489,24 @@ const styles = `
     background: #fffbeb; color: #f59e0b;
   }
   .cs-admin-status-badge--pending .cs-admin-status-badge__dot { background: #f59e0b; }
+  .cs-admin-status-badge--active {
+    background: #f0fdf4; color: #16a34a;
+  }
+  .cs-admin-status-badge--active .cs-admin-status-badge__dot { background: #16a34a; }
+  .cs-admin-status-badge--banned {
+    background: #fef2f2; color: #dc2626;
+  }
+  .cs-admin-status-badge--banned .cs-admin-status-badge__dot { background: #dc2626; }
+  .cs-admin-filter__select {
+    height: 42px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 0 14px;
+    font-size: 14px;
+    background: #f9fafb;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .cs-admin-filter__select:focus { border-color: #f97316; }
 `;

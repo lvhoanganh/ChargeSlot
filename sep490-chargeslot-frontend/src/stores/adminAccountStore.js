@@ -21,8 +21,7 @@ export const useAdminAccountStore = create((set, get) => ({
       const res = await instance.get("/AdminAccounts", { params });
       const data = res.data;
 
-      const sorted = (data.items || []).sort((a, b) => a.id - b.id);
-      set({ users: sorted, totalItems: data.totalItems || 0 });
+      set({ users: data.items || [], totalItems: data.totalItems || 0 });
     } catch (error) {
       const msg =
         error?.response?.data?.message ||

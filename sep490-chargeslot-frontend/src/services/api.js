@@ -310,11 +310,25 @@ export const ownerKycApi = {
 
 export const adminKycApi = {
     getPending: () => apiFetch("/admin/kyc/pending"),
+    getAll: (status) => {
+        const params = new URLSearchParams();
+        if (status && status !== "ALL") params.set("status", status);
+        return apiFetch(`/admin/kyc/all?${params.toString()}`);
+    },
     review: (ownerUserId, isApproved, rejectReason) =>
         apiFetch(`/admin/kyc/${ownerUserId}/review`, {
             method: "PUT",
             body: JSON.stringify({ isApproved, rejectReason }),
         }),
+};
+
+// ============================
+// ADMIN ACCOUNT DETAILS
+// ============================
+
+export const adminAccountsDetailsApi = {
+    getOwnerDetails: (userId) => apiFetch(`/AdminAccounts/owner/${userId}`),
+    getDriverDetails: (userId) => apiFetch(`/AdminAccounts/driver/${userId}`),
 };
 
 // ============================
