@@ -17,12 +17,9 @@ namespace ChargeSlot.Api.Controllers
     public class ChargingStationController : ControllerBase
     {
         private readonly IChargingStationService _stationService;
-        private readonly Data.ChargeSlotDbContext _db;
-
-        public ChargingStationController(IChargingStationService stationService, Data.ChargeSlotDbContext db)
+        public ChargingStationController(IChargingStationService stationService)
         {
             _stationService = stationService;
-            _db = db;
         }
 
         private int GetUserId()
@@ -121,41 +118,14 @@ namespace ChargeSlot.Api.Controllers
         [HttpPatch("{id:int}/status")]
         public async Task<IActionResult> UpdateOperationalStatus(int id, [FromBody] UpdateStationStatusDto dto)
         {
-            var userId = GetUserId();
-            var station = await _db.ChargingStations.FindAsync(id);
-            if (station == null) return NotFound();
-            if (station.OwnerUserId != userId) return Forbid();
-
-            if (station.ApprovalStatus != Enums.ApprovalStatus.Approved)
-                return BadRequest(new { message = "Chỉ có thể thay đổi trạng thái hoạt động khi station đã được Approved." });
-
-            if (!Enum.TryParse<Enums.OperationalStatus>(dto.OperationalStatus, true, out var newStatus))
-                return BadRequest(new { message = "OperationalStatus không hợp lệ. Sử dụng: Active, Inactive." });
-
-            if (newStatus == Enums.OperationalStatus.Inactive)
+            try
             {
-                var activeStatuses = new[]
-                {
-                    Enums.BookingStatus.WaitingOwner, Enums.BookingStatus.PendingPayment,
-                    Enums.BookingStatus.Paid, Enums.BookingStatus.CheckedIn, Enums.BookingStatus.InProgress
-                };
-                var now = DateTimeHelper.VietnamNow();
-                
-                var hasActiveBookings = await _db.Bookings
-                    .AnyAsync(b => b.ChargingSlot != null 
-                                && b.ChargingSlot.StationId == id 
-                                && b.EndTime > now
-                                && activeStatuses.Contains(b.Status));
-                                
-                if (hasActiveBookings)
-                    return BadRequest(new { message = "Không thể tắt trạm (Inactive) vì đang có booking sắp tới hoặc đang sạc. Vui lòng hủy các booking này trước." });
+                var result = await _stationService.UpdateOperationalStatusAsync(id, GetUserId(), dto.OperationalStatus);
+                return Ok(new { message = $"Station đã chuyển sang {dto.OperationalStatus}.", operationalStatus = dto.OperationalStatus });
             }
-
-            station.OperationalStatus = newStatus;
-            station.UpdatedAt = DateTimeHelper.VietnamNow();
-            await _db.SaveChangesAsync();
-
-            return Ok(new { message = $"Station đã chuyển sang {newStatus}.", operationalStatus = newStatus.ToString() });
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         // ─────────────── UNAVAILABLE DATES ───────────────
@@ -207,114 +177,54 @@ namespace ChargeSlot.Api.Controllers
         [HttpGet("{stationId:int}/pricing")]
         public async Task<IActionResult> GetPricing(int stationId)
         {
-            var userId = GetUserId();
-            var station = await _db.ChargingStations.FindAsync(stationId);
-            if (station == null) return NotFound();
-            if (station.OwnerUserId != userId) return Forbid();
-
-            var pricings = await _db.StationPricings
-                .Where(p => p.StationId == stationId)
-                .OrderBy(p => p.StartTime)
-                .ToListAsync();
-
-            return Ok(pricings.Select(MapPricingDto));
+            try
+            {
+                var pricings = await _stationService.GetPricingAsync(stationId, GetUserId());
+                return Ok(pricings);
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
         }
 
         /// <summary>Add a pricing rule. Ví dụ: 0h-8h = 10,000đ, 8h-24h = 18,000đ.</summary>
         [HttpPost("{stationId:int}/pricing")]
         public async Task<IActionResult> CreatePricing(int stationId, [FromBody] CreateStationPricingDto dto)
         {
-            var userId = GetUserId();
-            var station = await _db.ChargingStations.FindAsync(stationId);
-            if (station == null) return NotFound();
-            if (station.OwnerUserId != userId) return Forbid();
-
-            if (!TimeOnly.TryParse(dto.StartTime, out var startTime) || !TimeOnly.TryParse(dto.EndTime, out var endTime))
-                return BadRequest(new { message = "StartTime/EndTime phải ở dạng HH:mm, ví dụ 08:00" });
-
-            var pricing = new StationPricing
+            try
             {
-                StationId = stationId,
-                DayOfWeek = dto.DayOfWeek,
-                StartTime = startTime,
-                EndTime = endTime,
-                PricePerHour = dto.PricePerHour,
-                Priority = dto.Priority,
-                EffectiveFrom = dto.EffectiveFrom ?? DateTimeHelper.VietnamNow(),
-                EffectiveTo = dto.EffectiveTo,
-                IsActive = true,
-                CreatedAt = DateTimeHelper.VietnamNow()
-            };
-
-            _db.StationPricings.Add(pricing);
-            await _db.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetPricing), new { stationId }, MapPricingDto(pricing));
+                var pricing = await _stationService.CreatePricingAsync(stationId, GetUserId(), dto);
+                return CreatedAtAction(nameof(GetPricing), new { stationId }, pricing);
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>Update a pricing rule.</summary>
         [HttpPut("{stationId:int}/pricing/{pricingId:int}")]
         public async Task<IActionResult> UpdatePricing(int stationId, int pricingId, [FromBody] UpdateStationPricingDto dto)
         {
-            var userId = GetUserId();
-            var station = await _db.ChargingStations.FindAsync(stationId);
-            if (station == null) return NotFound();
-            if (station.OwnerUserId != userId) return Forbid();
-
-            var pricing = await _db.StationPricings
-                .FirstOrDefaultAsync(p => p.Id == pricingId && p.StationId == stationId);
-            if (pricing == null) return NotFound(new { message = "Pricing rule không tồn tại." });
-
-            if (!TimeOnly.TryParse(dto.StartTime, out var startTime) || !TimeOnly.TryParse(dto.EndTime, out var endTime))
-                return BadRequest(new { message = "StartTime/EndTime phải ở dạng HH:mm" });
-
-            pricing.DayOfWeek = dto.DayOfWeek;
-            pricing.StartTime = startTime;
-            pricing.EndTime = endTime;
-            pricing.PricePerHour = dto.PricePerHour;
-            pricing.Priority = dto.Priority;
-            pricing.EffectiveFrom = dto.EffectiveFrom ?? pricing.EffectiveFrom;
-            pricing.EffectiveTo = dto.EffectiveTo;
-            pricing.IsActive = dto.IsActive;
-
-            await _db.SaveChangesAsync();
-            return Ok(MapPricingDto(pricing));
+            try
+            {
+                var pricing = await _stationService.UpdatePricingAsync(stationId, pricingId, GetUserId(), dto);
+                return Ok(pricing);
+            }
+            catch (KeyNotFoundException) { return NotFound(new { message = "Không tìm thấy trạm hoặc rules tương ứng." }); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>Delete a pricing rule.</summary>
         [HttpDelete("{stationId:int}/pricing/{pricingId:int}")]
         public async Task<IActionResult> DeletePricing(int stationId, int pricingId)
         {
-            var userId = GetUserId();
-            var station = await _db.ChargingStations.FindAsync(stationId);
-            if (station == null) return NotFound();
-            if (station.OwnerUserId != userId) return Forbid();
-
-            var pricing = await _db.StationPricings
-                .FirstOrDefaultAsync(p => p.Id == pricingId && p.StationId == stationId);
-            if (pricing == null) return NotFound();
-
-            _db.StationPricings.Remove(pricing);
-            await _db.SaveChangesAsync();
-            return NoContent();
-        }
-
-        private static StationPricingDto MapPricingDto(StationPricing p)
-        {
-            return new StationPricingDto
+            try
             {
-                Id = p.Id,
-                StationId = p.StationId,
-                DayOfWeek = p.DayOfWeek,
-                StartTime = p.StartTime,
-                EndTime = p.EndTime,
-                PricePerHour = p.PricePerHour,
-                Priority = p.Priority,
-                EffectiveFrom = p.EffectiveFrom,
-                EffectiveTo = p.EffectiveTo,
-                IsActive = p.IsActive,
-                CreatedAt = p.CreatedAt
-            };
+                await _stationService.DeletePricingAsync(stationId, pricingId, GetUserId());
+                return NoContent();
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
         }
 
         // ─────────────── EXTRA SERVICES (dịch vụ bổ sung) ───────────────
@@ -323,115 +233,55 @@ namespace ChargeSlot.Api.Controllers
         [HttpGet("{stationId:int}/extra-services")]
         public async Task<IActionResult> GetExtraServices(int stationId)
         {
-            var userId = GetUserId();
-            var station = await _db.ChargingStations.FindAsync(stationId);
-            if (station == null) return NotFound();
-            if (station.OwnerUserId != userId) return Forbid();
-
-            var services = await _db.Set<ExtraService>()
-                .Where(s => s.StationId == stationId)
-                .OrderBy(s => s.ServiceName)
-                .ToListAsync();
-
-            return Ok(services.Select(MapExtraServiceDto));
+            try
+            {
+                var services = await _stationService.GetExtraServicesAsync(stationId, GetUserId());
+                return Ok(services);
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
         }
 
         /// <summary>Create a new extra service for a station.</summary>
         [HttpPost("{stationId:int}/extra-services")]
         public async Task<IActionResult> CreateExtraService(int stationId, [FromBody] CreateExtraServiceDto dto)
         {
-            var userId = GetUserId();
-            var station = await _db.ChargingStations.FindAsync(stationId);
-            if (station == null) return NotFound();
-            if (station.OwnerUserId != userId) return Forbid();
-
-            if (string.IsNullOrWhiteSpace(dto.ServiceName))
-                return BadRequest(new { message = "Tên dịch vụ không được để trống." });
-
-            if (dto.Price < 0)
-                return BadRequest(new { message = "Giá dịch vụ không được âm." });
-
-            var service = new ExtraService
+            try
             {
-                StationId = stationId,
-                ServiceName = dto.ServiceName.Trim(),
-                Description = dto.Description?.Trim(),
-                Price = dto.Price,
-                TotalStock = dto.TotalStock,
-                IsActive = true,
-                CreatedAt = DateTimeHelper.VietnamNow()
-            };
-
-            _db.Set<ExtraService>().Add(service);
-            await _db.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetExtraServices), new { stationId }, MapExtraServiceDto(service));
+                var service = await _stationService.CreateExtraServiceAsync(stationId, GetUserId(), dto);
+                return CreatedAtAction(nameof(GetExtraServices), new { stationId }, service);
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>Update an extra service.</summary>
         [HttpPut("{stationId:int}/extra-services/{serviceId:int}")]
         public async Task<IActionResult> UpdateExtraService(int stationId, int serviceId, [FromBody] UpdateExtraServiceDto dto)
         {
-            var userId = GetUserId();
-            var station = await _db.ChargingStations.FindAsync(stationId);
-            if (station == null) return NotFound();
-            if (station.OwnerUserId != userId) return Forbid();
-
-            var service = await _db.Set<ExtraService>()
-                .FirstOrDefaultAsync(s => s.Id == serviceId && s.StationId == stationId);
-            if (service == null) return NotFound(new { message = "Dịch vụ không tồn tại." });
-
-            if (string.IsNullOrWhiteSpace(dto.ServiceName))
-                return BadRequest(new { message = "Tên dịch vụ không được để trống." });
-
-            if (dto.Price < 0)
-                return BadRequest(new { message = "Giá dịch vụ không được âm." });
-
-            service.ServiceName = dto.ServiceName.Trim();
-            service.Description = dto.Description?.Trim();
-            service.Price = dto.Price;
-            service.TotalStock = dto.TotalStock;
-            service.IsActive = dto.IsActive;
-
-            await _db.SaveChangesAsync();
-            return Ok(MapExtraServiceDto(service));
+            try
+            {
+                var service = await _stationService.UpdateExtraServiceAsync(stationId, serviceId, GetUserId(), dto);
+                return Ok(service);
+            }
+            catch (KeyNotFoundException) { return NotFound(new { message = "Dịch vụ không tồn tại." }); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>Delete an extra service (hard delete).</summary>
         [HttpDelete("{stationId:int}/extra-services/{serviceId:int}")]
         public async Task<IActionResult> DeleteExtraService(int stationId, int serviceId)
         {
-            var userId = GetUserId();
-            var station = await _db.ChargingStations.FindAsync(stationId);
-            if (station == null) return NotFound();
-            if (station.OwnerUserId != userId) return Forbid();
-
-            var service = await _db.Set<ExtraService>()
-                .FirstOrDefaultAsync(s => s.Id == serviceId && s.StationId == stationId);
-            if (service == null) return NotFound();
-
-            // Kiểm tra có booking nào đang dùng dịch vụ này không
-            var hasBookings = await _db.Set<BookingExtraService>()
-                .AnyAsync(bes => bes.ServiceId == serviceId);
-            if (hasBookings)
-                return BadRequest(new { message = "Không thể xóa dịch vụ đã có booking sử dụng. Hãy tắt (IsActive = false) thay vì xóa." });
-
-            _db.Set<ExtraService>().Remove(service);
-            await _db.SaveChangesAsync();
-            return NoContent();
-        }
-
-        private static ExtraServiceDto MapExtraServiceDto(ExtraService s)
-        {
-            return new ExtraServiceDto
+            try
             {
-                Id = s.Id,
-                ServiceName = s.ServiceName,
-                Description = s.Description,
-                Price = s.Price,
-                TotalStock = s.TotalStock,
-                IsActive = s.IsActive
-            };
+                await _stationService.DeleteExtraServiceAsync(stationId, serviceId, GetUserId());
+                return NoContent();
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
     }
 }

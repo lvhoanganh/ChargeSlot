@@ -39,7 +39,7 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>Owner phản hồi + nộp bằng chứng (multipart/form-data).</summary>
-        [HttpPut("{disputeId}/owner-evidence")]
+        [HttpPut("{disputeId:int}/owner-evidence")]
         [Authorize(Roles = "Owner")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> SubmitOwnerEvidence(int disputeId, [FromForm] OwnerEvidenceDto dto)
@@ -60,7 +60,7 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>Admin phán quyết khiếu nại.</summary>
-        [HttpPost("{disputeId}/resolve")]
+        [HttpPost("{disputeId:int}/resolve")]
         [Authorize(Roles = RoleConstants.Admin)]
         public async Task<IActionResult> ResolveDispute(int disputeId, [FromBody] ResolveDisputeDto dto)
         {
@@ -129,7 +129,7 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>Chi tiết dispute.</summary>
-        [HttpGet("{disputeId}")]
+        [HttpGet("{disputeId:int}")]
         public async Task<IActionResult> GetById(int disputeId)
         {
             var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
@@ -146,7 +146,7 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>Dispute theo booking.</summary>
-        [HttpGet("booking/{bookingId}")]
+        [HttpGet("booking/{bookingId:int}")]
         public async Task<IActionResult> GetByBookingId(int bookingId)
         {
             var role = User.FindFirstValue(ClaimTypes.Role) ?? "";

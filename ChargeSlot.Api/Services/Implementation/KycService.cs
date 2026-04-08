@@ -3,6 +3,7 @@ using ChargeSlot.Api.DTOs.Kyc;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -11,14 +12,16 @@ namespace ChargeSlot.Api.Services.Implementation
 {
     public class KycService : IKycService
     {
-        private readonly ChargeSlotDbContext _context;
+        private readonly IOwnerRepository _ownerRepo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IFileStorageService _fileService;
         private readonly INotificationService _notificationService;
         private readonly ILogger<KycService> _logger;
 
-        public KycService(ChargeSlotDbContext context, IFileStorageService fileService, INotificationService notificationService, ILogger<KycService> logger)
+        public KycService(IOwnerRepository ownerRepo, IUnitOfWork unitOfWork, IFileStorageService fileService, INotificationService notificationService, ILogger<KycService> logger)
         {
-            _context = context;
+            _ownerRepo = ownerRepo;
+            _unitOfWork = unitOfWork;
             _fileService = fileService;
             _notificationService = notificationService;
             _logger = logger;
@@ -47,14 +50,14 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<OwnerKycProfileDto> GetKycProfileAsync(int ownerUserId)
         {
-            var owner = await _context.Owner.FirstOrDefaultAsync(o => o.UserId == ownerUserId)
+            var owner = await _ownerRepo.GetByUserIdAsync(ownerUserId, tracking: false)
                 ?? throw new InvalidOperationException("Hồ sơ chủ trạm chưa được tạo.");
             return MapToDto(owner);
         }
 
         public async Task<OwnerKycProfileDto> SubmitKycAsync(int ownerUserId, SubmitKycDto dto)
         {
-            var owner = await _context.Owner.FirstOrDefaultAsync(o => o.UserId == ownerUserId)
+            var owner = await _ownerRepo.GetByUserIdAsync(ownerUserId, tracking: true)
                 ?? throw new InvalidOperationException("Hồ sơ chủ trạm chưa được tạo.");
 
             if (owner.KycStatus == KycStatus.Pending)
@@ -88,7 +91,8 @@ namespace ChargeSlot.Api.Services.Implementation
             owner.KycRejectReason = null;
             owner.KycSubmittedAt = DateTimeHelper.VietnamNow();
 
-            await _context.SaveChangesAsync();
+            _ownerRepo.Update(owner);
+            await _unitOfWork.CompleteAsync();
 
             // Gửi thông báo đến toàn hệ thống (Admin check)
             _logger.LogInformation("Owner {OwnerUserId} đã nộp hồ sơ KYC.", ownerUserId);
@@ -98,17 +102,21 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<List<OwnerKycProfileDto>> GetPendingKycsAsync()
         {
-            var owners = await _context.Owner
-                .Where(o => o.KycStatus == KycStatus.Pending)
-                .OrderBy(o => o.KycSubmittedAt)
-                .ToListAsync();
+            var owners = await _ownerRepo.GetPendingKycAsync();
+
+            return owners.Select(MapToDto).ToList();
+        }
+
+        public async Task<List<OwnerKycProfileDto>> GetAllKycsAsync(string? status = null)
+        {
+            var owners = await _ownerRepo.GetAllKycsAsync(status);
 
             return owners.Select(MapToDto).ToList();
         }
 
         public async Task<OwnerKycProfileDto> ReviewKycAsync(int adminUserId, int targetOwnerUserId, ReviewKycDto dto)
         {
-            var owner = await _context.Owner.FirstOrDefaultAsync(o => o.UserId == targetOwnerUserId)
+            var owner = await _ownerRepo.GetByUserIdAsync(targetOwnerUserId, tracking: true)
                 ?? throw new InvalidOperationException("Không tìm thấy hồ sơ chủ trạm.");
 
             if (owner.KycStatus != KycStatus.Pending)
@@ -119,7 +127,8 @@ namespace ChargeSlot.Api.Services.Implementation
             owner.KycReviewedAt = DateTimeHelper.VietnamNow();
             owner.KycReviewedByUserId = adminUserId;
 
-            await _context.SaveChangesAsync();
+            _ownerRepo.Update(owner);
+            await _unitOfWork.CompleteAsync();
 
             // Gửi thông báo cho Chủ trạm
             string subject = dto.IsApproved ? "Hồ sơ của bạn đã được duyệt" : "Hồ sơ xác minh danh tính bị từ chối";

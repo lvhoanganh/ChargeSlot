@@ -1,8 +1,8 @@
 using ChargeSlot.Api.Enums;
+using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using ChargeSlot.Api.Helpers;
-using Microsoft.EntityFrameworkCore;
 
 namespace ChargeSlot.Api.BackgroundJobs
 {
@@ -49,7 +49,8 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task ProcessWaitingOwnerTimeoutAsync()
         {
             using var scope = _serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<Data.ChargeSlotDbContext>();
+            var bookingRepo = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
             var configService = scope.ServiceProvider.GetRequiredService<ISystemConfigService>();
 
@@ -59,10 +60,7 @@ namespace ChargeSlot.Api.BackgroundJobs
             var now = DateTimeHelper.VietnamNow();
             var cutoff = now.AddMinutes(-graceTime);
 
-            var staleBookings = await db.Bookings
-                .Where(b => b.Status == BookingStatus.WaitingOwner && b.CreatedAt <= cutoff)
-                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .ToListAsync();
+            var staleBookings = await bookingRepo.GetStaleWaitingOwnerAsync(cutoff);
 
             foreach (var booking in staleBookings)
             {
@@ -77,7 +75,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     booking.ChargingSlot.UpdatedAt = now;
                 }
 
-                await db.SaveChangesAsync();
+                await unitOfWork.CompleteAsync();
 
                 await notificationService.SendAsync(
                     booking.DriverUserId,
@@ -105,9 +103,13 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task ProcessPaidNoShowAsync()
         {
             using var scope = _serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<Data.ChargeSlotDbContext>();
             var bookingRepo = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
             var slotRepo = scope.ServiceProvider.GetRequiredService<IChargingSlotRepository>();
+            var invoiceRepo = scope.ServiceProvider.GetRequiredService<IInvoiceRepository>();
+            var walletRepo = scope.ServiceProvider.GetRequiredService<IWalletRepository>();
+            var ledgerRepo = scope.ServiceProvider.GetRequiredService<ILedgerTransactionRepository>();
+            var loyaltyTxRepo = scope.ServiceProvider.GetRequiredService<ILoyaltyTransactionRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
             var configService = scope.ServiceProvider.GetRequiredService<ISystemConfigService>();
 
@@ -117,26 +119,23 @@ namespace ChargeSlot.Api.BackgroundJobs
             var now = DateTimeHelper.VietnamNow();
             var cutoff = now.AddMinutes(-graceTime);
 
-            var overdueBookings = await db.Bookings
-                .Where(b => b.Status == BookingStatus.Paid && b.EndTime < cutoff && b.ManualCheckinRequestedAt == null)
-                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(b => b.Driver).ThenInclude(d => d.User)
-                .ToListAsync();
+            var overdueBookings = await bookingRepo.GetPaidNoShowAsync(cutoff);
 
             foreach (var booking in overdueBookings)
             {
-                using var transaction = await db.Database.BeginTransactionAsync();
+                using var transaction = await unitOfWork.BeginTransactionAsync();
                 try
                 {
                     booking.Status = BookingStatus.Completed;
                     booking.UpdatedAt = now;
-                    await bookingRepo.UpdateAsync(booking);
+                    bookingRepo.Update(booking);
+                    await unitOfWork.CompleteAsync();
 
                     if (booking.ChargingSlot != null && booking.ChargingSlot.Status == SlotStatus.Booked)
                     {
                         booking.ChargingSlot.Status = SlotStatus.Active;
                         slotRepo.Update(booking.ChargingSlot);
-                        await slotRepo.SaveChangesAsync();
+                        await unitOfWork.CompleteAsync();
                     }
 
                     // H1 FIX: Tạo Invoice (trước đây bị thiếu)
@@ -147,7 +146,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     var platformFee = Math.Round(grossAmount * platformFeeRate, 0);
                     var ownerNetAmount = grossAmount - vatAmount - platformFee;
 
-                    var invoice = new Models.Invoice
+                    var invoice = new Invoice
                     {
                         BookingId = booking.Id,
                         ChargingAmount = ownerNetAmount,
@@ -159,10 +158,9 @@ namespace ChargeSlot.Api.BackgroundJobs
                         CreatedAt = now,
                         UpdatedAt = now
                     };
-                    db.Invoices.Add(invoice);
-                    await db.SaveChangesAsync();
+                    invoiceRepo.Add(invoice);
+                    await unitOfWork.CompleteAsync();
 
-                    // H2 FIX: Loyalty Points (trước đây bị thiếu)
                     // H2 FIX: Loyalty Points (dùng snapshot từ lúc tạo booking)
                     var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
                     var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
@@ -170,7 +168,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     {
                         booking.Driver.LoyaltyPoints += pointsEarned;
                         booking.PointsEarned = pointsEarned;
-                        db.LoyaltyTransactions.Add(new Models.LoyaltyTransaction
+                        loyaltyTxRepo.Add(new LoyaltyTransaction
                         {
                             DriverUserId = booking.DriverUserId,
                             BookingId = booking.Id,
@@ -179,13 +177,13 @@ namespace ChargeSlot.Api.BackgroundJobs
                             Description = $"Tích {pointsEarned:N0} điểm từ booking #{booking.Id} (auto-complete, no-show)",
                             CreatedAt = now
                         });
-                        await db.SaveChangesAsync();
+                        await unitOfWork.CompleteAsync();
                     }
 
                     var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
                     if (ownerUserId.HasValue)
                     {
-                        await SettleToOwnerAsync(db, booking, ownerUserId.Value, "AutoComplete", now);
+                        await SettleToOwnerAsync(walletRepo, ledgerRepo, unitOfWork, booking, ownerUserId.Value, "AutoComplete", now);
                     }
 
                     await transaction.CommitAsync();
@@ -221,7 +219,13 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task ProcessCheckedInOvertimeAsync()
         {
             using var scope = _serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<Data.ChargeSlotDbContext>();
+            var bookingRepo = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
+            var invoiceRepo = scope.ServiceProvider.GetRequiredService<IInvoiceRepository>();
+            var walletRepo = scope.ServiceProvider.GetRequiredService<IWalletRepository>();
+            var ledgerRepo = scope.ServiceProvider.GetRequiredService<ILedgerTransactionRepository>();
+            var loyaltyTxRepo = scope.ServiceProvider.GetRequiredService<ILoyaltyTransactionRepository>();
+            var chargingSessionRepo = scope.ServiceProvider.GetRequiredService<IChargingSessionRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
             var configService = scope.ServiceProvider.GetRequiredService<ISystemConfigService>();
 
@@ -231,16 +235,11 @@ namespace ChargeSlot.Api.BackgroundJobs
             var now = DateTimeHelper.VietnamNow();
             var cutoff = now.AddMinutes(-graceTime);
 
-            var overtimeBookings = await db.Bookings
-                .Where(b => b.Status == BookingStatus.CheckedIn && b.EndTime < cutoff)
-                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(b => b.ChargingSession)
-                .Include(b => b.Driver) // H2 FIX: Include Driver for loyalty points
-                .ToListAsync();
+            var overtimeBookings = await bookingRepo.GetCheckedInOvertimeAsync(cutoff);
 
             foreach (var booking in overtimeBookings)
             {
-                using var transaction = await db.Database.BeginTransactionAsync();
+                using var transaction = await unitOfWork.BeginTransactionAsync();
                 try
                 {
                     // 1. Stop session
@@ -249,7 +248,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     {
                         session.ActualEndTime = booking.EndTime; // Dùng EndTime gốc, không phải now
                         session.ActualDurationHours = (decimal)(booking.EndTime - (session.ActualStartTime ?? booking.StartTime)).TotalHours;
-                        db.ChargingSessions.Update(session);
+                        chargingSessionRepo.Update(session);
                     }
 
                     // 2. Create invoice
@@ -261,7 +260,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     var platformFee = Math.Round(grossAmount * platformFeeRate, 0);
                     var ownerNetAmount = grossAmount - vatAmount - platformFee;
 
-                    var invoice = new Models.Invoice
+                    var invoice = new Invoice
                     {
                         BookingId = booking.Id,
                         ChargingAmount = ownerNetAmount,
@@ -273,7 +272,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                         CreatedAt = now,
                         UpdatedAt = now
                     };
-                    db.Invoices.Add(invoice);
+                    invoiceRepo.Add(invoice);
 
                     // 3. Complete booking
                     booking.Status = BookingStatus.Completed;
@@ -286,9 +285,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                         booking.ChargingSlot.UpdatedAt = now;
                     }
 
-                    await db.SaveChangesAsync();
+                    await unitOfWork.CompleteAsync();
 
-                    // H2 FIX: Loyalty Points (trước đây bị thiếu)
                     // H2 FIX: Loyalty Points (dùng snapshot từ lúc tạo booking)
                     var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
                     var pointsEarned2 = Math.Floor(booking.TotalAmount * earnRate);
@@ -296,7 +294,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     {
                         booking.Driver.LoyaltyPoints += pointsEarned2;
                         booking.PointsEarned = pointsEarned2;
-                        db.LoyaltyTransactions.Add(new Models.LoyaltyTransaction
+                        loyaltyTxRepo.Add(new LoyaltyTransaction
                         {
                             DriverUserId = booking.DriverUserId,
                             BookingId = booking.Id,
@@ -305,14 +303,14 @@ namespace ChargeSlot.Api.BackgroundJobs
                             Description = $"Tích {pointsEarned2:N0} điểm từ booking #{booking.Id} (auto-stop overtime)",
                             CreatedAt = now
                         });
-                        await db.SaveChangesAsync();
+                        await unitOfWork.CompleteAsync();
                     }
 
                     // 5. Settle payment
                     var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
                     if (ownerUserId.HasValue)
                     {
-                        await SettleToOwnerAsync(db, booking, ownerUserId.Value, "AutoStopComplete", now);
+                        await SettleToOwnerAsync(walletRepo, ledgerRepo, unitOfWork, booking, ownerUserId.Value, "AutoStopComplete", now);
                     }
 
                     await transaction.CommitAsync();
@@ -346,7 +344,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         // ═══════════════════════════════════════════════════════
         // SHARED: Settle ESCROW → Owner + Platform
         // ═══════════════════════════════════════════════════════
-        private static async Task SettleToOwnerAsync(Data.ChargeSlotDbContext db, Models.Booking booking, int ownerUserId, string referenceType, DateTime now)
+        private static async Task SettleToOwnerAsync(IWalletRepository walletRepo, ILedgerTransactionRepository ledgerRepo, IUnitOfWork unitOfWork, Booking booking, int ownerUserId, string referenceType, DateTime now)
         {
             var grossAmount = booking.TotalAmount;
             var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
@@ -356,13 +354,15 @@ namespace ChargeSlot.Api.BackgroundJobs
             var platformFee = Math.Round(grossAmount * platformFeeRate, 0);
             var ownerNet = grossAmount - vatAmount - platformFee;
 
-            var escrowWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            var platformWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");
-            var ownerWallet = await db.Wallets.FirstOrDefaultAsync(w => w.UserId == ownerUserId);
+            var escrowWallet = await walletRepo.GetBySystemCodeAsync("ESCROW")
+                ?? throw new InvalidOperationException("ESCROW wallet not found");
+            var platformWallet = await walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE")
+                ?? throw new InvalidOperationException("PLATFORM_REVENUE wallet not found");
+            var ownerWallet = await walletRepo.GetByUserIdAsync(ownerUserId);
 
             if (ownerWallet == null)
             {
-                ownerWallet = new Models.Wallet
+                ownerWallet = new Wallet
                 {
                     UserId = ownerUserId,
                     WalletType = WalletType.Owner,
@@ -370,37 +370,29 @@ namespace ChargeSlot.Api.BackgroundJobs
                     FrozenBalance = 0,
                     CreatedAt = now
                 };
-                db.Wallets.Add(ownerWallet);
-                await db.SaveChangesAsync();
+                walletRepo.Add(ownerWallet);
+                await unitOfWork.CompleteAsync();
             }
 
-            // ESCROW → Owner (net) + Platform (fee) atomically
-            await db.Database.ExecuteSqlRawAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
-                ownerNet + platformFee, escrowWallet.Id);
-            
-            await db.Database.ExecuteSqlRawAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                ownerNet, ownerWallet.Id);
-                
-            await db.Database.ExecuteSqlRawAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                platformFee, platformWallet.Id);
+            // ESCROW → Owner (net) + Platform (fee) via tracked entities within transaction
+            escrowWallet.AvailableBalance -= (ownerNet + platformFee);
+            ownerWallet.AvailableBalance += ownerNet;
+            platformWallet.AvailableBalance += platformFee;
 
-            db.Set<Models.LedgerTransaction>().Add(new Models.LedgerTransaction
+            ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = referenceType,
                 ReferenceId = booking.Id,
                 Memo = $"{referenceType} booking #{booking.Id} — Owner nhận {ownerNet:N0}đ, phí nền tảng {platformFee:N0}đ",
                 CreatedAt = now,
-                Entries = new List<Models.LedgerEntry>
+                Entries = new List<LedgerEntry>
                 {
                     new() { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = ownerNet + platformFee, CreatedAt = now },
                     new() { WalletId = ownerWallet.Id, Direction = LedgerDirection.Credit, Amount = ownerNet, CreatedAt = now },
                     new() { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
                 }
             });
-            await db.SaveChangesAsync();
+            await unitOfWork.CompleteAsync();
         }
     }
 }

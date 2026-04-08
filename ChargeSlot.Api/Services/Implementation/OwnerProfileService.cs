@@ -13,15 +13,18 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IOwnerRepository _ownerRepository;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IUnitOfWork _unitOfWork;
 
         public OwnerProfileService(
             IOwnerRepository ownerRepository,
             UserManager<ApplicationUser> userManager,
-            IFileStorageService fileStorageService)
+            IFileStorageService fileStorageService,
+            IUnitOfWork unitOfWork)
         {
             _ownerRepository = ownerRepository;
             _userManager = userManager;
             _fileStorageService = fileStorageService;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<OwnerProfileDto?> GetByUserIdAsync(int userId)
@@ -58,7 +61,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 owner.TaxCode = dto.TaxCode;
             }
 
-            await _ownerRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         public async Task DeleteForUserAsync(int userId)
@@ -67,7 +70,7 @@ namespace ChargeSlot.Api.Services.Implementation
             if (owner == null) return;
 
             _ownerRepository.Remove(owner);
-            await _ownerRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         public async Task<string> UploadAvatarAsync(int userId, IFormFile file)
@@ -90,3 +93,4 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+

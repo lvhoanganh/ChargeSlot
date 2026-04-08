@@ -17,7 +17,9 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IChargingSlotRepository _slotRepo;
         private readonly INotificationService _notificationService;
         private readonly IWalletRepository _walletRepo;
-        private readonly ChargeSlotDbContext _db;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly ILedgerTransactionRepository _ledgerRepo;
+        private readonly IExtraServiceRepository _extraServiceRepo;
         private readonly ILogger<PaymentService> _logger;
         private readonly IConfiguration _configuration;
         private readonly ISystemConfigService _configService;
@@ -28,7 +30,9 @@ namespace ChargeSlot.Api.Services.Implementation
             IChargingSlotRepository slotRepo,
             INotificationService notificationService,
             IWalletRepository walletRepo,
-            ChargeSlotDbContext db,
+            IUnitOfWork unitOfWork,
+            ILedgerTransactionRepository ledgerRepo,
+            IExtraServiceRepository extraServiceRepo,
             ILogger<PaymentService> logger,
             IConfiguration configuration,
             ISystemConfigService configService)
@@ -38,7 +42,9 @@ namespace ChargeSlot.Api.Services.Implementation
             _slotRepo = slotRepo;
             _notificationService = notificationService;
             _walletRepo = walletRepo;
-            _db = db;
+            _unitOfWork = unitOfWork;
+            _ledgerRepo = ledgerRepo;
+            _extraServiceRepo = extraServiceRepo;
             _logger = logger;
             _configuration = configuration;
             _configService = configService;
@@ -51,7 +57,8 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             payment.Status = PaymentStatus.Completed;
             payment.PaidAt = DateTimeHelper.VietnamNow();
-            await _paymentRepo.UpdateAsync(payment);
+            _paymentRepo.Update(payment);
+            await _unitOfWork.CompleteAsync();
 
             booking.Status = BookingStatus.Paid;
             // Snapshot CheckinDeadlineAt: StartTime + config check-in window
@@ -60,15 +67,16 @@ namespace ChargeSlot.Api.Services.Implementation
                 var cfgs = await _configService.GetCurrentConfigsAsync();
                 booking.CheckinDeadlineAt = booking.StartTime.AddMinutes(cfgs.CheckIn_Window_Minutes);
             }
-            await _bookingRepo.UpdateAsync(booking);
+            _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
             // Cộng tiền vào ESCROW wallet (Atomic)
-            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
-            await _db.Database.ExecuteSqlRawSafeAsync(
+            var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
+            var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING");
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                booking.TotalAmount, escrowWallet.Id);
-            await _db.SaveChangesAsync();
+                booking.TotalAmount, escrowWallet!.Id);
+            await _unitOfWork.CompleteAsync();
 
             // Ghi ledger double-entry: DEBIT từ CLEARING (VNPay gateway), CREDIT vào ESCROW
             var ledgerTx = new LedgerTransaction
@@ -84,23 +92,25 @@ namespace ChargeSlot.Api.Services.Implementation
                     new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Credit, Amount = booking.TotalAmount, CreatedAt = DateTimeHelper.VietnamNow() }
                 }
             };
-            await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
+            _walletRepo.AddLedgerTransaction(ledgerTx);
+            await _unitOfWork.CompleteAsync();
 
             // Trừ stock cho ExtraServices (nếu có)
             if (booking.BookingExtraServices != null && booking.BookingExtraServices.Count > 0)
             {
                 foreach (var bes in booking.BookingExtraServices)
                 {
-                    var svc = await _db.Set<ExtraService>().FindAsync(bes.ServiceId);
+                    var svc = await _extraServiceRepo.GetByIdAsync(bes.ServiceId);
                     if (svc != null && svc.TotalStock.HasValue)
                     {
                         if (svc.TotalStock.Value < bes.Quantity)
                             throw new InvalidOperationException(
                                 $"Dịch vụ '{svc.ServiceName}' đã hết hàng.");
                         svc.TotalStock -= bes.Quantity;
+                        _extraServiceRepo.Update(svc);
                     }
                 }
-                await _db.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
             }
 
             // Lock charging slot
@@ -109,7 +119,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 slot.Status = SlotStatus.Booked;
                 _slotRepo.Update(slot);
-                await _slotRepo.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
             }
             // Notifications được gửi từ caller (ngoài transaction)
         }
@@ -121,7 +131,8 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             payment.Status = PaymentStatus.Refunded;
             payment.PaidAt = DateTimeHelper.VietnamNow();
-            await _paymentRepo.UpdateAsync(payment);
+            _paymentRepo.Update(payment);
+            await _unitOfWork.CompleteAsync();
 
             // Tạo hoặc lấy ví driver
             var driverWallet = await _walletRepo.GetByUserIdAsync(booking.DriverUserId);
@@ -135,14 +146,16 @@ namespace ChargeSlot.Api.Services.Implementation
                     FrozenBalance = 0,
                     CreatedAt = DateTimeHelper.VietnamNow()
                 };
-                await _walletRepo.CreateAsync(driverWallet);
+                _walletRepo.Add(driverWallet);
+            await _unitOfWork.CompleteAsync();
             }
 
             driverWallet.AvailableBalance += booking.TotalAmount;
-            await _walletRepo.UpdateAsync(driverWallet);
+            _walletRepo.Update(driverWallet);
+            await _unitOfWork.CompleteAsync();
 
             // Ghi ledger double-entry: DEBIT từ CLEARING (VNPay refund), CREDIT vào ví Driver
-            var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
+            var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING");
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "PaymentRaceRefund",
@@ -168,7 +181,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     }
                 }
             };
-            await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
+            _ledgerRepo.Add(ledgerTx);
+            await _unitOfWork.CompleteAsync();
             // Notifications được gửi từ caller (ngoài transaction)
         }
 
@@ -200,7 +214,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     Status = PaymentStatus.Pending,
                     CreatedAt = DateTimeHelper.VietnamNow()
                 };
-                await _paymentRepo.CreateAsync(payment);
+                _paymentRepo.Add(payment);
+            await _unitOfWork.CompleteAsync();
             }
 
             var accountNumber = _configuration["SePay:AccountNumber"] ?? "YOUR_BANK_ACCOUNT";
@@ -224,8 +239,7 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             // ── Chống trùng lặp theo khuyến nghị SePay (dùng id giao dịch SePay) ──
             var sePayTxnId = request.id.ToString();
-            var alreadyProcessed = await _db.LedgerTransactions
-                .AnyAsync(t => t.Memo != null && t.Memo.Contains($"SePay#{sePayTxnId}"));
+            var alreadyProcessed = await _ledgerRepo.HasTransactionWithMemoAsync($"SePay#{sePayTxnId}");
             if (alreadyProcessed)
             {
                 _logger.LogInformation($"SePay Webhook: Giao dịch SePay#{sePayTxnId} đã xử lý trước đó, bỏ qua.");
@@ -268,7 +282,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var amount = request.transferAmount;
             var sePayTxnId = request.id.ToString();
 
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var wallet = await _walletRepo.GetByUserIdAsync(userId);
@@ -282,13 +296,15 @@ namespace ChargeSlot.Api.Services.Implementation
                         FrozenBalance = 0,
                         CreatedAt = DateTimeHelper.VietnamNow()
                     };
-                    await _walletRepo.CreateAsync(wallet);
+                    _walletRepo.Add(wallet);
+            await _unitOfWork.CompleteAsync();
                 }
 
                 wallet.AvailableBalance += amount;
-                await _walletRepo.UpdateAsync(wallet);
+                _walletRepo.Update(wallet);
+            await _unitOfWork.CompleteAsync();
 
-                var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
+                var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING");
                 var ledgerTx = new LedgerTransaction
                 {
                     ReferenceType = "TopUp",
@@ -302,7 +318,8 @@ namespace ChargeSlot.Api.Services.Implementation
                         new LedgerEntry { WalletId = wallet.Id, Direction = LedgerDirection.Credit, Amount = amount, CreatedAt = DateTimeHelper.VietnamNow() }
                     }
                 };
-                await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
+                _ledgerRepo.Add(ledgerTx);
+                await _unitOfWork.CompleteAsync();
 
                 await transaction.CommitAsync();
 
@@ -334,7 +351,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // Track which path was taken for notifications after commit
             string? notifyPath = null;
 
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId);
@@ -471,13 +488,15 @@ namespace ChargeSlot.Api.Services.Implementation
                     FrozenBalance = 0,
                     CreatedAt = DateTimeHelper.VietnamNow()
                 };
-                await _walletRepo.CreateAsync(wallet);
+                _walletRepo.Add(wallet);
+            await _unitOfWork.CompleteAsync();
             }
 
             wallet.AvailableBalance += amount;
-            await _walletRepo.UpdateAsync(wallet);
+            _walletRepo.Update(wallet);
+            await _unitOfWork.CompleteAsync();
 
-            var clearingWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "CLEARING");
+            var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING");
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "BookingFallbackDeposit",
@@ -491,7 +510,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     new LedgerEntry { WalletId = wallet.Id, Direction = LedgerDirection.Credit, Amount = amount, CreatedAt = DateTimeHelper.VietnamNow() }
                 }
             };
-            await _walletRepo.AddLedgerTransactionAsync(ledgerTx);
+            _ledgerRepo.Add(ledgerTx);
+            await _unitOfWork.CompleteAsync();
 
             await _notificationService.SendAsync(
                 driverUserId,
@@ -501,4 +521,8 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+
+
+
+
 

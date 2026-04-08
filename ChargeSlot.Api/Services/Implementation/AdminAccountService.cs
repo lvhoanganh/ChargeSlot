@@ -13,29 +13,44 @@ namespace ChargeSlot.Api.Services.Implementation
     public class AdminAccountService : IAdminAccountService
     {
         private readonly IAdminAccountRepository _adminAccountRepository;
-        private readonly ChargeSlot.Api.Data.ChargeSlotDbContext _db;
+        private readonly IBookingRepository _bookingRepo;
+        private readonly IChargingStationRepository _stationRepo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IBookingService _bookingService;
         private readonly INotificationService _notificationService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IEmailService _emailService;
         private readonly IUserOtpRepository _otpRepository;
+        private readonly IOwnerRepository _ownerRepo;
+        private readonly IDriverRepository _driverRepo;
+        private readonly IWalletRepository _walletRepo;
 
         public AdminAccountService(
             IAdminAccountRepository adminAccountRepository,
-            ChargeSlot.Api.Data.ChargeSlotDbContext db,
+            IBookingRepository bookingRepo,
+            IChargingStationRepository stationRepo,
+            IUnitOfWork unitOfWork,
             IBookingService bookingService,
             INotificationService notificationService,
             UserManager<ApplicationUser> userManager,
             IEmailService emailService,
-            IUserOtpRepository otpRepository)
+            IUserOtpRepository otpRepository,
+            IOwnerRepository ownerRepo,
+            IDriverRepository driverRepo,
+            IWalletRepository walletRepo)
         {
             _adminAccountRepository = adminAccountRepository;
-            _db = db;
+            _bookingRepo = bookingRepo;
+            _stationRepo = stationRepo;
+            _unitOfWork = unitOfWork;
             _bookingService = bookingService;
             _notificationService = notificationService;
             _userManager = userManager;
             _emailService = emailService;
             _otpRepository = otpRepository;
+            _ownerRepo = ownerRepo;
+            _driverRepo = driverRepo;
+            _walletRepo = walletRepo;
         }
 
         public async Task<PagedResultDto<AccountListItemDto>> GetAccountsAsync(
@@ -129,6 +144,112 @@ namespace ChargeSlot.Api.Services.Implementation
             };
         }
 
+        public async Task<AdminOwnerDetailDto> GetOwnerDetailAsync(int ownerUserId)
+        {
+            var user = await _userManager.FindByIdAsync(ownerUserId.ToString()) 
+                       ?? throw new InvalidOperationException("Owner User not found.");
+            
+            var owner = await _ownerRepo.GetByUserIdAsync(ownerUserId) 
+                        ?? throw new InvalidOperationException("Owner profile not found.");
+
+            // Get Owner Wallet
+            var wallet = await _walletRepo.GetByUserIdAsync(ownerUserId)
+                         ?? throw new InvalidOperationException("Owner wallet not found.");
+
+            // Get Stations using IChargingStationRepository
+            var stations = await _stationRepo.GetAllByOwnerTrackingAsync(ownerUserId);
+
+            return new AdminOwnerDetailDto
+            {
+                UserId = user.Id,
+                PhoneNumber = user.PhoneNumber ?? string.Empty,
+                Email = user.Email,
+                FullName = user.FullName ?? string.Empty,
+                Status = user.Status ?? string.Empty,
+                AvatarUrl = user.AvatarUrl,
+                CreatedAt = user.CreatedAt,
+                Kyc = new AdminOwnerKycDto
+                {
+                    BusinessName = owner.BusinessName ?? string.Empty,
+                    TaxCode = owner.TaxCode ?? string.Empty,
+                    IdCardNumber = owner.IdCardNumber,
+                    IdCardDate = owner.IdCardDate,
+                    FrontIdCardUrl = owner.FrontIdCardUrl,
+                    BackIdCardUrl = owner.BackIdCardUrl,
+                    BusinessLicenseNumber = owner.BusinessLicenseNumber,
+                    BusinessLicenseUrl = owner.BusinessLicenseUrl,
+                    Address = owner.Address,
+                    KycStatus = owner.KycStatus.ToString(),
+                    KycRejectReason = owner.KycRejectReason
+                },
+                Wallet = new AdminOwnerWalletDto
+                {
+                    WalletId = wallet.Id,
+                    AvailableBalance = wallet.AvailableBalance,
+                    FrozenBalance = wallet.FrozenBalance
+                },
+                Stations = stations.Select(s => new AdminOwnerStationDto
+                {
+                    StationId = s.Id,
+                    Name = s.Name,
+                    Address = s.Address,
+                    ApprovalStatus = s.ApprovalStatus.ToString(),
+                    OperationalStatus = s.OperationalStatus.ToString(),
+                    AverageRating = s.AverageRating,
+                    CreatedAt = s.CreatedAt
+                }).ToList()
+            };
+        }
+
+        public async Task<AdminDriverDetailDto> GetDriverDetailAsync(int driverUserId)
+        {
+            var user = await _userManager.FindByIdAsync(driverUserId.ToString()) 
+                       ?? throw new InvalidOperationException("Driver User not found.");
+            
+            var driver = await _driverRepo.GetByUserIdAsync(driverUserId) 
+                         ?? throw new InvalidOperationException("Driver profile not found.");
+
+            // Get Driver Wallet
+            var wallet = await _walletRepo.GetByUserIdAsync(driverUserId)
+                         ?? throw new InvalidOperationException("Driver wallet not found.");
+
+            // Get 10 recent bookings using IBookingRepository
+            var recentBookings = await _bookingRepo.GetByDriverAsync(driverUserId);
+            var topBookings = recentBookings.OrderByDescending(b => b.CreatedAt).Take(10).ToList();
+
+            return new AdminDriverDetailDto
+            {
+                UserId = user.Id,
+                PhoneNumber = user.PhoneNumber ?? string.Empty,
+                Email = user.Email,
+                FullName = user.FullName ?? string.Empty,
+                Status = user.Status ?? string.Empty,
+                AvatarUrl = user.AvatarUrl,
+                CreatedAt = user.CreatedAt,
+                VehicleType = driver.VehicleType,
+                LicensePlate = driver.LicensePlate,
+                LicenseNumber = driver.LicenseNumber,
+                LoyaltyPoints = driver.LoyaltyPoints,
+                Wallet = new AdminDriverWalletDto
+                {
+                    WalletId = wallet.Id,
+                    AvailableBalance = wallet.AvailableBalance,
+                    FrozenBalance = wallet.FrozenBalance
+                },
+                RecentBookings = topBookings.Select(b => new AdminDriverRecentBookingDto
+                {
+                    BookingId = b.Id,
+                    StationName = b.ChargingSlot?.ChargingStation?.Name ?? string.Empty,
+                    SlotName = b.ChargingSlot?.SlotName ?? string.Empty,
+                    StartTime = b.StartTime,
+                    EndTime = b.EndTime,
+                    TotalAmount = b.TotalAmount,
+                    Status = b.Status.ToString(),
+                    CreatedAt = b.CreatedAt
+                }).ToList()
+            };
+        }
+
         public async Task<string> ToggleBanStatusAsync(int targetUserId, int actingAdminUserId)
         {
             // Không cho admin tự ban/unban chính mình
@@ -185,10 +306,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (role == RoleConstants.Driver)
             {
-                var bookings = await _db.Bookings
-                    .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                    .Where(b => b.DriverUserId == userId && targetStatuses.Contains(b.Status))
-                    .ToListAsync();
+                var bookings = await _bookingRepo.GetActiveBookingsByDriverAsync(userId, targetStatuses);
                     
                 foreach (var b in bookings)
                 {
@@ -207,21 +325,16 @@ namespace ChargeSlot.Api.Services.Implementation
             }
             else if (role == RoleConstants.Owner)
             {
-                var stations = await _db.ChargingStations
-                    .Where(s => s.OwnerUserId == userId)
-                    .ToListAsync();
+                var stations = await _stationRepo.GetAllByOwnerTrackingAsync(userId);
                     
                 foreach(var s in stations)
                 {
                     s.OperationalStatus = ChargeSlot.Api.Enums.OperationalStatus.Inactive;
                 }
-                await _db.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
 
                 var stationIds = stations.Select(s => s.Id).ToList();
-                var bookings = await _db.Bookings
-                    .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                    .Where(b => stationIds.Contains(b.ChargingSlot!.StationId) && targetStatuses.Contains(b.Status))
-                    .ToListAsync();
+                var bookings = await _bookingRepo.GetActiveBookingsByStationIdsAsync(stationIds, targetStatuses);
                     
                 foreach (var b in bookings)
                 {
@@ -296,7 +409,7 @@ namespace ChargeSlot.Api.Services.Implementation
             };
 
             await _otpRepository.AddAsync(entity);
-            await _otpRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             // Gửi OTP tới email của admin (fallback → email mặc định)
             string targetEmail = adminUser.Email ?? "laivuhoanganh.fj@gmail.com";
@@ -326,7 +439,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // Mark OTP as used
             record.VerifiedAt = DateTimeHelper.VietnamNow();
             record.IsUsed = true;
-            await _otpRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             // Reset Password
             adminUser.SecondaryPasswordHash = _userManager.PasswordHasher.HashPassword(adminUser, dto.NewSecondaryPassword);
@@ -334,3 +447,6 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+
+
+

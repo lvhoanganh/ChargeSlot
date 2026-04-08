@@ -13,15 +13,18 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IDriverRepository _driverRepository;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IUnitOfWork _unitOfWork;
 
         public DriverProfileService(
             IDriverRepository driverRepository,
             UserManager<ApplicationUser> userManager,
-            IFileStorageService fileStorageService)
+            IFileStorageService fileStorageService,
+            IUnitOfWork unitOfWork)
         {
             _driverRepository = driverRepository;
             _userManager = userManager;
             _fileStorageService = fileStorageService;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<DriverProfileDto?> GetByUserIdAsync(int userId)
@@ -61,7 +64,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 driver.LicenseNumber = dto.LicenseNumber;
             }
 
-            await _driverRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         public async Task DeleteForUserAsync(int userId)
@@ -70,7 +73,7 @@ namespace ChargeSlot.Api.Services.Implementation
             if (driver == null) return;
 
             _driverRepository.Remove(driver);
-            await _driverRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         public async Task<string> UploadAvatarAsync(int userId, IFormFile file)
@@ -93,3 +96,4 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+

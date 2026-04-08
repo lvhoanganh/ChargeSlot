@@ -5,6 +5,7 @@ using ChargeSlot.Api.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ChargeSlot.Api.Services.Interfaces;
 
 namespace ChargeSlot.Api.Controllers
 {
@@ -16,11 +17,11 @@ namespace ChargeSlot.Api.Controllers
     [Authorize(Roles = RoleConstants.Driver)]
     public class LoyaltyController : ControllerBase
     {
-        private readonly ChargeSlotDbContext _db;
+        private readonly ILoyaltyService _loyaltyService;
 
-        public LoyaltyController(ChargeSlotDbContext db)
+        public LoyaltyController(ILoyaltyService loyaltyService)
         {
-            _db = db;
+            _loyaltyService = loyaltyService;
         }
 
         private int GetUserId()
@@ -36,38 +37,15 @@ namespace ChargeSlot.Api.Controllers
         {
             var userId = GetUserId();
 
-            var driver = await _db.Driver.FirstOrDefaultAsync(d => d.UserId == userId);
-            if (driver == null) return NotFound(new { message = "Driver profile không tồn tại." });
-
-            // Load config
-            var earnRateConfig = await _db.SystemConfigs.FindAsync("LoyaltyEarnRate");
-            var maxRedeemConfig = await _db.SystemConfigs.FindAsync("LoyaltyMaxRedeemRate");
-            var earnRate = decimal.TryParse(earnRateConfig?.Value, out var er) ? er : 0.05m;
-            var maxRedeemRate = decimal.TryParse(maxRedeemConfig?.Value, out var mr) ? mr : 0.5m;
-
-            // Lịch sử 20 giao dịch gần nhất
-            var history = await _db.LoyaltyTransactions
-                .Where(t => t.DriverUserId == userId)
-                .OrderByDescending(t => t.CreatedAt)
-                .Take(20)
-                .Select(t => new LoyaltyTransactionDto
-                {
-                    Id = t.Id,
-                    BookingId = t.BookingId,
-                    Type = t.Type,
-                    Points = t.Points,
-                    Description = t.Description,
-                    CreatedAt = t.CreatedAt
-                })
-                .ToListAsync();
-
-            return Ok(new LoyaltyInfoDto
+            try
             {
-                CurrentPoints = driver.LoyaltyPoints,
-                EarnRate = earnRate,
-                MaxRedeemRate = maxRedeemRate,
-                RecentHistory = history
-            });
+                var info = await _loyaltyService.GetLoyaltyInfoAsync(userId);
+                return Ok(info);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
         }
     }
 }

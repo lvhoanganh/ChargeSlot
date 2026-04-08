@@ -1,8 +1,6 @@
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Enums;
-using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.BackgroundJobs
@@ -37,13 +35,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                     // 1. Lấy danh sách ID đã quá 24h
                     using (var outerScope = _serviceProvider.CreateScope())
                     {
-                        var outerDb = outerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
-                        expiredIds = await outerDb.Set<WithdrawRequest>()
-                            .Where(r => r.Status == WithdrawStatus.TransferCompleted
-                                     && r.TransferredAt != null
-                                     && r.TransferredAt <= deadline)
-                            .Select(r => r.Id)
-                            .ToListAsync(stoppingToken);
+                        var withdrawRepo = outerScope.ServiceProvider.GetRequiredService<IWithdrawRequestRepository>();
+                        expiredIds = await withdrawRepo.GetExpiredTransferCompletedIdsAsync(deadline);
                     }
 
                     if (expiredIds.Count > 0)
@@ -61,13 +54,10 @@ namespace ChargeSlot.Api.BackgroundJobs
                         try
                         {
                             using var scope = _serviceProvider.CreateScope();
-                            var db = scope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+                            var withdrawRepo = scope.ServiceProvider.GetRequiredService<IWithdrawRequestRepository>();
                             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
-                            var request = await db.Set<WithdrawRequest>()
-                                .Include(r => r.User)
-                                .Include(r => r.Wallet)
-                                .FirstOrDefaultAsync(r => r.Id == requestId, stoppingToken);
+                            var request = await withdrawRepo.GetByIdWithUserAndWalletAsync(requestId);
 
                             if (request == null || request.Status != WithdrawStatus.TransferCompleted)
                                 continue;

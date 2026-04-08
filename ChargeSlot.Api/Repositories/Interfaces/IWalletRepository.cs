@@ -6,9 +6,12 @@ namespace ChargeSlot.Api.Repositories.Interfaces
     {
         Task<Wallet?> GetByIdAsync(int id);
         Task<Wallet?> GetByUserIdAsync(int userId);
-        Task<Wallet> CreateAsync(Wallet wallet);
-        Task UpdateAsync(Wallet wallet);
+        Task<Wallet?> GetBySystemCodeAsync(string systemCode);
+        void Add(Wallet wallet);
+        void Update(Wallet wallet);
         Task<List<LedgerEntry>> GetTransactionHistoryAsync(int walletId, int take = 50);
-        Task AddLedgerTransactionAsync(LedgerTransaction transaction);
+        void AddLedgerTransaction(LedgerTransaction transaction);
+        Task<(List<Wallet> Items, int TotalCount)> GetAdminAllWalletsAsync(ChargeSlot.Api.DTOs.Admin.Overview.WalletFilterDto filter);
     }
 }
+

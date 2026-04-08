@@ -32,6 +32,16 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
+        /// Xem toàn bộ hồ sơ KYC (hỗ trợ lọc theo trạng thái)
+        /// </summary>
+        [HttpGet("all")]
+        public async Task<IActionResult> GetAllKycs([FromQuery] string? status = null)
+        {
+            var result = await _kycService.GetAllKycsAsync(status);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// Phê duyệt hoặc Từ chối hồ sơ KYC
         /// </summary>
         [HttpPut("{ownerUserId}/review")]

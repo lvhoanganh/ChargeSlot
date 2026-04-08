@@ -1,7 +1,6 @@
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using ChargeSlot.Api.Data;
 
 namespace ChargeSlot.Api.BackgroundJobs
 {
@@ -43,12 +42,12 @@ namespace ChargeSlot.Api.BackgroundJobs
                     foreach (var bookingId in expiredBookingIds)
                     {
                         using var innerScope = _serviceProvider.CreateScope();
-                        var db = innerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+                        var unitOfWork = innerScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                         var bookingRepo = innerScope.ServiceProvider.GetRequiredService<IBookingRepository>();
                         var slotRepo = innerScope.ServiceProvider.GetRequiredService<IChargingSlotRepository>();
                         var notificationService = innerScope.ServiceProvider.GetRequiredService<INotificationService>();
 
-                        using var transaction = await db.Database.BeginTransactionAsync(stoppingToken);
+                        using var transaction = await unitOfWork.BeginTransactionAsync();
                         try
                         {
                             var booking = await bookingRepo.GetByIdAsync(bookingId);
@@ -70,22 +69,24 @@ namespace ChargeSlot.Api.BackgroundJobs
                                     var cfgs = await configService.GetCurrentConfigsAsync();
                                     booking.CheckinDeadlineAt = booking.StartTime.AddMinutes(cfgs.CheckIn_Window_Minutes);
                                 }
-                                await bookingRepo.UpdateAsync(booking);
-                                await LockSlotIfNeeded(slotRepo, booking);
+                                bookingRepo.Update(booking);
+                                await unitOfWork.CompleteAsync();
+                                await LockSlotIfNeeded(unitOfWork, slotRepo, booking);
                                 await transaction.CommitAsync(stoppingToken);
                                 continue;
                             }
 
                             // ── EXPIRE: Chắc chắn chưa thanh toán (tại thời điểm này) → hủy ──
                             booking.Status = BookingStatus.Expired;
-                            await bookingRepo.UpdateAsync(booking);
+                            bookingRepo.Update(booking);
+                                await unitOfWork.CompleteAsync();
 
                             // Release slot
                             if (booking.ChargingSlot != null && booking.ChargingSlot.Status == SlotStatus.Booked)
                             {
                                 booking.ChargingSlot.Status = SlotStatus.Active;
                                 slotRepo.Update(booking.ChargingSlot);
-                                await slotRepo.SaveChangesAsync();
+                                await unitOfWork.CompleteAsync();
                             }
 
                             await transaction.CommitAsync(stoppingToken);
@@ -126,14 +127,16 @@ namespace ChargeSlot.Api.BackgroundJobs
             }
         }
 
-        private static async Task LockSlotIfNeeded(IChargingSlotRepository slotRepo, Models.Booking booking)
+        private static async Task LockSlotIfNeeded(IUnitOfWork unitOfWork, IChargingSlotRepository slotRepo, Models.Booking booking)
         {
             if (booking.ChargingSlot != null && booking.ChargingSlot.Status != SlotStatus.Booked)
             {
                 booking.ChargingSlot.Status = SlotStatus.Booked;
                 slotRepo.Update(booking.ChargingSlot);
-                await slotRepo.SaveChangesAsync();
+                await unitOfWork.CompleteAsync();
             }
         }
     }
 }
+
+

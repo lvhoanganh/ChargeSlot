@@ -1,0 +1,1336 @@
+﻿diff --git a/ChargeSlot.Api/Controllers/BankAccountController.cs b/ChargeSlot.Api/Controllers/BankAccountController.cs
+index 3c65bdc..c9536cc 100644
+--- a/ChargeSlot.Api/Controllers/BankAccountController.cs
++++ b/ChargeSlot.Api/Controllers/BankAccountController.cs
+@@ -14,11 +14,11 @@ namespace ChargeSlot.Api.Controllers
+     [Authorize]
+     public class BankAccountController : ControllerBase
+     {
+-        private readonly ChargeSlotDbContext _db;
++        private readonly ChargeSlot.Api.Services.Interfaces.IBankAccountService _bankAccountService;
+ 
+-        public BankAccountController(ChargeSlotDbContext db)
++        public BankAccountController(ChargeSlot.Api.Services.Interfaces.IBankAccountService bankAccountService)
+         {
+-            _db = db;
++            _bankAccountService = bankAccountService;
+         }
+ 
+         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+@@ -27,20 +27,7 @@ namespace ChargeSlot.Api.Controllers
+         [HttpGet]
+         public async Task<IActionResult> GetMyBankAccounts()
+         {
+-            var list = await _db.BankAccounts
+-                .Where(b => b.UserId == GetUserId())
+-                .OrderByDescending(b => b.IsDefault)
+-                .ThenByDescending(b => b.CreatedAt)
+-                .Select(b => new BankAccountDto
+-                {
+-                    Id = b.Id,
+-                    BankName = b.BankName,
+-                    BankAccountNumber = b.BankAccountNumber,
+-                    BankAccountHolder = b.BankAccountHolder,
+-                    IsDefault = b.IsDefault,
+-                    CreatedAt = b.CreatedAt
+-                })
+-                .ToListAsync();
++            var list = await _bankAccountService.GetMyBankAccountsAsync(GetUserId());
+             return Ok(list);
+         }
+ 
+@@ -50,45 +37,14 @@ namespace ChargeSlot.Api.Controllers
+         {
+             var userId = GetUserId();
+ 
+-            using var transaction = await _db.Database.BeginTransactionAsync();
+             try
+             {
+-                // Nếu đặt làm mặc định → bỏ mặc định các TK cũ
+-                if (dto.IsDefault)
+-                {
+-                    var existing = await _db.BankAccounts
+-                        .Where(b => b.UserId == userId && b.IsDefault)
+-                        .ToListAsync();
+-                    existing.ForEach(b => b.IsDefault = false);
+-                }
+-
+-                var account = new Models.BankAccount
+-                {
+-                    UserId = userId,
+-                    BankName = dto.BankName,
+-                    BankAccountNumber = dto.BankAccountNumber,
+-                    BankAccountHolder = dto.BankAccountHolder,
+-                    IsDefault = dto.IsDefault,
+-                    CreatedAt = DateTimeHelper.VietnamNow()
+-                };
+-                _db.BankAccounts.Add(account);
+-                await _db.SaveChangesAsync();
+-                await transaction.CommitAsync();
+-
+-                return Ok(new BankAccountDto
+-                {
+-                    Id = account.Id,
+-                    BankName = account.BankName,
+-                    BankAccountNumber = account.BankAccountNumber,
+-                    BankAccountHolder = account.BankAccountHolder,
+-                    IsDefault = account.IsDefault,
+-                    CreatedAt = account.CreatedAt
+-                });
++                var result = await _bankAccountService.CreateAsync(userId, dto);
++                return Ok(result);
+             }
+-            catch
++            catch (Exception ex)
+             {
+-                await transaction.RollbackAsync();
+-                throw;
++                return BadRequest(new { message = $"Lỗi khi tạo tài khoản: {ex.Message}" });
+             }
+         }
+ 
+@@ -98,25 +54,18 @@ namespace ChargeSlot.Api.Controllers
+         {
+             var userId = GetUserId();
+ 
+-            using var transaction = await _db.Database.BeginTransactionAsync();
+             try
+             {
+-                var account = await _db.BankAccounts.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
+-                if (account == null) return NotFound(new { message = "Tài khoản ngân hàng không tồn tại." });
+-
+-                // Bỏ mặc định tất cả
+-                var all = await _db.BankAccounts.Where(b => b.UserId == userId).ToListAsync();
+-                all.ForEach(b => b.IsDefault = false);
+-                account.IsDefault = true;
+-                await _db.SaveChangesAsync();
+-                await transaction.CommitAsync();
+-
++                await _bankAccountService.SetDefaultAsync(id, userId);
+                 return Ok(new { message = "Đã đặt làm tài khoản mặc định." });
+             }
+-            catch
++            catch (KeyNotFoundException ex)
+             {
+-                await transaction.RollbackAsync();
+-                throw;
++                return NotFound(new { message = ex.Message });
++            }
++            catch (Exception ex)
++            {
++                return BadRequest(new { message = $"Lỗi: {ex.Message}" });
+             }
+         }
+ 
+@@ -125,21 +74,19 @@ namespace ChargeSlot.Api.Controllers
+         public async Task<IActionResult> Delete(int id)
+         {
+             var userId = GetUserId();
+-            var account = await _db.BankAccounts.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
+-            if (account == null) return NotFound(new { message = "Tài khoản ngân hàng không tồn tại." });
+-
+-            // Kiểm tra còn WithdrawRequest pending không
+-            var hasPending = await _db.Set<Models.WithdrawRequest>().AnyAsync(w =>
+-                w.UserId == userId
+-                && w.BankAccountNumber == account.BankAccountNumber
+-                && w.BankName == account.BankName
+-                && (w.Status == Enums.WithdrawStatus.Pending || w.Status == Enums.WithdrawStatus.Approved || w.Status == Enums.WithdrawStatus.TransferCompleted));
+-            if (hasPending)
+-                return BadRequest(new { message = "Không thể xóa — đang có yêu cầu rút tiền chưa hoàn tất." });
+-
+-            _db.BankAccounts.Remove(account);
+-            await _db.SaveChangesAsync();
+-            return Ok(new { message = "Đã xóa tài khoản ngân hàng." });
++            try
++            {
++                await _bankAccountService.DeleteAsync(id, userId);
++                return Ok(new { message = "Đã xóa tài khoản ngân hàng." });
++            }
++            catch (KeyNotFoundException ex)
++            {
++                return NotFound(new { message = ex.Message });
++            }
++            catch (InvalidOperationException ex)
++            {
++                return BadRequest(new { message = ex.Message });
++            }
+         }
+     }
+ }
+diff --git a/ChargeSlot.Api/Controllers/ChargingSlotController.cs b/ChargeSlot.Api/Controllers/ChargingSlotController.cs
+index 721181e..67f10ed 100644
+--- a/ChargeSlot.Api/Controllers/ChargingSlotController.cs
++++ b/ChargeSlot.Api/Controllers/ChargingSlotController.cs
+@@ -17,12 +17,10 @@ namespace ChargeSlot.Api.Controllers
+     public class ChargingSlotController : ControllerBase
+     {
+         private readonly IChargingSlotService _slotService;
+-        private readonly Data.ChargeSlotDbContext _db;
+ 
+-        public ChargingSlotController(IChargingSlotService slotService, Data.ChargeSlotDbContext db)
++        public ChargingSlotController(IChargingSlotService slotService)
+         {
+             _slotService = slotService;
+-            _db = db;
+         }
+ 
+         private int GetUserId()
+diff --git a/ChargeSlot.Api/Controllers/ChargingStationController.cs b/ChargeSlot.Api/Controllers/ChargingStationController.cs
+index f64cd9c..90bf640 100644
+--- a/ChargeSlot.Api/Controllers/ChargingStationController.cs
++++ b/ChargeSlot.Api/Controllers/ChargingStationController.cs
+@@ -17,12 +17,9 @@ namespace ChargeSlot.Api.Controllers
+     public class ChargingStationController : ControllerBase
+     {
+         private readonly IChargingStationService _stationService;
+-        private readonly Data.ChargeSlotDbContext _db;
+-
+-        public ChargingStationController(IChargingStationService stationService, Data.ChargeSlotDbContext db)
++        public ChargingStationController(IChargingStationService stationService)
+         {
+             _stationService = stationService;
+-            _db = db;
+         }
+ 
+         private int GetUserId()
+@@ -121,41 +118,14 @@ namespace ChargeSlot.Api.Controllers
+         [HttpPatch("{id:int}/status")]
+         public async Task<IActionResult> UpdateOperationalStatus(int id, [FromBody] UpdateStationStatusDto dto)
+         {
+-            var userId = GetUserId();
+-            var station = await _db.ChargingStations.FindAsync(id);
+-            if (station == null) return NotFound();
+-            if (station.OwnerUserId != userId) return Forbid();
+-
+-            if (station.ApprovalStatus != Enums.ApprovalStatus.Approved)
+-                return BadRequest(new { message = "Chỉ có thể thay đổi trạng thái hoạt động khi station đã được Approved." });
+-
+-            if (!Enum.TryParse<Enums.OperationalStatus>(dto.OperationalStatus, true, out var newStatus))
+-                return BadRequest(new { message = "OperationalStatus không hợp lệ. Sử dụng: Active, Inactive." });
+-
+-            if (newStatus == Enums.OperationalStatus.Inactive)
++            try
+             {
+-                var activeStatuses = new[]
+-                {
+-                    Enums.BookingStatus.WaitingOwner, Enums.BookingStatus.PendingPayment,
+-                    Enums.BookingStatus.Paid, Enums.BookingStatus.CheckedIn, Enums.BookingStatus.InProgress
+-                };
+-                var now = DateTimeHelper.VietnamNow();
+-                
+-                var hasActiveBookings = await _db.Bookings
+-                    .AnyAsync(b => b.ChargingSlot != null 
+-                                && b.ChargingSlot.StationId == id 
+-                                && b.EndTime > now
+-                                && activeStatuses.Contains(b.Status));
+-                                
+-                if (hasActiveBookings)
+-                    return BadRequest(new { message = "Không thể tắt trạm (Inactive) vì đang có booking sắp tới hoặc đang sạc. Vui lòng hủy các booking này trước." });
++                var result = await _stationService.UpdateOperationalStatusAsync(id, GetUserId(), dto.OperationalStatus);
++                return Ok(new { message = $"Station đã chuyển sang {dto.OperationalStatus}.", operationalStatus = dto.OperationalStatus });
+             }
+-
+-            station.OperationalStatus = newStatus;
+-            station.UpdatedAt = DateTimeHelper.VietnamNow();
+-            await _db.SaveChangesAsync();
+-
+-            return Ok(new { message = $"Station đã chuyển sang {newStatus}.", operationalStatus = newStatus.ToString() });
++            catch (KeyNotFoundException) { return NotFound(); }
++            catch (UnauthorizedAccessException) { return Forbid(); }
++            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+         }
+ 
+         // ─────────────── UNAVAILABLE DATES ───────────────
+@@ -207,114 +177,54 @@ namespace ChargeSlot.Api.Controllers
+         [HttpGet("{stationId:int}/pricing")]
+         public async Task<IActionResult> GetPricing(int stationId)
+         {
+-            var userId = GetUserId();
+-            var station = await _db.ChargingStations.FindAsync(stationId);
+-            if (station == null) return NotFound();
+-            if (station.OwnerUserId != userId) return Forbid();
+-
+-            var pricings = await _db.StationPricings
+-                .Where(p => p.StationId == stationId)
+-                .OrderBy(p => p.StartTime)
+-                .ToListAsync();
+-
+-            return Ok(pricings.Select(MapPricingDto));
++            try
++            {
++                var pricings = await _stationService.GetPricingAsync(stationId, GetUserId());
++                return Ok(pricings);
++            }
++            catch (KeyNotFoundException) { return NotFound(); }
++            catch (UnauthorizedAccessException) { return Forbid(); }
+         }
+ 
+         /// <summary>Add a pricing rule. Ví dụ: 0h-8h = 10,000đ, 8h-24h = 18,000đ.</summary>
+         [HttpPost("{stationId:int}/pricing")]
+         public async Task<IActionResult> CreatePricing(int stationId, [FromBody] CreateStationPricingDto dto)
+         {
+-            var userId = GetUserId();
+-            var station = await _db.ChargingStations.FindAsync(stationId);
+-            if (station == null) return NotFound();
+-            if (station.OwnerUserId != userId) return Forbid();
+-
+-            if (!TimeOnly.TryParse(dto.StartTime, out var startTime) || !TimeOnly.TryParse(dto.EndTime, out var endTime))
+-                return BadRequest(new { message = "StartTime/EndTime phải ở dạng HH:mm, ví dụ 08:00" });
+-
+-            var pricing = new StationPricing
++            try
+             {
+-                StationId = stationId,
+-                DayOfWeek = dto.DayOfWeek,
+-                StartTime = startTime,
+-                EndTime = endTime,
+-                PricePerHour = dto.PricePerHour,
+-                Priority = dto.Priority,
+-                EffectiveFrom = dto.EffectiveFrom ?? DateTimeHelper.VietnamNow(),
+-                EffectiveTo = dto.EffectiveTo,
+-                IsActive = true,
+-                CreatedAt = DateTimeHelper.VietnamNow()
+-            };
+-
+-            _db.StationPricings.Add(pricing);
+-            await _db.SaveChangesAsync();
+-
+-            return CreatedAtAction(nameof(GetPricing), new { stationId }, MapPricingDto(pricing));
++                var pricing = await _stationService.CreatePricingAsync(stationId, GetUserId(), dto);
++                return CreatedAtAction(nameof(GetPricing), new { stationId }, pricing);
++            }
++            catch (KeyNotFoundException) { return NotFound(); }
++            catch (UnauthorizedAccessException) { return Forbid(); }
++            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+         }
+ 
+         /// <summary>Update a pricing rule.</summary>
+         [HttpPut("{stationId:int}/pricing/{pricingId:int}")]
+         public async Task<IActionResult> UpdatePricing(int stationId, int pricingId, [FromBody] UpdateStationPricingDto dto)
+         {
+-            var userId = GetUserId();
+-            var station = await _db.ChargingStations.FindAsync(stationId);
+-            if (station == null) return NotFound();
+-            if (station.OwnerUserId != userId) return Forbid();
+-
+-            var pricing = await _db.StationPricings
+-                .FirstOrDefaultAsync(p => p.Id == pricingId && p.StationId == stationId);
+-            if (pricing == null) return NotFound(new { message = "Pricing rule không tồn tại." });
+-
+-            if (!TimeOnly.TryParse(dto.StartTime, out var startTime) || !TimeOnly.TryParse(dto.EndTime, out var endTime))
+-                return BadRequest(new { message = "StartTime/EndTime phải ở dạng HH:mm" });
+-
+-            pricing.DayOfWeek = dto.DayOfWeek;
+-            pricing.StartTime = startTime;
+-            pricing.EndTime = endTime;
+-            pricing.PricePerHour = dto.PricePerHour;
+-            pricing.Priority = dto.Priority;
+-            pricing.EffectiveFrom = dto.EffectiveFrom ?? pricing.EffectiveFrom;
+-            pricing.EffectiveTo = dto.EffectiveTo;
+-            pricing.IsActive = dto.IsActive;
+-
+-            await _db.SaveChangesAsync();
+-            return Ok(MapPricingDto(pricing));
++            try
++            {
++                var pricing = await _stationService.UpdatePricingAsync(stationId, pricingId, GetUserId(), dto);
++                return Ok(pricing);
++            }
++            catch (KeyNotFoundException) { return NotFound(new { message = "Không tìm thấy trạm hoặc rules tương ứng." }); }
++            catch (UnauthorizedAccessException) { return Forbid(); }
++            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+         }
+ 
+         /// <summary>Delete a pricing rule.</summary>
+         [HttpDelete("{stationId:int}/pricing/{pricingId:int}")]
+         public async Task<IActionResult> DeletePricing(int stationId, int pricingId)
+         {
+-            var userId = GetUserId();
+-            var station = await _db.ChargingStations.FindAsync(stationId);
+-            if (station == null) return NotFound();
+-            if (station.OwnerUserId != userId) return Forbid();
+-
+-            var pricing = await _db.StationPricings
+-                .FirstOrDefaultAsync(p => p.Id == pricingId && p.StationId == stationId);
+-            if (pricing == null) return NotFound();
+-
+-            _db.StationPricings.Remove(pricing);
+-            await _db.SaveChangesAsync();
+-            return NoContent();
+-        }
+-
+-        private static StationPricingDto MapPricingDto(StationPricing p)
+-        {
+-            return new StationPricingDto
++            try
+             {
+-                Id = p.Id,
+-                StationId = p.StationId,
+-                DayOfWeek = p.DayOfWeek,
+-                StartTime = p.StartTime,
+-                EndTime = p.EndTime,
+-                PricePerHour = p.PricePerHour,
+-                Priority = p.Priority,
+-                EffectiveFrom = p.EffectiveFrom,
+-                EffectiveTo = p.EffectiveTo,
+-                IsActive = p.IsActive,
+-                CreatedAt = p.CreatedAt
+-            };
++                await _stationService.DeletePricingAsync(stationId, pricingId, GetUserId());
++                return NoContent();
++            }
++            catch (KeyNotFoundException) { return NotFound(); }
++            catch (UnauthorizedAccessException) { return Forbid(); }
+         }
+ 
+         // ─────────────── EXTRA SERVICES (dịch vụ bổ sung) ───────────────
+@@ -323,115 +233,55 @@ namespace ChargeSlot.Api.Controllers
+         [HttpGet("{stationId:int}/extra-services")]
+         public async Task<IActionResult> GetExtraServices(int stationId)
+         {
+-            var userId = GetUserId();
+-            var station = await _db.ChargingStations.FindAsync(stationId);
+-            if (station == null) return NotFound();
+-            if (station.OwnerUserId != userId) return Forbid();
+-
+-            var services = await _db.Set<ExtraService>()
+-                .Where(s => s.StationId == stationId)
+-                .OrderBy(s => s.ServiceName)
+-                .ToListAsync();
+-
+-            return Ok(services.Select(MapExtraServiceDto));
++            try
++            {
++                var services = await _stationService.GetExtraServicesAsync(stationId, GetUserId());
++                return Ok(services);
++            }
++            catch (KeyNotFoundException) { return NotFound(); }
++            catch (UnauthorizedAccessException) { return Forbid(); }
+         }
+ 
+         /// <summary>Create a new extra service for a station.</summary>
+         [HttpPost("{stationId:int}/extra-services")]
+         public async Task<IActionResult> CreateExtraService(int stationId, [FromBody] CreateExtraServiceDto dto)
+         {
+-            var userId = GetUserId();
+-            var station = await _db.ChargingStations.FindAsync(stationId);
+-            if (station == null) return NotFound();
+-            if (station.OwnerUserId != userId) return Forbid();
+-
+-            if (string.IsNullOrWhiteSpace(dto.ServiceName))
+-                return BadRequest(new { message = "Tên dịch vụ không được để trống." });
+-
+-            if (dto.Price < 0)
+-                return BadRequest(new { message = "Giá dịch vụ không được âm." });
+-
+-            var service = new ExtraService
++            try
+             {
+-                StationId = stationId,
+-                ServiceName = dto.ServiceName.Trim(),
+-                Description = dto.Description?.Trim(),
+-                Price = dto.Price,
+-                TotalStock = dto.TotalStock,
+-                IsActive = true,
+-                CreatedAt = DateTimeHelper.VietnamNow()
+-            };
+-
+-            _db.Set<ExtraService>().Add(service);
+-            await _db.SaveChangesAsync();
+-
+-            return CreatedAtAction(nameof(GetExtraServices), new { stationId }, MapExtraServiceDto(service));
++                var service = await _stationService.CreateExtraServiceAsync(stationId, GetUserId(), dto);
++                return CreatedAtAction(nameof(GetExtraServices), new { stationId }, service);
++            }
++            catch (KeyNotFoundException) { return NotFound(); }
++            catch (UnauthorizedAccessException) { return Forbid(); }
++            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+         }
+ 
+         /// <summary>Update an extra service.</summary>
+         [HttpPut("{stationId:int}/extra-services/{serviceId:int}")]
+         public async Task<IActionResult> UpdateExtraService(int stationId, int serviceId, [FromBody] UpdateExtraServiceDto dto)
+         {
+-            var userId = GetUserId();
+-            var station = await _db.ChargingStations.FindAsync(stationId);
+-            if (station == null) return NotFound();
+-            if (station.OwnerUserId != userId) return Forbid();
+-
+-            var service = await _db.Set<ExtraService>()
+-                .FirstOrDefaultAsync(s => s.Id == serviceId && s.StationId == stationId);
+-            if (service == null) return NotFound(new { message = "Dịch vụ không tồn tại." });
+-
+-            if (string.IsNullOrWhiteSpace(dto.ServiceName))
+-                return BadRequest(new { message = "Tên dịch vụ không được để trống." });
+-
+-            if (dto.Price < 0)
+-                return BadRequest(new { message = "Giá dịch vụ không được âm." });
+-
+-            service.ServiceName = dto.ServiceName.Trim();
+-            service.Description = dto.Description?.Trim();
+-            service.Price = dto.Price;
+-            service.TotalStock = dto.TotalStock;
+-            service.IsActive = dto.IsActive;
+-
+-            await _db.SaveChangesAsync();
+-            return Ok(MapExtraServiceDto(service));
++            try
++            {
++                var service = await _stationService.UpdateExtraServiceAsync(stationId, serviceId, GetUserId(), dto);
++                return Ok(service);
++            }
++            catch (KeyNotFoundException) { return NotFound(new { message = "Dịch vụ không tồn tại." }); }
++            catch (UnauthorizedAccessException) { return Forbid(); }
++            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+         }
+ 
+         /// <summary>Delete an extra service (hard delete).</summary>
+         [HttpDelete("{stationId:int}/extra-services/{serviceId:int}")]
+         public async Task<IActionResult> DeleteExtraService(int stationId, int serviceId)
+         {
+-            var userId = GetUserId();
+-            var station = await _db.ChargingStations.FindAsync(stationId);
+-            if (station == null) return NotFound();
+-            if (station.OwnerUserId != userId) return Forbid();
+-
+-            var service = await _db.Set<ExtraService>()
+-                .FirstOrDefaultAsync(s => s.Id == serviceId && s.StationId == stationId);
+-            if (service == null) return NotFound();
+-
+-            // Kiểm tra có booking nào đang dùng dịch vụ này không
+-            var hasBookings = await _db.Set<BookingExtraService>()
+-                .AnyAsync(bes => bes.ServiceId == serviceId);
+-            if (hasBookings)
+-                return BadRequest(new { message = "Không thể xóa dịch vụ đã có booking sử dụng. Hãy tắt (IsActive = false) thay vì xóa." });
+-
+-            _db.Set<ExtraService>().Remove(service);
+-            await _db.SaveChangesAsync();
+-            return NoContent();
+-        }
+-
+-        private static ExtraServiceDto MapExtraServiceDto(ExtraService s)
+-        {
+-            return new ExtraServiceDto
++            try
+             {
+-                Id = s.Id,
+-                ServiceName = s.ServiceName,
+-                Description = s.Description,
+-                Price = s.Price,
+-                TotalStock = s.TotalStock,
+-                IsActive = s.IsActive
+-            };
++                await _stationService.DeleteExtraServiceAsync(stationId, serviceId, GetUserId());
++                return NoContent();
++            }
++            catch (KeyNotFoundException) { return NotFound(); }
++            catch (UnauthorizedAccessException) { return Forbid(); }
++            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+         }
+     }
+ }
+diff --git a/ChargeSlot.Api/Controllers/ChatController.cs b/ChargeSlot.Api/Controllers/ChatController.cs
+index 642fb01..00ab890 100644
+--- a/ChargeSlot.Api/Controllers/ChatController.cs
++++ b/ChargeSlot.Api/Controllers/ChatController.cs
+@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
+ using Microsoft.AspNetCore.Mvc;
+ using Microsoft.AspNetCore.SignalR;
+ using Microsoft.EntityFrameworkCore;
++using ChargeSlot.Api.Services.Interfaces;
+ 
+ namespace ChargeSlot.Api.Controllers
+ {
+@@ -20,13 +21,10 @@ namespace ChargeSlot.Api.Controllers
+     [Authorize]
+     public class ChatController : ControllerBase
+     {
+-        private readonly ChargeSlotDbContext _db;
+-        private readonly IHubContext<ChatHub> _hubContext;
+-
+-        public ChatController(ChargeSlotDbContext db, IHubContext<ChatHub> hubContext)
++        private readonly IChatService _chatService;
++        public ChatController(IChatService chatService)
+         {
+-            _db = db;
+-            _hubContext = hubContext;
++            _chatService = chatService;
+         }
+ 
+         private int GetUserId()
+@@ -44,56 +42,8 @@ namespace ChargeSlot.Api.Controllers
+         {
+             var userId = GetUserId();
+ 
+-            var conversations = await _db.ChatConversations
+-                .Include(c => c.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+-                .Include(c => c.Driver)
+-                .Include(c => c.Owner)
+-                .Where(c => c.DriverUserId == userId || c.OwnerUserId == userId)
+-                .OrderByDescending(c => c.CreatedAt)
+-                .ToListAsync();
+-
+-            if (!conversations.Any())
+-                return Ok(new { total = 0, page, pageSize, items = new List<ChatConversationDto>() });
+-
+-            var convIds = conversations.Select(c => c.Id).ToList();
+-
+-            var lastMessages = await _db.ChatMessages
+-                .Where(m => convIds.Contains(m.ConversationId))
+-                .GroupBy(m => m.ConversationId)
+-                .Select(g => g.OrderByDescending(m => m.CreatedAt).First())
+-                .ToDictionaryAsync(m => m.ConversationId);
+-
+-            var unreadCounts = await _db.ChatMessages
+-                .Where(m => convIds.Contains(m.ConversationId)
+-                         && m.SenderUserId != userId
+-                         && !m.IsRead)
+-                .GroupBy(m => m.ConversationId)
+-                .Select(g => new { ConversationId = g.Key, Count = g.Count() })
+-                .ToDictionaryAsync(x => x.ConversationId, x => x.Count);
+-
+-            var allItems = conversations.Select(conv =>
+-            {
+-                var isDriver = conv.DriverUserId == userId;
+-                var otherUser = isDriver ? conv.Owner : conv.Driver;
+-                lastMessages.TryGetValue(conv.Id, out var lastMsg);
+-                unreadCounts.TryGetValue(conv.Id, out var unread);
+-
+-                return new ChatConversationDto
+-                {
+-                    Id = conv.Id,
+-                    BookingId = conv.BookingId,
+-                    StationName = conv.Booking?.ChargingSlot?.ChargingStation?.Name ?? "",
+-                    OtherUserName = otherUser?.FullName ?? "",
+-                    OtherUserId = isDriver ? conv.OwnerUserId : conv.DriverUserId,
+-                    LastMessage = lastMsg?.Content,
+-                    LastMessageAt = lastMsg?.CreatedAt,
+-                    UnreadCount = unread
+-                };
+-            }).ToList();
+-
+-            var total = allItems.Count;
+-            var items = allItems.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+-            return Ok(new { total, page, pageSize, items });
++            var result = await _chatService.GetConversationsAsync(userId, page, pageSize);
++            return Ok(result);
+         }
+ 
+         /// <summary>Lấy lịch sử chat theo bookingId (phân trang).</summary>
+@@ -105,38 +55,15 @@ namespace ChargeSlot.Api.Controllers
+         {
+             var userId = GetUserId();
+ 
+-            var conv = await _db.ChatConversations
+-                .FirstOrDefaultAsync(c => c.BookingId == bookingId);
+-
+-            if (conv == null)
+-                return Ok(new { conversationId = (int?)null, total = 0, page, pageSize, messages = new List<ChatMessageDto>() });
+-
+-            if (conv.DriverUserId != userId && conv.OwnerUserId != userId)
++            try
++            {
++                var result = await _chatService.GetMessagesAsync(userId, bookingId, page, pageSize);
++                return Ok(result);
++            }
++            catch (UnauthorizedAccessException)
++            {
+                 return Forbid();
+-
+-            var query = _db.ChatMessages
+-                .Where(m => m.ConversationId == conv.Id)
+-                .OrderByDescending(m => m.CreatedAt);
+-
+-            var total = await query.CountAsync();
+-            var messages = await query
+-                .Skip((page - 1) * pageSize)
+-                .Take(pageSize)
+-                .Select(m => new ChatMessageDto
+-                {
+-                    Id = m.Id,
+-                    SenderUserId = m.SenderUserId,
+-                    SenderName = m.Sender.FullName ?? "",
+-                    Content = m.Content,
+-                    IsRead = m.IsRead,
+-                    CreatedAt = m.CreatedAt
+-                })
+-                .ToListAsync();
+-
+-            // Reverse to show oldest first within page
+-            messages.Reverse();
+-
+-            return Ok(new { conversationId = conv.Id, total, page, pageSize, messages });
++            }
+         }
+ 
+         /// <summary>Gửi tin nhắn via REST (fallback khi không dùng SignalR). Tự tạo conversation nếu chưa có.</summary>
+@@ -145,69 +72,21 @@ namespace ChargeSlot.Api.Controllers
+         {
+             var userId = GetUserId();
+ 
+-            // Tìm booking + validate quyền
+-            var booking = await _db.Bookings
+-                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+-                .FirstOrDefaultAsync(b => b.Id == bookingId);
+-
+-            if (booking == null)
+-                return NotFound(new { message = "Booking không tồn tại." });
+-
+-            var ownerUserId = booking.ChargingSlot.ChargingStation.OwnerUserId;
+-            var driverUserId = booking.DriverUserId;
+-
+-            if (userId != driverUserId && userId != ownerUserId)
+-                return Forbid();
+-
+-            // Tìm hoặc tạo conversation
+-            var conv = await _db.ChatConversations
+-                .FirstOrDefaultAsync(c => c.BookingId == bookingId);
+-
+-            if (conv == null)
++            ChatMessageDto messageDto;
++            try
+             {
+-                conv = new ChatConversation
+-                {
+-                    BookingId = bookingId,
+-                    DriverUserId = driverUserId,
+-                    OwnerUserId = ownerUserId,
+-                    CreatedAt = DateTimeHelper.VietnamNow()
+-                };
+-                _db.ChatConversations.Add(conv);
+-                await _db.SaveChangesAsync();
++                messageDto = await _chatService.SendMessageAsync(userId, bookingId, dto);
+             }
+-
+-            // Tạo message
+-            var senderName = await _db.Users
+-                .Where(u => u.Id == userId)
+-                .Select(u => u.FullName)
+-                .FirstOrDefaultAsync() ?? "Unknown";
+-
+-            var message = new ChatMessage
++            catch (KeyNotFoundException)
+             {
+-                ConversationId = conv.Id,
+-                SenderUserId = userId,
+-                Content = dto.Content?.Trim() ?? "",
+-                IsRead = false,
+-                CreatedAt = DateTimeHelper.VietnamNow()
+-            };
+-
+-            _db.ChatMessages.Add(message);
+-            await _db.SaveChangesAsync();
+-
+-            var messageDto = new ChatMessageDto
++                return NotFound(new { message = "Booking không tồn tại." });
++            }
++            catch (UnauthorizedAccessException)
+             {
+-                Id = message.Id,
+-                SenderUserId = userId,
+-                SenderName = senderName,
+-                Content = message.Content,
+-                IsRead = false,
+-                CreatedAt = message.CreatedAt
+-            };
+-
+-            // Broadcast qua SignalR nếu có client đang listen
+-            await _hubContext.Clients.Group($"chat_{conv.Id}")
+-                .SendAsync("ReceiveMessage", messageDto);
++                return Forbid();
++            }
+ 
++            // ChatService is now handling the SignalR broadcast internally as well
+             return Ok(messageDto);
+         }
+     }
+diff --git a/ChargeSlot.Api/Controllers/FavoriteController.cs b/ChargeSlot.Api/Controllers/FavoriteController.cs
+index 2a0c937..cef68f3 100644
+--- a/ChargeSlot.Api/Controllers/FavoriteController.cs
++++ b/ChargeSlot.Api/Controllers/FavoriteController.cs
+@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
+ using Microsoft.AspNetCore.Mvc;
+ using Microsoft.EntityFrameworkCore;
+ using System.Security.Claims;
++using ChargeSlot.Api.Services.Interfaces;
+ 
+ using ChargeSlot.Api.Helpers;
+ namespace ChargeSlot.Api.Controllers
+@@ -19,11 +20,11 @@ namespace ChargeSlot.Api.Controllers
+     [Authorize(Roles = "Driver")]
+     public class FavoriteController : ControllerBase
+     {
+-        private readonly ChargeSlotDbContext _db;
++        private readonly IFavoriteService _favoriteService;
+ 
+-        public FavoriteController(ChargeSlotDbContext db)
++        public FavoriteController(IFavoriteService favoriteService)
+         {
+-            _db = db;
++            _favoriteService = favoriteService;
+         }
+ 
+         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+@@ -34,24 +35,17 @@ namespace ChargeSlot.Api.Controllers
+         {
+             var userId = GetUserId();
+ 
+-            var station = await _db.ChargingStations.FindAsync(stationId);
+-            if (station == null)
+-                return NotFound(new { message = "Trạm sạc không tồn tại." });
+-
+-            var exists = await _db.FavoriteStations
+-                .AnyAsync(f => f.DriverUserId == userId && f.StationId == stationId);
+-            if (exists)
+-                return BadRequest(new { message = "Đã có trong danh sách yêu thích." });
+-
+-            _db.FavoriteStations.Add(new FavoriteStation
++            try
+             {
+-                DriverUserId = userId,
+-                StationId = stationId,
+-                CreatedAt = DateTimeHelper.VietnamNow()
+-            });
+-            await _db.SaveChangesAsync();
+-
+-            return Ok(new { message = "Đã thêm vào yêu thích." });
++                await _favoriteService.AddFavoriteAsync(userId, stationId);
++                return Ok(new { message = "Đã thêm vào yêu thích." });
++            }
++            catch (InvalidOperationException ex)
++            {
++                if (ex.Message == "Trạm sạc không tồn tại.")
++                    return NotFound(new { message = ex.Message });
++                return BadRequest(new { message = ex.Message });
++            }
+         }
+ 
+         /// <summary>Xóa trạm khỏi yêu thích.</summary>
+@@ -60,16 +54,15 @@ namespace ChargeSlot.Api.Controllers
+         {
+             var userId = GetUserId();
+ 
+-            var fav = await _db.FavoriteStations
+-                .FirstOrDefaultAsync(f => f.DriverUserId == userId && f.StationId == stationId);
+-
+-            if (fav == null)
+-                return NotFound(new { message = "Trạm chưa có trong yêu thích." });
+-
+-            _db.FavoriteStations.Remove(fav);
+-            await _db.SaveChangesAsync();
+-
+-            return Ok(new { message = "Đã xóa khỏi yêu thích." });
++            try
++            {
++                await _favoriteService.RemoveFavoriteAsync(userId, stationId);
++                return Ok(new { message = "Đã xóa khỏi yêu thích." });
++            }
++            catch (InvalidOperationException ex)
++            {
++                return NotFound(new { message = ex.Message });
++            }
+         }
+ 
+         /// <summary>Danh sách trạm yêu thích của Driver.</summary>
+@@ -78,23 +71,7 @@ namespace ChargeSlot.Api.Controllers
+         {
+             var userId = GetUserId();
+ 
+-            var favorites = await _db.FavoriteStations
+-                .Where(f => f.DriverUserId == userId)
+-                .OrderByDescending(f => f.CreatedAt)
+-                .Select(f => new FavoriteStationDto
+-                {
+-                    StationId = f.Station.Id,
+-                    Name = f.Station.Name,
+-                    Address = f.Station.Address,
+-                    ImageUrl = f.Station.Images.FirstOrDefault() != null
+-                        ? f.Station.Images.First().ImageUrl : null,
+-                    AverageRating = f.Station.AverageRating,
+-                    TotalReviews = f.Station.TotalReviews,
+-                    IsFavorite = true,
+-                    FavoritedAt = f.CreatedAt
+-                })
+-                .ToListAsync();
+-
++            var favorites = await _favoriteService.GetMyFavoritesAsync(userId);
+             return Ok(favorites);
+         }
+ 
+@@ -105,42 +82,7 @@ namespace ChargeSlot.Api.Controllers
+         [AllowAnonymous]
+         public async Task<IActionResult> GetTopFavorites([FromQuery] int limit = 10)
+         {
+-            var topStations = await _db.FavoriteStations
+-                .Where(f => f.Station.ApprovalStatus == ApprovalStatus.Approved
+-                    && f.Station.OperationalStatus == OperationalStatus.Active)
+-                .GroupBy(f => f.StationId)
+-                .Select(g => new
+-                {
+-                    StationId = g.Key,
+-                    FavoriteCount = g.Count()
+-                })
+-                .OrderByDescending(x => x.FavoriteCount)
+-                .Take(limit)
+-                .ToListAsync();
+-
+-            var stationIds = topStations.Select(t => t.StationId).ToList();
+-
+-            var stations = await _db.ChargingStations
+-                .Include(s => s.Images)
+-                .Where(s => stationIds.Contains(s.Id))
+-                .ToListAsync();
+-
+-            var result = topStations.Select((t, index) =>
+-            {
+-                var station = stations.First(s => s.Id == t.StationId);
+-                return new TopFavoriteStationDto
+-                {
+-                    Rank = index + 1,
+-                    StationId = station.Id,
+-                    Name = station.Name,
+-                    Address = station.Address,
+-                    ImageUrl = station.Images.FirstOrDefault()?.ImageUrl,
+-                    AverageRating = station.AverageRating,
+-                    TotalReviews = station.TotalReviews,
+-                    FavoriteCount = t.FavoriteCount
+-                };
+-            }).ToList();
+-
++            var result = await _favoriteService.GetTopFavoritesAsync(limit);
+             return Ok(result);
+         }
+ 
+@@ -149,8 +91,7 @@ namespace ChargeSlot.Api.Controllers
+         public async Task<IActionResult> CheckFavorite(int stationId)
+         {
+             var userId = GetUserId();
+-            var isFavorite = await _db.FavoriteStations
+-                .AnyAsync(f => f.DriverUserId == userId && f.StationId == stationId);
++            var isFavorite = await _favoriteService.CheckFavoriteAsync(userId, stationId);
+             return Ok(new { isFavorite });
+         }
+     }
+diff --git a/ChargeSlot.Api/Controllers/LoyaltyController.cs b/ChargeSlot.Api/Controllers/LoyaltyController.cs
+index e29fc4f..9755241 100644
+--- a/ChargeSlot.Api/Controllers/LoyaltyController.cs
++++ b/ChargeSlot.Api/Controllers/LoyaltyController.cs
+@@ -5,6 +5,7 @@ using ChargeSlot.Api.Data;
+ using Microsoft.AspNetCore.Authorization;
+ using Microsoft.AspNetCore.Mvc;
+ using Microsoft.EntityFrameworkCore;
++using ChargeSlot.Api.Services.Interfaces;
+ 
+ namespace ChargeSlot.Api.Controllers
+ {
+@@ -16,11 +17,11 @@ namespace ChargeSlot.Api.Controllers
+     [Authorize(Roles = RoleConstants.Driver)]
+     public class LoyaltyController : ControllerBase
+     {
+-        private readonly ChargeSlotDbContext _db;
++        private readonly ILoyaltyService _loyaltyService;
+ 
+-        public LoyaltyController(ChargeSlotDbContext db)
++        public LoyaltyController(ILoyaltyService loyaltyService)
+         {
+-            _db = db;
++            _loyaltyService = loyaltyService;
+         }
+ 
+         private int GetUserId()
+@@ -36,38 +37,15 @@ namespace ChargeSlot.Api.Controllers
+         {
+             var userId = GetUserId();
+ 
+-            var driver = await _db.Driver.FirstOrDefaultAsync(d => d.UserId == userId);
+-            if (driver == null) return NotFound(new { message = "Driver profile không tồn tại." });
+-
+-            // Load config
+-            var earnRateConfig = await _db.SystemConfigs.FindAsync("LoyaltyEarnRate");
+-            var maxRedeemConfig = await _db.SystemConfigs.FindAsync("LoyaltyMaxRedeemRate");
+-            var earnRate = decimal.TryParse(earnRateConfig?.Value, out var er) ? er : 0.05m;
+-            var maxRedeemRate = decimal.TryParse(maxRedeemConfig?.Value, out var mr) ? mr : 0.5m;
+-
+-            // Lịch sử 20 giao dịch gần nhất
+-            var history = await _db.LoyaltyTransactions
+-                .Where(t => t.DriverUserId == userId)
+-                .OrderByDescending(t => t.CreatedAt)
+-                .Take(20)
+-                .Select(t => new LoyaltyTransactionDto
+-                {
+-                    Id = t.Id,
+-                    BookingId = t.BookingId,
+-                    Type = t.Type,
+-                    Points = t.Points,
+-                    Description = t.Description,
+-                    CreatedAt = t.CreatedAt
+-                })
+-                .ToListAsync();
+-
+-            return Ok(new LoyaltyInfoDto
++            try
++            {
++                var info = await _loyaltyService.GetLoyaltyInfoAsync(userId);
++                return Ok(info);
++            }
++            catch (InvalidOperationException ex)
+             {
+-                CurrentPoints = driver.LoyaltyPoints,
+-                EarnRate = earnRate,
+-                MaxRedeemRate = maxRedeemRate,
+-                RecentHistory = history
+-            });
++                return NotFound(new { message = ex.Message });
++            }
+         }
+     }
+ }
+diff --git a/ChargeSlot.Api/Controllers/NotificationController.cs b/ChargeSlot.Api/Controllers/NotificationController.cs
+index e649651..9e7a720 100644
+--- a/ChargeSlot.Api/Controllers/NotificationController.cs
++++ b/ChargeSlot.Api/Controllers/NotificationController.cs
+@@ -11,10 +11,12 @@ namespace ChargeSlot.Api.Controllers
+     public class NotificationController : ControllerBase
+     {
+         private readonly INotificationRepository _notificationRepo;
++        private readonly IUnitOfWork _unitOfWork;
+ 
+-        public NotificationController(INotificationRepository notificationRepo)
++        public NotificationController(INotificationRepository notificationRepo, IUnitOfWork unitOfWork)
+         {
+             _notificationRepo = notificationRepo;
++            _unitOfWork = unitOfWork;
+         }
+ 
+         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+@@ -67,8 +69,11 @@ namespace ChargeSlot.Api.Controllers
+             if (notification.UserId != GetUserId()) return Forbid();
+ 
+             notification.IsRead = true;
+-            await _notificationRepo.UpdateAsync(notification);
++            _notificationRepo.Update(notification);
++            await _unitOfWork.CompleteAsync();
+             return Ok(new { message = "Đã đánh dấu đã đọc." });
+         }
+     }
+ }
++
++
+diff --git a/ChargeSlot.Api/Controllers/PublicStationController.cs b/ChargeSlot.Api/Controllers/PublicStationController.cs
+index fea909e..c686dce 100644
+--- a/ChargeSlot.Api/Controllers/PublicStationController.cs
++++ b/ChargeSlot.Api/Controllers/PublicStationController.cs
+@@ -17,11 +17,11 @@ namespace ChargeSlot.Api.Controllers
+     [Route("api/public/stations")]
+     public class PublicStationController : ControllerBase
+     {
+-        private readonly Data.ChargeSlotDbContext _db;
++        private readonly ChargeSlot.Api.Services.Interfaces.IPublicStationService _publicStationService;
+ 
+-        public PublicStationController(Data.ChargeSlotDbContext db)
++        public PublicStationController(ChargeSlot.Api.Services.Interfaces.IPublicStationService publicStationService)
+         {
+-            _db = db;
++            _publicStationService = publicStationService;
+         }
+ 
+         /// <summary>
+@@ -43,144 +43,10 @@ namespace ChargeSlot.Api.Controllers
+             [FromQuery] int page = 1,
+             [FromQuery] int pageSize = 20)
+         {
+-            var query = _db.ChargingStations
+-                .Include(s => s.Images)
+-                .Include(s => s.OperatingHours)
+-                .Include(s => s.ChargingSlots)
+-                .Include(s => s.StationPricings)
+-                .Include(s => s.ExtraServices)
+-                .Include(s => s.UnavailableDates)
+-                .Where(s => s.ApprovalStatus == ApprovalStatus.Approved
+-                    && s.OperationalStatus == OperationalStatus.Active
+-                    && s.Owner.User.Status == UserStatusConstants.Active);
++            var result = await _publicStationService.GetAllAsync(
++                keyword, minRating, lat, lng, radiusKm, startTime, endTime, sortBy, page, pageSize);
+ 
+-            // Filter by keyword (tên hoặc địa chỉ)
+-            if (!string.IsNullOrWhiteSpace(keyword))
+-            {
+-                var kw = keyword.ToLower();
+-                query = query.Where(s => s.Name.ToLower().Contains(kw) || s.Address.ToLower().Contains(kw));
+-            }
+-
+-            // Filter by minimum rating
+-            if (minRating.HasValue)
+-            {
+-                query = query.Where(s => s.AverageRating >= minRating.Value);
+-            }
+-
+-            var rawStations = await query.ToListAsync();
+-
+-            // ─── LỌC THEO THỜI GIAN (Availability Filtering) ───
+-            var now = DateTimeHelper.VietnamNow();
+-            DateTime filterStart = startTime ?? now;
+-            DateTime filterEnd = endTime ?? (startTime.HasValue ? startTime.Value.AddHours(1) : new DateTime(now.Year, now.Month, now.Day, 23, 59, 59));
+-
+-            // Đưa Start và End về đúng trình tự nếu truyền ngược
+-            if (filterStart > filterEnd) (filterStart, filterEnd) = (filterEnd, filterStart);
+-
+-            // Query Overlapping Bookings trực tiếp từ Database cho tất cả các trạm hợp lệ
+-            var stationIds = rawStations.Select(s => s.Id).ToList();
+-            var activeStatuses = new[]
+-            {
+-                BookingStatus.PendingPayment, BookingStatus.Paid, BookingStatus.CheckedIn,
+-                BookingStatus.InProgress, BookingStatus.CompletedPendingInvoice, BookingStatus.Completed
+-            };
+-
+-            var overlappingBookings = await _db.Bookings
+-                .Include(b => b.ChargingSession)
+-                .Where(b => stationIds.Contains(b.ChargingSlot.StationId)
+-                    && activeStatuses.Contains(b.Status)
+-                    && b.StartTime < filterEnd.AddMinutes(15) // +15 phút đệm
+-                    && (b.ChargingSession != null && b.ChargingSession.ActualEndTime != null
+-                            ? b.ChargingSession.ActualEndTime.Value
+-                            : b.EndTime).AddMinutes(15) > filterStart)
+-                .ToListAsync();
+-
+-            var availableStations = new List<(ChargingStation station, int availableSlots)>();
+-
+-            foreach (var station in rawStations)
+-            {
+-                // Kiểm tra UnavailableDates
+-                var isUnavailable = false;
+-                for (var d = filterStart.Date; d <= filterEnd.Date; d = d.AddDays(1))
+-                {
+-                    if (station.UnavailableDates.Any(ud => ud.Date == DateOnly.FromDateTime(d)))
+-                    {
+-                        isUnavailable = true;
+-                        break;
+-                    }
+-                }
+-                // Tạm bỏ qua check OperatingHours phức tạp vì yêu cầu không nhắc tới cụ thể giờ nghỉ trạm, chủ yếu là Booking overlap.
+-                if (isUnavailable) continue;
+-
+-                var stationSlots = station.ChargingSlots.Where(s => s.Status == SlotStatus.Active).ToList();
+-                int availableCount = 0;
+-
+-                foreach (var slot in stationSlots)
+-                {
+-                    bool isSlotBooked = overlappingBookings.Any(b => b.SlotId == slot.Id);
+-                    if (!isSlotBooked) availableCount++;
+-                }
+-
+-                // Giữ lại trạm nếu có ít nhất 1 slot trống trong khoảng thời gian
+-                if (availableCount > 0)
+-                {
+-                    availableStations.Add((station, availableCount));
+-                }
+-            }
+-
+-            // ─── LỌC VÀ TÍNH KHOẢNG CÁCH KÉP TỌA ĐỘ ───
+-            List<(ChargingStation station, double? distanceKm, int availableSlots)> stationsWithCalculations;
+-            if (lat.HasValue && lng.HasValue)
+-            {
+-                stationsWithCalculations = availableStations
+-                    .Where(x => x.station.Latitude.HasValue && x.station.Longitude.HasValue)
+-                    .Select(x => (x.station, distanceKm: (double?)HaversineKm(lat.Value, lng.Value, (double)x.station.Latitude!.Value, (double)x.station.Longitude!.Value), x.availableSlots))
+-                    .Where(x => x.distanceKm <= radiusKm)
+-                    .ToList();
+-
+-                // Thêm lại các trạm không có tọa độ
+-                var noCoordStations = availableStations
+-                    .Where(x => !x.station.Latitude.HasValue || !x.station.Longitude.HasValue)
+-                    .Select(x => (x.station, distanceKm: (double?)null, x.availableSlots));
+-                stationsWithCalculations.AddRange(noCoordStations);
+-            }
+-            else
+-            {
+-                stationsWithCalculations = availableStations.Select(x => (x.station, distanceKm: (double?)null, x.availableSlots)).ToList();
+-            }
+-
+-            // Sort
+-            stationsWithCalculations = sortBy?.ToLower() switch
+-            {
+-                "distance" when lat.HasValue && lng.HasValue =>
+-                    stationsWithCalculations.OrderBy(x => x.distanceKm ?? double.MaxValue).ToList(),
+-                "rating" =>
+-                    stationsWithCalculations.OrderByDescending(x => x.station.AverageRating)
+-                        .ThenByDescending(x => x.station.TotalReviews).ToList(),
+-                "reviews" =>
+-                    stationsWithCalculations.OrderByDescending(x => x.station.TotalReviews)
+-                        .ThenByDescending(x => x.station.AverageRating).ToList(),
+-                _ when lat.HasValue && lng.HasValue =>
+-                    stationsWithCalculations.OrderBy(x => x.distanceKm ?? double.MaxValue).ToList(),
+-                _ =>
+-                    stationsWithCalculations.OrderBy(x => x.station.Name).ToList()
+-            };
+-
+-            // Pagination
+-            var total = stationsWithCalculations.Count;
+-            var items = stationsWithCalculations
+-                .Skip((page - 1) * pageSize)
+-                .Take(pageSize)
+-                .Select(x =>
+-                {
+-                    var dto = MapToPublicDto(x.station);
+-                    dto.DistanceKm = x.distanceKm.HasValue ? Math.Round(x.distanceKm.Value, 2) : null;
+-                    dto.AvailableSlotsCount = x.availableSlots;
+-                    return dto;
+-                })
+-                .ToList();
+-
+-            return Ok(new { total, page, pageSize, items });
++            return Ok(result);
+         }
+ 
+         /// <summary>
+@@ -194,39 +60,7 @@ namespace ChargeSlot.Api.Controllers
+             [FromQuery] double radiusKm = 10,
+             [FromQuery] int top = 10)
+         {
+-            var stations = await _db.ChargingStations
+-                .Include(s => s.Images)
+-                .Include(s => s.ChargingSlots)
+-                .Where(s => s.ApprovalStatus == ApprovalStatus.Approved
+-                    && s.OperationalStatus == OperationalStatus.Active
+-                    && s.Latitude.HasValue && s.Longitude.HasValue)
+-                .ToListAsync();
+-
+-            var nearby = stations
+-                .Select(s => new
+-                {
+-                    Station = s,
+-                    DistanceKm = HaversineKm(lat, lng, (double)s.Latitude!.Value, (double)s.Longitude!.Value)
+-                })
+-                .Where(x => x.DistanceKm <= radiusKm)
+-                .OrderBy(x => x.DistanceKm)
+-                .Take(top)
+-                .Select(x => new
+-                {
+-                    x.Station.Id,
+-                    x.Station.Name,
+-                    x.Station.Address,
+-                    x.Station.Latitude,
+-                    x.Station.Longitude,
+-                    DistanceKm = Math.Round(x.DistanceKm, 2),
+-                    AvailableSlots = x.Station.ChargingSlots.Count(sl => sl.Status == SlotStatus.Active),
+-                    TotalSlots = x.Station.ChargingSlots.Count,
+-                    x.Station.AverageRating,
+-                    x.Station.TotalReviews,
+-                    ThumbnailUrl = x.Station.Images.FirstOrDefault()?.ImageUrl
+-                })
+-                .ToList();
+-
++            var nearby = await _publicStationService.GetNearbyAsync(lat, lng, radiusKm, top);
+             return Ok(nearby);
+         }
+ 
+@@ -234,106 +68,10 @@ namespace ChargeSlot.Api.Controllers
+         [HttpGet("{id}")]
+         public async Task<IActionResult> GetById(int id)
+         {
+-            var station = await _db.ChargingStations
+-                .Include(s => s.Images)
+-                .Include(s => s.OperatingHours)
+-                .Include(s => s.ChargingSlots)
+-                .Include(s => s.StationPricings)
+-                .Include(s => s.ExtraServices)
+-                .FirstOrDefaultAsync(s => s.Id == id
+-                    && s.ApprovalStatus == ApprovalStatus.Approved
+-                    && s.OperationalStatus == OperationalStatus.Active
+-                    && s.Owner.User.Status == UserStatusConstants.Active);
+-
+-            if (station == null) return NotFound(new { message = "Trạm sạc không tồn tại hoặc chưa hoạt động." });
+-
+-            return Ok(MapToPublicDto(station));
+-        }
+-
+-        private static ChargingStationDto MapToPublicDto(ChargingStation station)
+-        {
+-            return new ChargingStationDto
+-            {
+-                Id = station.Id,
+-                OwnerUserId = station.OwnerUserId,
+-                Name = station.Name,
+-                Address = station.Address,
+-                Description = station.Description,
+-                Latitude = station.Latitude,
+-                Longitude = station.Longitude,
+-                LayoutImageUrl = station.LayoutImageUrl,
+-                LayoutWidth = station.LayoutWidth,
+-                LayoutHeight = station.LayoutHeight,
+-                ApprovalStatus = station.ApprovalStatus.ToString(),
+-                OperationalStatus = station.OperationalStatus.ToString(),
+-                CreatedAt = station.CreatedAt,
+-                Images = station.Images.Select(i => new StationImageDto
+-                {
+-                    Id = i.Id,
+-                    ImageUrl = i.ImageUrl
+-                }).ToList(),
+-                OperatingHours = station.OperatingHours.Select(h => new OperatingHoursDto
+-                {
+-                    DayOfWeek = h.DayOfWeek,
+-                    IsClosed = h.IsClosed,
+-                    OpenTime = h.OpenTime,
+-                    CloseTime = h.CloseTime
+-                }).ToList(),
+-                ChargingSlots = station.ChargingSlots.Select(s => new ChargingSlotDto
+-                {
+-                    Id = s.Id,
+-                    StationId = s.StationId,
+-                    SlotName = s.SlotName,
+-                    PositionX = s.PositionX,
+-                    PositionY = s.PositionY,
+-                    Status = s.Status.ToString(),
+-                    CreatedAt = s.CreatedAt,
+-                    UpdatedAt = s.UpdatedAt
+-                    // Note: không expose QrCodeToken cho public API
+-                }).ToList(),
+-                PricingTiers = station.StationPricings?.Where(p => p.IsActive).Select(p => new StationPricingDto
+-                {
+-                    Id = p.Id,
+-                    StationId = p.StationId,
+-                    DayOfWeek = p.DayOfWeek,
+-                    StartTime = p.StartTime,
+-                    EndTime = p.EndTime,
+-                    PricePerHour = p.PricePerHour,
+-                    Priority = p.Priority,
+-                    EffectiveFrom = p.EffectiveFrom,
+-                    EffectiveTo = p.EffectiveTo,
+-                    IsActive = p.IsActive,
+-                    CreatedAt = p.CreatedAt
+-                }).OrderBy(p => p.StartTime).ToList() ?? new(),
+-                ExtraServices = station.ExtraServices?.Where(es => es.IsActive).Select(es => new ExtraServiceDto
+-                {
+-                    Id = es.Id,
+-                    ServiceName = es.ServiceName,
+-                    Description = es.Description,
+-                    Price = es.Price,
+-                    TotalStock = es.TotalStock,
+-                    IsActive = es.IsActive
+-                }).ToList() ?? new(),
+-                AverageRating = station.AverageRating,
+-                TotalReviews = station.TotalReviews
+-            };
+-        }
++            var result = await _publicStationService.GetByIdAsync(id);
++            if (result == null) return NotFound(new { message = "Trạm sạc không tồn tại hoặc chưa hoạt động." });
+ 
+-        /// <summary>
+-        /// Haversine formula — tính khoảng cách (km) giữa 2 tọa độ GPS.
+-        /// </summary>
+-        private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+-        {
+-            const double R = 6371; // Bán kính Trái Đất (km)
+-            var dLat = ToRad(lat2 - lat1);
+-            var dLon = ToRad(lon2 - lon1);
+-            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+-                  + Math.Cos(ToRad(lat1)) * Math.Cos(ToRad(lat2))
+-                  * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+-            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+-            return R * c;
++            return Ok(result);
+         }
+-
+-        private static double ToRad(double deg) => deg * Math.PI / 180;
+     }
+ }

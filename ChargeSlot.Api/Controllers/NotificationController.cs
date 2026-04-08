@@ -11,10 +11,12 @@ namespace ChargeSlot.Api.Controllers
     public class NotificationController : ControllerBase
     {
         private readonly INotificationRepository _notificationRepo;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public NotificationController(INotificationRepository notificationRepo)
+        public NotificationController(INotificationRepository notificationRepo, IUnitOfWork unitOfWork)
         {
             _notificationRepo = notificationRepo;
+            _unitOfWork = unitOfWork;
         }
 
         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -67,8 +69,11 @@ namespace ChargeSlot.Api.Controllers
             if (notification.UserId != GetUserId()) return Forbid();
 
             notification.IsRead = true;
-            await _notificationRepo.UpdateAsync(notification);
+            _notificationRepo.Update(notification);
+            await _unitOfWork.CompleteAsync();
             return Ok(new { message = "Đã đánh dấu đã đọc." });
         }
     }
 }
+
+

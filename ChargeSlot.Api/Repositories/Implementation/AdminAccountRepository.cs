@@ -1,9 +1,9 @@
-﻿using ChargeSlot.Api.Models.Identity;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace ChargeSlot.Api.Repositories.Implementations
+namespace ChargeSlot.Api.Repositories.Implementation
 {
     public class AdminAccountRepository : IAdminAccountRepository
     {
@@ -58,6 +58,12 @@ namespace ChargeSlot.Api.Repositories.Implementations
             return await _userManager.Users
                 .AsNoTracking()
                 .ToListAsync();
+        }
+
+        public async Task<List<int>> GetAdminUserIdsAsync()
+        {
+            var admins = await _userManager.GetUsersInRoleAsync(ChargeSlot.Api.Constants.RoleConstants.Admin);
+            return admins.Select(a => a.Id).ToList();
         }
     }
 }

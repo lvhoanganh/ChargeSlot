@@ -1,11 +1,10 @@
 using System.Security.Claims;
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Chat;
 using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Repositories.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 
 namespace ChargeSlot.Api.Hubs
 {
@@ -16,11 +15,15 @@ namespace ChargeSlot.Api.Hubs
     [Authorize]
     public class ChatHub : Hub
     {
-        private readonly ChargeSlotDbContext _db;
+        private readonly IChatRepository _chatRepo;
+        private readonly IUserRepository _userRepo;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public ChatHub(ChargeSlotDbContext db)
+        public ChatHub(IChatRepository chatRepo, IUserRepository userRepo, IUnitOfWork unitOfWork)
         {
-            _db = db;
+            _chatRepo = chatRepo;
+            _userRepo = userRepo;
+            _unitOfWork = unitOfWork;
         }
 
         private int GetUserId()
@@ -34,7 +37,7 @@ namespace ChargeSlot.Api.Hubs
         public async Task JoinConversation(int conversationId)
         {
             var userId = GetUserId();
-            var conv = await _db.ChatConversations.FindAsync(conversationId)
+            var conv = await _chatRepo.GetConversationByIdAsync(conversationId)
                 ?? throw new HubException("Conversation không tồn tại.");
 
             // Chỉ cho phép Driver hoặc Owner trong conversation
@@ -57,16 +60,13 @@ namespace ChargeSlot.Api.Hubs
                 throw new HubException("Nội dung tin nhắn không hợp lệ (1-1000 ký tự).");
 
             var userId = GetUserId();
-            var conv = await _db.ChatConversations.FindAsync(conversationId)
+            var conv = await _chatRepo.GetConversationByIdAsync(conversationId)
                 ?? throw new HubException("Conversation không tồn tại.");
 
             if (conv.DriverUserId != userId && conv.OwnerUserId != userId)
                 throw new HubException("Bạn không có quyền gửi tin nhắn trong conversation này.");
 
-            var senderName = await _db.Users
-                .Where(u => u.Id == userId)
-                .Select(u => u.FullName)
-                .FirstOrDefaultAsync() ?? "Unknown";
+            var senderName = await _userRepo.GetFullNameAsync(userId) ?? "Unknown";
 
             var message = new ChatMessage
             {
@@ -77,8 +77,8 @@ namespace ChargeSlot.Api.Hubs
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
 
-            _db.ChatMessages.Add(message);
-            await _db.SaveChangesAsync();
+            _chatRepo.AddMessage(message);
+            await _unitOfWork.CompleteAsync();
 
             var dto = new ChatMessageDto
             {
@@ -97,23 +97,15 @@ namespace ChargeSlot.Api.Hubs
         public async Task MarkAsRead(int conversationId)
         {
             var userId = GetUserId();
-            var conv = await _db.ChatConversations.FindAsync(conversationId)
+            var conv = await _chatRepo.GetConversationByIdAsync(conversationId)
                 ?? throw new HubException("Conversation không tồn tại.");
 
             if (conv.DriverUserId != userId && conv.OwnerUserId != userId)
                 throw new HubException("Bạn không có quyền.");
 
             // Đánh dấu tin nhắn của người kia là đã đọc
-            var unreadMessages = await _db.ChatMessages
-                .Where(m => m.ConversationId == conversationId
-                         && m.SenderUserId != userId
-                         && !m.IsRead)
-                .ToListAsync();
-
-            foreach (var msg in unreadMessages)
-                msg.IsRead = true;
-
-            await _db.SaveChangesAsync();
+            await _chatRepo.MarkMessagesAsReadAsync(conversationId, userId);
+            await _unitOfWork.CompleteAsync();
 
             // Notify group rằng tin nhắn đã đọc
             await Clients.Group($"chat_{conversationId}")

@@ -44,6 +44,44 @@ namespace ChargeSlot.Api.Controllers
             }
         }
 
+        // GET: api/AdminAccounts/owner/{id}
+        [HttpGet("owner/{id:int}")]
+        public async Task<IActionResult> GetOwnerDetail(int id)
+        {
+            try
+            {
+                var result = await _adminAccountService.GetOwnerDetailAsync(id);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi tải chi tiết tài khoản." });
+            }
+        }
+
+        // GET: api/AdminAccounts/driver/{id}
+        [HttpGet("driver/{id:int}")]
+        public async Task<IActionResult> GetDriverDetail(int id)
+        {
+            try
+            {
+                var result = await _adminAccountService.GetDriverDetailAsync(id);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi tải chi tiết tài khoản." });
+            }
+        }
+
         // PATCH: api/AdminAccounts/{id}/toggle-ban
         [HttpPatch("{id:int}/toggle-ban")]
         public async Task<IActionResult> ToggleBan([FromRoute] int id)

@@ -14,7 +14,13 @@ namespace ChargeSlot.Api.Services.Implementation
     public class DisputeService : IDisputeService
     {
         private readonly INotificationService _notificationService;
-        private readonly Data.ChargeSlotDbContext _db;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IDisputeRepository _disputeRepo;
+        private readonly IBookingRepository _bookingRepo;
+        private readonly IInvoiceRepository _invoiceRepo;
+        private readonly IWalletRepository _walletRepo;
+        private readonly ILedgerTransactionRepository _ledgerRepo;
+        private readonly IChargingStationRepository _stationRepo;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IFileStorageService _fileStorageService;
         private readonly Lazy<IBookingService> _lazyBookingService;
@@ -25,13 +31,25 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public DisputeService(
             INotificationService notificationService,
-            Data.ChargeSlotDbContext db,
+            IUnitOfWork unitOfWork,
+            IDisputeRepository disputeRepo,
+            IBookingRepository bookingRepo,
+            IInvoiceRepository invoiceRepo,
+            IWalletRepository walletRepo,
+            ILedgerTransactionRepository ledgerRepo,
+            IChargingStationRepository stationRepo,
             UserManager<ApplicationUser> userManager,
             IFileStorageService fileStorageService,
             IServiceProvider serviceProvider)
         {
             _notificationService = notificationService;
-            _db = db;
+            _unitOfWork = unitOfWork;
+            _disputeRepo = disputeRepo;
+            _bookingRepo = bookingRepo;
+            _invoiceRepo = invoiceRepo;
+            _walletRepo = walletRepo;
+            _ledgerRepo = ledgerRepo;
+            _stationRepo = stationRepo;
             _userManager = userManager;
             _fileStorageService = fileStorageService;
             _lazyBookingService = new Lazy<IBookingService>(() => serviceProvider.GetRequiredService<IBookingService>());
@@ -45,13 +63,10 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<DisputeDto> SubmitDisputeAsync(int driverUserId, CreateDisputeDto dto)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
-                var booking = await _db.Bookings
-                    .Include(b => b.Driver).ThenInclude(d => d.User)
-                    .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                    .FirstOrDefaultAsync(b => b.Id == dto.BookingId)
+                var booking = await _bookingRepo.GetByIdWithDetailsAsync(dto.BookingId)
                     ?? throw new InvalidOperationException("Booking không tồn tại.");
 
                 if (booking.DriverUserId != driverUserId)
@@ -61,7 +76,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     throw new InvalidOperationException("Chỉ có thể khiếu nại khi booking đang chờ xác nhận hóa đơn.");
 
                 // Check if dispute already exists
-                var existing = await _db.Disputes.AnyAsync(d => d.BookingId == dto.BookingId);
+                var existing = await _disputeRepo.HasDisputeForBookingAsync(dto.BookingId);
                 if (existing)
                     throw new InvalidOperationException("Đã có khiếu nại cho booking này.");
 
@@ -70,13 +85,12 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 // Rate limit: max disputes/driver/tháng (dùng config thay hardcode)
                 var monthStart = new DateTime(DateTimeHelper.VietnamNow().Year, DateTimeHelper.VietnamNow().Month, 1);
-                var disputeCountThisMonth = await _db.Disputes
-                    .CountAsync(d => d.CreatedByUserId == driverUserId && d.CreatedAt >= monthStart);
+                var disputeCountThisMonth = await _disputeRepo.GetDisputeCountByDriverInMonthAsync(driverUserId, monthStart);
                 if (disputeCountThisMonth >= configs.Dispute_Limit_Per_Month)
                     throw new InvalidOperationException($"Bạn đã đạt giới hạn {configs.Dispute_Limit_Per_Month} khiếu nại/tháng. Vui lòng liên hệ hotline nếu cần hỗ trợ thêm.");
 
                 // Get invoice
-                var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.BookingId == dto.BookingId);
+                var invoice = await _invoiceRepo.GetByBookingIdAsync(dto.BookingId);
 
                 // Create dispute
                 var dispute = new Dispute
@@ -92,7 +106,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     CreatedAt = DateTimeHelper.VietnamNow()
                 };
 
-                _db.Disputes.Add(dispute);
+                _disputeRepo.Add(dispute);
 
                 // Freeze payment: invoice → UnderDispute
                 if (invoice != null)
@@ -106,12 +120,12 @@ namespace ChargeSlot.Api.Services.Implementation
                 booking.UpdatedAt = DateTimeHelper.VietnamNow();
 
                 // Freeze ESCROW balance (Atomic SQL update)
-                var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-                await _db.Database.ExecuteSqlRawSafeAsync(
+                var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
+                await _unitOfWork.ExecuteSqlRawSafeAsync(
                     "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0}, FrozenBalance = FrozenBalance + {0} WHERE Id = {1}",
-                    booking.TotalAmount, escrowWallet.Id);
+                    booking.TotalAmount, escrowWallet!.Id);
 
-                await _db.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
                 await transaction.CommitAsync();
 
                 // Evidence upload + notifications ngoài transaction
@@ -152,11 +166,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<DisputeDto> SubmitOwnerEvidenceAsync(int ownerUserId, int disputeId, OwnerEvidenceDto dto)
         {
-            var dispute = await _db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Evidences)
-                .FirstOrDefaultAsync(d => d.Id == disputeId)
+            var dispute = await _disputeRepo.GetByIdWithDetailsAsync(disputeId)
                 ?? throw new InvalidOperationException("Khiếu nại không tồn tại.");
 
             // Validate owner
@@ -180,7 +190,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 await SaveEvidenceFilesAsync(dispute, dto.Files, ownerUserId);
             }
 
-            await _db.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             // Notify Driver: Owner đã phản hồi
             await _notificationService.SendAsync(
@@ -213,18 +223,10 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<DisputeDto> ResolveDisputeAsync(int adminUserId, int disputeId, ResolveDisputeDto dto)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
-                var dispute = await _db.Disputes
-                    .Include(d => d.Booking)
-                        .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                    .Include(d => d.Booking)
-                        .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
-                    .Include(d => d.Invoice)
-                    .Include(d => d.CreatedByUser)
-                    .Include(d => d.Evidences)
-                    .FirstOrDefaultAsync(d => d.Id == disputeId)
+                var dispute = await _disputeRepo.GetByIdWithDetailsAsync(disputeId)
                     ?? throw new InvalidOperationException("Khiếu nại không tồn tại.");
 
                 if (dispute.Status != DisputeStatus.PendingReview && dispute.Status != DisputeStatus.WaitingOwnerEvidence)
@@ -249,7 +251,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 dispute.Booking.Status = BookingStatus.Completed;
                 dispute.Booking.UpdatedAt = now;
 
-                await _db.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
 
                 // ── WALLET SETTLEMENT ──
                 if (dto.IsDriverWin)
@@ -272,10 +274,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     // Driver thua
                     var driverUserIdLocal = dispute.CreatedByUserId;
-                    var driverLoseCount = await _db.Disputes
-                        .CountAsync(d => d.CreatedByUserId == driverUserIdLocal
-                                      && d.ResolvedAt >= startOfMonth
-                                      && d.Status == DisputeStatus.ResolvedPayout); // ResolvedPayout = Owner win
+                    var driverLoseCount = await _disputeRepo.GetDriverLoseCountInMonthAsync(driverUserIdLocal, startOfMonth);
                                       
                     if (driverLoseCount >= 3)
                     {
@@ -298,8 +297,8 @@ namespace ChargeSlot.Api.Services.Implementation
                                 driverUser.BannedUntil = null;
                                 await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị khóa vĩnh viễn", "Tài khoản bị khóa vĩnh viễn do lạm dụng bộ phận CSKH nhiều lần.", NotificationType.System);
                             }
-                            _db.Users.Update(driverUser);
-                            await _db.SaveChangesAsync();
+                            
+                            await _userManager.UpdateAsync(driverUser);
 
                             await CancelDriverBookingsAsync(driverUserIdLocal, "Tài xế bị hệ thống khóa tài khoản.");
                         }
@@ -309,10 +308,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     // Station thua
                     var stationId = dispute.Booking.ChargingSlot?.StationId ?? 0;
-                    var stationLoseCount = await _db.Disputes
-                        .CountAsync(d => d.Booking.ChargingSlot.StationId == stationId
-                                      && d.ResolvedAt >= startOfMonth
-                                      && d.Status == DisputeStatus.ResolvedRefund); // ResolvedRefund = Driver win
+                    var stationLoseCount = await _disputeRepo.GetStationLoseCountInMonthAsync(stationId, startOfMonth);
                                       
                     if (stationLoseCount >= 5)
                     {
@@ -334,9 +330,9 @@ namespace ChargeSlot.Api.Services.Implementation
                                 station.BannedUntil = null;
                                 await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị khóa vĩnh viễn", $"Trạm {station.Name} bị khóa vĩnh viễn do chất lượng dịch vụ không đạt yêu cầu tái phạm.", NotificationType.System);
                             }
-                            _db.ChargingStations.Update(station);
-                            await _db.SaveChangesAsync(); // Auto commit
-
+                            _stationRepo.Update(station);
+                            await _unitOfWork.CompleteAsync(); // Auto commit
+                            
                             await CancelStationBookingsAsync(stationId, "Trạm sạc bị hệ thống đình chỉ do vi phạm chất lượng.");
                         }
                     }
@@ -380,10 +376,10 @@ namespace ChargeSlot.Api.Services.Implementation
         private async Task RefundToDriverAsync(Booking booking, Dispute dispute)
         {
             var now = DateTimeHelper.VietnamNow();
-            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
+            var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
 
             // Get or create Driver wallet
-            var driverWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == booking.DriverUserId);
+            var driverWallet = await _walletRepo.GetByUserIdAsync(booking.DriverUserId);
             if (driverWallet == null)
             {
                 driverWallet = new Wallet
@@ -394,17 +390,17 @@ namespace ChargeSlot.Api.Services.Implementation
                     FrozenBalance = 0,
                     CreatedAt = now
                 };
-                _db.Wallets.Add(driverWallet);
-                await _db.SaveChangesAsync();
+                _walletRepo.Add(driverWallet);
+                await _unitOfWork.CompleteAsync();
             }
 
             var refundAmount = booking.TotalAmount;
 
             // Unfreeze from ESCROW.FrozenBalance (Atomic SQL update)
-            await _db.Database.ExecuteSqlRawSafeAsync(
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET FrozenBalance = FrozenBalance - {0} WHERE Id = {1}",
-                refundAmount, escrowWallet.Id);
-            await _db.Database.ExecuteSqlRawSafeAsync(
+                refundAmount, escrowWallet!.Id);
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 refundAmount, driverWallet.Id);
 
@@ -421,8 +417,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     new LedgerEntry { WalletId = driverWallet.Id, Direction = LedgerDirection.Credit, Amount = refundAmount, CreatedAt = now }
                 }
             };
-            _db.Set<LedgerTransaction>().Add(ledger);
-            await _db.SaveChangesAsync();
+            _ledgerRepo.Add(ledger);
+            await _unitOfWork.CompleteAsync();
         }
 
         /// <summary>
@@ -433,10 +429,10 @@ namespace ChargeSlot.Api.Services.Implementation
             var ownerUserId = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
             var now = DateTimeHelper.VietnamNow();
 
-            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            var platformWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");
+            var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
+            var platformWallet = await _walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE");
 
-            var ownerWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == ownerUserId);
+            var ownerWallet = await _walletRepo.GetByUserIdAsync(ownerUserId);
             if (ownerWallet == null)
             {
                 ownerWallet = new Wallet
@@ -447,8 +443,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     FrozenBalance = 0,
                     CreatedAt = now
                 };
-                _db.Wallets.Add(ownerWallet);
-                await _db.SaveChangesAsync();
+                _walletRepo.Add(ownerWallet);
+                await _unitOfWork.CompleteAsync();
             }
 
             var ownerNet = invoice.ChargingAmount;
@@ -456,14 +452,14 @@ namespace ChargeSlot.Api.Services.Implementation
             var vatAmount = invoice.VatAmount;
 
             // Unfreeze from ESCROW.FrozenBalance → distribute (Atomic SQL update)
-            await _db.Database.ExecuteSqlRawSafeAsync(
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET FrozenBalance = FrozenBalance - {0}, AvailableBalance = AvailableBalance + {1} WHERE Id = {2}",
-                (ownerNet + platformFee + vatAmount), vatAmount, escrowWallet.Id);
-            await _db.Database.ExecuteSqlRawSafeAsync(
+                (ownerNet + platformFee + vatAmount), vatAmount, escrowWallet!.Id);
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 ownerNet, ownerWallet.Id);
 
-            _db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            _ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "DisputeSettlement",
                 ReferenceId = booking.Id,
@@ -477,12 +473,12 @@ namespace ChargeSlot.Api.Services.Implementation
             });
 
             // ESCROW → PLATFORM_REVENUE (already unfrozen above, Atomic logic)
-            await _db.Database.ExecuteSqlRawSafeAsync(
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                platformFee, platformWallet.Id);
+                platformFee, platformWallet!.Id);
             // VAT stays as revenue in ESCROW for tax authority payment later
 
-            _db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            _ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "PlatformFee",
                 ReferenceId = booking.Id,
@@ -495,7 +491,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             });
 
-            await _db.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         public async Task<DisputeDto?> GetByIdAsync(int disputeId, int currentUserId, string currentUserRole)
@@ -514,15 +510,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<DisputeDto?> GetByBookingIdAsync(int bookingId, int currentUserId, string currentUserRole)
         {
-            var dispute = await _db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
-                .Include(d => d.Invoice)
-                .Include(d => d.Evidences)
-                .Include(d => d.CreatedByUser)
-                .FirstOrDefaultAsync(d => d.BookingId == bookingId);
+            var dispute = await _disputeRepo.GetByBookingIdAsync(bookingId);
             
             if (dispute == null) return null;
 
@@ -537,77 +525,26 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<List<DisputeDto>> GetPendingAsync()
         {
-            var disputes = await _db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
-                .Include(d => d.Invoice)
-                .Include(d => d.CreatedByUser)
-                .Include(d => d.Evidences)
-                .Where(d => d.Status == DisputeStatus.WaitingOwnerEvidence
-                    || d.Status == DisputeStatus.PendingReview)
-                .OrderBy(d => d.CreatedAt)
-                .ToListAsync();
+            var disputes = await _disputeRepo.GetPendingAsync();
             return disputes.Select(MapToDto).ToList();
         }
 
         public async Task<List<DisputeDto>> GetAllAsync(string? status = null)
         {
-            var query = _db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
-                .Include(d => d.Invoice)
-                .Include(d => d.CreatedByUser)
-                .Include(d => d.Evidences)
-                    .ThenInclude(e => e.UploadedByUser)
-                .AsQueryable();
-
-            if (!string.IsNullOrEmpty(status) && Enum.TryParse<DisputeStatus>(status, true, out var parsed))
-            {
-                query = query.Where(d => d.Status == parsed);
-            }
-
-            var disputes = await query
-                .OrderByDescending(d => d.CreatedAt)
-                .ToListAsync();
+            var disputes = await _disputeRepo.GetAllAsync(status);
 
             return disputes.Select(MapToDto).ToList();
         }
 
         public async Task<List<DisputeDto>> GetMyDisputesAsync(int driverUserId)
         {
-            var disputes = await _db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
-                .Include(d => d.Invoice)
-                .Include(d => d.CreatedByUser)
-                .Include(d => d.Evidences)
-                    .ThenInclude(e => e.UploadedByUser)
-                .Where(d => d.CreatedByUserId == driverUserId)
-                .OrderByDescending(d => d.CreatedAt)
-                .ToListAsync();
+            var disputes = await _disputeRepo.GetByDriverAsync(driverUserId);
             return disputes.Select(MapToDto).ToList();
         }
 
         public async Task<List<DisputeDto>> GetOwnerDisputesAsync(int ownerUserId)
         {
-            var disputes = await _db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
-                .Include(d => d.Invoice)
-                .Include(d => d.CreatedByUser)
-                .Include(d => d.Evidences)
-                    .ThenInclude(e => e.UploadedByUser)
-                .Where(d => d.Booking.ChargingSlot.ChargingStation.OwnerUserId == ownerUserId)
-                .OrderByDescending(d => d.CreatedAt)
-                .ToListAsync();
+            var disputes = await _disputeRepo.GetByOwnerAsync(ownerUserId);
             return disputes.Select(MapToDto).ToList();
         }
 
@@ -653,7 +590,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 });
             }
 
-            await _db.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         private async Task CancelDriverBookingsAsync(int driverUserId, string reason)
@@ -664,10 +601,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 BookingStatus.Paid 
             };
             
-            var bookings = await _db.Bookings
-                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Where(b => b.DriverUserId == driverUserId && targetStatuses.Contains(b.Status))
-                .ToListAsync();
+            var bookings = await _bookingRepo.GetActiveBookingsByDriverAsync(driverUserId, targetStatuses);
                 
             var bookingService = _lazyBookingService.Value;
             foreach (var b in bookings)
@@ -694,10 +628,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 BookingStatus.Paid 
             };
 
-            var bookings = await _db.Bookings
-                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Where(b => b.ChargingSlot!.StationId == stationId && targetStatuses.Contains(b.Status))
-                .ToListAsync();
+            var bookings = await _bookingRepo.GetActiveBookingsByStationIdsAsync(new List<int> { stationId }, targetStatuses);
                 
             var bookingService = _lazyBookingService.Value;
             foreach (var b in bookings)
@@ -714,16 +645,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
         private async Task<Dispute?> LoadDisputeWithDetailsAsync(int id)
         {
-            return await _db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
-                .Include(d => d.Invoice)
-                .Include(d => d.CreatedByUser)
-                .Include(d => d.Evidences)
-                    .ThenInclude(e => e.UploadedByUser)
-                .FirstOrDefaultAsync(d => d.Id == id);
+            return await _disputeRepo.GetByIdWithDetailsAsync(id);
         }
 
         private static DisputeDto MapToDto(Dispute d)

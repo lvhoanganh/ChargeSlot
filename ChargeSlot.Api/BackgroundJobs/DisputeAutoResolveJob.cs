@@ -1,10 +1,8 @@
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Models.Identity;
+using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
 using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.BackgroundJobs
@@ -54,30 +52,24 @@ namespace ChargeSlot.Api.BackgroundJobs
 
             using (var outerScope = serviceProvider.CreateScope())
             {
-                var outerDb = outerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
-                expiredDisputeIds = await outerDb.Disputes
-                    .Where(d => d.Status == DisputeStatus.WaitingOwnerEvidence 
-                             && d.OwnerEvidenceDeadlineAt.HasValue 
-                             && d.OwnerEvidenceDeadlineAt.Value <= now)
-                    .Select(d => d.Id)
-                    .ToListAsync(ct);
+                var disputeRepo = outerScope.ServiceProvider.GetRequiredService<IDisputeRepository>();
+                expiredDisputeIds = await disputeRepo.GetExpiredOwnerEvidenceIdsAsync(now);
             }
 
             foreach (var disputeId in expiredDisputeIds)
             {
                 using var innerScope = serviceProvider.CreateScope();
-                var db = innerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+                var disputeRepo = innerScope.ServiceProvider.GetRequiredService<IDisputeRepository>();
+                var unitOfWork = innerScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var walletRepo = innerScope.ServiceProvider.GetRequiredService<IWalletRepository>();
+                var ledgerRepo = innerScope.ServiceProvider.GetRequiredService<ILedgerTransactionRepository>();
                 var notificationService = innerScope.ServiceProvider.GetRequiredService<INotificationService>();
-                var userManager = innerScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+                var adminAccountRepo = innerScope.ServiceProvider.GetRequiredService<IAdminAccountRepository>();
 
-                using var transaction = await db.Database.BeginTransactionAsync(ct);
+                using var transaction = await unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    var dispute = await db.Disputes
-                        .Include(d => d.Booking)
-                            .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                        .Include(d => d.Invoice)
-                        .FirstOrDefaultAsync(d => d.Id == disputeId, ct);
+                    var dispute = await disputeRepo.GetByIdWithBookingAndInvoiceDetailsAsync(disputeId);
 
                     if (dispute == null || dispute.Status != DisputeStatus.WaitingOwnerEvidence)
                         continue;
@@ -100,10 +92,10 @@ namespace ChargeSlot.Api.BackgroundJobs
                     dispute.Booking.Status = BookingStatus.Completed;
                     dispute.Booking.UpdatedAt = currentTime;
 
-                    await db.SaveChangesAsync(ct);
+                    await unitOfWork.CompleteAsync();
 
                     // Refund: ESCROW.FrozenBalance → Driver
-                    await RefundToDriverAsync(db, dispute.Booking, dispute);
+                    await RefundToDriverAsync(walletRepo, ledgerRepo, unitOfWork, dispute.Booking, dispute);
 
                     await transaction.CommitAsync(ct);
 
@@ -128,11 +120,11 @@ namespace ChargeSlot.Api.BackgroundJobs
                         "Dispute {DisputeId} auto-resolved: Owner no evidence after 24h. Driver refunded {Amount}.",
                         dispute.Id, dispute.Booking.TotalAmount);
 
-                    var adminUsers = await userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
-                    foreach (var admin in adminUsers)
+                    var adminUserIds = await adminAccountRepo.GetAdminUserIdsAsync();
+                    foreach (var adminId in adminUserIds)
                     {
                         await notificationService.SendAsync(
-                            admin.Id,
+                            adminId,
                             "Khiếu nại tự động xử lý",
                             $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Owner không phản hồi 24h → Driver được hoàn tiền {dispute.Booking.TotalAmount:N0}đ.",
                             NotificationType.Dispute);
@@ -156,30 +148,24 @@ namespace ChargeSlot.Api.BackgroundJobs
 
             using (var outerScope = serviceProvider.CreateScope())
             {
-                var outerDb = outerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
-                expiredDisputeIds = await outerDb.Disputes
-                    .Where(d => d.Status == DisputeStatus.PendingReview 
-                             && d.AdminReviewDeadlineAt.HasValue 
-                             && d.AdminReviewDeadlineAt.Value <= now)
-                    .Select(d => d.Id)
-                    .ToListAsync(ct);
+                var disputeRepo = outerScope.ServiceProvider.GetRequiredService<IDisputeRepository>();
+                expiredDisputeIds = await disputeRepo.GetExpiredAdminReviewIdsAsync(now);
             }
 
             foreach (var disputeId in expiredDisputeIds)
             {
                 using var innerScope = serviceProvider.CreateScope();
-                var db = innerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+                var disputeRepo = innerScope.ServiceProvider.GetRequiredService<IDisputeRepository>();
+                var unitOfWork = innerScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var walletRepo = innerScope.ServiceProvider.GetRequiredService<IWalletRepository>();
+                var ledgerRepo = innerScope.ServiceProvider.GetRequiredService<ILedgerTransactionRepository>();
                 var notificationService = innerScope.ServiceProvider.GetRequiredService<INotificationService>();
-                var userManager = innerScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+                var adminAccountRepo = innerScope.ServiceProvider.GetRequiredService<IAdminAccountRepository>();
 
-                using var transaction = await db.Database.BeginTransactionAsync(ct);
+                using var transaction = await unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    var dispute = await db.Disputes
-                        .Include(d => d.Booking)
-                            .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                        .Include(d => d.Invoice)
-                        .FirstOrDefaultAsync(d => d.Id == disputeId, ct);
+                    var dispute = await disputeRepo.GetByIdWithBookingAndInvoiceDetailsAsync(disputeId);
 
                     if (dispute == null || dispute.Status != DisputeStatus.PendingReview)
                         continue;
@@ -202,12 +188,12 @@ namespace ChargeSlot.Api.BackgroundJobs
                     dispute.Booking.Status = BookingStatus.Completed;
                     dispute.Booking.UpdatedAt = currentTime;
 
-                    await db.SaveChangesAsync(ct);
+                    await unitOfWork.CompleteAsync();
 
                     // Settle: ESCROW.FrozenBalance → Owner + PLATFORM_REVENUE
                     if (dispute.Invoice != null)
                     {
-                        await SettleToOwnerAsync(db, dispute.Booking, dispute.Invoice, dispute);
+                        await SettleToOwnerAsync(walletRepo, ledgerRepo, unitOfWork, dispute.Booking, dispute.Invoice, dispute);
                     }
 
                     await transaction.CommitAsync(ct);
@@ -233,11 +219,11 @@ namespace ChargeSlot.Api.BackgroundJobs
                         "Dispute {DisputeId} auto-resolved: Admin no action after 48h. Owner wins.",
                         dispute.Id);
 
-                    var adminUsers = await userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
-                    foreach (var admin in adminUsers)
+                    var adminUserIds = await adminAccountRepo.GetAdminUserIdsAsync();
+                    foreach (var adminId in adminUserIds)
                     {
                         await notificationService.SendAsync(
-                            admin.Id,
+                            adminId,
                             "Khiếu nại tự động xử lý",
                             $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Quá hạn 48h không phân xử → Owner nhận tiền {dispute.Invoice?.ChargingAmount:N0}đ.",
                             NotificationType.Dispute);
@@ -251,11 +237,12 @@ namespace ChargeSlot.Api.BackgroundJobs
             }
         }
 
-        private async Task RefundToDriverAsync(ChargeSlotDbContext db, Booking booking, Dispute dispute)
+        private async Task RefundToDriverAsync(IWalletRepository walletRepo, ILedgerTransactionRepository ledgerRepo, IUnitOfWork unitOfWork, Booking booking, Dispute dispute)
         {
             var now = DateTimeHelper.VietnamNow();
-            var escrowWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            var driverWallet = await db.Wallets.FirstOrDefaultAsync(w => w.UserId == booking.DriverUserId);
+            var escrowWallet = await walletRepo.GetBySystemCodeAsync("ESCROW")
+                ?? throw new InvalidOperationException("ESCROW wallet not found");
+            var driverWallet = await walletRepo.GetByUserIdAsync(booking.DriverUserId);
 
             if (driverWallet == null)
             {
@@ -265,15 +252,15 @@ namespace ChargeSlot.Api.BackgroundJobs
                     WalletType = WalletType.Driver,
                     AvailableBalance = 0, FrozenBalance = 0, CreatedAt = now
                 };
-                db.Wallets.Add(driverWallet);
-                await db.SaveChangesAsync();
+                walletRepo.Add(driverWallet);
+                await unitOfWork.CompleteAsync();
             }
 
             var refundAmount = booking.TotalAmount;
             escrowWallet.FrozenBalance -= refundAmount;
             driverWallet.AvailableBalance += refundAmount;
 
-            db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "AutoRefund",
                 ReferenceId = booking.Id,
@@ -285,17 +272,19 @@ namespace ChargeSlot.Api.BackgroundJobs
                     new LedgerEntry { WalletId = driverWallet.Id, Direction = LedgerDirection.Credit, Amount = refundAmount, CreatedAt = now }
                 }
             });
-            await db.SaveChangesAsync();
+            await unitOfWork.CompleteAsync();
         }
 
-        private async Task SettleToOwnerAsync(ChargeSlotDbContext db, Booking booking, Invoice invoice, Dispute dispute)
+        private async Task SettleToOwnerAsync(IWalletRepository walletRepo, ILedgerTransactionRepository ledgerRepo, IUnitOfWork unitOfWork, Booking booking, Invoice invoice, Dispute dispute)
         {
             var ownerUserId = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
             var now = DateTimeHelper.VietnamNow();
 
-            var escrowWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            var platformWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");
-            var ownerWallet = await db.Wallets.FirstOrDefaultAsync(w => w.UserId == ownerUserId);
+            var escrowWallet = await walletRepo.GetBySystemCodeAsync("ESCROW")
+                ?? throw new InvalidOperationException("ESCROW wallet not found");
+            var platformWallet = await walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE")
+                ?? throw new InvalidOperationException("PLATFORM_REVENUE wallet not found");
+            var ownerWallet = await walletRepo.GetByUserIdAsync(ownerUserId);
 
             if (ownerWallet == null)
             {
@@ -305,8 +294,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                     WalletType = WalletType.Owner,
                     AvailableBalance = 0, FrozenBalance = 0, CreatedAt = now
                 };
-                db.Wallets.Add(ownerWallet);
-                await db.SaveChangesAsync();
+                walletRepo.Add(ownerWallet);
+                await unitOfWork.CompleteAsync();
             }
 
             var ownerNet = invoice.ChargingAmount;
@@ -318,7 +307,7 @@ namespace ChargeSlot.Api.BackgroundJobs
             ownerWallet.AvailableBalance += ownerNet;
             platformWallet.AvailableBalance += platformFee;
 
-            db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "AutoSettlement",
                 ReferenceId = booking.Id,
@@ -331,7 +320,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                 }
             });
 
-            db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "PlatformFee",
                 ReferenceId = booking.Id,
@@ -344,7 +333,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                 }
             });
 
-            await db.SaveChangesAsync();
+            await unitOfWork.CompleteAsync();
         }
     }
 }

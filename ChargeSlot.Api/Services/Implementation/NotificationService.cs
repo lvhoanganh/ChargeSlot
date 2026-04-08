@@ -14,17 +14,20 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IEmailService _emailService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<NotificationService> _logger;
+        private readonly IUnitOfWork _unitOfWork;
 
         public NotificationService(
             INotificationRepository notificationRepo,
             IEmailService emailService,
             UserManager<ApplicationUser> userManager,
-            ILogger<NotificationService> logger)
+            ILogger<NotificationService> logger,
+            IUnitOfWork unitOfWork)
         {
             _notificationRepo = notificationRepo;
             _emailService = emailService;
             _userManager = userManager;
             _logger = logger;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task SendAsync(int userId, string title, string content, NotificationType type)
@@ -39,7 +42,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 IsRead = false,
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
-            await _notificationRepo.CreateAsync(notification);
+            _notificationRepo.Add(notification);
+            await _unitOfWork.CompleteAsync();
 
             // 2. Gửi email CC — nếu user có email đã xác thực
             try
@@ -79,3 +83,5 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+
+

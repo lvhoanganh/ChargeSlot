@@ -2,6 +2,7 @@ using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Analytics;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Services.Interfaces;
+using ChargeSlot.Api.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text;
@@ -11,10 +12,10 @@ namespace ChargeSlot.Api.Services.Implementation
     public class AiChatbotService : IAiChatbotService
     {
         private readonly HttpClient _httpClient;
-        private readonly ChargeSlotDbContext _db;
         private readonly ILogger<AiChatbotService> _logger;
         private readonly IWalletService _walletService;
         private readonly IChargingStationService _stationService;
+        private readonly IChargingStationRepository _stationRepo;
         private readonly IConfiguration _configuration;
         private readonly IDashboardService _dashboardService;
         private readonly IBookingService _bookingService;
@@ -22,20 +23,20 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public AiChatbotService(
             HttpClient httpClient, 
-            ChargeSlotDbContext db, 
             ILogger<AiChatbotService> logger,
             IWalletService walletService,
             IChargingStationService stationService,
+            IChargingStationRepository stationRepo,
             IConfiguration configuration,
             IDashboardService dashboardService,
             IBookingService bookingService,
             IDisputeService disputeService)
         {
             _httpClient = httpClient;
-            _db = db;
             _logger = logger;
             _walletService = walletService;
             _stationService = stationService;
+            _stationRepo = stationRepo;
             _configuration = configuration;
             _dashboardService = dashboardService;
             _bookingService = bookingService;
@@ -331,23 +332,17 @@ Lưu ý: Luôn trả lời bằng tiếng Việt, sử dụng format Markdown r�
 
         private async Task<object> ExecuteFindNearbyStations()
         {
-            // Query DB thật thay vì mock data
-            var stations = await _db.ChargingStations
-                .Where(s => s.ApprovalStatus == ApprovalStatus.Approved 
-                         && s.OperationalStatus == OperationalStatus.Active
-                         && (s.BannedUntil == null || s.BannedUntil < DateTime.UtcNow))
-                .OrderByDescending(s => s.AverageRating)
-                .Take(5)
-                .Select(s => new 
+            var stations = await _stationRepo.GetTopRatedStationsAsync(5);
+            
+            var result = stations.Select(s => new 
                 { 
                     name = s.Name, 
                     address = s.Address, 
                     rating = s.AverageRating,
                     totalReviews = s.TotalReviews
-                })
-                .ToListAsync();
+                }).ToList();
             
-            return new { message = $"Tìm thấy {stations.Count} trạm sạc đang hoạt động", stations };
+            return new { message = $"Tìm thấy {result.Count} trạm sạc đang hoạt động", stations = result };
         }
 
         // ============================================================

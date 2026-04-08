@@ -14,11 +14,11 @@ namespace ChargeSlot.Api.Controllers
     [Authorize]
     public class BankAccountController : ControllerBase
     {
-        private readonly ChargeSlotDbContext _db;
+        private readonly ChargeSlot.Api.Services.Interfaces.IBankAccountService _bankAccountService;
 
-        public BankAccountController(ChargeSlotDbContext db)
+        public BankAccountController(ChargeSlot.Api.Services.Interfaces.IBankAccountService bankAccountService)
         {
-            _db = db;
+            _bankAccountService = bankAccountService;
         }
 
         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -27,20 +27,7 @@ namespace ChargeSlot.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetMyBankAccounts()
         {
-            var list = await _db.BankAccounts
-                .Where(b => b.UserId == GetUserId())
-                .OrderByDescending(b => b.IsDefault)
-                .ThenByDescending(b => b.CreatedAt)
-                .Select(b => new BankAccountDto
-                {
-                    Id = b.Id,
-                    BankName = b.BankName,
-                    BankAccountNumber = b.BankAccountNumber,
-                    BankAccountHolder = b.BankAccountHolder,
-                    IsDefault = b.IsDefault,
-                    CreatedAt = b.CreatedAt
-                })
-                .ToListAsync();
+            var list = await _bankAccountService.GetMyBankAccountsAsync(GetUserId());
             return Ok(list);
         }
 
@@ -50,45 +37,14 @@ namespace ChargeSlot.Api.Controllers
         {
             var userId = GetUserId();
 
-            using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                // Nếu đặt làm mặc định → bỏ mặc định các TK cũ
-                if (dto.IsDefault)
-                {
-                    var existing = await _db.BankAccounts
-                        .Where(b => b.UserId == userId && b.IsDefault)
-                        .ToListAsync();
-                    existing.ForEach(b => b.IsDefault = false);
-                }
-
-                var account = new Models.BankAccount
-                {
-                    UserId = userId,
-                    BankName = dto.BankName,
-                    BankAccountNumber = dto.BankAccountNumber,
-                    BankAccountHolder = dto.BankAccountHolder,
-                    IsDefault = dto.IsDefault,
-                    CreatedAt = DateTimeHelper.VietnamNow()
-                };
-                _db.BankAccounts.Add(account);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                return Ok(new BankAccountDto
-                {
-                    Id = account.Id,
-                    BankName = account.BankName,
-                    BankAccountNumber = account.BankAccountNumber,
-                    BankAccountHolder = account.BankAccountHolder,
-                    IsDefault = account.IsDefault,
-                    CreatedAt = account.CreatedAt
-                });
+                var result = await _bankAccountService.CreateAsync(userId, dto);
+                return Ok(result);
             }
-            catch
+            catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                throw;
+                return BadRequest(new { message = $"Lỗi khi tạo tài khoản: {ex.Message}" });
             }
         }
 
@@ -98,25 +54,18 @@ namespace ChargeSlot.Api.Controllers
         {
             var userId = GetUserId();
 
-            using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var account = await _db.BankAccounts.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
-                if (account == null) return NotFound(new { message = "Tài khoản ngân hàng không tồn tại." });
-
-                // Bỏ mặc định tất cả
-                var all = await _db.BankAccounts.Where(b => b.UserId == userId).ToListAsync();
-                all.ForEach(b => b.IsDefault = false);
-                account.IsDefault = true;
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-
+                await _bankAccountService.SetDefaultAsync(id, userId);
                 return Ok(new { message = "Đã đặt làm tài khoản mặc định." });
             }
-            catch
+            catch (KeyNotFoundException ex)
             {
-                await transaction.RollbackAsync();
-                throw;
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Lỗi: {ex.Message}" });
             }
         }
 
@@ -125,21 +74,19 @@ namespace ChargeSlot.Api.Controllers
         public async Task<IActionResult> Delete(int id)
         {
             var userId = GetUserId();
-            var account = await _db.BankAccounts.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
-            if (account == null) return NotFound(new { message = "Tài khoản ngân hàng không tồn tại." });
-
-            // Kiểm tra còn WithdrawRequest pending không
-            var hasPending = await _db.Set<Models.WithdrawRequest>().AnyAsync(w =>
-                w.UserId == userId
-                && w.BankAccountNumber == account.BankAccountNumber
-                && w.BankName == account.BankName
-                && (w.Status == Enums.WithdrawStatus.Pending || w.Status == Enums.WithdrawStatus.Approved || w.Status == Enums.WithdrawStatus.TransferCompleted));
-            if (hasPending)
-                return BadRequest(new { message = "Không thể xóa — đang có yêu cầu rút tiền chưa hoàn tất." });
-
-            _db.BankAccounts.Remove(account);
-            await _db.SaveChangesAsync();
-            return Ok(new { message = "Đã xóa tài khoản ngân hàng." });
+            try
+            {
+                await _bankAccountService.DeleteAsync(id, userId);
+                return Ok(new { message = "Đã xóa tài khoản ngân hàng." });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

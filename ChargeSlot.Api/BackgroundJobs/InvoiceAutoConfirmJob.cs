@@ -1,9 +1,7 @@
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.BackgroundJobs
@@ -38,30 +36,25 @@ namespace ChargeSlot.Api.BackgroundJobs
                     // 1. Chỉ lấy danh sách ID (tránh nạp nguyên object khổng lồ vào tracking của outer_scope)
                     using (var outerScope = _serviceProvider.CreateScope())
                     {
-                        var outerDb = outerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
-                        expiredInvoiceIds = await outerDb.Invoices
-                            .Where(i => i.Status == InvoiceStatus.PendingConfirm && i.CreatedAt <= deadline)
-                            .Select(i => i.Id)
-                            .ToListAsync(stoppingToken);
+                        var invoiceRepo = outerScope.ServiceProvider.GetRequiredService<IInvoiceRepository>();
+                        expiredInvoiceIds = await invoiceRepo.GetExpiredPendingConfirmIdsAsync(deadline);
                     }
 
                     // 2. Xử lý từng ID trong 1 scope biệt lập
                     foreach (var invoiceId in expiredInvoiceIds)
                     {
                         using var innerScope = _serviceProvider.CreateScope();
-                        var db = innerScope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+                        var invoiceRepo = innerScope.ServiceProvider.GetRequiredService<IInvoiceRepository>();
+                        var unitOfWork = innerScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                         var walletRepo = innerScope.ServiceProvider.GetRequiredService<IWalletRepository>();
+                        var ledgerRepo = innerScope.ServiceProvider.GetRequiredService<ILedgerTransactionRepository>();
+                        var loyaltyTxRepo = innerScope.ServiceProvider.GetRequiredService<ILoyaltyTransactionRepository>();
                         var notificationService = innerScope.ServiceProvider.GetRequiredService<INotificationService>();
 
-                        using var transaction = await db.Database.BeginTransactionAsync(stoppingToken);
+                        using var transaction = await unitOfWork.BeginTransactionAsync();
                         try
                         {
-                            var invoice = await db.Invoices
-                                .Include(i => i.Booking)
-                                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                                .Include(i => i.Booking)
-                                    .ThenInclude(b => b.Driver) // Include Driver for loyalty points
-                                .FirstOrDefaultAsync(i => i.Id == invoiceId, stoppingToken);
+                            var invoice = await invoiceRepo.GetByIdWithFullBookingDetailsAsync(invoiceId);
 
                             if (invoice == null || invoice.Status != InvoiceStatus.PendingConfirm)
                                 continue;
@@ -76,7 +69,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                             booking.Status = BookingStatus.Completed;
                             booking.UpdatedAt = DateTimeHelper.VietnamNow();
 
-                            await db.SaveChangesAsync(stoppingToken);
+                            await unitOfWork.CompleteAsync();
 
                             // Loyalty Points (dùng snapshot từ lúc tạo booking)
                             var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
@@ -85,7 +78,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                             {
                                 booking.Driver.LoyaltyPoints += pointsEarned;
                                 booking.PointsEarned = pointsEarned;
-                                db.Set<LoyaltyTransaction>().Add(new LoyaltyTransaction
+                                loyaltyTxRepo.Add(new LoyaltyTransaction
                                 {
                                     DriverUserId = booking.DriverUserId,
                                     BookingId = booking.Id,
@@ -94,11 +87,11 @@ namespace ChargeSlot.Api.BackgroundJobs
                                     Description = $"Tích {pointsEarned:N0} điểm từ booking #{booking.Id} (auto-confirm invoice)",
                                     CreatedAt = DateTimeHelper.VietnamNow()
                                 });
-                                await db.SaveChangesAsync(stoppingToken);
+                                await unitOfWork.CompleteAsync();
                             }
 
                             // Settle payment: ESCROW → Owner + PLATFORM_REVENUE
-                            await SettlePaymentAsync(db, walletRepo, booking, invoice);
+                            await SettlePaymentAsync(walletRepo, ledgerRepo, unitOfWork, booking, invoice);
 
                             await transaction.CommitAsync(stoppingToken);
 
@@ -139,16 +132,16 @@ namespace ChargeSlot.Api.BackgroundJobs
             }
         }
 
-        // TODO: L5 — This settlement logic is duplicated from ChargingSessionService.SettlePaymentToOwnerAsync.
-        // Refactor into a shared ISettlementService to avoid divergence.
-        private async Task SettlePaymentAsync(ChargeSlotDbContext db, IWalletRepository walletRepo, Booking booking, Invoice invoice)
+        private async Task SettlePaymentAsync(IWalletRepository walletRepo, ILedgerTransactionRepository ledgerRepo, IUnitOfWork unitOfWork, Booking booking, Invoice invoice)
         {
             var ownerUserId = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
             var now = DateTimeHelper.VietnamNow();
 
-            var escrowWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            var platformWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");
-            var ownerWallet = await db.Wallets.FirstOrDefaultAsync(w => w.UserId == ownerUserId);
+            var escrowWallet = await walletRepo.GetBySystemCodeAsync("ESCROW")
+                ?? throw new InvalidOperationException("ESCROW wallet not found");
+            var platformWallet = await walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE")
+                ?? throw new InvalidOperationException("PLATFORM_REVENUE wallet not found");
+            var ownerWallet = await walletRepo.GetByUserIdAsync(ownerUserId);
 
             if (ownerWallet == null)
             {
@@ -160,8 +153,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                     FrozenBalance = 0,
                     CreatedAt = now
                 };
-                db.Wallets.Add(ownerWallet);
-                await db.SaveChangesAsync();
+                walletRepo.Add(ownerWallet);
+                await unitOfWork.CompleteAsync();
             }
 
             var ownerNet = invoice.ChargingAmount;
@@ -171,7 +164,7 @@ namespace ChargeSlot.Api.BackgroundJobs
             escrowWallet.AvailableBalance -= ownerNet;
             ownerWallet.AvailableBalance += ownerNet;
 
-            db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "AutoSettlement",
                 ReferenceId = booking.Id,
@@ -188,7 +181,7 @@ namespace ChargeSlot.Api.BackgroundJobs
             escrowWallet.AvailableBalance -= platformFee;
             platformWallet.AvailableBalance += platformFee;
 
-            db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "PlatformFee",
                 ReferenceId = booking.Id,
@@ -201,7 +194,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                 }
             });
 
-            await db.SaveChangesAsync();
+            await unitOfWork.CompleteAsync();
         }
     }
 }

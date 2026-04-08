@@ -17,12 +17,10 @@ namespace ChargeSlot.Api.Controllers
     public class ChargingSlotController : ControllerBase
     {
         private readonly IChargingSlotService _slotService;
-        private readonly Data.ChargeSlotDbContext _db;
 
-        public ChargingSlotController(IChargingSlotService slotService, Data.ChargeSlotDbContext db)
+        public ChargingSlotController(IChargingSlotService slotService)
         {
             _slotService = slotService;
-            _db = db;
         }
 
         private int GetUserId()

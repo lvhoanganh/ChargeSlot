@@ -16,7 +16,13 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IChargingSlotRepository _slotRepo;
         private readonly INotificationService _notificationService;
         private readonly IWalletRepository _walletRepo;
-        private readonly ChargeSlotDbContext _context;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IStationUnavailableDateRepository _unavailableDateRepo;
+        private readonly IStationPricingRepository _pricingRepo;
+        private readonly IExtraServiceRepository _extraServiceRepo;
+        private readonly IDriverRepository _driverRepo;
+        private readonly ILoyaltyTransactionRepository _loyaltyRepo;
+        private readonly ILedgerTransactionRepository _ledgerRepo;
         private readonly ILogger<BookingService> _logger;
         private readonly ISystemConfigService _configService;
 
@@ -25,7 +31,13 @@ namespace ChargeSlot.Api.Services.Implementation
             IChargingSlotRepository slotRepo,
             INotificationService notificationService,
             IWalletRepository walletRepo,
-            ChargeSlotDbContext context,
+            IUnitOfWork unitOfWork,
+            IStationUnavailableDateRepository unavailableDateRepo,
+            IStationPricingRepository pricingRepo,
+            IExtraServiceRepository extraServiceRepo,
+            IDriverRepository driverRepo,
+            ILoyaltyTransactionRepository loyaltyRepo,
+            ILedgerTransactionRepository ledgerRepo,
             ILogger<BookingService> logger,
             ISystemConfigService configService)
         {
@@ -33,7 +45,13 @@ namespace ChargeSlot.Api.Services.Implementation
             _slotRepo = slotRepo;
             _notificationService = notificationService;
             _walletRepo = walletRepo;
-            _context = context;
+            _unitOfWork = unitOfWork;
+            _unavailableDateRepo = unavailableDateRepo;
+            _pricingRepo = pricingRepo;
+            _extraServiceRepo = extraServiceRepo;
+            _driverRepo = driverRepo;
+            _loyaltyRepo = loyaltyRepo;
+            _ledgerRepo = ledgerRepo;
             _logger = logger;
             _configService = configService;
         }
@@ -44,7 +62,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<BookingDto> CreateBookingAsync(int driverUserId, CreateBookingDto dto)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 // Validate: DurationHours phải > 0 và <= 24
@@ -63,7 +81,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 // Cấp khóa lock đồng bộ (Prevent Simultaneous Double Booking)
                 var lockResource = $"SlotLock_{dto.SlotId}";
-                await _context.Database.ExecuteSqlRawSafeAsync(
+                await _unitOfWork.ExecuteSqlRawSafeAsync(
                     "EXEC sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000",
                     lockResource);
 
@@ -75,9 +93,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     throw new InvalidOperationException("Phải đặt trước ít nhất 30 phút trước giờ sạc.");
 
                 // Validate: Driver chỉ được có tối đa 3 booking đang chờ xử lý
-                var pendingCount = await _context.Bookings
-                    .CountAsync(b => b.DriverUserId == driverUserId
-                        && (b.Status == BookingStatus.WaitingOwner || b.Status == BookingStatus.PendingPayment));
+                var pendingCount = await _bookingRepo.GetPendingCountByDriverAsync(driverUserId);
                 if (pendingCount >= 3)
                     throw new InvalidOperationException("Bạn đang có 3 booking chờ xử lý. Vui lòng hoàn tất hoặc hủy bớt trước khi đặt mới.");
 
@@ -102,10 +118,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     // Check StationUnavailableDates
                     var bookingStartDate = DateOnly.FromDateTime(dto.StartTime);
                     var bookingEndDate = DateOnly.FromDateTime(endTime);
-                    var unavailableDates = await _context.StationUnavailableDates
-                        .Where(u => u.StationId == slot.StationId && u.Date >= bookingStartDate && u.Date <= bookingEndDate)
-                        .Select(u => u.Date)
-                        .ToListAsync();
+                    var unavailableDates = await _unavailableDateRepo.GetDatesByStationAndDateRangeAsync(
+                        slot.StationId, bookingStartDate, bookingEndDate);
 
                     if (unavailableDates.Count > 0)
                     {
@@ -130,11 +144,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Tính giá từ pricing tiers (station-level) — tách theo từng khung giờ
             // VD: booking 11h-14h, tier 5h-12h=10K + 12h-15h=12K → 1h×10K + 2h×12K = 34K
-            var pricings = await _context.Set<StationPricing>()
-                .Where(p => p.StationId == slot.StationId && p.IsActive)
-                .OrderByDescending(p => p.Priority)
-                .ThenBy(p => p.StartTime)
-                .ToListAsync();
+            var pricings = await _pricingRepo.GetActiveByStationIdAsync(slot.StationId);
 
             if (pricings.Count == 0)
                 throw new InvalidOperationException("Trạm chưa được cài đặt giá. Vui lòng liên hệ chủ trạm.");
@@ -148,9 +158,7 @@ namespace ChargeSlot.Api.Services.Implementation
             if (dto.ExtraServices != null && dto.ExtraServices.Count > 0)
             {
                 var serviceIds = dto.ExtraServices.Select(e => e.ServiceId).ToList();
-                var services = await _context.Set<ExtraService>()
-                    .Where(s => serviceIds.Contains(s.Id))
-                    .ToListAsync();
+                var services = await _extraServiceRepo.GetByIdsAsync(serviceIds);
 
                 foreach (var item in dto.ExtraServices)
                 {
@@ -188,7 +196,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (dto.PointsToUse > 0)
             {
-                var driver = await _context.Driver.FirstOrDefaultAsync(d => d.UserId == driverUserId)
+                var driver = await _driverRepo.GetByUserIdAsync(driverUserId, tracking: true)
                     ?? throw new InvalidOperationException("Driver profile không tồn tại.");
 
                 if (dto.PointsToUse > driver.LoyaltyPoints)
@@ -196,8 +204,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         $"Bạn chỉ có {driver.LoyaltyPoints:N0} điểm, không đủ {dto.PointsToUse:N0} điểm.");
 
                 // Load max redeem rate from config
-                var maxRedeemConfig = await _context.SystemConfigs.FindAsync("LoyaltyMaxRedeemRate");
-                var maxRedeemRate = decimal.TryParse(maxRedeemConfig?.Value, out var rate) ? rate : 0.5m;
+                var maxRedeemRate = await _configService.GetDecimalAsync("LoyaltyMaxRedeemRate", 0.5m);
                 var maxPointsAllowed = Math.Floor(totalAmount * maxRedeemRate);
 
                 if (dto.PointsToUse > maxPointsAllowed)
@@ -212,7 +219,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 driver.LoyaltyPoints -= pointsUsed;
 
                 // Ghi lịch sử
-                _context.LoyaltyTransactions.Add(new LoyaltyTransaction
+                _loyaltyRepo.Add(new LoyaltyTransaction
                 {
                     DriverUserId = driverUserId,
                     Type = "Redeem",
@@ -247,7 +254,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 LoyaltyEarnRateSnapshot = configs.Loyalty_Earn_Rate
             };
 
-            await _bookingRepo.CreateAsync(booking);
+            _bookingRepo.Add(booking);
+            await _unitOfWork.CompleteAsync();
 
             // Notify Owner về booking mới
             var station = slot.ChargingStation;
@@ -278,7 +286,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<BookingDto> AcceptBookingAsync(int ownerUserId, int bookingId)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
@@ -286,7 +294,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 // Lock độc quyền trên Slot này để chống việc Accept 2 Booking cùng 1 lúc (Double-Booking Race Condition)
                 var lockResource = $"SlotLock_{booking.SlotId}";
-                await _context.Database.ExecuteSqlRawSafeAsync(
+                await _unitOfWork.ExecuteSqlRawSafeAsync(
                     "EXEC sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000",
                     lockResource);
 
@@ -320,7 +328,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 booking.PaymentExpiresAt = DateTimeHelper.VietnamNow().AddMinutes(paymentExpiryMinutes);
             }
 
-            await _bookingRepo.UpdateAsync(booking);
+            _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
             // Auto-reject tất cả booking WaitingOwner trùng giờ trên cùng slot
             var overlapping = await _bookingRepo.GetOverlappingWaitingBookingsAsync(
@@ -330,7 +339,8 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 b.Status = BookingStatus.Rejected;
                 b.RejectionReason = "Slot đã được chấp nhận cho yêu cầu khác có giờ trùng.";
-                await _bookingRepo.UpdateAsync(b);
+                _bookingRepo.Update(b);
+            await _unitOfWork.CompleteAsync();
 
                 await _notificationService.SendAsync(
                     b.DriverUserId,
@@ -373,7 +383,8 @@ namespace ChargeSlot.Api.Services.Implementation
             // Step 12: Reject + Step 13: Provide rejection reason
             booking.Status = BookingStatus.Rejected;
             booking.RejectionReason = dto.RejectionReason;
-            await _bookingRepo.UpdateAsync(booking);
+            _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
             // Send notify for Driver → END
             await _notificationService.SendAsync(
@@ -397,7 +408,7 @@ namespace ChargeSlot.Api.Services.Implementation
         public async Task<BookingDto> DriverCancelBookingAsync(int driverUserId, int bookingId, string? cancelReason)
         {
             // FIX: Transaction bảo vệ refund + restore stock + refund points
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
@@ -422,7 +433,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 booking.Status = BookingStatus.Cancelled;
                 booking.CancelledAt = DateTimeHelper.VietnamNow();
                 booking.CancelReason = cancelReason ?? "Driver tự hủy";
-                await _bookingRepo.UpdateAsync(booking);
+                _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
                 // Xử lý hoàn tiền nếu đã Paid
                 if (wasPaid)
@@ -517,7 +529,7 @@ namespace ChargeSlot.Api.Services.Implementation
         public async Task<BookingDto> OwnerCancelBookingAsync(int ownerUserId, int bookingId, string? cancelReason)
         {
             // FIX: Transaction bảo vệ refund flow
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
@@ -536,7 +548,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 booking.Status = BookingStatus.Cancelled;
                 booking.CancelledAt = DateTimeHelper.VietnamNow();
                 booking.CancelReason = cancelReason ?? "Owner hủy";
-                await _bookingRepo.UpdateAsync(booking);
+                _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
                 // Owner hủy → hoàn 100% cho Driver
                 await ProcessRefundAsync(booking, 1.0m, $"Owner hủy booking — hoàn 100% cho Driver");
@@ -575,7 +588,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task CancelSystemBookingAsync(int bookingId, string systemReason)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
@@ -590,7 +603,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 booking.Status = BookingStatus.Cancelled;
                 booking.CancelledAt = DateTimeHelper.VietnamNow();
                 booking.CancelReason = $"Hệ thống hủy: {systemReason}";
-                await _bookingRepo.UpdateAsync(booking);
+                _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
                 if (wasPaid)
                 {
@@ -650,9 +664,9 @@ namespace ChargeSlot.Api.Services.Implementation
             var platformFee = Math.Round(grossAmount * platformFeeRate, 0);
             var ownerNet = grossAmount - vatAmount - platformFee;
 
-            var escrowWallet = await _context.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            var platformWallet = await _context.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");
-            var ownerWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == ownerUserId);
+            var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
+            var platformWallet = await _walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE");
+            var ownerWallet = await _walletRepo.GetByUserIdAsync(ownerUserId);
 
             if (ownerWallet == null)
             {
@@ -664,29 +678,29 @@ namespace ChargeSlot.Api.Services.Implementation
                     FrozenBalance = 0,
                     CreatedAt = DateTimeHelper.VietnamNow()
                 };
-                _context.Wallets.Add(ownerWallet);
-                await _context.SaveChangesAsync();
+                _walletRepo.Add(ownerWallet);
+                await _unitOfWork.CompleteAsync();
             }
 
             // Chuyển tiền nét cho Owner (Atomic để tránh lỗ hổng Lost Update tranh chấp luồng)
-            await _context.Database.ExecuteSqlRawSafeAsync(
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
-                ownerNet, escrowWallet.Id);
-            await _context.Database.ExecuteSqlRawSafeAsync(
+                ownerNet, escrowWallet!.Id);
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 ownerNet, ownerWallet.Id);
 
             // Chuyển phí nền tảng (Atomic)
-            await _context.Database.ExecuteSqlRawSafeAsync(
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
-                platformFee, escrowWallet.Id);
-            await _context.Database.ExecuteSqlRawSafeAsync(
+                platformFee, escrowWallet!.Id);
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                platformFee, platformWallet.Id);
+                platformFee, platformWallet!.Id);
 
             var now = DateTimeHelper.VietnamNow();
 
-            _context.Set<LedgerTransaction>().Add(new LedgerTransaction
+            _ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "BookingCancelCompensation",
                 ReferenceId = booking.Id,
@@ -700,13 +714,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             });
 
-            await _context.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         private async Task TransferFromEscrow(Booking booking, decimal amount, int userId, WalletType walletType, string memo)
         {
-            var escrowWallet = await _context.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            var userWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
+            var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
+            var userWallet = await _walletRepo.GetByUserIdAsync(userId);
 
             if (userWallet == null)
             {
@@ -718,19 +732,19 @@ namespace ChargeSlot.Api.Services.Implementation
                     FrozenBalance = 0,
                     CreatedAt = DateTimeHelper.VietnamNow()
                 };
-                _context.Wallets.Add(userWallet);
-                await _context.SaveChangesAsync();
+                _walletRepo.Add(userWallet);
+                await _unitOfWork.CompleteAsync();
             }
 
             // Sử dụng SQL Atomic nguyên thủy để chống đè tiền Escrow
-            await _context.Database.ExecuteSqlRawSafeAsync(
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
-                amount, escrowWallet.Id);
-            await _context.Database.ExecuteSqlRawSafeAsync(
+                amount, escrowWallet!.Id);
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 amount, userWallet.Id);
 
-            _context.Set<LedgerTransaction>().Add(new LedgerTransaction
+            _ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "BookingCancelRefund",
                 ReferenceId = booking.Id,
@@ -743,7 +757,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             });
 
-            await _context.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         private async Task ReleaseSlotIfBooked(int slotId)
@@ -753,7 +767,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 slot.Status = SlotStatus.Active;
                 slot.UpdatedAt = DateTimeHelper.VietnamNow();
-                await _slotRepo.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
             }
         }
 
@@ -884,13 +898,13 @@ namespace ChargeSlot.Api.Services.Implementation
 
             foreach (var bes in booking.BookingExtraServices)
             {
-                var svc = await _context.Set<ExtraService>().FindAsync(bes.ServiceId);
+                var svc = await _extraServiceRepo.GetByIdAsync(bes.ServiceId);
                 if (svc != null && svc.TotalStock.HasValue)
                 {
                     svc.TotalStock += bes.Quantity;
                 }
             }
-            await _context.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         /// <summary>Hoàn điểm tích lũy khi cancel booking đã dùng điểm.</summary>
@@ -898,12 +912,12 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             if (booking.PointsUsed <= 0) return;
 
-            var driver = await _context.Driver.FirstOrDefaultAsync(d => d.UserId == booking.DriverUserId);
+            var driver = await _driverRepo.GetByUserIdAsync(booking.DriverUserId, tracking: true);
             if (driver == null) return;
 
             driver.LoyaltyPoints += booking.PointsUsed;
 
-            _context.LoyaltyTransactions.Add(new LoyaltyTransaction
+            _loyaltyRepo.Add(new LoyaltyTransaction
             {
                 DriverUserId = booking.DriverUserId,
                 BookingId = booking.Id,
@@ -913,7 +927,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 CreatedAt = DateTimeHelper.VietnamNow()
             });
 
-            await _context.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         /// <summary>
@@ -989,62 +1003,18 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<BookingDto>> GetAdminAllBookingsAsync(ChargeSlot.Api.DTOs.Admin.Overview.BookingFilterDto filter)
         {
-            var query = _context.Bookings
-                .Include(b => b.ChargingSlot).ThenInclude(cs => cs.ChargingStation)
-                .Include(b => b.Payment)
-                .Include(b => b.Driver).ThenInclude(u => u.User)
-                .Include(b => b.BookingExtraServices).ThenInclude(es => es.ExtraService)
-                .AsNoTracking()
-                .AsQueryable();
-
-            if (!string.IsNullOrEmpty(filter.Status))
-            {
-                if (System.Enum.TryParse<ChargeSlot.Api.Enums.BookingStatus>(filter.Status, true, out var statusEnum))
-                {
-                    query = query.Where(b => b.Status == statusEnum);
-                }
-            }
-
-            if (filter.DriverUserId.HasValue)
-            {
-                query = query.Where(b => b.DriverUserId == filter.DriverUserId.Value);
-            }
-
-            if (filter.OwnerUserId.HasValue)
-            {
-                query = query.Where(b => b.ChargingSlot.ChargingStation.OwnerUserId == filter.OwnerUserId.Value);
-            }
-
-            if (filter.StationId.HasValue)
-            {
-                query = query.Where(b => b.ChargingSlot.StationId == filter.StationId.Value);
-            }
-
-            if (filter.FromDate.HasValue)
-            {
-                query = query.Where(b => b.CreatedAt >= filter.FromDate.Value);
-            }
-            if (filter.ToDate.HasValue)
-            {
-                query = query.Where(b => b.CreatedAt <= filter.ToDate.Value);
-            }
-
-            int totalCount = await query.CountAsync();
-
-            var items = await query
-                .OrderByDescending(b => b.CreatedAt)
-                .Skip((filter.Page - 1) * filter.PageSize)
-                .Take(filter.PageSize)
-                .ToListAsync();
-
+            var result = await _bookingRepo.GetAdminBookingsPagedAsync(filter);
+            
             return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<BookingDto>
             {
-                Items = items.Select(MapToDto).ToList(),
-                TotalCount = totalCount,
+                Items = result.Items.Select(MapToDto).ToList(),
+                TotalCount = result.TotalCount,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };
         }
     }
 }
+
+
 

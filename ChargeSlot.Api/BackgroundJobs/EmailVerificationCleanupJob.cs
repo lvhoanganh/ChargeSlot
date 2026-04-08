@@ -1,6 +1,4 @@
-using ChargeSlot.Api.Constants;
-using ChargeSlot.Api.Data;
-using Microsoft.EntityFrameworkCore;
+using ChargeSlot.Api.Repositories.Interfaces;
 
 using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.BackgroundJobs
@@ -41,14 +39,15 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task CleanupExpiredPendingAccountsAsync(CancellationToken stoppingToken)
         {
             using var scope = _serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+            var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+            var driverRepo = scope.ServiceProvider.GetRequiredService<IDriverRepository>();
+            var ownerRepo = scope.ServiceProvider.GetRequiredService<IOwnerRepository>();
+            var refreshTokenRepo = scope.ServiceProvider.GetRequiredService<IRefreshTokenRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var cutoff = DateTimeHelper.VietnamNow().AddHours(-24);
 
-            var expiredUsers = await db.Users
-                .Where(u => u.Status == UserStatusConstants.PendingEmailVerification
-                         && u.CreatedAt < cutoff)
-                .ToListAsync(stoppingToken);
+            var expiredUsers = await userRepo.GetExpiredPendingVerificationAsync(cutoff);
 
             if (!expiredUsers.Any()) return;
 
@@ -59,25 +58,23 @@ namespace ChargeSlot.Api.BackgroundJobs
                     user.Id, user.PhoneNumber, user.Email, user.CreatedAt);
 
                 // Xoá các related entities trước (Driver/Owner profiles)
-                var driver = await db.Driver.FirstOrDefaultAsync(d => d.UserId == user.Id, stoppingToken);
-                if (driver != null) db.Driver.Remove(driver);
+                var driver = await driverRepo.GetByUserIdAsync(user.Id);
+                if (driver != null) driverRepo.Remove(driver);
 
-                var owner = await db.Owner.FirstOrDefaultAsync(o => o.UserId == user.Id, stoppingToken);
-                if (owner != null) db.Owner.Remove(owner);
+                var owner = await ownerRepo.GetByUserIdAsync(user.Id);
+                if (owner != null) ownerRepo.Remove(owner);
 
                 // Xoá refresh tokens
-                var tokens = await db.RefreshTokens.Where(t => t.UserId == user.Id).ToListAsync(stoppingToken);
-                db.RefreshTokens.RemoveRange(tokens);
+                await refreshTokenRepo.RemoveAllByUserIdAsync(user.Id);
 
                 // Xoá user roles (EF Identity)
-                var userRoles = await db.UserRoles.Where(ur => ur.UserId == user.Id).ToListAsync(stoppingToken);
-                db.UserRoles.RemoveRange(userRoles);
+                await userRepo.RemoveUserRolesAsync(user.Id);
 
                 // Xoá user
-                db.Users.Remove(user);
+                userRepo.Remove(user);
             }
 
-            await db.SaveChangesAsync(stoppingToken);
+            await unitOfWork.CompleteAsync();
 
             _logger.LogInformation(
                 "[EmailVerificationCleanupJob] Cleaned up {Count} expired pending accounts.", 

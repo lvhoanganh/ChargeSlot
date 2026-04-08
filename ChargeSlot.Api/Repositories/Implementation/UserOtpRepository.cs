@@ -99,10 +99,6 @@ namespace ChargeSlot.Api.Repositories.Implementation
                     x.VerifiedAt >= now - validWithin)
                 .AnyAsync();
         }
-
-        public async Task SaveChangesAsync()
-        {
-            await _context.SaveChangesAsync();
-        }
     }
 }
+

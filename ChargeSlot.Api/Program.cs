@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using ChargeSlot.Api.Seeds;
 using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Implementation;
-using ChargeSlot.Api.Repositories.Implementations;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Implementation;
 using ChargeSlot.Api.Services.Interfaces;
@@ -188,6 +187,12 @@ builder.Services.AddScoped<IDriverProfileService, DriverProfileService>();
 builder.Services.AddScoped<IOwnerProfileService, OwnerProfileService>();
 builder.Services.AddScoped<IAdminAccountService, AdminAccountService>();
 builder.Services.AddScoped<IAdminAccountRepository, AdminAccountRepository>();
+builder.Services.AddScoped<IExtraServiceRepository, ExtraServiceRepository>();
+builder.Services.AddScoped<IRatingRepository, RatingRepository>();
+builder.Services.AddScoped<IStationPricingRepository, StationPricingRepository>();
+builder.Services.AddScoped<ISystemConfigRepository, SystemConfigRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IWithdrawRequestRepository, WithdrawRequestRepository>();
 // ChargingStation & ChargingSlot
 builder.Services.AddScoped<IChargingStationRepository, ChargingStationRepository>();
 builder.Services.AddScoped<IChargingStationService, ChargingStationService>();
@@ -228,9 +233,25 @@ builder.Services.AddScoped<IAdminRevenueService, AdminRevenueService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 
 // Analytics & AI
+builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IAiInsightsService, GeminiInsightsService>();
 builder.Services.AddScoped<IAiChatbotService, AiChatbotService>();
+
+// Miscellaneous Refactored Services
+builder.Services.AddScoped<IBankAccountRepository, BankAccountRepository>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IFavoriteStationRepository, FavoriteStationRepository>();
+builder.Services.AddScoped<IFavoriteService, FavoriteService>();
+builder.Services.AddScoped<ILoyaltyRepository, LoyaltyRepository>();
+builder.Services.AddScoped<ILoyaltyService, LoyaltyService>();
+builder.Services.AddScoped<IChatRepository, ChatRepository>();
+builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IPublicStationService, PublicStationService>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<ILedgerTransactionRepository, LedgerTransactionRepository>();
+builder.Services.AddScoped<IStationUnavailableDateRepository, StationUnavailableDateRepository>();
+builder.Services.AddScoped<ILoyaltyTransactionRepository, LoyaltyTransactionRepository>();
 
 // Background Jobs
 builder.Services.AddHostedService<PaymentExpiryJob>();

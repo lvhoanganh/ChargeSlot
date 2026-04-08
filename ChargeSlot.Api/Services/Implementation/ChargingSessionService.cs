@@ -19,7 +19,10 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IChargingSlotRepository _slotRepo;
         private readonly IWalletRepository _walletRepo;
         private readonly INotificationService _notificationService;
-        private readonly Data.ChargeSlotDbContext _db;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IDriverRepository _driverRepo;
+        private readonly ILoyaltyTransactionRepository _loyaltyRepo;
+        private readonly ILedgerTransactionRepository _ledgerRepo;
         private readonly ISystemConfigService _configService;
 
         public ChargingSessionService(
@@ -29,7 +32,10 @@ namespace ChargeSlot.Api.Services.Implementation
             IChargingSlotRepository slotRepo,
             IWalletRepository walletRepo,
             INotificationService notificationService,
-            Data.ChargeSlotDbContext db,
+            IUnitOfWork unitOfWork,
+            IDriverRepository driverRepo,
+            ILoyaltyTransactionRepository loyaltyRepo,
+            ILedgerTransactionRepository ledgerRepo,
             ISystemConfigService configService)
         {
             _sessionRepo = sessionRepo;
@@ -38,7 +44,10 @@ namespace ChargeSlot.Api.Services.Implementation
             _slotRepo = slotRepo;
             _walletRepo = walletRepo;
             _notificationService = notificationService;
-            _db = db;
+            _unitOfWork = unitOfWork;
+            _driverRepo = driverRepo;
+            _loyaltyRepo = loyaltyRepo;
+            _ledgerRepo = ledgerRepo;
             _configService = configService;
         }
 
@@ -49,9 +58,7 @@ namespace ChargeSlot.Api.Services.Implementation
         public async Task<ChargingSessionDto> CheckInAsync(int driverUserId, string qrCodeToken)
         {
             // 1. Find slot by QR token
-            var slot = await _db.ChargingSlots
-                .Include(s => s.ChargingStation)
-                .FirstOrDefaultAsync(s => s.QrCodeToken == qrCodeToken)
+            var slot = await _slotRepo.GetByQrCodeTokenAsync(qrCodeToken)
                 ?? throw new InvalidOperationException("QR code không hợp lệ.");
 
             // 1.5 Validate if station/slot is operational
@@ -63,13 +70,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // 2. Find Paid booking for this driver on this slot
             var now = DateTimeHelper.VietnamNow();
-            var booking = await _db.Bookings
-                .Include(b => b.Driver).ThenInclude(d => d.User)
-                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .FirstOrDefaultAsync(b =>
-                    b.DriverUserId == driverUserId
-                    && b.SlotId == slot.Id
-                    && b.Status == BookingStatus.Paid)
+            var booking = await _bookingRepo.GetPaidBookingForDriverAndSlotAsync(driverUserId, slot.Id)
                 ?? throw new InvalidOperationException("Không tìm thấy booking đã thanh toán trên slot này.");
 
             // 3. Validate time window: dùng snapshot CheckinDeadlineAt (đã set lúc payment)
@@ -84,21 +85,20 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Đã quá thời gian check-in cho booking này.");
 
             // 4. Chống double check-in (cùng 1 booking)
-            var existingSession = await _db.ChargingSessions
-                .AnyAsync(s => s.BookingId == booking.Id);
+            var existingSession = await _sessionRepo.HasSessionByBookingAsync(booking.Id);
             if (existingSession)
                 throw new InvalidOperationException("Booking này đã được check-in trước đó.");
 
             // 4.5. Chống 2 phiên sạc đè nhau trên cùng 1 slot (thực tế vật lý)
-            var hasOngoingSession = await _db.ChargingSessions
-                .AnyAsync(s => s.Booking.SlotId == slot.Id && s.ActualEndTime == null);
+            var hasOngoingSession = await _sessionRepo.HasOngoingSessionBySlotAsync(slot.Id);
             if (hasOngoingSession)
                 throw new InvalidOperationException("Trụ sạc hiện vẫn đang có xe cắm sạc. Vui lòng yêu cầu xe trước kết thúc trước khi check-in.");
 
             // 5. Update booking status
             booking.Status = BookingStatus.CheckedIn;
             booking.CheckedInAt = now;
-            await _bookingRepo.UpdateAsync(booking);
+            _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
             // 6. Create charging session
             var session = new ChargingSession
@@ -108,7 +108,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 ActualStartTime = now,
                 CreatedAt = now
             };
-            await _sessionRepo.CreateAsync(session);
+            _sessionRepo.Add(session);
+            await _unitOfWork.CompleteAsync();
 
             // 6. Update slot status to Booked
             var slotEntity = await _slotRepo.GetByIdAsync(slot.Id, tracking: true);
@@ -116,7 +117,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 slotEntity.Status = SlotStatus.Booked;
                 slotEntity.UpdatedAt = now;
-                await _slotRepo.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
             }
 
             // 7. Notify Owner
@@ -134,7 +135,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<ChargingSessionDto> StopChargingAsync(int ownerUserId, int sessionId)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var session = await _sessionRepo.GetByIdWithDetailsAsync(sessionId)
@@ -166,11 +167,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 // Update session
                 session.ActualEndTime = now;
                 session.ActualDurationHours = (decimal)(now - (session.ActualStartTime ?? now)).TotalHours;
-                await _sessionRepo.UpdateAsync(session);
+                _sessionRepo.Update(session);
+            await _unitOfWork.CompleteAsync();
 
                 // Update booking → CompletedPendingInvoice (= WaitingDriverConfirm)
                 booking.Status = BookingStatus.CompletedPendingInvoice;
-                await _bookingRepo.UpdateAsync(booking);
+                _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
                 // Create invoice - VAT & PlatformFee are DEDUCTED from booking amount
                 var grossAmount = booking.TotalAmount;
@@ -192,7 +195,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     Status = InvoiceStatus.PendingConfirm,
                     CreatedAt = now
                 };
-                await _invoiceRepo.CreateAsync(invoice);
+                _invoiceRepo.Add(invoice);
+            await _unitOfWork.CompleteAsync();
 
                 // Release slot → Active
                 var slot = await _slotRepo.GetByIdAsync(booking.SlotId, tracking: true);
@@ -200,7 +204,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     slot.Status = SlotStatus.Active;
                     slot.UpdatedAt = now;
-                    await _slotRepo.SaveChangesAsync();
+                    await _unitOfWork.CompleteAsync();
                 }
 
                 await transaction.CommitAsync();
@@ -242,7 +246,8 @@ namespace ChargeSlot.Api.Services.Implementation
 
             booking.EarlyEndRequestedAt = DateTimeHelper.VietnamNow();
             booking.UpdatedAt = DateTimeHelper.VietnamNow();
-            await _bookingRepo.UpdateAsync(booking);
+            _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
             // Notify Owner
             var ownerUserId = booking.ChargingSlot.ChargingStation.OwnerUserId;
@@ -261,7 +266,7 @@ namespace ChargeSlot.Api.Services.Implementation
         public async Task<BookingDto> ConfirmCompletionAsync(int driverUserId, int sessionId)
         {
             // FIX: Transaction bảo vệ settlement flow (ESCROW → Owner + Platform)
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var session = await _sessionRepo.GetByIdWithDetailsAsync(sessionId)
@@ -280,12 +285,14 @@ namespace ChargeSlot.Api.Services.Implementation
                 if (invoice != null)
                 {
                     invoice.Status = InvoiceStatus.Confirmed;
-                    await _invoiceRepo.UpdateAsync(invoice);
+                    _invoiceRepo.Update(invoice);
+            await _unitOfWork.CompleteAsync();
                 }
 
                 // Complete booking
                 booking.Status = BookingStatus.Completed;
-                await _bookingRepo.UpdateAsync(booking);
+                _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
                 // ── LOYALTY POINTS: tích điểm (dùng snapshot từ lúc tạo booking) ──
                 var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
@@ -293,14 +300,15 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 if (pointsEarned > 0)
                 {
-                    var driver = await _db.Set<Driver>().FirstOrDefaultAsync(d => d.UserId == booking.DriverUserId);
+                    var driver = await _driverRepo.GetByUserIdAsync(booking.DriverUserId);
                     if (driver != null)
                     {
                         driver.LoyaltyPoints += pointsEarned;
                         booking.PointsEarned = pointsEarned;
-                        await _bookingRepo.UpdateAsync(booking);
+                        _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
-                        _db.LoyaltyTransactions.Add(new LoyaltyTransaction
+                        _loyaltyRepo.Add(new LoyaltyTransaction
                         {
                             DriverUserId = booking.DriverUserId,
                             BookingId = booking.Id,
@@ -309,7 +317,7 @@ namespace ChargeSlot.Api.Services.Implementation
                             Description = $"Tích {pointsEarned:N0} điểm từ booking #{booking.Id} ({booking.TotalAmount:N0}đ × {earnRate * 100:N0}%)",
                             CreatedAt = DateTimeHelper.VietnamNow()
                         });
-                        await _db.SaveChangesAsync();
+                        await _unitOfWork.CompleteAsync();
                     }
                 }
 
@@ -351,8 +359,10 @@ namespace ChargeSlot.Api.Services.Implementation
             var now = DateTimeHelper.VietnamNow();
 
             // Get wallets
-            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            var platformWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");
+            var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW")
+                ?? throw new InvalidOperationException("Ví hệ thống ESCROW chưa được cấu hình.");
+            var platformWallet = await _walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE")
+                ?? throw new InvalidOperationException("Ví hệ thống PLATFORM_REVENUE chưa được cấu hình.");
 
             // Get or create Owner wallet
             var ownerWallet = await _walletRepo.GetByUserIdAsync(ownerUserId);
@@ -366,7 +376,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     FrozenBalance = 0,
                     CreatedAt = now
                 };
-                await _walletRepo.CreateAsync(ownerWallet);
+                _walletRepo.Add(ownerWallet);
+            await _unitOfWork.CompleteAsync();
             }
 
             var ownerNet = invoice.ChargingAmount;  // Net amount after VAT + platform fee deducted
@@ -374,11 +385,11 @@ namespace ChargeSlot.Api.Services.Implementation
             var totalDeducted = ownerNet + platformFee; // VAT stays in ESCROW (paid to tax authority later)
 
             // 1. ESCROW → Owner: net amount atomically
-            await _db.Database.ExecuteSqlRawSafeAsync(
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
                 ownerNet, escrowWallet.Id);
                 
-            await _db.Database.ExecuteSqlRawSafeAsync(
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 ownerNet, ownerWallet.Id);
 
@@ -395,14 +406,15 @@ namespace ChargeSlot.Api.Services.Implementation
                     new LedgerEntry { WalletId = ownerWallet.Id, Direction = LedgerDirection.Credit, Amount = ownerNet, CreatedAt = now }
                 }
             };
-            await _walletRepo.AddLedgerTransactionAsync(ownerLedger);
+            _walletRepo.AddLedgerTransaction(ownerLedger);
+                    await _unitOfWork.CompleteAsync();
 
             // 2. ESCROW → PLATFORM_REVENUE: platform fee atomically
-            await _db.Database.ExecuteSqlRawSafeAsync(
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
                 platformFee, escrowWallet.Id);
                 
-            await _db.Database.ExecuteSqlRawSafeAsync(
+            await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 platformFee, platformWallet.Id);
 
@@ -419,7 +431,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
                 }
             };
-            await _walletRepo.AddLedgerTransactionAsync(feeLedger);
+            _walletRepo.AddLedgerTransaction(feeLedger);
+                    await _unitOfWork.CompleteAsync();
 
             // Note: VAT (invoice.VatAmount) remains in ESCROW for tax authority payment
             // A separate admin process would handle VAT remittance
@@ -535,10 +548,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<BookingDto> RequestManualCheckinAsync(int driverUserId, int bookingId)
         {
-            var booking = await _db.Bookings
-                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(b => b.Driver).ThenInclude(d => d.User)
-                .FirstOrDefaultAsync(b => b.Id == bookingId)
+            var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
                 ?? throw new InvalidOperationException("Booking không tồn tại.");
 
             if (booking.DriverUserId != driverUserId)
@@ -552,7 +562,8 @@ namespace ChargeSlot.Api.Services.Implementation
 
             booking.ManualCheckinRequestedAt = DateTimeHelper.VietnamNow();
             booking.UpdatedAt = DateTimeHelper.VietnamNow();
-            await _bookingRepo.UpdateAsync(booking);
+            _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
             // Notify Owner
             var ownerUserId = booking.ChargingSlot.ChargingStation.OwnerUserId;
@@ -571,14 +582,10 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<BookingDto> ConfirmManualCheckinAsync(int ownerUserId, int bookingId)
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
-                var booking = await _db.Bookings
-                    .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                    .Include(b => b.Driver).ThenInclude(d => d.User)
-                    .Include(b => b.BookingExtraServices)
-                    .FirstOrDefaultAsync(b => b.Id == bookingId)
+                var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
                     ?? throw new InvalidOperationException("Booking không tồn tại.");
 
                 // Validate owner
@@ -604,7 +611,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     ActualDurationHours = (decimal)(booking.EndTime - booking.StartTime).TotalHours,
                     CreatedAt = now
                 };
-                await _sessionRepo.CreateAsync(session);
+                _sessionRepo.Add(session);
+            await _unitOfWork.CompleteAsync();
 
                 // 2. Tạo invoice
                 var grossAmount = booking.TotalAmount;
@@ -627,13 +635,15 @@ namespace ChargeSlot.Api.Services.Implementation
                     CreatedAt = now,
                     UpdatedAt = now
                 };
-                await _invoiceRepo.CreateAsync(invoice);
+                _invoiceRepo.Add(invoice);
+            await _unitOfWork.CompleteAsync();
 
                 // 3. Complete booking
                 booking.Status = BookingStatus.Completed;
                 booking.CheckedInAt = booking.ManualCheckinRequestedAt.Value;
                 booking.UpdatedAt = now;
-                await _bookingRepo.UpdateAsync(booking);
+                _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
                 // 4. Loyalty points
                 // Dùng snapshot LoyaltyEarnRateSnapshot (đồng nhất toàn hệ thống)
@@ -642,13 +652,13 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 if (pointsEarned > 0)
                 {
-                    var driver = await _db.Set<Driver>().FirstOrDefaultAsync(d => d.UserId == booking.DriverUserId);
+                    var driver = await _driverRepo.GetByUserIdAsync(booking.DriverUserId);
                     if (driver != null)
                     {
                         driver.LoyaltyPoints += pointsEarned;
                         booking.PointsEarned = pointsEarned;
 
-                        _db.LoyaltyTransactions.Add(new LoyaltyTransaction
+                        _loyaltyRepo.Add(new LoyaltyTransaction
                         {
                             DriverUserId = booking.DriverUserId,
                             BookingId = booking.Id,
@@ -657,7 +667,7 @@ namespace ChargeSlot.Api.Services.Implementation
                             Description = $"Tích {pointsEarned:N0} điểm từ booking #{booking.Id} (xác nhận thủ công)",
                             CreatedAt = now
                         });
-                        await _db.SaveChangesAsync();
+                        await _unitOfWork.CompleteAsync();
                     }
                 }
 
@@ -670,7 +680,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     slot.Status = SlotStatus.Active;
                     slot.UpdatedAt = now;
-                    await _slotRepo.SaveChangesAsync();
+                    await _unitOfWork.CompleteAsync();
                 }
 
                 await transaction.CommitAsync();
@@ -699,45 +709,12 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<ChargingSessionDto>> GetAdminAllSessionsAsync(ChargeSlot.Api.DTOs.Admin.Overview.SessionFilterDto filter)
         {
-            IQueryable<ChargingSession> query = _db.ChargingSessions
-                .Include(s => s.Booking).ThenInclude(b => b.Driver).ThenInclude(u => u.User)
-                .Include(s => s.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(cs => cs.ChargingStation)
-                .AsNoTracking();
-
-            if (!string.IsNullOrEmpty(filter.Status))
-            {
-                if (System.Enum.TryParse<ChargeSlot.Api.Enums.BookingStatus>(filter.Status, true, out var statusEnum))
-                {
-                    query = query.Where(s => s.Booking.Status == statusEnum);
-                }
-            }
-
-            if (filter.BookingId.HasValue)
-            {
-                query = query.Where(s => s.BookingId == filter.BookingId.Value);
-            }
-
-            if (filter.FromDate.HasValue)
-            {
-                query = query.Where(s => s.ActualStartTime >= filter.FromDate.Value || s.CreatedAt >= filter.FromDate.Value);
-            }
-            if (filter.ToDate.HasValue)
-            {
-                query = query.Where(s => s.ActualStartTime <= filter.ToDate.Value || s.CreatedAt <= filter.ToDate.Value);
-            }
-
-            int totalCount = await query.CountAsync();
-
-            var items = await query
-                .OrderByDescending(s => s.CreatedAt)
-                .Skip((filter.Page - 1) * filter.PageSize)
-                .Take(filter.PageSize)
-                .ToListAsync();
-
+            var result = await _sessionRepo.GetAdminAllSessionsAsync(filter);
+            
             return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<ChargingSessionDto>
             {
-                Items = items.Select(s => MapToDto(s, s.Booking)).ToList(),
-                TotalCount = totalCount,
+                Items = result.Items.Select(s => MapToDto(s, s.Booking)).ToList(),
+                TotalCount = result.TotalCount,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };
@@ -745,49 +722,19 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<InvoiceDto>> GetAdminAllInvoicesAsync(ChargeSlot.Api.DTOs.Admin.Overview.InvoiceFilterDto filter)
         {
-            IQueryable<Invoice> query = _db.Invoices.AsNoTracking();
-
-            if (!string.IsNullOrEmpty(filter.Status))
-            {
-                if (Enum.TryParse<InvoiceStatus>(filter.Status, true, out var statusEnum))
-                {
-                    query = query.Where(i => i.Status == statusEnum);
-                }
-            }
-
-            if (filter.IsPaid.HasValue)
-            {
-                if (filter.IsPaid.Value)
-                    query = query.Where(i => i.Status == InvoiceStatus.Confirmed);
-                else
-                    query = query.Where(i => i.Status != InvoiceStatus.Confirmed);
-            }
-
-            if (filter.FromDate.HasValue)
-            {
-                query = query.Where(i => i.CreatedAt >= filter.FromDate.Value);
-            }
-            if (filter.ToDate.HasValue)
-            {
-                query = query.Where(i => i.CreatedAt <= filter.ToDate.Value);
-            }
-
-            int totalCount = await query.CountAsync();
-
-            var items = await query
-                .OrderByDescending(i => i.CreatedAt)
-                .Skip((filter.Page - 1) * filter.PageSize)
-                .Take(filter.PageSize)
-                .ToListAsync();
-
+            var result = await _invoiceRepo.GetAdminAllInvoicesAsync(filter);
+            
             return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<InvoiceDto>
             {
-                Items = items.Select(MapToInvoiceDto).ToList(),
-                TotalCount = totalCount,
+                Items = result.Items.Select(MapToInvoiceDto).ToList(),
+                TotalCount = result.TotalCount,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };
         }
     }
 }
+
+
+
 

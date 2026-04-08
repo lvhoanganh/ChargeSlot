@@ -9,6 +9,7 @@ namespace ChargeSlot.Api.Repositories.Interfaces
         Task AddAsync(ChargingSlot slot);
         void Update(ChargingSlot slot);
         void Remove(ChargingSlot slot);
-        Task SaveChangesAsync();
+        Task<ChargingSlot?> GetByQrCodeTokenAsync(string qrCodeToken);
     }
 }
+

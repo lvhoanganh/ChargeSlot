@@ -1,9 +1,7 @@
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Helpers;
-using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 namespace ChargeSlot.Api.BackgroundJobs
 {
@@ -63,7 +61,8 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task RemindInvoicePendingConfirmAsync(CancellationToken ct)
         {
             using var scope = _serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+            var invoiceRepo = scope.ServiceProvider.GetRequiredService<IInvoiceRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var now = DateTimeHelper.VietnamNow();
@@ -71,14 +70,7 @@ namespace ChargeSlot.Api.BackgroundJobs
             var reminderStart = now.AddHours(-24);     // đã quá 24h → bỏ qua (auto-confirm đã chạy)
             var reminderEnd = now.AddHours(-23);       // tạo cách đây 23h → còn 1h
 
-            var invoices = await db.Invoices
-                .AsNoTracking()
-                .Include(i => i.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Where(i => i.Status == InvoiceStatus.PendingConfirm
-                         && i.CreatedAt > reminderStart
-                         && i.CreatedAt <= reminderEnd
-                         && !i.ReminderSentAt.HasValue)
-                .ToListAsync(ct);
+            var invoices = await invoiceRepo.GetPendingConfirmForReminderAsync(reminderStart, reminderEnd);
 
             foreach (var invoice in invoices)
             {
@@ -97,10 +89,9 @@ namespace ChargeSlot.Api.BackgroundJobs
                         + "Nếu có vấn đề, vui lòng tạo khiếu nại ngay.",
                         NotificationType.System);
 
-                    // Đánh dấu đã gửi reminder (update trực tiếp)
-                    await db.Invoices
-                        .Where(i => i.Id == invoice.Id)
-                        .ExecuteUpdateAsync(s => s.SetProperty(i => i.ReminderSentAt, now), ct);
+                    // Đánh dấu đã gửi reminder
+                    await invoiceRepo.MarkReminderSentAsync(invoice.Id, now);
+                    await unitOfWork.CompleteAsync();
 
                     _logger.LogInformation(
                         "[DeadlineReminderJob] Sent invoice reminder for Invoice #{InvoiceId} to Driver {DriverUserId}",
@@ -119,20 +110,15 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task RemindWithdrawPendingConfirmAsync(CancellationToken ct)
         {
             using var scope = _serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+            var withdrawRepo = scope.ServiceProvider.GetRequiredService<IWithdrawRequestRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var now = DateTimeHelper.VietnamNow();
             var reminderStart = now.AddHours(-24);
             var reminderEnd = now.AddHours(-23);
 
-            var requests = await db.Set<WithdrawRequest>()
-                .Where(r => r.Status == WithdrawStatus.TransferCompleted
-                         && r.TransferredAt.HasValue
-                         && r.TransferredAt.Value > reminderStart
-                         && r.TransferredAt.Value <= reminderEnd
-                         && !r.ReminderSentAt.HasValue)
-                .ToListAsync(ct);
+            var requests = await withdrawRepo.GetTransferCompletedForReminderAsync(reminderStart, reminderEnd);
 
             foreach (var req in requests)
             {
@@ -146,7 +132,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                         NotificationType.Wallet);
 
                     req.ReminderSentAt = now;
-                    await db.SaveChangesAsync(ct);
+                    await unitOfWork.CompleteAsync();
 
                     _logger.LogInformation(
                         "[DeadlineReminderJob] Sent withdraw reminder for Withdraw #{Id} to User {UserId}",
@@ -165,21 +151,14 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task RemindDisputeOwnerEvidenceAsync(CancellationToken ct)
         {
             using var scope = _serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+            var disputeRepo = scope.ServiceProvider.GetRequiredService<IDisputeRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var now = DateTimeHelper.VietnamNow();
             var reminderCutoff = now.Add(ReminderWindow); // Deadline trong vòng 1h tới
 
-            var disputes = await db.Disputes
-                .AsNoTracking()
-                .Include(d => d.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Where(d => d.Status == DisputeStatus.WaitingOwnerEvidence
-                         && d.OwnerEvidenceDeadlineAt.HasValue
-                         && d.OwnerEvidenceDeadlineAt.Value > now
-                         && d.OwnerEvidenceDeadlineAt.Value <= reminderCutoff
-                         && !d.OwnerReminderSentAt.HasValue)
-                .ToListAsync(ct);
+            var disputes = await disputeRepo.GetOwnerEvidenceForReminderAsync(now, reminderCutoff);
 
             foreach (var dispute in disputes)
             {
@@ -198,9 +177,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                         + "do không nhận được phản hồi từ bạn. Vui lòng nộp bằng chứng ngay.",
                         NotificationType.System);
 
-                    await db.Disputes
-                        .Where(d => d.Id == dispute.Id)
-                        .ExecuteUpdateAsync(s => s.SetProperty(d => d.OwnerReminderSentAt, now), ct);
+                    await disputeRepo.MarkOwnerReminderSentAsync(dispute.Id, now);
+                    await unitOfWork.CompleteAsync();
 
                     _logger.LogInformation(
                         "[DeadlineReminderJob] Sent dispute owner evidence reminder for Dispute #{Id}",
@@ -219,27 +197,18 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task RemindDisputeAdminReviewAsync(CancellationToken ct)
         {
             using var scope = _serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+            var disputeRepo = scope.ServiceProvider.GetRequiredService<IDisputeRepository>();
+            var adminAccountRepo = scope.ServiceProvider.GetRequiredService<IAdminAccountRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var now = DateTimeHelper.VietnamNow();
             var reminderCutoff = now.Add(ReminderWindow);
 
-            var disputes = await db.Disputes
-                .AsNoTracking()
-                .Where(d => d.Status == DisputeStatus.PendingReview
-                         && d.AdminReviewDeadlineAt.HasValue
-                         && d.AdminReviewDeadlineAt.Value > now
-                         && d.AdminReviewDeadlineAt.Value <= reminderCutoff
-                         && !d.AdminReminderSentAt.HasValue)
-                .ToListAsync(ct);
+            var disputes = await disputeRepo.GetAdminReviewForReminderAsync(now, reminderCutoff);
 
             // Tìm tất cả Admin users
-            var adminUserIds = await db.UserRoles
-                .Join(db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
-                .Where(x => x.Name == "Admin")
-                .Select(x => x.UserId)
-                .ToListAsync(ct);
+            var adminUserIds = await adminAccountRepo.GetAdminUserIdsAsync();
 
             foreach (var dispute in disputes)
             {
@@ -257,9 +226,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                             NotificationType.System);
                     }
 
-                    await db.Disputes
-                        .Where(d => d.Id == dispute.Id)
-                        .ExecuteUpdateAsync(s => s.SetProperty(d => d.AdminReminderSentAt, now), ct);
+                    await disputeRepo.MarkAdminReminderSentAsync(dispute.Id, now);
+                    await unitOfWork.CompleteAsync();
 
                     _logger.LogInformation(
                         "[DeadlineReminderJob] Sent dispute admin review reminder for Dispute #{Id}",
@@ -279,20 +247,14 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task RemindBookingApproachingAsync(CancellationToken ct)
         {
             using var scope = _serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+            var bookingRepo = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var now = DateTimeHelper.VietnamNow();
             var reminderCutoff = now.Add(ReminderWindow);
 
-            var bookings = await db.Bookings
-                .AsNoTracking()
-                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Where(b => b.Status == BookingStatus.Paid
-                         && b.StartTime > now
-                         && b.StartTime <= reminderCutoff
-                         && !b.ReminderSentAt.HasValue)
-                .ToListAsync(ct);
+            var bookings = await bookingRepo.GetApproachingPaidBookingsAsync(now, reminderCutoff);
 
             foreach (var booking in bookings)
             {
@@ -321,9 +283,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                             NotificationType.Booking);
                     }
 
-                    await db.Bookings
-                        .Where(b => b.Id == booking.Id)
-                        .ExecuteUpdateAsync(s => s.SetProperty(b => b.ReminderSentAt, now), ct);
+                    await bookingRepo.MarkReminderSentAsync(booking.Id, now);
+                    await unitOfWork.CompleteAsync();
 
                     _logger.LogInformation(
                         "[DeadlineReminderJob] Sent approaching reminder for Booking #{Id} to Driver {DriverUserId}",

@@ -11,14 +11,12 @@ namespace ChargeSlot.Api.Services.Implementation
     public class GeminiInsightsService : IAiInsightsService
     {
         private readonly HttpClient _httpClient;
-        private readonly ChargeSlotDbContext _db;
         private readonly ILogger<GeminiInsightsService> _logger;
         private readonly IConfiguration _configuration;
 
-        public GeminiInsightsService(HttpClient httpClient, ChargeSlotDbContext db, ILogger<GeminiInsightsService> logger, IConfiguration configuration)
+        public GeminiInsightsService(HttpClient httpClient, ILogger<GeminiInsightsService> logger, IConfiguration configuration)
         {
             _httpClient = httpClient;
-            _db = db;
             _logger = logger;
             _configuration = configuration;
         }

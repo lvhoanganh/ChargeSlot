@@ -16,12 +16,14 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IUserOtpRepository _otpRepository;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IConfiguration _config;
+        private readonly IUnitOfWork _unitOfWork;
         
-        public OtpService(IUserOtpRepository otpRepository, UserManager<ApplicationUser> userManager, IConfiguration config)
+        public OtpService(IUserOtpRepository otpRepository, UserManager<ApplicationUser> userManager, IConfiguration config, IUnitOfWork unitOfWork)
         {
             _otpRepository = otpRepository;
             _userManager = userManager;
             _config = config;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task SendOtpAsync(string phoneNumber, OtpPurpose purpose)
@@ -63,7 +65,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // 4️⃣ Lưu DB
             await _otpRepository.AddAsync(entity);
-            await _otpRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             // 5️⃣ GỬI OTP QUA SPEEDSMS (Hoặc Console Mock nếu chưa có API key)
             await SendSpeedSmsAsync(phone, otp);
@@ -108,7 +110,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // 4️⃣ Lưu DB
             await _otpRepository.AddAsync(entity);
-            await _otpRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             // 5️⃣ GỬI OTP QUA SPEEDSMS (Hoặc Console Mock nếu chưa có API key)
             await SendSpeedSmsAsync(phone, otp);
@@ -131,7 +133,7 @@ namespace ChargeSlot.Api.Services.Implementation
             record.VerifiedAt = DateTimeHelper.VietnamNow();   // 🔥 QUAN TRỌNG
             record.IsUsed = true;
 
-            await _otpRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
         }
 
@@ -193,3 +195,4 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+

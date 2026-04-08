@@ -1,4 +1,3 @@
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Auth;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Constants;
@@ -26,7 +25,10 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IConfiguration _config;
         private readonly IUserOtpRepository _otpRepository;
         private readonly IFirebaseAuthService _firebaseAuthService;
-        private readonly ChargeSlotDbContext _context;
+        private readonly IOwnerRepository _ownerRepo;
+        private readonly IDriverRepository _driverRepo;
+        private readonly IRefreshTokenRepository _refreshTokenRepo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IEmailService _emailService;
         private readonly ILogger<AuthService> _logger;
 
@@ -39,7 +41,10 @@ namespace ChargeSlot.Api.Services.Implementation
             IConfiguration config,
             IUserOtpRepository otpRepository,
             IFirebaseAuthService firebaseAuthService,
-            ChargeSlotDbContext context,
+            IOwnerRepository ownerRepo,
+            IDriverRepository driverRepo,
+            IRefreshTokenRepository refreshTokenRepo,
+            IUnitOfWork unitOfWork,
             IEmailService emailService,
             ILogger<AuthService> logger)
         {
@@ -49,7 +54,10 @@ namespace ChargeSlot.Api.Services.Implementation
             _config = config;
             _otpRepository = otpRepository;
             _firebaseAuthService = firebaseAuthService;
-            _context = context;
+            _ownerRepo = ownerRepo;
+            _driverRepo = driverRepo;
+            _refreshTokenRepo = refreshTokenRepo;
+            _unitOfWork = unitOfWork;
             _emailService = emailService;
             _logger = logger;
         }
@@ -117,7 +125,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // Create the corresponding profile record
             if (role == RoleConstants.Owner)
             {
-                _context.Owner.Add(new Owner
+                await _ownerRepo.AddAsync(new Owner
                 {
                     UserId = user.Id,
                     BusinessName = dto.FullName,
@@ -127,7 +135,7 @@ namespace ChargeSlot.Api.Services.Implementation
             }
             else if (role == RoleConstants.Driver)
             {
-                _context.Driver.Add(new Driver
+                await _driverRepo.AddAsync(new Driver
                 {
                     UserId = user.Id,
                     CreatedAt = DateTimeHelper.VietnamNow()
@@ -135,8 +143,7 @@ namespace ChargeSlot.Api.Services.Implementation
             }
 
             await _otpRepository.InvalidateAllOtpsAsync(phone);
-            await _otpRepository.SaveChangesAsync();
-            await _context.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             // Gửi email xác thực
             await SendVerificationEmailAsync(user);
@@ -174,9 +181,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken)
         {
-            var storedToken = await _context.RefreshTokens
-                .Include(rt => rt.User)
-                .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
+            var storedToken = await _refreshTokenRepo.GetByTokenAsync(refreshToken);
 
             if (storedToken == null)
                 throw new InvalidOperationException("Invalid refresh token.");
@@ -207,14 +212,13 @@ namespace ChargeSlot.Api.Services.Implementation
             // Link old → new for audit trail
             storedToken.ReplacedByToken = response.RefreshToken;
 
-            await _context.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
             return response;
         }
 
         public async Task RevokeTokenAsync(string refreshToken, int userId)
         {
-            var storedToken = await _context.RefreshTokens
-                .FirstOrDefaultAsync(rt => rt.Token == refreshToken && rt.UserId == userId);
+            var storedToken = await _refreshTokenRepo.GetByTokenAndUserAsync(refreshToken, userId);
 
             if (storedToken == null)
                 throw new InvalidOperationException("Invalid refresh token.");
@@ -223,7 +227,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Token already revoked.");
 
             storedToken.RevokedAt = DateTimeHelper.VietnamNow();
-            await _context.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         private async Task EnsureRolesExistAsync()
@@ -269,8 +273,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
 
-            _context.RefreshTokens.Add(refreshToken);
-            await _context.SaveChangesAsync();
+            _refreshTokenRepo.Add(refreshToken);
+            await _unitOfWork.CompleteAsync();
 
             return refreshToken;
         }
@@ -351,7 +355,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 );
 
             await _otpRepository.InvalidateAllOtpsAsync(phone);
-            await _otpRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         public async Task ChangePasswordAsync(int userId, string currentPassword, string newPassword)
@@ -497,7 +501,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (role == RoleConstants.Owner)
             {
-                var owner = await _context.Owner.FirstOrDefaultAsync(o => o.UserId == user.Id);
+                var owner = await _ownerRepo.GetByUserIdAsync(user.Id);
                 if (owner != null)
                 {
                     kycStatus = owner.KycStatus.ToString();
@@ -536,3 +540,4 @@ namespace ChargeSlot.Api.Services.Implementation
 
     }
 }
+

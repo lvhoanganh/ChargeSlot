@@ -17,20 +17,38 @@ namespace ChargeSlot.Api.Services.Implementation
     public class ChargingStationService : IChargingStationService
     {
         private readonly IChargingStationRepository _stationRepo;
-        private readonly ChargeSlotDbContext _context;
+        private readonly IOwnerRepository _ownerRepo;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IStationPricingRepository _pricingRepo;
+        private readonly IExtraServiceRepository _extraServiceRepo;
+        private readonly IStationUnavailableDateRepository _unavailableDateRepo;
+        private readonly IBookingRepository _bookingRepo;
+        private readonly INotificationRepository _notificationRepo;
+        private readonly IUnitOfWork _unitOfWork;
 
         public ChargingStationService(
             IChargingStationRepository stationRepo,
-            ChargeSlotDbContext context,
+            IOwnerRepository ownerRepo,
             UserManager<ApplicationUser> userManager,
-            IFileStorageService fileStorageService)
+            IFileStorageService fileStorageService,
+            IStationPricingRepository pricingRepo,
+            IExtraServiceRepository extraServiceRepo,
+            IStationUnavailableDateRepository unavailableDateRepo,
+            IBookingRepository bookingRepo,
+            INotificationRepository notificationRepo,
+            IUnitOfWork unitOfWork)
         {
             _stationRepo = stationRepo;
-            _context = context;
+            _ownerRepo = ownerRepo;
             _userManager = userManager;
             _fileStorageService = fileStorageService;
+            _pricingRepo = pricingRepo;
+            _extraServiceRepo = extraServiceRepo;
+            _unavailableDateRepo = unavailableDateRepo;
+            _bookingRepo = bookingRepo;
+            _notificationRepo = notificationRepo;
+            _unitOfWork = unitOfWork;
         }
 
         // ─────────────── CRUD ───────────────
@@ -52,7 +70,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task<ChargingStationDto> CreateAsync(int ownerUserId, CreateChargingStationDto dto)
         {
-            var ownerExists = await _context.Owner.FirstOrDefaultAsync(o => o.UserId == ownerUserId);
+            var ownerExists = await _ownerRepo.GetByUserIdAsync(ownerUserId);
             if (ownerExists == null)
             {
                 throw new InvalidOperationException("Chưa tìm thấy hồ sơ Chủ trạm. Vui lòng xác thực danh tính (KYC) trước khi tạo trạm sạc.");
@@ -123,7 +141,7 @@ namespace ChargeSlot.Api.Services.Implementation
             }
 
             await _stationRepo.AddAsync(station);
-            await _stationRepo.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             return MapToDto(station);
         }
@@ -134,19 +152,19 @@ namespace ChargeSlot.Api.Services.Implementation
         public async Task<ChargingStationDto> CreateFromFormAsync(int ownerUserId, CreateStationFormDto dto, HttpRequest request)
         {
             // Ensure Owner profile record exists
-            var ownerExists = await _context.Owner.AnyAsync(o => o.UserId == ownerUserId);
-            if (!ownerExists)
+            var ownerExists = await _ownerRepo.GetByUserIdAsync(ownerUserId);
+            if (ownerExists == null)
             {
-                var user = await _context.Users.FindAsync(ownerUserId)
+                var user = await _userManager.FindByIdAsync(ownerUserId.ToString())
                     ?? throw new InvalidOperationException("User not found.");
-                _context.Owner.Add(new Owner
+                await _ownerRepo.AddAsync(new Owner
                 {
                     UserId = ownerUserId,
                     BusinessName = user.FullName,
                     TaxCode = "N/A",
                     CreatedAt = DateTimeHelper.VietnamNow()
                 });
-                await _context.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
             }
 
             var station = new ChargingStation
@@ -197,7 +215,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Save station first to get ID (needed for image folder + slot IDs)
             await _stationRepo.AddAsync(station);
-            await _stationRepo.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             // Upload images to Firebase Storage
             if (dto.Images?.Length > 0)
@@ -215,7 +233,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         });
                     }
                 }
-                await _stationRepo.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
             }
 
             // Station-level pricing
@@ -228,7 +246,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         !TimeOnly.TryParse(p.EndTime, out var endTime))
                         continue;
 
-                    _context.Set<StationPricing>().Add(new StationPricing
+                    _pricingRepo.Add(new StationPricing
                     {
                         StationId = station.Id,
                         StartTime = startTime,
@@ -240,7 +258,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         CreatedAt = now
                     });
                 }
-                await _context.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
             }
 
             // Reload to get full data
@@ -275,7 +293,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // Replace operating hours (nếu có truyền)
             if (dto.OperatingHours != null)
             {
-                _context.StationOperatingHours.RemoveRange(station.OperatingHours);
+                _stationRepo.RemoveOperatingHours(station.OperatingHours);
                 station.OperatingHours.Clear();
 
                 foreach (var h in dto.OperatingHours)
@@ -301,7 +319,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 await _fileStorageService.DeleteAsync(img.ImageUrl);
             }
-            _context.StationImages.RemoveRange(imagesToRemove);
+            _stationRepo.RemoveImages(imagesToRemove);
 
             // 2. Upload ảnh mới lên Firebase Storage
             if (dto.Images?.Length > 0)
@@ -321,7 +339,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             }
 
-            await _stationRepo.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             // Reload to get full data
             var updated = await _stationRepo.GetByIdAsync(station.Id) ?? station;
@@ -351,9 +369,9 @@ namespace ChargeSlot.Api.Services.Implementation
                 BookingStatus.WaitingOwner, BookingStatus.PendingPayment,
                 BookingStatus.Paid, BookingStatus.CheckedIn, BookingStatus.InProgress
             };
-            var hasActiveBookings = await _context.Bookings
-                .AnyAsync(b => slotIds.Contains(b.SlotId) && activeStatuses.Contains(b.Status));
-            if (hasActiveBookings)
+            var activeBookings = await _bookingRepo.GetActiveBookingsByStationIdsAsync(
+                new List<int> { id }, activeStatuses);
+            if (activeBookings.Any())
                 throw new InvalidOperationException("Không thể xóa trạm có booking đang hoạt động.");
 
             // Remove images from Firebase Storage
@@ -363,12 +381,12 @@ namespace ChargeSlot.Api.Services.Implementation
             }
 
             // Remove child entities
-            _context.StationOperatingHours.RemoveRange(station.OperatingHours);
-            _context.StationImages.RemoveRange(station.Images);
-            _context.ChargingSlots.RemoveRange(station.ChargingSlots);
+            _stationRepo.RemoveOperatingHours(station.OperatingHours);
+            _stationRepo.RemoveImages(station.Images);
+            _stationRepo.RemoveSlots(station.ChargingSlots);
 
             _stationRepo.Remove(station);
-            await _stationRepo.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         // ─────────────── APPROVAL FLOW ───────────────
@@ -407,7 +425,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var adminUsers = await _userManager.GetUsersInRoleAsync(RoleConstants.Admin);
             foreach (var admin in adminUsers)
             {
-                _context.Notifications.Add(new Notification
+                _notificationRepo.Add(new Notification
                 {
                     UserId = admin.Id,
                     Title = "Trạm sạc mới chờ duyệt",
@@ -418,17 +436,14 @@ namespace ChargeSlot.Api.Services.Implementation
                 });
             }
 
-            await _stationRepo.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         // ─────────────── UNAVAILABLE DATES ───────────────
 
         public async Task<List<UnavailableDateDto>> GetUnavailableDatesAsync(int stationId)
         {
-            var dates = await _context.StationUnavailableDates
-                .Where(x => x.StationId == stationId)
-                .OrderBy(x => x.Date)
-                .ToListAsync();
+            var dates = await _unavailableDateRepo.GetByStationIdAsync(stationId);
 
             return dates.Select(x => new UnavailableDateDto
             {
@@ -457,17 +472,14 @@ namespace ChargeSlot.Api.Services.Implementation
                 BookingStatus.Paid, BookingStatus.CheckedIn, BookingStatus.InProgress
             };
 
-            var slotIds = await _context.ChargingSlots
-                .Where(s => s.StationId == stationId)
-                .Select(s => s.Id)
-                .ToListAsync();
-
             // Only check bookings that end after VietnamNow
             var now = DateTimeHelper.VietnamNow();
-            var activeBookings = await _context.Bookings
-                .Where(b => slotIds.Contains(b.SlotId) && activeStatuses.Contains(b.Status) && b.EndTime > now)
+            var activeBookingsRaw = await _bookingRepo.GetActiveBookingsByStationIdsAsync(
+                new List<int> { stationId }, activeStatuses);
+            var activeBookings = activeBookingsRaw
+                .Where(b => b.EndTime > now)
                 .Select(b => new { b.Id, b.StartTime, b.EndTime })
-                .ToListAsync();
+                .ToList();
 
             var conflicts = new List<string>();
 
@@ -497,10 +509,7 @@ namespace ChargeSlot.Api.Services.Implementation
             }
 
             // If no conflicts, save the non-duplicate ones
-            var existingDates = await _context.StationUnavailableDates
-                .Where(x => x.StationId == stationId)
-                .Select(x => x.Date)
-                .ToListAsync();
+            var existingDates = await _unavailableDateRepo.GetDatesByStationAsync(stationId);
 
             var addedRecords = new List<StationUnavailableDate>();
             foreach (var rd in requestedDates)
@@ -514,12 +523,12 @@ namespace ChargeSlot.Api.Services.Implementation
                         Reason = dto.Reason,
                         CreatedAt = DateTimeHelper.VietnamNow()
                     };
-                    _context.StationUnavailableDates.Add(record);
+                    _unavailableDateRepo.Add(record);
                     addedRecords.Add(record);
                 }
             }
 
-            await _context.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             return addedRecords.Select(x => new UnavailableDateDto
             {
@@ -538,18 +547,252 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (dto.Ids == null || dto.Ids.Count == 0) return;
 
-            var records = await _context.StationUnavailableDates
-                .Where(x => x.StationId == stationId && dto.Ids.Contains(x.Id))
-                .ToListAsync();
+            var records = await _unavailableDateRepo.GetByIdsAsync(stationId, dto.Ids);
 
             if (records.Count > 0)
             {
-                _context.StationUnavailableDates.RemoveRange(records);
-                await _context.SaveChangesAsync();
+                _unavailableDateRepo.RemoveRange(records);
+                await _unitOfWork.CompleteAsync();
             }
         }
 
         // ─────────────── ADMIN ───────────────
+
+        // ─────────────── STATUS ───────────────
+
+        public async Task<ChargingStationDto> UpdateOperationalStatusAsync(int id, int ownerUserId, string operationalStatus)
+        {
+            var station = await _stationRepo.GetByIdAsync(id, tracking: true, includeDetails: true);
+            if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
+            if (station.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Bạn không phải chủ trạm.");
+
+            if (station.ApprovalStatus != ApprovalStatus.Approved)
+                throw new InvalidOperationException("Chỉ có thể thay đổi trạng thái hoạt động khi station đã được Approved.");
+
+            if (!Enum.TryParse<OperationalStatus>(operationalStatus, true, out var newStatus))
+                throw new InvalidOperationException("OperationalStatus không hợp lệ. Sử dụng: Active, Inactive.");
+
+            if (newStatus == OperationalStatus.Inactive)
+            {
+                var activeStatuses = new[]
+                {
+                    BookingStatus.WaitingOwner, BookingStatus.PendingPayment,
+                    BookingStatus.Paid, BookingStatus.CheckedIn, BookingStatus.InProgress
+                };
+                var now = DateTimeHelper.VietnamNow();
+
+                var slotIds = station.ChargingSlots.Select(s => s.Id).ToList();
+                var activeBookingsRaw = await _bookingRepo.GetActiveBookingsByStationIdsAsync(
+                    new List<int> { id }, activeStatuses);
+                var hasActiveBookings = activeBookingsRaw.Any(b => b.EndTime > now);
+
+                if (hasActiveBookings)
+                    throw new InvalidOperationException("Không thể tắt trạm (Inactive) vì đang có booking sắp tới hoặc đang sạc. Vui lòng hủy các booking này trước.");
+            }
+
+            station.OperationalStatus = newStatus;
+            station.UpdatedAt = DateTimeHelper.VietnamNow();
+            await _unitOfWork.CompleteAsync();
+
+            return MapToDto(station);
+        }
+
+        // ─────────────── PRICING ───────────────
+
+        public async Task<List<StationPricingDto>> GetPricingAsync(int stationId, int ownerUserId)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId);
+            if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
+            if (station.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Bạn không phải chủ trạm.");
+
+            var pricings = await _pricingRepo.GetByStationIdAsync(stationId);
+            return pricings.Select(MapPricingDto).ToList();
+        }
+
+        public async Task<StationPricingDto> CreatePricingAsync(int stationId, int ownerUserId, CreateStationPricingDto dto)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId);
+            if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
+            if (station.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Bạn không phải chủ trạm.");
+
+            if (!TimeOnly.TryParse(dto.StartTime, out var startTime) || !TimeOnly.TryParse(dto.EndTime, out var endTime))
+                throw new InvalidOperationException("StartTime/EndTime phải ở dạng HH:mm, ví dụ 08:00");
+
+            var pricing = new StationPricing
+            {
+                StationId = stationId,
+                DayOfWeek = dto.DayOfWeek,
+                StartTime = startTime,
+                EndTime = endTime,
+                PricePerHour = dto.PricePerHour,
+                Priority = dto.Priority,
+                EffectiveFrom = dto.EffectiveFrom ?? DateTimeHelper.VietnamNow(),
+                EffectiveTo = dto.EffectiveTo,
+                IsActive = true,
+                CreatedAt = DateTimeHelper.VietnamNow()
+            };
+
+            _pricingRepo.Add(pricing);
+            await _unitOfWork.CompleteAsync();
+
+            return MapPricingDto(pricing);
+        }
+
+        public async Task<StationPricingDto> UpdatePricingAsync(int stationId, int pricingId, int ownerUserId, UpdateStationPricingDto dto)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId);
+            if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
+            if (station.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Bạn không phải chủ trạm.");
+
+            var pricing = await _pricingRepo.GetByIdAsync(pricingId, stationId);
+            if (pricing == null) throw new KeyNotFoundException("Pricing rule không tồn tại.");
+
+            if (!TimeOnly.TryParse(dto.StartTime, out var startTime) || !TimeOnly.TryParse(dto.EndTime, out var endTime))
+                throw new InvalidOperationException("StartTime/EndTime phải ở dạng HH:mm");
+
+            pricing.DayOfWeek = dto.DayOfWeek;
+            pricing.StartTime = startTime;
+            pricing.EndTime = endTime;
+            pricing.PricePerHour = dto.PricePerHour;
+            pricing.Priority = dto.Priority;
+            pricing.EffectiveFrom = dto.EffectiveFrom ?? pricing.EffectiveFrom;
+            pricing.EffectiveTo = dto.EffectiveTo;
+            pricing.IsActive = dto.IsActive;
+
+            _pricingRepo.Update(pricing);
+            await _unitOfWork.CompleteAsync();
+
+            return MapPricingDto(pricing);
+        }
+
+        public async Task DeletePricingAsync(int stationId, int pricingId, int ownerUserId)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId);
+            if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
+            if (station.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Bạn không phải chủ trạm.");
+
+            var pricing = await _pricingRepo.GetByIdAsync(pricingId, stationId);
+            if (pricing == null) throw new KeyNotFoundException("Pricing rule không tồn tại.");
+
+            _pricingRepo.Remove(pricing);
+            await _unitOfWork.CompleteAsync();
+        }
+
+        private static StationPricingDto MapPricingDto(StationPricing p)
+        {
+            return new StationPricingDto
+            {
+                Id = p.Id,
+                StationId = p.StationId,
+                DayOfWeek = p.DayOfWeek,
+                StartTime = p.StartTime,
+                EndTime = p.EndTime,
+                PricePerHour = p.PricePerHour,
+                Priority = p.Priority,
+                EffectiveFrom = p.EffectiveFrom,
+                EffectiveTo = p.EffectiveTo,
+                IsActive = p.IsActive,
+                CreatedAt = p.CreatedAt
+            };
+        }
+
+        // ─────────────── EXTRA SERVICES ───────────────
+
+        public async Task<List<ExtraServiceDto>> GetExtraServicesAsync(int stationId, int ownerUserId)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId);
+            if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
+            if (station.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Bạn không phải chủ trạm.");
+
+            var services = await _extraServiceRepo.GetByStationIdAsync(stationId);
+            return services.Select(MapExtraServiceDto).ToList();
+        }
+
+        public async Task<ExtraServiceDto> CreateExtraServiceAsync(int stationId, int ownerUserId, CreateExtraServiceDto dto)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId);
+            if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
+            if (station.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Bạn không phải chủ trạm.");
+
+            if (string.IsNullOrWhiteSpace(dto.ServiceName))
+                throw new InvalidOperationException("Tên dịch vụ không được để trống.");
+
+            if (dto.Price < 0)
+                throw new InvalidOperationException("Giá dịch vụ không được âm.");
+
+            var service = new ExtraService
+            {
+                StationId = stationId,
+                ServiceName = dto.ServiceName.Trim(),
+                Description = dto.Description?.Trim(),
+                Price = dto.Price,
+                TotalStock = dto.TotalStock,
+                IsActive = true,
+                CreatedAt = DateTimeHelper.VietnamNow()
+            };
+
+            _extraServiceRepo.Add(service);
+            await _unitOfWork.CompleteAsync();
+
+            return MapExtraServiceDto(service);
+        }
+
+        public async Task<ExtraServiceDto> UpdateExtraServiceAsync(int stationId, int serviceId, int ownerUserId, UpdateExtraServiceDto dto)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId);
+            if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
+            if (station.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Bạn không phải chủ trạm.");
+
+            var service = await _extraServiceRepo.GetByIdAndStationIdAsync(serviceId, stationId);
+            if (service == null) throw new KeyNotFoundException("Dịch vụ không tồn tại.");
+
+            if (string.IsNullOrWhiteSpace(dto.ServiceName))
+                throw new InvalidOperationException("Tên dịch vụ không được để trống.");
+
+            if (dto.Price < 0)
+                throw new InvalidOperationException("Giá dịch vụ không được âm.");
+
+            service.ServiceName = dto.ServiceName.Trim();
+            service.Description = dto.Description?.Trim();
+            service.Price = dto.Price;
+            service.TotalStock = dto.TotalStock;
+            service.IsActive = dto.IsActive;
+
+            _extraServiceRepo.Update(service);
+            await _unitOfWork.CompleteAsync();
+
+            return MapExtraServiceDto(service);
+        }
+
+        public async Task DeleteExtraServiceAsync(int stationId, int serviceId, int ownerUserId)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId);
+            if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
+            if (station.OwnerUserId != ownerUserId) throw new UnauthorizedAccessException("Bạn không phải chủ trạm.");
+
+            var service = await _extraServiceRepo.GetByIdAndStationIdAsync(serviceId, stationId);
+            if (service == null) throw new KeyNotFoundException("Dịch vụ không tồn tại.");
+
+            var hasBookings = await _extraServiceRepo.HasBookingsAsync(serviceId);
+            if (hasBookings)
+                throw new InvalidOperationException("Không thể xóa dịch vụ đã có booking sử dụng. Hãy tắt (IsActive = false) thay vì xóa.");
+
+            _extraServiceRepo.Remove(service);
+            await _unitOfWork.CompleteAsync();
+        }
+
+        private static ExtraServiceDto MapExtraServiceDto(ExtraService s)
+        {
+            return new ExtraServiceDto
+            {
+                Id = s.Id,
+                ServiceName = s.ServiceName,
+                Description = s.Description,
+                Price = s.Price,
+                TotalStock = s.TotalStock,
+                IsActive = s.IsActive
+            };
+        }
 
         public async Task<PagedResultDto<ChargingStationDto>> GetAdminStationsAsync(string? status, string? search, int page, int pageSize)
         {
@@ -557,38 +800,7 @@ namespace ChargeSlot.Api.Services.Implementation
             pageSize = pageSize <= 0 ? 10 : pageSize;
             if (pageSize > 100) pageSize = 100;
 
-            var query = _context.Set<ChargingStation>()
-                .Include(s => s.Images)
-                .Include(s => s.OperatingHours)
-                .Include(s => s.ChargingSlots)
-                .Include(s => s.StationPricings)
-                .AsNoTracking()
-                .AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(status))
-            {
-                var sValue = status.Trim().ToUpper();
-                // Filter by OperationalStatus 
-                // e.g. "INACTIVE"
-                if (Enum.TryParse<OperationalStatus>(sValue, true, out var opStatus))
-                {
-                    query = query.Where(s => s.OperationalStatus == opStatus);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var searchLower = search.Trim().ToLower();
-                query = query.Where(s => s.Name.ToLower().Contains(searchLower) || s.Address.ToLower().Contains(searchLower));
-            }
-
-            var total = await query.CountAsync();
-
-            var items = await query
-                .OrderByDescending(s => s.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
+            var (items, total) = await _stationRepo.GetAdminStationsPagedAsync(status, search, page, pageSize);
 
             var dtos = items.Select(MapToDto).ToList();
 
@@ -616,7 +828,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task ReviewStationAsync(int id, int adminUserId, ReviewStationDto dto)
         {
-            var station = await _stationRepo.GetByIdAsync(id, tracking: true);
+            var station = await _stationRepo.GetByIdAsync(id, tracking: true, includeDetails: true);
             if (station == null)
                 throw new KeyNotFoundException($"Station {id} not found.");
 
@@ -635,9 +847,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 station.OperationalStatus = OperationalStatus.Active; // Publish
 
                 // Activate all slots in this station
-                var slots = await _context.ChargingSlots
-                    .Where(s => s.StationId == station.Id)
-                    .ToListAsync();
+                var slots = station.ChargingSlots.ToList();
                 foreach (var slot in slots)
                 {
                     slot.Status = SlotStatus.Active;
@@ -646,7 +856,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
 
                 // Notify Owner
-                _context.Notifications.Add(new Notification
+                _notificationRepo.Add(new Notification
                 {
                     UserId = station.OwnerUserId,
                     Title = "Trạm sạc đã được phê duyệt",
@@ -665,7 +875,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 station.ApprovalStatus = ApprovalStatus.Rejected;
 
                 // Notify Owner with rejection reason
-                _context.Notifications.Add(new Notification
+                _notificationRepo.Add(new Notification
                 {
                     UserId = station.OwnerUserId,
                     Title = "Trạm sạc bị từ chối",
@@ -676,7 +886,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 });
             }
 
-            await _stationRepo.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         public async Task<string> ToggleBanStationAsync(int id, int adminUserId)
@@ -696,7 +906,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 station.BanCount = 0; 
             }
 
-            await _stationRepo.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
             return station.BannedUntil == null ? "Active" : "Banned";
         }
 
@@ -788,3 +998,4 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+

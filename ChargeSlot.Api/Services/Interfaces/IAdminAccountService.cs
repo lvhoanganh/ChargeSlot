@@ -11,6 +11,9 @@ namespace ChargeSlot.Api.Services.Interfaces
             int page,
             int pageSize);
 
+        Task<AdminOwnerDetailDto> GetOwnerDetailAsync(int ownerUserId);
+        Task<AdminDriverDetailDto> GetDriverDetailAsync(int driverUserId);
+
         Task<string> ToggleBanStatusAsync(int targetUserId, int actingAdminUserId);
 
         Task<AccountStatisticsDto> GetAccountStatisticsAsync();

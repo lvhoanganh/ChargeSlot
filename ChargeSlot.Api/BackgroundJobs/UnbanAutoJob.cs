@@ -1,10 +1,7 @@
 using ChargeSlot.Api.Constants;
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Enums;
-using ChargeSlot.Api.Models;
-using ChargeSlot.Api.Models.Identity;
+using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.BackgroundJobs
@@ -45,23 +42,21 @@ namespace ChargeSlot.Api.BackgroundJobs
         private async Task ProcessUnbanAsync(CancellationToken stoppingToken)
         {
             using var scope = _serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
+            var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+            var stationRepo = scope.ServiceProvider.GetRequiredService<IChargingStationRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var now = DateTimeHelper.VietnamNow();
 
             // 1. Unban Users (Drivers / Owners)
-            var usersToUnban = await db.Users
-                .Where(u => u.Status == UserStatusConstants.Suspended 
-                         && u.BannedUntil != null 
-                         && u.BannedUntil <= now)
-                .ToListAsync(stoppingToken);
+            var usersToUnban = await userRepo.GetSuspendedWithExpiredBanAsync(now);
 
             foreach (var user in usersToUnban)
             {
                 user.Status = UserStatusConstants.Active;
                 user.BannedUntil = null;
-                db.Users.Update(user);
+                userRepo.Update(user);
 
                 _logger.LogInformation("[UnbanAutoJob] Unbanned User ID: {UserId}", user.Id);
 
@@ -73,10 +68,7 @@ namespace ChargeSlot.Api.BackgroundJobs
             }
 
             // 2. Unban Stations
-            var stationsToUnban = await db.ChargingStations
-                .Where(s => s.BannedUntil != null 
-                         && s.BannedUntil <= now) // we don't strictly check OperationalStatus=Inactive here because maybe owner manually activated it but we still need to clear BannedUntil
-                .ToListAsync(stoppingToken);
+            var stationsToUnban = await stationRepo.GetBannedExpiredAsync(now);
 
             foreach (var station in stationsToUnban)
             {
@@ -87,7 +79,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     station.OperationalStatus = OperationalStatus.Active;
                 }
                 station.BannedUntil = null;
-                db.ChargingStations.Update(station);
+                stationRepo.Update(station);
 
                 _logger.LogInformation("[UnbanAutoJob] Unbanned Station ID: {StationId}", station.Id);
 
@@ -100,7 +92,7 @@ namespace ChargeSlot.Api.BackgroundJobs
 
             if (usersToUnban.Any() || stationsToUnban.Any())
             {
-                await db.SaveChangesAsync(stoppingToken);
+                await unitOfWork.CompleteAsync();
             }
         }
     }
