@@ -3,6 +3,11 @@ import { z } from "zod";
 const trimString = (value) => String(value ?? "").trim();
 
 export const ownerEditProfileSchema = z.object({
+  email: z
+    .string()
+    .transform(trimString)
+    .optional()
+    .refine((v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "Email không hợp lệ"),
   businessName: z
     .string()
     .transform(trimString)

@@ -25,6 +25,7 @@ const ChangePassword = lazy(() => import("./pages/common/ChangePassword"));
 const NotFound = lazy(() => import("./pages/common/NotFound"));
 const ChatList = lazy(() => import("./pages/common/ChatList"));
 const ChatPage = lazy(() => import("./pages/common/ChatPage"));
+const VerifyEmail = lazy(() => import("./pages/common/VerifyEmail"));
 
 // ── Admin pages ───────────────────────────────────────────────
 const ManageUser = lazy(() => import("./pages/admin/ManageUser"));
@@ -38,6 +39,10 @@ const AdminSystemConfig = lazy(() => import("./pages/admin/AdminSystemConfig"));
 const AdminWithdraws = lazy(() => import("./pages/admin/AdminWithdraws"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminKycRequests = lazy(() => import("./pages/admin/AdminKycRequests"));
+const AdminBookings = lazy(() => import("./pages/admin/AdminBookings"));
+const AdminSessions = lazy(() => import("./pages/admin/AdminSessions"));
+const AdminInvoices = lazy(() => import("./pages/admin/AdminInvoices"));
+const AdminWallets = lazy(() => import("./pages/admin/AdminWallets"));
 
 // ── Driver pages ──────────────────────────────────────────────
 const DriverProfile = lazy(() => import("./pages/driver/DriverProfile"));
@@ -162,6 +167,7 @@ export default function App() {
               <Route path="driver/station/:id" element={<StationDetailDriver />} />
               <Route path="driver/station/:stationId/book" element={<BookingForm />} />
               <Route path="forgotPassword" element={<ForgotPassword />} />
+              <Route path="verify-email" element={<VerifyEmail />} />
               <Route element={<PublicMiddleware />}>
                 <Route path="login" element={<Login />} />
                 <Route path="register" element={<Register />} />
@@ -190,6 +196,10 @@ export default function App() {
                 <Route path="withdraws" element={<AdminWithdraws />} />
                 <Route path="change-password" element={<ChangePassword />} />
                 <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="bookings" element={<AdminBookings />} />
+                <Route path="sessions" element={<AdminSessions />} />
+                <Route path="invoices" element={<AdminInvoices />} />
+                <Route path="wallets" element={<AdminWallets />} />
               </Route>
             </Route>
 

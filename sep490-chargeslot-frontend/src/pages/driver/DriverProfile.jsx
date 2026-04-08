@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { instance } from "@/lib/httpRequest";
+import { authApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +20,7 @@ export default function DriverProfile() {
     storedPhoneNumber || localStorage.getItem("phoneNumber") || "";
 
   const [profile, setProfile] = useState(null);
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [avatarSrc, setAvatarSrc] = useState(
@@ -32,9 +34,13 @@ export default function DriverProfile() {
       setLoading(true);
       setError("");
       try {
-        const data = await getDriverProfile();
+        const [data, meData] = await Promise.all([
+          getDriverProfile(),
+          authApi.getMe().catch(() => null),
+        ]);
         if (!cancelled) {
           setProfile(data);
+          if (meData?.email) setEmail(meData.email);
           // Ưu tiên avatar từ server (đồng bộ qua mọi thiết bị)
           if (data?.avatarUrl) {
             const url = data.avatarUrl.startsWith("/")
@@ -149,6 +155,7 @@ export default function DriverProfile() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <InfoCard icon="🏷️" label="Vai trò" value="Tài xế" />
                 <InfoCard icon="📱" label="Số điện thoại" value={maskPhone(phoneNumber) || "—"} />
+                <InfoCard icon="✉️" label="Email" value={email || "—"} />
                 <InfoCard icon="🚙" label="Loại xe" value={profile?.vehicleType || "—"} />
                 <InfoCard icon="🔢" label="Biển số" value={profile?.licensePlate || "—"} />
                 <InfoCard icon="📄" label="Số giấy phép" value={maskLicense(profile?.licenseNumber) || "—"} />

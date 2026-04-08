@@ -81,6 +81,26 @@ export default function AdminNav() {
       icon: "🛡️",
     },
     {
+      to: "/admin/bookings",
+      label: "Tổng Bookings",
+      icon: "📅",
+    },
+    {
+      to: "/admin/sessions",
+      label: "Log Phiên sạc",
+      icon: "🔌",
+    },
+    {
+      to: "/admin/invoices",
+      label: "Tất cả Hóa đơn",
+      icon: "🧾",
+    },
+    {
+      to: "/admin/wallets",
+      label: "Radar Ví (Vốn)",
+      icon: "🏦",
+    },
+    {
       to: "/admin/disputes",
       label: "Tranh chấp",
       icon: "⚠️",

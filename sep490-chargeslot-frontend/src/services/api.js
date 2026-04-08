@@ -236,6 +236,18 @@ export const authApi = {
         }
         return res.json();
     },
+
+    addEmail: (email) =>
+        apiFetch("/auth/add-email", {
+            method: "POST",
+            body: JSON.stringify({ email }),
+        }),
+
+    verifyEmail: (userId, token) =>
+        apiFetch("/auth/verify-email", {
+            method: "POST",
+            body: JSON.stringify({ userId, token }),
+        }),
 };
 
 // ============================

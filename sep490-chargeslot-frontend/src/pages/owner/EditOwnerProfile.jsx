@@ -6,7 +6,8 @@ import { ownerEditProfileSchema } from "@/schemas/ownerEditProfileSchema";
 import { useAuthStore } from "@/stores/authStore";
 import { instance } from "@/lib/httpRequest";
 import { useEffect, useState, forwardRef } from "react";
-import { ownerProfileApi } from "@/services/api";
+import { ownerProfileApi, authApi } from "@/services/api";
+import { showToast } from "@/components/Toast";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
@@ -42,6 +43,7 @@ export default function EditOwnerProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [originalEmail, setOriginalEmail] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -50,10 +52,18 @@ export default function EditOwnerProfile() {
       setLoading(true);
       setError("");
       try {
-        const p = await getOwnerProfile();
+        const [p, meData] = await Promise.all([
+          getOwnerProfile(),
+          authApi.getMe().catch(() => null),
+        ]);
         if (cancelled) return;
+        
+        const currentEmail = meData?.email || "";
+        setOriginalEmail(currentEmail);
+
         reset({
           fullName: getStoredFullName(phoneNumber),
+          email: currentEmail,
           businessName: p?.businessName || "",
           taxCode: normalizeOptionalText(p?.taxCode),
         });
@@ -113,6 +123,13 @@ export default function EditOwnerProfile() {
         businessName: bn,
         taxCode: tc,
       });
+
+      if (values.email && values.email !== originalEmail) {
+        await authApi.addEmail(values.email);
+        showToast.success("Link xác thực đã được gửi đến email mới của bạn.");
+      } else {
+        showToast.success("Cập nhật thông tin thành công");
+      }
 
       navigate("/owner/owner-profile");
     } catch (e) {
@@ -209,6 +226,13 @@ export default function EditOwnerProfile() {
                 <ReadOnlyField icon="🏷️" label="Vai trò" value="Chủ trạm" />
                 <ReadOnlyField icon="📱" label="Số điện thoại" value={phoneNumber || "—"} />
 
+                <InputField
+                  icon="✉️"
+                  label="Email"
+                  placeholder="Nhập email"
+                  error={errors.email?.message}
+                  {...register("email")}
+                />
                 <InputField
                   icon="🏢"
                   label="Tên doanh nghiệp"

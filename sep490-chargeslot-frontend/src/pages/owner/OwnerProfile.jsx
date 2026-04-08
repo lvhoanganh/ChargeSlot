@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { instance } from "@/lib/httpRequest";
+import { authApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +20,7 @@ export default function OwnerProfile() {
     storedPhoneNumber || localStorage.getItem("phoneNumber") || "";
 
   const [profile, setProfile] = useState(null);
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [avatarSrc, setAvatarSrc] = useState(
@@ -36,9 +38,13 @@ export default function OwnerProfile() {
       setLoading(true);
       setError("");
       try {
-        const data = await getOwnerProfile();
+        const [data, meData] = await Promise.all([
+          getOwnerProfile(),
+          authApi.getMe().catch(() => null),
+        ]);
         if (!cancelled) {
           setProfile(data);
+          if (meData?.email) setEmail(meData.email);
           // Ưu tiên avatar từ server (đồng bộ qua mọi thiết bị)
           if (data?.avatarUrl) {
             const url = data.avatarUrl.startsWith("/")
@@ -154,6 +160,7 @@ export default function OwnerProfile() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <InfoCard icon="🏷️" label="Vai trò" value="Chủ trạm" />
                 <InfoCard icon="📱" label="Số điện thoại" value={maskPhone(phoneNumber) || "—"} />
+                <InfoCard icon="✉️" label="Email" value={email || "—"} />
                 <InfoCard icon="🏢" label="Tên doanh nghiệp" value={hasBusinessInfo ? businessName : "—"} />
                 <InfoCard icon="📋" label="Mã số thuế" value={hasBusinessInfo ? maskTaxCode(taxCode) : "—"} />
               </div>

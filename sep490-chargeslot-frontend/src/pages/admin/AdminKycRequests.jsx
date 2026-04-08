@@ -169,102 +169,102 @@ export default function AdminKycRequests() {
         <div className="cs-admin-modal-overlay">
           <div className="cs-admin-modal" style={{ maxWidth: 900, textAlign: 'left' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-               <h2 className="cs-admin-modal__title" style={{ margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 30 }}>📄</span> 
-                  Kiểm tra hồ sơ KYC
-               </h2>
-               <button onClick={() => setSelectedKyc(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 24 }}>✕</button>
+              <h2 className="cs-admin-modal__title" style={{ margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 30 }}>📄</span>
+                Kiểm tra hồ sơ KYC
+              </h2>
+              <button onClick={() => setSelectedKyc(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 24 }}>✕</button>
             </div>
-            
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
-                <div style={{ background: "#f8fafc", padding: 16, borderRadius: 12 }}>
-                    <h3 style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: 'uppercase', marginBottom: 12 }}>Thông tin doanh nghiệp / cá nhân</h3>
-                    <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "8px 12px", fontSize: 14 }}>
-                        <span style={{ color: "#64748b" }}>Chủ tài khoản:</span> <strong>#{selectedKyc.ownerUserId}</strong>
-                        <span style={{ color: "#64748b" }}>Đơn vị:</span> <strong>{selectedKyc.businessName}</strong>
-                        <span style={{ color: "#64748b" }}>Mã số thuế:</span> <strong style={{ color: "#eab308" }}>{selectedKyc.taxCode}</strong>
-                        <span style={{ color: "#64748b" }}>Giấy phép KD:</span> <strong>{selectedKyc.businessLicenseNumber}</strong>
-                        <span style={{ color: "#64748b" }}>Địa chỉ ĐK:</span> <strong>{selectedKyc.address}</strong>
-                    </div>
-                </div>
 
-                <div style={{ background: "#f8fafc", padding: 16, borderRadius: 12 }}>
-                    <h3 style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: 'uppercase', marginBottom: 12 }}>Thông tin người đại diện</h3>
-                    <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "8px 12px", fontSize: 14 }}>
-                        <span style={{ color: "#64748b" }}>Số CCCD:</span> <strong>{selectedKyc.idCardNumber}</strong>
-                        <span style={{ color: "#64748b" }}>Ngày cấp:</span> <strong>{selectedKyc.idCardDate}</strong>
-                        <span style={{ color: "#64748b" }}>Trạng thái:</span> <span className="cs-admin-status-badge cs-admin-status-badge--pending" style={{ display: "inline-block", padding: "2px 8px"}}><span className="cs-admin-status-badge__dot"></span>Chờ duyệt</span>
-                        <span style={{ color: "#64748b" }}>Thời gian gửi:</span> <strong>{formatDate(selectedKyc.kycSubmittedAt)}</strong>
-                    </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
+              <div style={{ background: "#f8fafc", padding: 16, borderRadius: 12 }}>
+                <h3 style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: 'uppercase', marginBottom: 12 }}>Thông tin doanh nghiệp / cá nhân</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "8px 12px", fontSize: 14 }}>
+                  {/* <span style={{ color: "#64748b" }}>Chủ tài khoản:</span> <strong>#{selectedKyc.ownerUserId}</strong> */}
+                  <span style={{ color: "#64748b" }}>Đơn vị:</span> <strong>{selectedKyc.businessName}</strong>
+                  <span style={{ color: "#64748b" }}>Mã số thuế:</span> <strong style={{ color: "#eab308" }}>{selectedKyc.taxCode}</strong>
+                  <span style={{ color: "#64748b" }}>Giấy phép KD:</span> <strong>{selectedKyc.businessLicenseNumber}</strong>
+                  <span style={{ color: "#64748b" }}>Địa chỉ ĐK:</span> <strong>{selectedKyc.address}</strong>
                 </div>
+              </div>
+
+              <div style={{ background: "#f8fafc", padding: 16, borderRadius: 12 }}>
+                <h3 style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: 'uppercase', marginBottom: 12 }}>Thông tin người đại diện</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "8px 12px", fontSize: 14 }}>
+                  <span style={{ color: "#64748b" }}>Số CCCD:</span> <strong>{selectedKyc.idCardNumber}</strong>
+                  <span style={{ color: "#64748b" }}>Ngày cấp:</span> <strong>{selectedKyc.idCardDate}</strong>
+                  <span style={{ color: "#64748b" }}>Trạng thái:</span> <span className="cs-admin-status-badge cs-admin-status-badge--pending" style={{ display: "inline-block", padding: "2px 8px" }}><span className="cs-admin-status-badge__dot"></span>Chờ duyệt</span>
+                  <span style={{ color: "#64748b" }}>Thời gian gửi:</span> <strong>{formatDate(selectedKyc.kycSubmittedAt)}</strong>
+                </div>
+              </div>
             </div>
 
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", marginBottom: 12 }}>Hình ảnh xác thực</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
-                <a href={selectedKyc.frontIdCardUrl} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                    <div style={{ background: "#f1f5f9", padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>CCCD Mặt Trước</div>
-                    <div style={{ height: 160, background: `url(${selectedKyc.frontIdCardUrl}) center / cover no-repeat`, backgroundColor: "#f8fafc" }}></div>
-                </a>
-                <a href={selectedKyc.backIdCardUrl} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                    <div style={{ background: "#f1f5f9", padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>CCCD Mặt Sau</div>
-                    <div style={{ height: 160, background: `url(${selectedKyc.backIdCardUrl}) center / cover no-repeat`, backgroundColor: "#f8fafc" }}></div>
-                </a>
-                <a href={selectedKyc.businessLicenseUrl} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                    <div style={{ background: "#f1f5f9", padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Giấy phép KD</div>
-                    <div style={{ height: 160, background: `url(${selectedKyc.businessLicenseUrl}) center / cover no-repeat`, backgroundColor: "#f8fafc" }}></div>
-                </a>
+              <a href={selectedKyc.frontIdCardUrl} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                <div style={{ background: "#f1f5f9", padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>CCCD Mặt Trước</div>
+                <div style={{ height: 160, background: `url(${selectedKyc.frontIdCardUrl}) center / cover no-repeat`, backgroundColor: "#f8fafc" }}></div>
+              </a>
+              <a href={selectedKyc.backIdCardUrl} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                <div style={{ background: "#f1f5f9", padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>CCCD Mặt Sau</div>
+                <div style={{ height: 160, background: `url(${selectedKyc.backIdCardUrl}) center / cover no-repeat`, backgroundColor: "#f8fafc" }}></div>
+              </a>
+              <a href={selectedKyc.businessLicenseUrl} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                <div style={{ background: "#f1f5f9", padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Giấy phép KD</div>
+                <div style={{ height: 160, background: `url(${selectedKyc.businessLicenseUrl}) center / cover no-repeat`, backgroundColor: "#f8fafc" }}></div>
+              </a>
             </div>
 
             {reviewAction !== null ? (
-                <div style={{ background: reviewAction ? "#f0fdf4" : "#fef2f2", padding: 20, borderRadius: 16, border: `1px solid ${reviewAction ? "#bbf7d0" : "#fecaca"}` }}>
-                    <h3 style={{ fontSize: 15, fontWeight: 600, color: reviewAction ? "#16a34a" : "#dc2626", marginBottom: 12 }}>
-                        {reviewAction ? "✅ Phê duyệt hồ sơ này?" : "🚫 Từ chối hồ sơ này?"}
-                    </h3>
+              <div style={{ background: reviewAction ? "#f0fdf4" : "#fef2f2", padding: 20, borderRadius: 16, border: `1px solid ${reviewAction ? "#bbf7d0" : "#fecaca"}` }}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: reviewAction ? "#16a34a" : "#dc2626", marginBottom: 12 }}>
+                  {reviewAction ? "✅ Phê duyệt hồ sơ này?" : "🚫 Từ chối hồ sơ này?"}
+                </h3>
 
-                    {!reviewAction && (
-                       <div style={{ marginBottom: 16 }}>
-                          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
-                             Lý do từ chối (Bắt buộc)
-                          </label>
-                          <textarea
-                              value={adminNote}
-                              onChange={(e) => setAdminNote(e.target.value)}
-                              placeholder="Ví dụ: Giấy tờ bị mờ, không khớp mã số thuế..."
-                              rows={3}
-                              style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 14, outline: "none" }}
-                          />
-                       </div>
-                    )}
-                    
-                    <div style={{ display: "flex", gap: 12 }}>
-                        <button
-                           onClick={() => setReviewAction(null)}
-                           className="cs-admin-action-btn" style={{ flex: 1, background: "white", color: "#374151", border: "1px solid #d1d5db" }}
-                        >Hủy</button>
-                        <button
-                           onClick={confirmReview}
-                           disabled={reviewMutation.isPending || (!reviewAction && !adminNote.trim())}
-                           className="cs-admin-action-btn" style={{ flex: 1, background: reviewAction ? "#22c55e" : "#ef4444", color: "#fff" }}
-                        >
-                           {reviewMutation.isPending ? "Đang xử lý..." : "Xác nhận gửi"}
-                        </button>
-                    </div>
-                </div>
-            ) : (
+                {!reviewAction && (
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+                      Lý do từ chối (Bắt buộc)
+                    </label>
+                    <textarea
+                      value={adminNote}
+                      onChange={(e) => setAdminNote(e.target.value)}
+                      placeholder="Ví dụ: Giấy tờ bị mờ, không khớp mã số thuế..."
+                      rows={3}
+                      style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 14, outline: "none" }}
+                    />
+                  </div>
+                )}
+
                 <div style={{ display: "flex", gap: 12 }}>
-                    <button
-                        onClick={() => setReviewAction(true)}
-                        className="cs-admin-action-btn" style={{ flex: 1, background: "#22c55e", color: "white", height: 48, fontSize: 15 }}
-                    >
-                        Phê duyệt
-                    </button>
-                    <button
-                        onClick={() => setReviewAction(false)}
-                        className="cs-admin-action-btn" style={{ flex: 1, background: "#ef4444", color: "white", height: 48, fontSize: 15 }}
-                    >
-                        Từ chối
-                    </button>
+                  <button
+                    onClick={() => setReviewAction(null)}
+                    className="cs-admin-action-btn" style={{ flex: 1, background: "white", color: "#374151", border: "1px solid #d1d5db" }}
+                  >Hủy</button>
+                  <button
+                    onClick={confirmReview}
+                    disabled={reviewMutation.isPending || (!reviewAction && !adminNote.trim())}
+                    className="cs-admin-action-btn" style={{ flex: 1, background: reviewAction ? "#22c55e" : "#ef4444", color: "#fff" }}
+                  >
+                    {reviewMutation.isPending ? "Đang xử lý..." : "Xác nhận gửi"}
+                  </button>
                 </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  onClick={() => setReviewAction(true)}
+                  className="cs-admin-action-btn" style={{ flex: 1, background: "#22c55e", color: "white", height: 48, fontSize: 15 }}
+                >
+                  Phê duyệt
+                </button>
+                <button
+                  onClick={() => setReviewAction(false)}
+                  className="cs-admin-action-btn" style={{ flex: 1, background: "#ef4444", color: "white", height: 48, fontSize: 15 }}
+                >
+                  Từ chối
+                </button>
+              </div>
             )}
           </div>
         </div>
