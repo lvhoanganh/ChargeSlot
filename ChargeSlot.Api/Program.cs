@@ -323,11 +323,8 @@ await DataSeeder.SeedAsync(app.Services);
 // =======================
 // MIDDLEWARE PIPELINE
 // =======================
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
