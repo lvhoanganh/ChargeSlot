@@ -12,7 +12,7 @@ export default function AdminRevenue() {
   const [monthly, setMonthly] = useState([]);
   const [topStations, setTopStations] = useState([]);
   const [recentTx, setRecentTx] = useState([]);
-
+  const [selectedTxId, setSelectedTxId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -215,7 +215,13 @@ export default function AdminRevenue() {
                 <p style={{ color: "#94a3b8", fontSize: 14, textAlign: "center", padding: 20 }}>Chưa có giao dịch</p>
               ) : (
                 recentTx.map((tx) => (
-                  <div key={tx.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", borderRadius: 8, background: "#f8fafc" }}>
+                  <div 
+                    key={tx.id} 
+                    onClick={() => setSelectedTxId(tx.id)}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", borderRadius: 8, background: "#f8fafc", cursor: "pointer", transition: "all 0.2s" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#eff6ff"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "#f8fafc"; }}
+                  >
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 13, color: "#1e293b", margin: 0, fontWeight: 500 }}>{tx.memo}</p>
                       <p style={{ fontSize: 11, color: "#94a3b8", margin: 0 }}>{toLocal(tx.date)}</p>
@@ -229,8 +235,10 @@ export default function AdminRevenue() {
             </div>
           </div>
         </div>
-
       </div>
+      {selectedTxId && (
+        <TransactionDetailModal txId={selectedTxId} onClose={() => setSelectedTxId(null)} />
+      )}
     </div>
   );
 }
@@ -257,6 +265,84 @@ function BreakdownRow({ label, value, pct, color }) {
       </div>
       <div style={{ height: 8, borderRadius: 4, background: "#f1f5f9", overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${pct}%`, borderRadius: 4, background: color, transition: "width 0.6s ease" }} />
+      </div>
+    </div>
+  );
+}
+
+function TransactionDetailModal({ txId, onClose }) {
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    adminRevenueApi.getTransactionDetail(txId)
+      .then(setDetail)
+      .catch(() => setDetail(null))
+      .finally(() => setLoading(false));
+  }, [txId]);
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.6)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20
+    }}>
+      <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 600, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+        <div style={{ padding: "24px 24px 16px", borderBottom: "1px solid #e2e8f0", position: "sticky", top: 0, background: "#fff", zIndex: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: 0 }}>📋 Chi tiết sổ cái (Ledger)</h2>
+            <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 24, color: "#64748b", cursor: "pointer", padding: 0 }}>×</button>
+          </div>
+        </div>
+
+        <div style={{ padding: 24 }}>
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "40px 0", color: "#64748b" }}>⏳ Đang tải chi tiết dòng tiền...</div>
+          ) : !detail ? (
+            <div style={{ textAlign: "center", padding: "40px 0", color: "#ef4444", fontWeight: 600 }}>❌ Không tìm thấy thông tin giao dịch này</div>
+          ) : (
+            <div>
+              <div style={{ background: "#f8fafc", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+                <p style={{ margin: "0 0 8px", fontSize: 13, color: "#64748b" }}>Giao dịch gốc: <strong style={{ color: "#3b82f6" }}>{detail.referenceType} #{detail.referenceId}</strong></p>
+                <h3 style={{ margin: "0 0 12px", fontSize: 16, color: "#0f172a", fontWeight: 700 }}>{detail.memo}</h3>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px dashed #cbd5e1", paddingTop: 12 }}>
+                  <span style={{ fontSize: 12, color: "#94a3b8" }}>Ngày tạo: {toLocal(detail.createdAt)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b", background: "#e2e8f0", padding: "4px 8px", borderRadius: 6 }}>
+                    Mã GD: #{detail.id}
+                  </span>
+                </div>
+              </div>
+
+              <h4 style={{ fontSize: 14, fontWeight: 700, color: "#334155", marginBottom: 12 }}>Bút toán chi tiết (Entries):</h4>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {detail.entries && detail.entries.length > 0 ? (
+                  detail.entries.map((entry, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, background: entry.walletType === "System" ? "#fef3c7" : "#e0e7ff", color: entry.walletType === "System" ? "#d97706" : "#4338ca", padding: "2px 8px", borderRadius: 4 }}>
+                            {entry.walletType === "System" ? "Hệ thống" : "Người dùng"}
+                          </span>
+                          <span style={{ fontSize: 13, color: "#64748b" }}>Ví #{entry.walletId}</span>
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>{entry.ownerName}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: entry.direction === "Credit" ? "#16a34a" : "#dc2626" }}>
+                          {entry.direction === "Credit" ? "+" : "-"}{fmt(entry.amount)}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                          {entry.direction === "Credit" ? "Ghi Có" : "Ghi Nợ"}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", padding: 20 }}>Không có bút toán nào</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

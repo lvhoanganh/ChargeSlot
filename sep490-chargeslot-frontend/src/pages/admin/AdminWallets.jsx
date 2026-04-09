@@ -10,10 +10,110 @@ function formatDate(dateStr) {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+// TransactionDetailModal Component
+function TransactionDetailModal({ transactionId, onClose }) {
+  const { data: tx, isLoading, error } = useQuery({
+    queryKey: ["admin-transaction-detail", transactionId],
+    queryFn: () => adminFinanceApi.getTransactionDetail(transactionId),
+    enabled: !!transactionId,
+  });
+
+  return (
+    <>
+      <div className="cs-modal-overlay" onClick={onClose} />
+      <div className="cs-modal" style={{ maxWidth: 600 }}>
+        <div className="cs-modal__header">
+          <h2 className="cs-modal__title">Chi tiết dòng tiền (Sổ cái)</h2>
+          <button onClick={onClose} className="cs-modal__close">&times;</button>
+        </div>
+        <div className="cs-modal__content" style={{ padding: 24 }}>
+          {isLoading ? (
+            <div style={{ textAlign: "center", padding: "40px 0" }}>Đang tải chi tiết...</div>
+          ) : error ? (
+            <div style={{ color: "red", textAlign: "center", padding: "40px 0" }}>Lỗi tải chi tiết giao dịch!</div>
+          ) : !tx ? (
+            <div style={{ textAlign: "center", padding: "40px 0", color: "#64748b" }}>Không tìm thấy giao dịch.</div>
+          ) : (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                <span style={{ color: "#64748b", fontSize: 14 }}>Mã Giao dịch:</span>
+                <strong style={{ color: "#1e293b", fontSize: 14 }}>TX_{tx.id}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                <span style={{ color: "#64748b", fontSize: 14 }}>Loại:</span>
+                <span className="cs-admin-status-badge cs-admin-status-badge--info">
+                  {tx.referenceType} (Tham chiếu #{tx.referenceId})
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                <span style={{ color: "#64748b", fontSize: 14 }}>Ngày giờ:</span>
+                <strong style={{ color: "#1e293b", fontSize: 14 }}>{formatDate(tx.createdAt)}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 24, paddingBottom: 16, borderBottom: "1px dashed #cbd5e1" }}>
+                <span style={{ color: "#64748b", fontSize: 14 }}>Mô tả:</span>
+                <strong style={{ color: "#1e293b", fontSize: 14, textAlign: "right", maxWidth: "60%" }}>{tx.memo || "—"}</strong>
+              </div>
+
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#334155", marginBottom: 16 }}>💰 Các bút toán trung chuyển (Entries)</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {tx.entries && tx.entries.map((entry, idx) => (
+                  <div key={idx} style={{
+                    padding: 16, borderRadius: 12, border: "1px solid #e2e8f0",
+                    background: entry.direction === "Credit" ? "#f0fdf4" : "#fef2f2"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "#334155" }}>
+                        Ví {entry.walletType} (#{entry.walletId})
+                      </span>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: entry.direction === "Credit" ? "#16a34a" : "#dc2626" }}>
+                        {entry.direction === "Credit" ? "+" : "-"}{entry.amount?.toLocaleString()} đ
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 13, color: "#64748b" }}>
+                      Chủ sở hữu: <strong>{entry.ownerName}</strong>
+                    </div>
+                    <div style={{ fontSize: 12, color: entry.direction === "Credit" ? "#166534" : "#991b1b", marginTop: 4, fontWeight: 600 }}>
+                      Chiều: {entry.direction}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <style>{`
+        .cs-modal-overlay {
+          position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(0,0,0,0.5); z-index: 10000;
+          backdrop-filter: blur(2px);
+        }
+        .cs-modal {
+          position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+          width: 90%; background: white; z-index: 10001;
+          border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+          overflow: hidden; max-height: 90vh; display: flex; flex-direction: column;
+        }
+        .cs-modal__header {
+          padding: 20px 24px; border-bottom: 1px solid #e5e7eb;
+          display: flex; align-items: center; justify-content: space-between;
+          background: #f8fafc;
+        }
+        .cs-modal__title { font-size: 18px; font-weight: 700; color: #1e293b; margin: 0; }
+        .cs-modal__close {
+          background: none; border: none; font-size: 28px; line-height: 1; cursor: pointer; color: #64748b;
+        }
+        .cs-modal__content { overflow-y: auto; }
+      `}</style>
+    </>
+  );
+}
+
 // Drawer Component to show transactions
 function WalletTransactionsDrawer({ walletId, onClose }) {
   const [page, setPage] = useState(1);
   const pageSize = 20;
+  const [detailTxId, setDetailTxId] = useState(null);
 
   const { data: rawData, isLoading, error } = useQuery({
     queryKey: ["admin-wallet-transactions", walletId, page],
@@ -48,17 +148,27 @@ function WalletTransactionsDrawer({ walletId, onClose }) {
                     <th>Loại</th>
                     <th>Số Tiền</th>
                     <th>Ngày/Giờ</th>
+                    <th style={{ textAlign: "center" }}>Chi tiết</th>
                   </tr>
                 </thead>
                 <tbody>
                   {txs.map((tx) => (
                     <tr key={tx.id}>
                       <td className="cs-admin-table__id">TX_{tx.id}</td>
-                      <td>{tx.transactionType}</td>
+                      <td>{tx.type || tx.transactionType}</td>
                       <td style={{ color: tx.amount > 0 ? "#16a34a" : "#dc2626", fontWeight: "bold" }}>
                         {tx.amount > 0 ? "+" : ""}{tx.amount?.toLocaleString()} đ
                       </td>
                       <td style={{ color: "#64748b", fontSize: 13 }}>{formatDate(tx.createdAt)}</td>
+                      <td style={{ textAlign: "center" }}>
+                        <button
+                          onClick={() => setDetailTxId(tx.id)}
+                          className="cs-admin-btn"
+                          style={{ padding: "4px 8px", fontSize: 13 }}
+                        >
+                          Soi
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -70,6 +180,11 @@ function WalletTransactionsDrawer({ walletId, onClose }) {
           )}
         </div>
       </div>
+      
+      {detailTxId && (
+        <TransactionDetailModal transactionId={detailTxId} onClose={() => setDetailTxId(null)} />
+      )}
+
       <style>{`
         .cs-drawer-overlay {
           position: fixed; top: 0; left: 0; right: 0; bottom: 0;

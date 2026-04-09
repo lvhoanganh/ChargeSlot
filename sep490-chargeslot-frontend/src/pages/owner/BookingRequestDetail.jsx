@@ -123,6 +123,42 @@ export default function BookingRequestDetail() {
 
             {booking.note && <InfoRow label="Ghi chú" value={booking.note} />}
             {booking.rejectionReason && <InfoRow label="Lý do từ chối" value={booking.rejectionReason} error />}
+
+            {/* DEEP DETAILS cho Owner */}
+            {booking.paymentDetail && (
+              <div style={{ marginTop: 8, borderTop: "1px dashed #e2e8f0", paddingTop: 8 }}>
+                <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}>💳 Thanh toán</div>
+                <InfoRow label="Phương thức" value={booking.paymentDetail.method === "Wallet" ? "Ví hệ thống" : booking.paymentDetail.method === "BankTransfer" ? "Chuyển khoản" : booking.paymentDetail.method} />
+                {booking.paymentDetail.paidAt && <InfoRow label="Ngày thanh toán" value={toLocal(booking.paymentDetail.paidAt)} />}
+                {booking.paymentDetail.refundedAt && <InfoRow label="Ngày hoàn tiền" value={toLocal(booking.paymentDetail.refundedAt)} error />}
+              </div>
+            )}
+
+            {booking.chargingSessionDetail && (
+              <div style={{ marginTop: 8, borderTop: "1px dashed #e2e8f0", paddingTop: 8 }}>
+                <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}>⚡ Phiên sạc</div>
+                {booking.chargingSessionDetail.actualStartTime && <InfoRow label="Bắt đầu" value={toLocal(booking.chargingSessionDetail.actualStartTime)} />}
+                {booking.chargingSessionDetail.actualEndTime && <InfoRow label="Kết thúc" value={toLocal(booking.chargingSessionDetail.actualEndTime)} />}
+                <InfoRow label="Điện tiêu thụ" value={`${booking.chargingSessionDetail.sessionMeterValue?.toFixed(2) || 0} kWh`} purple />
+              </div>
+            )}
+
+            {booking.invoiceDetail && (
+              <div style={{ marginTop: 8, borderTop: "1px dashed #e2e8f0", paddingTop: 8 }}>
+                <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}>🧾 Chi tiết hóa đơn</div>
+                <InfoRow label="Tiền sạc" value={`${(booking.invoiceDetail.chargingAmount || 0).toLocaleString("vi-VN")}đ`} />
+                {booking.invoiceDetail.vatAmount > 0 && <InfoRow label="Thuế VAT" value={`${booking.invoiceDetail.vatAmount.toLocaleString("vi-VN")}đ`} />}
+                <InfoRow label="Tổng thanh toán" value={`${(booking.invoiceDetail.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
+              </div>
+            )}
+
+            {booking.disputeDetail && (
+              <div style={{ marginTop: 8, borderTop: "1px dashed #e2e8f0", paddingTop: 8 }}>
+                <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}>⚠️ Tranh chấp ({booking.disputeDetail.status})</div>
+                <InfoRow label="Lý do" value={booking.disputeDetail.reason} error />
+                {booking.disputeDetail.resultNote && <InfoRow label="Kết quả" value={booking.disputeDetail.resultNote} highlight />}
+              </div>
+            )}
           </div>
 
           {/* Extra Services breakdown */}

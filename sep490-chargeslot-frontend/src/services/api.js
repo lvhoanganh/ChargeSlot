@@ -401,12 +401,12 @@ export const publicStationApi = {
      */
     getAll: ({ keyword, minRating, sortBy, lat, lng, radiusKm, page = 1, pageSize = 20 } = {}) => {
         const params = new URLSearchParams();
-        if (keyword)   params.set("keyword", keyword);
+        if (keyword) params.set("keyword", keyword);
         if (minRating) params.set("minRating", String(minRating));
-        if (sortBy)    params.set("sortBy", sortBy);
+        if (sortBy) params.set("sortBy", sortBy);
         if (lat != null) params.set("lat", String(lat));
         if (lng != null) params.set("lng", String(lng));
-        if (radiusKm)  params.set("radiusKm", String(radiusKm));
+        if (radiusKm) params.set("radiusKm", String(radiusKm));
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
         return apiFetch(`/public/stations?${params.toString()}`);
@@ -705,6 +705,9 @@ export const adminRevenueApi = {
 
     getRecentTransactions: (limit = 10) =>
         apiFetch(`/admin/revenue/recent-transactions?limit=${limit}`),
+
+    getTransactionDetail: (id) =>
+        apiFetch(`/admin/finance/transactions/${id}`),
 
     getVatReport: (period = "all") =>
         apiFetch(`/admin/revenue/vat-report?period=${period}`),

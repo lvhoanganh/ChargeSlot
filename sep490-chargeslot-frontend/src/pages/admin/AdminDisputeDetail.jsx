@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { instance } from "@/lib/httpRequest";
+import { bookingApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 
 /* ─── API helpers ─── */
@@ -68,6 +69,12 @@ export default function AdminDisputeDetail() {
   const { data: dispute, isLoading, error } = useQuery({
     queryKey: ["admin-dispute", disputeId],
     queryFn: () => disputeApiAdmin.getById(Number(disputeId)),
+  });
+
+  const { data: booking, isLoading: isBookingLoading } = useQuery({
+    queryKey: ["admin-booking-detail", dispute?.bookingId],
+    queryFn: () => bookingApi.getById(dispute.bookingId),
+    enabled: !!dispute?.bookingId,
   });
 
   const resolveMutation = useMutation({
@@ -151,6 +158,41 @@ export default function AdminDisputeDetail() {
           )}
         </div>
       </div>
+
+      {/* Booking Context Card */}
+      {isBookingLoading ? (
+        <div style={{ textAlign: "center", marginBottom: 24 }}><p style={{ color: "#64748b", fontSize: 13 }}>Đang tải bối cảnh phiên sạc...</p></div>
+      ) : booking ? (
+        <div className="cs-dispute-detail__card" style={{ marginBottom: 24, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+          <h2 className="cs-dispute-detail__card-title" style={{ marginBottom: 16 }}>📋 Bối cảnh phiên Booking (Context)</h2>
+          <div className="cs-dispute-detail__meta">
+            <div className="cs-dispute-detail__meta-item">
+              <span className="cs-dispute-detail__meta-label">Thanh toán</span>
+              <span className="cs-dispute-detail__meta-value">
+                {booking.paymentDetail ? `${booking.paymentDetail.method === "Wallet" ? "Ví hệ thống" : booking.paymentDetail.method === "BankTransfer" ? "Chuyển khoản" : booking.paymentDetail.method} - ${booking.paymentDetail.status}` : "Chưa thanh toán"}
+              </span>
+            </div>
+            {booking.chargingSessionDetail && (
+              <>
+                <div className="cs-dispute-detail__meta-item">
+                  <span className="cs-dispute-detail__meta-label">Bắt đầu sạc thực tế</span>
+                  <span className="cs-dispute-detail__meta-value">{formatDate(booking.chargingSessionDetail.actualStartTime)}</span>
+                </div>
+                <div className="cs-dispute-detail__meta-item">
+                  <span className="cs-dispute-detail__meta-label">Kết thúc sạc thực tế</span>
+                  <span className="cs-dispute-detail__meta-value">{formatDate(booking.chargingSessionDetail.actualEndTime)}</span>
+                </div>
+              </>
+            )}
+            {booking.invoiceDetail && (
+              <div className="cs-dispute-detail__meta-item">
+                <span className="cs-dispute-detail__meta-label">Tiền sạc + Dịch vụ</span>
+                <span className="cs-dispute-detail__meta-value">{(booking.invoiceDetail.totalAmount || 0).toLocaleString("vi-VN")}đ</span>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {/* Two-column: Driver + Owner */}
       <div className="cs-dispute-detail__grid">
