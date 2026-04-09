@@ -164,7 +164,7 @@ export default function AdminDisputeDetail() {
         <div style={{ textAlign: "center", marginBottom: 24 }}><p style={{ color: "#64748b", fontSize: 13 }}>Đang tải bối cảnh phiên sạc...</p></div>
       ) : booking ? (
         <div className="cs-dispute-detail__card" style={{ marginBottom: 24, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-          <h2 className="cs-dispute-detail__card-title" style={{ marginBottom: 16 }}>📋 Bối cảnh phiên Booking (Context)</h2>
+          <h2 className="cs-dispute-detail__card-title" style={{ marginBottom: 16 }}>📋 Bối cảnh phiên Booking</h2>
           <div className="cs-dispute-detail__meta">
             <div className="cs-dispute-detail__meta-item">
               <span className="cs-dispute-detail__meta-label">Thanh toán</span>

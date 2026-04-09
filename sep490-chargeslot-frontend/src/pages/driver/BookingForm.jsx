@@ -520,7 +520,8 @@ export default function BookingForm() {
                             r.status === "PendingPayment" ? "Chờ thanh toán" :
                               r.status === "WaitingOwner" ? "Chờ duyệt" :
                                 r.status === "CheckedIn" ? "Đã check-in" :
-                                  r.status === "InProgress" || r.status === "Charging" ? "Đang sạc" : r.status;
+                                  r.status === "InProgress" || r.status === "Charging" ? "Đang sạc" :
+                                    r.status === "Completed" ? "Hoàn thành" : r.status;
                       return (
                         <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderRadius: 8, padding: "7px 12px", border: "1px solid #fde68a" }}>
                           <span style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>🔴 {fmtT(start)} – {fmtT(end)}</span>

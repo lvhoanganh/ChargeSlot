@@ -32,10 +32,9 @@ export default function AdminDashboard() {
   const isHighCancel = cancelRate > 0.3;
 
   const riskDrivers = (metrics?.highRiskDrivers || []).map((d) => ({
-    name: d.driverName || d.name || `ID ${d.driverId}`,
-    value: (d.disputesLost || 0) + (d.cancelCount || 0),
-    disputesLost: d.disputesLost || 0,
-    cancelCount: d.cancelCount || 0,
+    name: d.driverName || `ID ${d.driverUserId}`,
+    value: d.cancelledBookings || 0,
+    totalBookings: d.totalBookings || 0,
   }));
 
   return (
@@ -115,7 +114,7 @@ export default function AdminDashboard() {
                   🚨 Danh sách Tài xế rủi ro cao
                 </h3>
                 <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 0" }}>
-                  Tổng hợp số lần thua khiếu nại + hủy đặt chỗ
+                  Tài xế có lịch sử lạm dụng hủy chỗ (tỉ lệ hủy &gt; 50%)
                 </p>
               </div>
               <span style={{ fontSize: 12, background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", padding: "4px 10px", borderRadius: 20, fontWeight: 600 }}>
@@ -143,7 +142,10 @@ export default function AdminDashboard() {
                   <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                   <Tooltip
                     contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", fontSize: 13 }}
-                    formatter={(val, name) => [val, name === "value" ? "Tổng vi phạm" : name]}
+                    formatter={(val, name, props) => {
+                      if (name === "value") return [val + ` / ${props.payload.totalBookings} đơn`, "Số lần hủy"];
+                      return [val, name];
+                    }}
                   />
                   <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={50}>
                     {riskDrivers.map((_, idx) => (
