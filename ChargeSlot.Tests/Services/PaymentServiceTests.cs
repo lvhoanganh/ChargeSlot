@@ -1,4 +1,4 @@
-﻿using Xunit;
+using Xunit;
 using Moq;
 using ChargeSlot.Api.Services.Implementation;
 using ChargeSlot.Api.Repositories.Interfaces;
@@ -11,11 +11,11 @@ namespace ChargeSlot.Tests.Services
 {
     public class PaymentServiceTests
     {
-        private readonly Mock<IBookingRepository> _bookingRepoMock = new();
-        private readonly Mock<IPaymentRepository> _paymentRepoMock = new();
-        private readonly Mock<IChargingSlotRepository> _slotRepoMock = new();
-        private readonly Mock<ISePayService> _sePayMock = new();
-        private readonly Mock<INotificationService> _notiMock = new();
+        private readonly Mock<IBookingRepository>     _bookingRepoMock = new();
+        private readonly Mock<IPaymentRepository>     _paymentRepoMock = new();
+        private readonly Mock<IChargingSlotRepository>_slotRepoMock    = new();
+        private readonly Mock<IVnPayService>          _vnPayMock       = new();
+        private readonly Mock<INotificationService>   _notiMock        = new();
 
         private readonly PaymentService _service;
 
@@ -25,235 +25,331 @@ namespace ChargeSlot.Tests.Services
                 _bookingRepoMock.Object,
                 _paymentRepoMock.Object,
                 _slotRepoMock.Object,
-                _sePayMock.Object,
+                _vnPayMock.Object,
                 _notiMock.Object);
         }
 
-        // =========================
-        // CREATE PAYMENT LINK
-        // =========================
-
-        /// <summary>
-        /// ✅ Happy case: tạo payment link thành công
-        /// </summary>
+        /// Happy path: booking hợp lệ, chưa có Payment record →
+        /// tạo Payment record mới + trả về URL từ VNPay.
         [Fact]
-        public async Task CreatePaymentLink_ShouldSuccess()
+        public async Task CreatePaymentUrl_ShouldSuccess_AndCreatePaymentRecord()
         {
             var booking = new Booking
             {
-                Id = 1,
-                DriverUserId = 10,
-                Status = BookingStatus.PendingPayment,
-                TotalAmount = 200,
+                Id               = 1,
+                DriverUserId     = 10,
+                Status           = BookingStatus.PendingPayment,
+                TotalAmount      = 300,
                 PaymentExpiresAt = DateTime.UtcNow.AddMinutes(10)
             };
 
-            _bookingRepoMock.Setup(x => x.GetByIdWithDetailsAsync(1))
+            _bookingRepoMock
+                .Setup(x => x.GetByIdWithDetailsAsync(1))
                 .ReturnsAsync(booking);
 
-            _paymentRepoMock.Setup(x => x.GetByBookingIdAsync(1))
-                .ReturnsAsync((Payment?)null);
+            _paymentRepoMock
+                .Setup(x => x.GetByBookingIdAsync(1))
+                .ReturnsAsync((Payment?)null); // chưa có Payment
 
-            _sePayMock.Setup(x => x.CreatePaymentLink(
-                It.IsAny<int>(),
-                It.IsAny<decimal>()))
-                .Returns("https://sepay.test");
+            _vnPayMock
+                .Setup(x => x.CreatePaymentUrl(
+                    It.IsAny<int>(),
+                    It.IsAny<decimal>(),
+                    It.IsAny<string>(),
+                    It.IsAny<HttpContext>()))
+                .Returns("https://sandbox.vnpayment.vn/pay");
 
-            var result = await _service.CreatePaymentLinkAsync(1, 10);
+            var mockHttpContext = new DefaultHttpContext();
 
-            Assert.Equal("https://sepay.test", result);
+            var result = await _service.CreatePaymentUrlAsync(
+                bookingId:     1,
+                driverUserId:  10,
+                context:       mockHttpContext);
 
-            _paymentRepoMock.Verify(x => x.CreateAsync(It.IsAny<Payment>()), Times.Once);
+            Assert.Equal("https://sandbox.vnpayment.vn/pay", result);
+
+            // Phải tạo Payment record mới
+            _paymentRepoMock.Verify(x => x.CreateAsync(It.Is<Payment>(p =>
+                p.BookingId     == 1 &&
+                p.Amount        == 300 &&
+                p.Status        == PaymentStatus.Pending
+            )), Times.Once);
         }
 
-        /// <summary>
-        /// ❌ Fail: booking hết hạn thanh toán
-        /// </summary>
+        /// Đã có Payment record → không tạo record mới, vẫn trả về URL.
+        /// Idempotent: driver có thể request lại URL nếu chưa thanh toán.
         [Fact]
-        public async Task CreatePaymentLink_ShouldFail_WhenExpired()
+        public async Task CreatePaymentUrl_ShouldNotCreateDuplicate_WhenPaymentExists()
         {
             var booking = new Booking
             {
-                Id = 1,
-                DriverUserId = 10,
-                Status = BookingStatus.PendingPayment,
-                PaymentExpiresAt = DateTime.UtcNow.AddMinutes(-1)
+                Id               = 1,
+                DriverUserId     = 10,
+                Status           = BookingStatus.PendingPayment,
+                TotalAmount      = 200,
+                PaymentExpiresAt = DateTime.UtcNow.AddMinutes(5)
             };
 
-            _bookingRepoMock.Setup(x => x.GetByIdWithDetailsAsync(1))
+            _bookingRepoMock
+                .Setup(x => x.GetByIdWithDetailsAsync(1))
                 .ReturnsAsync(booking);
+
+            _paymentRepoMock
+                .Setup(x => x.GetByBookingIdAsync(1))
+                .ReturnsAsync(new Payment { BookingId = 1, Status = PaymentStatus.Pending });
+
+            _vnPayMock
+                .Setup(x => x.CreatePaymentUrl(
+                    It.IsAny<int>(), It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<HttpContext>()))
+                .Returns("https://sandbox.vnpayment.vn/pay");
+
+            var result = await _service.CreatePaymentUrlAsync(1, 10, new DefaultHttpContext());
+
+            Assert.NotNull(result);
+
+            // Không tạo record mới
+            _paymentRepoMock.Verify(x => x.CreateAsync(It.IsAny<Payment>()), Times.Never);
+        }
+
+        /// Booking không tồn tại → throw InvalidOperationException.
+        [Fact]
+        public async Task CreatePaymentUrl_ShouldFail_WhenBookingNotFound()
+        {
+            _bookingRepoMock
+                .Setup(x => x.GetByIdWithDetailsAsync(It.IsAny<int>()))
+                .ReturnsAsync((Booking?)null);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                _service.CreatePaymentLinkAsync(1, 10));
+                _service.CreatePaymentUrlAsync(999, 10, new DefaultHttpContext()));
         }
 
-        /// <summary>
-        /// ❌ Fail: user không phải owner của booking
-        /// </summary>
+        /// Driver không phải chủ booking → throw UnauthorizedAccessException.
+        /// Chống trường hợp driver A tạo link thanh toán cho booking của driver B.
         [Fact]
-        public async Task CreatePaymentLink_ShouldFail_WhenWrongUser()
+        public async Task CreatePaymentUrl_ShouldFail_WhenDriverNotOwnerOfBooking()
         {
             var booking = new Booking
             {
-                Id = 1,
-                DriverUserId = 99,
-                Status = BookingStatus.PendingPayment
+                Id           = 1,
+                DriverUserId = 99, // booking của driver 99
+                Status       = BookingStatus.PendingPayment
             };
 
-            _bookingRepoMock.Setup(x => x.GetByIdWithDetailsAsync(1))
+            _bookingRepoMock
+                .Setup(x => x.GetByIdWithDetailsAsync(1))
                 .ReturnsAsync(booking);
 
+            // Driver 10 cố tạo URL thanh toán → unauthorized
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-                _service.CreatePaymentLinkAsync(1, 10));
+                _service.CreatePaymentUrlAsync(1, 10, new DefaultHttpContext()));
         }
 
-        /// <summary>
-        /// ❌ BUG TEST: tạo link 2 lần → không được tạo payment trùng
-        /// </summary>
-        [Fact]
-        public async Task CreatePaymentLink_ShouldFail_WhenPaymentAlreadyExists()
+        ///Booking không ở trạng thái PendingPayment →
+        /// throw InvalidOperationException.
+        [Theory]
+        [InlineData(BookingStatus.WaitingOwner)]
+        [InlineData(BookingStatus.Paid)]
+        [InlineData(BookingStatus.Completed)]
+        [InlineData(BookingStatus.Rejected)]
+        public async Task CreatePaymentUrl_ShouldFail_WhenStatusIsNotPendingPayment(BookingStatus status)
         {
             var booking = new Booking
             {
-                Id = 1,
+                Id           = 1,
                 DriverUserId = 10,
-                Status = BookingStatus.PendingPayment
+                Status       = status
             };
 
-            _bookingRepoMock.Setup(x => x.GetByIdWithDetailsAsync(1))
+            _bookingRepoMock
+                .Setup(x => x.GetByIdWithDetailsAsync(1))
                 .ReturnsAsync(booking);
-
-            _paymentRepoMock.Setup(x => x.GetByBookingIdAsync(1))
-                .ReturnsAsync(new Payment()); // đã tồn tại
 
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                _service.CreatePaymentLinkAsync(1, 10));
+                _service.CreatePaymentUrlAsync(1, 10, new DefaultHttpContext()));
         }
 
-        // =========================
-        // CALLBACK / WEBHOOK
-        // =========================
-
-        /// <summary>
-        /// ❌ Fail: callback signature sai (bị fake)
-        /// </summary>
+        /// Đã hết hạn thanh toán (PaymentExpiresAt < Now) →
+        /// throw InvalidOperationException.
         [Fact]
-        public async Task ProcessCallback_ShouldFail_WhenInvalidSignature()
+        public async Task CreatePaymentUrl_ShouldFail_WhenPaymentExpired()
         {
-            _sePayMock.Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
-                .Returns((false, 0, ""));
-
-            var result = await _service.ProcessSePayCallbackAsync(new QueryCollection());
-
-            Assert.False(result);
-        }
-
-        /// <summary>
-        /// ❌ Fail: payment không tồn tại
-        /// </summary>
-        [Fact]
-        public async Task ProcessCallback_ShouldFail_WhenPaymentNotFound()
-        {
-            _sePayMock.Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
-                .Returns((true, 100, "1"));
-
-            _paymentRepoMock.Setup(x => x.GetByBookingIdAsync(1))
-                .ReturnsAsync((Payment?)null);
-
-            var result = await _service.ProcessSePayCallbackAsync(new QueryCollection());
-
-            Assert.False(result);
-        }
-
-        /// <summary>
-        /// ❌ BUG TEST: callback bị gọi 2 lần (idempotent)
-        /// </summary>
-        [Fact]
-        public async Task ProcessCallback_ShouldIgnore_WhenAlreadyPaid()
-        {
-            var booking = new Booking { Id = 1, Status = BookingStatus.Paid };
-
-            var payment = new Payment
+            var booking = new Booking
             {
-                BookingId = 1,
-                Status = PaymentStatus.Completed
+                Id               = 1,
+                DriverUserId     = 10,
+                Status           = BookingStatus.PendingPayment,
+                PaymentExpiresAt = DateTime.UtcNow.AddMinutes(-5) // đã hết hạn
             };
 
-            _sePayMock.Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
-                .Returns((true, 100, "1"));
-
-            _bookingRepoMock.Setup(x => x.GetByIdWithDetailsAsync(1))
+            _bookingRepoMock
+                .Setup(x => x.GetByIdWithDetailsAsync(1))
                 .ReturnsAsync(booking);
 
-            _paymentRepoMock.Setup(x => x.GetByBookingIdAsync(1))
-                .ReturnsAsync(payment);
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _service.CreatePaymentUrlAsync(1, 10, new DefaultHttpContext()));
+        }
 
-            var result = await _service.ProcessSePayCallbackAsync(new QueryCollection());
+        /// VNPay callback với chữ ký không hợp lệ → trả về false, không xử lý gì.
+        /// Bảo vệ chống tấn công giả mạo callback.
+        [Fact]
+        public async Task ProcessCallback_ShouldReturnFalse_WhenSignatureInvalid()
+        {
+            _vnPayMock
+                .Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
+                .Returns((false, "97", "1_123456")); // invalid signature
 
-            Assert.True(result);
+            var result = await _service.ProcessVnPayCallbackAsync(new QueryCollection());
 
-            // ❗ không update lại
+            Assert.False(result);
+
+            // Không thay đổi bất kỳ dữ liệu nào
+            _bookingRepoMock.Verify(x => x.UpdateAsync(It.IsAny<Booking>()), Times.Never);
             _paymentRepoMock.Verify(x => x.UpdateAsync(It.IsAny<Payment>()), Times.Never);
         }
 
-        /// <summary>
-        /// ✅ Happy case: thanh toán thành công
-        /// </summary>
+        /// txnRef không parse được thành bookingId → trả về false.
         [Fact]
-        public async Task ProcessCallback_ShouldSuccess_WhenPaid()
+        public async Task ProcessCallback_ShouldReturnFalse_WhenTxnRefInvalid()
+        {
+            _vnPayMock
+                .Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
+                .Returns((true, "00", "ABC_xyz")); // không phải số
+
+            var result = await _service.ProcessVnPayCallbackAsync(new QueryCollection());
+
+            Assert.False(result);
+        }
+
+        /// Booking không tồn tại trong DB → trả về false.
+        [Fact]
+        public async Task ProcessCallback_ShouldReturnFalse_WhenBookingNotFound()
+        {
+            _vnPayMock
+                .Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
+                .Returns((true, "00", "1_999999"));
+
+            _bookingRepoMock
+                .Setup(x => x.GetByIdWithDetailsAsync(1))
+                .ReturnsAsync((Booking?)null);
+
+            var result = await _service.ProcessVnPayCallbackAsync(new QueryCollection());
+
+            Assert.False(result);
+        }
+
+        /// Payment record không tồn tại → trả về false.
+        [Fact]
+        public async Task ProcessCallback_ShouldReturnFalse_WhenPaymentNotFound()
+        {
+            _vnPayMock
+                .Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
+                .Returns((true, "00", "1_999"));
+
+            _bookingRepoMock
+                .Setup(x => x.GetByIdWithDetailsAsync(1))
+                .ReturnsAsync(new Booking { Id = 1, Status = BookingStatus.PendingPayment });
+
+            _paymentRepoMock
+                .Setup(x => x.GetByBookingIdAsync(1))
+                .ReturnsAsync((Payment?)null);
+
+            var result = await _service.ProcessVnPayCallbackAsync(new QueryCollection());
+
+            Assert.False(result);
+        }
+
+        /// Idempotent: callback gọi 2 lần cho cùng 1 payment đã Completed →
+        /// trả về true nhưng KHÔNG update lại.
+        [Fact]
+        public async Task ProcessCallback_ShouldIgnore_WhenPaymentAlreadyProcessed()
+        {
+            _vnPayMock
+                .Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
+                .Returns((true, "00", "1_999"));
+
+            _bookingRepoMock
+                .Setup(x => x.GetByIdWithDetailsAsync(1))
+                .ReturnsAsync(new Booking { Id = 1 });
+
+            _paymentRepoMock
+                .Setup(x => x.GetByBookingIdAsync(1))
+                .ReturnsAsync(new Payment
+                {
+                    BookingId = 1,
+                    Status    = PaymentStatus.Completed // đã xử lý
+                });
+
+            var result = await _service.ProcessVnPayCallbackAsync(new QueryCollection());
+
+            Assert.True(result); // trả về true (đã xử lý)
+
+            // KHÔNG update lại
+            _paymentRepoMock.Verify(x => x.UpdateAsync(It.IsAny<Payment>()), Times.Never);
+            _bookingRepoMock.Verify(x => x.UpdateAsync(It.IsAny<Booking>()), Times.Never);
+        }
+
+        ///  Thanh toán thành công (responseCode = "00") →
+        ///   - Payment.Status = Completed
+        ///   - Booking.Status = Paid
+        ///   - Slot.Status    = Booked
+        ///   - Gửi notification cho Driver
+        [Fact]
+        public async Task ProcessCallback_ShouldSuccess_WhenPaymentSucceeded()
         {
             var booking = new Booking
             {
-                Id = 1,
-                SlotId = 5,
+                Id           = 1,
+                SlotId       = 5,
                 DriverUserId = 10,
-                Status = BookingStatus.PendingPayment
+                Status       = BookingStatus.PendingPayment
             };
 
             var payment = new Payment
             {
                 BookingId = 1,
-                Status = PaymentStatus.Pending
+                Status    = PaymentStatus.Pending
             };
 
-            var slot = new ChargingSlot { Id = 5 };
+            var slot = new ChargingSlot { Id = 5, Status = SlotStatus.Active };
 
-            _sePayMock.Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
-                .Returns((true, 200, "1"));
+            _vnPayMock
+                .Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
+                .Returns((true, "00", "1_123456789")); // thành công
 
-            _bookingRepoMock.Setup(x => x.GetByIdWithDetailsAsync(1))
+            _bookingRepoMock
+                .Setup(x => x.GetByIdWithDetailsAsync(1))
                 .ReturnsAsync(booking);
 
-            _paymentRepoMock.Setup(x => x.GetByBookingIdAsync(1))
+            _paymentRepoMock
+                .Setup(x => x.GetByBookingIdAsync(1))
                 .ReturnsAsync(payment);
 
-            _slotRepoMock.Setup(x => x.GetByIdAsync(5, true))
+            _slotRepoMock
+                .Setup(x => x.GetByIdAsync(5, true))
                 .ReturnsAsync(slot);
 
-            // giả lập overlap booking
-            _bookingRepoMock.Setup(x => x.GetOverlappingBookingsAsync(
-                It.IsAny<int>(),
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
-                .ReturnsAsync(new List<Booking>
-                {
-                    new Booking { Id = 2, Status = BookingStatus.Draft },
-                    new Booking { Id = 3, Status = BookingStatus.PendingPayment }
-                });
-
-            var result = await _service.ProcessSePayCallbackAsync(new QueryCollection());
+            var result = await _service.ProcessVnPayCallbackAsync(new QueryCollection());
 
             Assert.True(result);
 
+            // Payment cập nhật thành Completed
             Assert.Equal(PaymentStatus.Completed, payment.Status);
+            Assert.NotNull(payment.PaidAt);
+            Assert.Equal("1_123456789", payment.GatewayTxnRef);
+
+            // Booking chuyển sang Paid
             Assert.Equal(BookingStatus.Paid, booking.Status);
 
-            // ❗ đảm bảo reject booking khác
-            _bookingRepoMock.Verify(x => x.UpdateAsync(
-                It.Is<Booking>(b => b.Status == BookingStatus.Rejected)),
-                Times.AtLeastOnce);
+            // Slot bị lock (Booked)
+            Assert.Equal(SlotStatus.Booked, slot.Status);
 
-            // notify driver
+            // Gọi update đúng
+            _paymentRepoMock.Verify(x => x.UpdateAsync(payment), Times.Once);
+            _bookingRepoMock.Verify(x => x.UpdateAsync(booking), Times.Once);
+            _slotRepoMock.Verify(x => x.Update(slot), Times.Once);
+            _slotRepoMock.Verify(x => x.SaveChangesAsync(), Times.Once);
+
+            // Notify driver
             _notiMock.Verify(x => x.SendAsync(
                 10,
                 It.IsAny<string>(),
@@ -261,29 +357,98 @@ namespace ChargeSlot.Tests.Services
                 NotificationType.Payment), Times.Once);
         }
 
-        /// <summary>
-        /// ❌ Fail: thanh toán thất bại
-        /// </summary>
+        /// Thanh toán thất bại (responseCode != "00") →
+        ///   - Payment.Status = Failed
+        ///   - Booking KHÔNG thay đổi status
+        ///   - Trả về false
         [Fact]
-        public async Task ProcessCallback_ShouldFail_WhenPaymentFailed()
+        public async Task ProcessCallback_ShouldReturnFalse_AndMarkPaymentFailed_WhenPaymentFailed()
         {
+            var booking = new Booking
+            {
+                Id     = 1,
+                SlotId = 5,
+                Status = BookingStatus.PendingPayment
+            };
+
             var payment = new Payment
             {
                 BookingId = 1,
-                Status = PaymentStatus.Pending
+                Status    = PaymentStatus.Pending
             };
 
-            _sePayMock.Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
-                .Returns((true, 500, "1"));
+            _vnPayMock
+                .Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
+                .Returns((true, "24", "1_999")); // mã lỗi VNPay (user cancel)
 
-            _paymentRepoMock.Setup(x => x.GetByBookingIdAsync(1))
+            _bookingRepoMock
+                .Setup(x => x.GetByIdWithDetailsAsync(1))
+                .ReturnsAsync(booking);
+
+            _paymentRepoMock
+                .Setup(x => x.GetByBookingIdAsync(1))
                 .ReturnsAsync(payment);
 
-            var result = await _service.ProcessSePayCallbackAsync(new QueryCollection());
+            var result = await _service.ProcessVnPayCallbackAsync(new QueryCollection());
 
             Assert.False(result);
 
+            // Payment mark là Failed
             Assert.Equal(PaymentStatus.Failed, payment.Status);
+            _paymentRepoMock.Verify(x => x.UpdateAsync(payment), Times.Once);
+
+            // Booking KHÔNG thay đổi (chờ PaymentExpiryJob xử lý expire)
+            _bookingRepoMock.Verify(x => x.UpdateAsync(It.IsAny<Booking>()), Times.Never);
+
+            // Không notify
+            _notiMock.Verify(x => x.SendAsync(
+                It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<NotificationType>()),
+                Times.Never);
+        }
+
+        /// Thanh toán thành công nhưng Slot không tồn tại →
+        /// vẫn trả về true (slot có thể đã bị xóa).
+        [Fact]
+        public async Task ProcessCallback_ShouldStillSucceed_WhenSlotNotFound()
+        {
+            var booking = new Booking
+            {
+                Id           = 1,
+                SlotId       = 99,
+                DriverUserId = 10,
+                Status       = BookingStatus.PendingPayment
+            };
+
+            var payment = new Payment
+            {
+                BookingId = 1,
+                Status    = PaymentStatus.Pending
+            };
+
+            _vnPayMock
+                .Setup(x => x.ValidateCallback(It.IsAny<IQueryCollection>()))
+                .Returns((true, "00", "1_111"));
+
+            _bookingRepoMock
+                .Setup(x => x.GetByIdWithDetailsAsync(1))
+                .ReturnsAsync(booking);
+
+            _paymentRepoMock
+                .Setup(x => x.GetByBookingIdAsync(1))
+                .ReturnsAsync(payment);
+
+            _slotRepoMock
+                .Setup(x => x.GetByIdAsync(99, true))
+                .ReturnsAsync((ChargingSlot?)null); // slot không tồn tại
+
+            var result = await _service.ProcessVnPayCallbackAsync(new QueryCollection());
+
+            Assert.True(result);
+            Assert.Equal(PaymentStatus.Completed, payment.Status);
+            Assert.Equal(BookingStatus.Paid, booking.Status);
+
+            // Không cố update slot
+            _slotRepoMock.Verify(x => x.Update(It.IsAny<ChargingSlot>()), Times.Never);
         }
     }
 }
