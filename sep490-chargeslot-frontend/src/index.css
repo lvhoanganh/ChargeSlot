@@ -866,6 +866,68 @@
   align-items: center;
   flex-wrap: wrap;
 }
+.sm-time-filter-card {
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #ddd6fe;
+  background: linear-gradient(180deg, #faf5ff 0%, #f5f3ff 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sm-time-filter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sm-time-filter-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #6d28d9;
+}
+.sm-time-filter-clear {
+  border: none;
+  background: rgba(139, 92, 246, 0.12);
+  color: #7c3aed;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sm-datetime-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1.5px solid #c4b5fd;
+  background: #fff;
+  color: #312e81;
+  font-size: 12.5px;
+  outline: none;
+}
+.sm-time-filter-status {
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.sm-time-filter-status--active {
+  background: rgba(124, 58, 237, 0.1);
+  color: #6d28d9;
+  font-weight: 600;
+}
+.sm-time-filter-status--loading {
+  background: rgba(59, 130, 246, 0.1);
+  color: #1d4ed8;
+  font-weight: 600;
+}
+.sm-time-filter-status--error {
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+  font-weight: 600;
+}
 .sm-select {
   flex: 1;
   padding: 8px 10px;

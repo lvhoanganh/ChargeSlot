@@ -6,6 +6,7 @@ import "leaflet/dist/leaflet.css";
 import { publicStationApi, favoriteApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 import { showToast } from "@/components/Toast";
+import TimePicker24h from "@/components/TimePicker24h";
 
 /* ─── Fix leaflet default icon ─── */
 delete L.Icon.Default.prototype._getIconUrl;
@@ -74,8 +75,8 @@ function haversine([lat1, lon1], [lat2, lon2]) {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -88,6 +89,62 @@ function useIsMobile() {
     return () => window.removeEventListener("resize", fn);
   }, []);
   return isMobile;
+}
+
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
+function formatDateTimeLocal(date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
+
+function formatDateKey(date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function parseLocalDateTime(value) {
+  return value ? new Date(value) : null;
+}
+
+function parseMinutes(value) {
+  if (!value) return 0;
+  const [hours = "0", minutes = "0"] = String(value).split(":");
+  return Number(hours) * 60 + Number(minutes);
+}
+
+function isStationOperational(status) {
+  return !["Closed", "Maintenance", "Inactive"].includes(status);
+}
+
+function isStationOpenForRange(station, start, end) {
+  if (!station?.operatingHours?.length) return true;
+
+  const dayOfWeek = start.getDay();
+  const opHours = station.operatingHours.find((item) => Number(item.dayOfWeek) === dayOfWeek);
+  if (!opHours || opHours.isClosed) return false;
+
+  const bookStart = start.getHours() * 60 + start.getMinutes();
+  const bookEnd = end.getHours() * 60 + end.getMinutes() + (formatDateKey(end) !== formatDateKey(start) ? 24 * 60 : 0);
+  const opStart = parseMinutes(opHours.openTime);
+  let opEnd = parseMinutes(opHours.closeTime);
+
+  if (opStart === 0 && opEnd === 0) opEnd = 24 * 60;
+  else if (opEnd <= opStart) opEnd += 24 * 60;
+
+  return bookStart >= opStart && bookEnd <= opEnd;
+}
+
+function parseScheduleDateTime(raw, fallbackDateKey) {
+  if (!raw) return null;
+  if (typeof raw === "string" && !raw.includes("T")) {
+    return new Date(`${fallbackDateKey}T${String(raw).slice(0, 5)}:00`);
+  }
+  return new Date(String(raw).replace("Z", ""));
+}
+
+function isRangeOverlap(startA, endA, startB, endB) {
+  return startA < endB && endA > startB;
 }
 
 export default function StationMap() {
@@ -104,10 +161,16 @@ export default function StationMap() {
   const [error, setError] = useState(null);
   const [minRating, setMinRating] = useState("");
   const [sortBy, setSortBy] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [startHHMM, setStartHHMM] = useState("");
+  const [duration, setDuration] = useState(1);
   const [nearbyMode, setNearbyMode] = useState(false);
   const [maxRadius, setMaxRadius] = useState(10);
   const [showFilters, setShowFilters] = useState(false);
   const [favorites, setFavorites] = useState({});
+  const [availableStationIds, setAvailableStationIds] = useState(null);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState("");
   const { token } = useAuthStore();
   const markerRefs = useRef({});
   const searchTimer = useRef(null);
@@ -120,6 +183,22 @@ export default function StationMap() {
       () => { },
       { enableHighAccuracy: true, timeout: 8000 }
     );
+  }, []);
+
+  useEffect(() => {
+    const now = new Date();
+    now.setSeconds(0, 0);
+    now.setMinutes(now.getMinutes() < 30 ? 30 : 0);
+    if (now.getMinutes() === 0) now.setHours(now.getHours() + 1);
+
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    setSelectedDate(`${yyyy}-${mm}-${dd}`);
+    
+    const hh = String(now.getHours()).padStart(2, "0");
+    const min = String(now.getMinutes()).padStart(2, "0");
+    setStartHHMM(`${hh}:${min}`);
   }, []);
 
   function fetchStations(rating, sort, pos) {
@@ -142,8 +221,8 @@ export default function StationMap() {
   }
 
   // Lấy dữ liệu mỗi khi bộ lọc (không bao gồm từ khoá tìm kiếm) thay đổi
-  useEffect(() => { 
-    fetchStations(minRating, sortBy, nearbyMode ? userPos : null); 
+  useEffect(() => {
+    fetchStations(minRating, sortBy, nearbyMode ? userPos : null);
   }, [minRating, sortBy, nearbyMode, maxRadius, userPos]);
 
   useEffect(() => {
@@ -171,7 +250,7 @@ export default function StationMap() {
     } catch (err) { showToast.error(err.message); }
   }
 
-  const filtered = useMemo(() => {
+  const baseFiltered = useMemo(() => {
     let result = stations;
     if (search.trim()) {
       const q = removeDiacritics(search.toLowerCase());
@@ -195,6 +274,129 @@ export default function StationMap() {
     return result;
   }, [search, stations, nearbyMode, userPos, maxRadius]);
 
+  const timeRange = useMemo(() => {
+    if (!selectedDate || !startHHMM) return { start: null, end: null, isValid: false };
+    const startObj = new Date(`${selectedDate}T${startHHMM}:00`);
+    const endObj = new Date(startObj.getTime() + duration * 3600000);
+    return { start: startObj, end: endObj, isValid: endObj > startObj };
+  }, [selectedDate, startHHMM, duration]);
+
+  const isTimeFilterActive = Boolean(selectedDate && startHHMM);
+
+  useEffect(() => {
+    if (!isTimeFilterActive) {
+      setAvailableStationIds(null);
+      setAvailabilityLoading(false);
+      setAvailabilityError("");
+      return;
+    }
+
+    if (!timeRange.isValid) {
+      setAvailableStationIds(new Set());
+      setAvailabilityLoading(false);
+      setAvailabilityError("");
+      return;
+    }
+
+    const controller = new AbortController();
+    const baseUrl = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
+    let cancelled = false;
+
+    async function fetchSlotRanges(stationId, slotId, dateKey) {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await fetch(
+        `${baseUrl}/stations/${stationId}/slots/${slotId}/availability?date=${dateKey}`,
+        { headers, signal: controller.signal }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Khong the tai lich slot cho tram #${stationId}`);
+      }
+
+      const data = await response.json();
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.bookedRanges)) return data.bookedRanges;
+      if (Array.isArray(data?.items)) return data.items;
+      return [];
+    }
+
+    async function stationHasFreeSlot(station) {
+      if (!isStationOperational(station.operationalStatus)) return false;
+      if (!isStationOpenForRange(station, timeRange.start, timeRange.end)) return false;
+
+      const candidateSlots = (station.chargingSlots || []).filter((slot) => {
+        const status = slot.status || "Active";
+        return ["Active", "Available", "Booked"].includes(status);
+      });
+
+      if (candidateSlots.length === 0) return false;
+
+      const dateKeys = [formatDateKey(timeRange.start)];
+      const endDateKey = formatDateKey(timeRange.end);
+      if (endDateKey !== dateKeys[0]) dateKeys.push(endDateKey);
+
+      for (const slot of candidateSlots) {
+        let bookedRanges = [];
+
+        for (const dateKey of dateKeys) {
+          const ranges = await fetchSlotRanges(station.id, slot.id, dateKey);
+          bookedRanges = bookedRanges.concat(
+            ranges
+              .map((range) => ({
+                start: parseScheduleDateTime(range.startTime, dateKey),
+                end: parseScheduleDateTime(range.endTime, dateKey),
+              }))
+              .filter((range) => range.start && range.end)
+          );
+        }
+
+        const hasConflict = bookedRanges.some((range) =>
+          isRangeOverlap(timeRange.start, timeRange.end, range.start, range.end)
+        );
+
+        if (!hasConflict) return true;
+      }
+
+      return false;
+    }
+
+    setAvailabilityLoading(true);
+    setAvailabilityError("");
+    setAvailableStationIds(null);
+
+    (async () => {
+      const matches = await Promise.all(
+        baseFiltered.map(async (station) => ({
+          id: station.id,
+          isAvailable: await stationHasFreeSlot(station),
+        }))
+      );
+
+      if (cancelled) return;
+      setAvailableStationIds(new Set(matches.filter((item) => item.isAvailable).map((item) => item.id)));
+    })()
+      .catch((err) => {
+        if (cancelled || err?.name === "AbortError") return;
+        setAvailabilityError(err.message || "Khong the loc theo thoi gian");
+        setAvailableStationIds(new Set());
+      })
+      .finally(() => {
+        if (!cancelled) setAvailabilityLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [baseFiltered, isTimeFilterActive, timeRange, token]);
+
+  const filtered = useMemo(() => {
+    if (!isTimeFilterActive) return baseFiltered;
+    if (!timeRange.isValid) return [];
+    if (availableStationIds == null) return [];
+    return baseFiltered.filter((station) => availableStationIds.has(station.id));
+  }, [availableStationIds, baseFiltered, isTimeFilterActive, timeRange.isValid]);
+
   function getAvailableSlots(station) {
     if (station.availableSlotsCount !== undefined) return station.availableSlotsCount;
     return station.chargingSlots ? station.chargingSlots.filter((s) => s.status === "Active").length : 0;
@@ -216,7 +418,7 @@ export default function StationMap() {
     return url.startsWith("http") ? url : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${url}`;
   }
 
-  const hasActiveFilters = minRating || sortBy || nearbyMode;
+  const hasActiveFilters = minRating || sortBy || nearbyMode || isTimeFilterActive;
 
   /* ══════ MAP PANEL (shared between mobile & desktop) ══════ */
   const MapPanel = (
@@ -460,6 +662,168 @@ export default function StationMap() {
               </select>
             </div>
 
+            <div className="sm-time-filter-card">
+              <div className="sm-time-filter-head">
+                <div className="sm-time-filter-title">Lọc trạm có slot trống theo thời gian</div>
+              </div>
+
+              {/* ===== DATE PICKER ===== */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{display: "block", fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 8}}>Chọn ngày</label>
+                <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6 }}>
+                  {Array.from({ length: 7 }, (_, i) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + i);
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, "0");
+                    const dd2 = String(d.getDate()).padStart(2, "0");
+                    const dateStr = `${yyyy}-${mm}-${dd2}`;
+                    const isSel = selectedDate === dateStr;
+                    const DAY_NAMES = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+                    const label = i === 0 ? "Hôm nay" : i === 1 ? "Ngày mai" : DAY_NAMES[d.getDay()];
+                    return (
+                      <button key={dateStr} type="button" onClick={() => {
+                        setSelectedDate(dateStr);
+                        if (!startHHMM) {
+                          const now = new Date();
+                          now.setMinutes(now.getMinutes() < 30 ? 30 : 0);
+                          if (now.getMinutes() === 0) now.setHours(now.getHours() + 1);
+                          setStartHHMM(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
+                        }
+                      }} style={{
+                        flexShrink: 0, minWidth: 68, padding: "8px 10px", borderRadius: 14,
+                        border: isSel ? "2px solid #f97316" : "1.5px solid #e5e7eb",
+                        background: isSel ? "linear-gradient(135deg,#fff7ed,#ffedd5)" : "#fff",
+                        color: isSel ? "#ea580c" : "#374151",
+                        cursor: "pointer", textAlign: "center",
+                        boxShadow: isSel ? "0 2px 8px rgba(249,115,22,0.2)" : "none",
+                        transition: "all 0.15s",
+                      }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: isSel ? "#ea580c" : "#94a3b8" }}>{label}</div>
+                        <div style={{ fontSize: 15, fontWeight: 800 }}>{dd2}/{mm}</div>
+                      </button>
+                    );
+                  })}
+
+                  {/* ===== DATE PICKER BUTTON ===== */}
+                  {(() => {
+                    let isCustomActive = false;
+                    let customSelDate = null;
+                    if (selectedDate) {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const sel = new Date(selectedDate);
+                      sel.setHours(0, 0, 0, 0);
+                      const diffDays = Math.round((sel - today) / (1000 * 60 * 60 * 24));
+                      if (diffDays < 0 || diffDays >= 7) {
+                        isCustomActive = true;
+                        customSelDate = sel;
+                      }
+                    }
+
+                    return (
+                      <div style={{
+                        position: "relative", flexShrink: 0, minWidth: 68,
+                        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                        padding: "8px 10px", borderRadius: 14,
+                        border: isCustomActive ? "2px solid #f97316" : "1.5px dashed #cbd5e1",
+                        background: isCustomActive ? "linear-gradient(135deg,#fff7ed,#ffedd5)" : "#f8fafc",
+                        cursor: "pointer", transition: "all 0.15s",
+                        boxShadow: isCustomActive ? "0 2px 8px rgba(249,115,22,0.2)" : "none",
+                      }}>
+                        <input
+                          type="date"
+                          min={new Date().toISOString().split("T")[0]}
+                          value={isCustomActive && customSelDate ? selectedDate : ""}
+                          onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                          onChange={(e) => {
+                            if (!e.target.value) return;
+                            setSelectedDate(e.target.value);
+                            if (!startHHMM) {
+                              const now = new Date();
+                              now.setMinutes(now.getMinutes() < 30 ? 30 : 0);
+                              if (now.getMinutes() === 0) now.setHours(now.getHours() + 1);
+                              setStartHHMM(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
+                            }
+                          }}
+                          style={{
+                            position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+                            opacity: 0, cursor: "pointer", width: "100%", height: "100%"
+                          }}
+                        />
+                        {isCustomActive && customSelDate ? (
+                          <>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: "#ea580c" }}>Đã chọn</div>
+                            <div style={{ fontSize: 15, fontWeight: 800, color: "#ea580c" }}>
+                              {String(customSelDate.getDate()).padStart(2, "0")}/{String(customSelDate.getMonth() + 1).padStart(2, "0")}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" style={{ marginBottom: 2 }}>
+                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                              <line x1="16" y1="2" x2="16" y2="6"/>
+                              <line x1="8" y1="2" x2="8" y2="6"/>
+                              <line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: "#64748b" }}>Ngày khác</div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* ===== TIME INPUTS ===== */}
+              <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 700, marginBottom: 8 }}>Giờ bắt đầu</div>
+                  <TimePicker24h
+                    value={startHHMM}
+                    onChange={setStartHHMM}
+                    className="w-full text-center"
+                  />
+                </div>
+                <div style={{ flex: 1, paddingBottom: 1 }}>
+                  <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 700, marginBottom: 8 }}>Thời lượng (giờ)</div>
+                  <div style={{ display: "flex", alignItems: "center", background: "#f8fafc", borderRadius: 10, border: "1.5px solid #e5e7eb", overflow: "hidden", height: 42 }}>
+                    <button 
+                      type="button" 
+                      onClick={() => setDuration(d => Math.max(0.5, d - 0.5))} 
+                      style={{ width: 44, height: 42, background: "#fff", border: "none", cursor: "pointer", fontSize: 20, color: duration > 0.5 ? "#ea580c" : "#cbd5e1", borderRight: "1px solid #e5e7eb", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center" }}
+                      disabled={duration <= 0.5}
+                    >−</button>
+
+                    <div style={{ flex: 1, textAlign: "center", fontSize: 14, fontWeight: 700, color: "#1e293b", userSelect: "none" }}>
+                      {duration} 
+                    </div>
+
+                    <button 
+                      type="button" 
+                      onClick={() => setDuration(d => Math.min(24, d + 0.5))} 
+                      style={{ width: 44, height: 42, background: "#fff", border: "none", cursor: "pointer", fontSize: 20, color: duration < 24 ? "#ea580c" : "#cbd5e1", borderLeft: "1px solid #e5e7eb", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center" }}
+                      disabled={duration >= 24}
+                    >+</button>
+                  </div>
+                </div>
+              </div>
+
+              {isTimeFilterActive && timeRange.isValid && (
+                <div className={`sm-time-filter-status ${availabilityLoading ? "sm-time-filter-status--loading" : "sm-time-filter-status--active"}`}>
+                  {availabilityLoading
+                    ? "Đang lọc trạm..."
+                    : `Lọc trạm từ ${timeRange.start.toLocaleTimeString("vi-VN", {hour: "2-digit", minute: "2-digit"})} đến ${timeRange.end.toLocaleTimeString("vi-VN", {hour: "2-digit", minute: "2-digit"})}`}
+                </div>
+              )}
+
+              {availabilityError && (
+                <div className="sm-time-filter-status sm-time-filter-status--error">
+                  {availabilityError}
+                </div>
+              )}
+            </div>
+
             <div className="sm-filter-nearby-row">
               <button
                 className={`sm-nearby-btn ${nearbyMode ? "active" : ""}`}
@@ -503,7 +867,14 @@ export default function StationMap() {
               {hasActiveFilters && (
                 <button
                   className="sm-clear-filter"
-                  onClick={() => { setMinRating(""); setSortBy(""); setNearbyMode(false); }}
+                  onClick={() => {
+                    setMinRating("");
+                    setSortBy("");
+                    setNearbyMode(false);
+                    setSelectedDate("");
+                    setStartHHMM("");
+                    setDuration(1);
+                  }}
                 >
                   Xóa lọc
                 </button>
@@ -515,7 +886,7 @@ export default function StationMap() {
 
       {/* ── Cards ── */}
       <div className="sm-card-list">
-        {loading ? (
+        {loading || availabilityLoading ? (
           <div className="sm-state-box">
             <div style={{ fontSize: 32, marginBottom: 8, animation: "spin 1s linear infinite" }}>⚡</div>
             <div style={{ fontSize: 14, color: "#6b7280" }}>Đang tải trạm sạc...</div>
