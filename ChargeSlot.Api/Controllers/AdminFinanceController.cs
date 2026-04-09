@@ -38,5 +38,16 @@ namespace ChargeSlot.Api.Controllers
             var result = await _walletService.GetAdminWalletTransactionsAsync(walletId, filter);
             return Ok(result);
         }
+
+        /// <summary>
+        /// Xem siêu chi tiết cấu trúc dòng tiền của 1 giao dịch (Sổ cái)
+        /// </summary>
+        [HttpGet("transactions/{transactionId}")]
+        public async Task<IActionResult> GetTransactionDetail(long transactionId)
+        {
+            var result = await _walletService.GetAdminTransactionDetailAsync(transactionId);
+            if (result == null) return NotFound(new { message = "Không tìm thấy giao dịch với ID này." });
+            return Ok(result);
+        }
     }
 }

@@ -1,11 +1,9 @@
 using ChargeSlot.Api.Constants;
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Admin;
 using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Services.Interfaces;
 using ChargeSlot.Api.Repositories.Interfaces;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace ChargeSlot.Api.Services.Implementation

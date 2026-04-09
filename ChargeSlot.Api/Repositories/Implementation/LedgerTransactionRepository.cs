@@ -60,5 +60,15 @@ namespace ChargeSlot.Api.Repositories.Implementation
 
             return (items, totalCount);
         }
+
+        public async Task<LedgerTransaction?> GetTransactionDetailAsync(long transactionId)
+        {
+            return await _context.LedgerTransactions
+                .Include(t => t.Entries)
+                    .ThenInclude(e => e.Wallet)
+                        .ThenInclude(w => w.User)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == transactionId);
+        }
     }
 }

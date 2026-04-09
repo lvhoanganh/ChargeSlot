@@ -342,6 +342,9 @@ app.Use(async (context, next) =>
     }
     catch (Exception ex)
     {
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Unhandled API Exception: {Message}", ex.Message);
+
         if (context.Response.HasStarted)
         {
             throw;

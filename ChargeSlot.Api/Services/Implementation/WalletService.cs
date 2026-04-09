@@ -1,5 +1,4 @@
 using ChargeSlot.Api.Helpers;
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Wallet;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
@@ -7,9 +6,8 @@ using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using ChargeSlot.Api.Helpers;
 using Microsoft.Extensions.Configuration;
+
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class WalletService : IWalletService
@@ -587,7 +585,8 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task FinalizeWithdrawCompletedAsync(WithdrawRequest request, int? confirmedByUserId = null)
         {
-            var wallet = request.Wallet ?? await _walletRepo.GetByIdAsync(request.WalletId);
+            var wallet = request.Wallet ?? await _walletRepo.GetByIdAsync(request.WalletId)
+                ?? throw new InvalidOperationException("Không tìm thấy ví tương ứng để cập nhật.");
 
             wallet.FrozenBalance -= request.Amount;
             request.Status = WithdrawStatus.Completed;
@@ -742,6 +741,33 @@ namespace ChargeSlot.Api.Services.Implementation
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.TransactionDetailDto?> GetAdminTransactionDetailAsync(long transactionId)
+        {
+            var tx = await _ledgerRepo.GetTransactionDetailAsync(transactionId);
+            if (tx == null) return null;
+
+            var dto = new ChargeSlot.Api.DTOs.Admin.Overview.TransactionDetailDto
+            {
+                Id = tx.Id,
+                ReferenceType = tx.ReferenceType,
+                ReferenceId = tx.ReferenceId,
+                Memo = tx.Memo ?? string.Empty,
+                CreatedAt = tx.CreatedAt,
+                Entries = tx.Entries.Select(e => new ChargeSlot.Api.DTOs.Admin.Overview.LedgerEntryDetailDto
+                {
+                    WalletId = e.WalletId,
+                    WalletType = e.Wallet?.WalletType.ToString() ?? "Unknown",
+                    OwnerName = e.Wallet?.WalletType == Enums.WalletType.System 
+                        ? (e.Wallet.SystemCode == "ESCROW" ? "Hệ thống (Escrow)" : "Hệ thống (Platform Revenue)") 
+                        : (e.Wallet?.User?.FullName ?? "N/A"),
+                    Direction = e.Direction.ToString(),
+                    Amount = e.Amount
+                }).ToList()
+            };
+
+            return dto;
         }
     }
 }

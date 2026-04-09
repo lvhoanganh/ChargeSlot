@@ -1,9 +1,7 @@
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Analytics;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Services.Interfaces;
 using ChargeSlot.Api.Repositories.Interfaces;
-using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text;
 
@@ -262,7 +260,7 @@ Lưu ý: Luôn trả lời bằng tiếng Việt, sử dụng format Markdown r�
                         {
                             if (part.TryGetProperty("text", out var textProp))
                             {
-                                return new ChatbotResponseDto { ReplyMarkdown = textProp.GetString() };
+                                return new ChatbotResponseDto { ReplyMarkdown = textProp.GetString() ?? string.Empty };
                             }
                         }
                     }

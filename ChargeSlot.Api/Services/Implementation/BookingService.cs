@@ -1,13 +1,10 @@
 using ChargeSlot.Api.Helpers;
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Booking;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
-using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class BookingService : IBookingService
@@ -771,10 +768,10 @@ namespace ChargeSlot.Api.Services.Implementation
             }
         }
 
-        public async Task<BookingDto?> GetByIdAsync(int bookingId)
+        public async Task<BookingDetailDto?> GetByIdAsync(int bookingId)
         {
             var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId);
-            return booking == null ? null : MapToDto(booking);
+            return booking == null ? null : MapToDetailDto(booking);
         }
 
         /// <summary>
@@ -888,6 +885,90 @@ namespace ChargeSlot.Api.Services.Implementation
                     TotalPrice = e.TotalPrice
                 }).ToList()
             };
+        }
+
+        private static BookingDetailDto MapToDetailDto(Booking b)
+        {
+            var baseDto = MapToDto(b);
+            var detailDto = new BookingDetailDto
+            {
+                Id = baseDto.Id,
+                DriverUserId = baseDto.DriverUserId,
+                DriverName = baseDto.DriverName,
+                SlotId = baseDto.SlotId,
+                SlotName = baseDto.SlotName,
+                StationId = baseDto.StationId,
+                StationName = baseDto.StationName,
+                StartTime = baseDto.StartTime,
+                EndTime = baseDto.EndTime,
+                DurationHours = baseDto.DurationHours,
+                TotalAmount = baseDto.TotalAmount,
+                ServiceAmount = baseDto.ServiceAmount,
+                PointsUsed = baseDto.PointsUsed,
+                PointsDiscountAmount = baseDto.PointsDiscountAmount,
+                PointsEarned = baseDto.PointsEarned,
+                Note = baseDto.Note,
+                Status = baseDto.Status,
+                RejectionReason = baseDto.RejectionReason,
+                CancelReason = baseDto.CancelReason,
+                PaymentExpiresAt = baseDto.PaymentExpiresAt,
+                CreatedAt = baseDto.CreatedAt,
+                ExtraServices = baseDto.ExtraServices
+            };
+
+            if (b.Payment != null)
+            {
+                detailDto.PaymentDetail = new BookingPaymentDetailDto
+                {
+                    Method = b.Payment.PaymentMethod.ToString(),
+                    Status = b.Payment.Status.ToString(),
+                    PaidAt = b.Payment.PaidAt,
+                    GatewayTxnRef = b.Payment.GatewayTxnRef,
+                    Amount = b.Payment.Amount
+                };
+            }
+
+            if (b.ChargingSession != null)
+            {
+                detailDto.SessionDetail = new BookingSessionDetailDto
+                {
+                    CheckinTime = b.ChargingSession.CheckinTime,
+                    ActualStartTime = b.ChargingSession.ActualStartTime,
+                    ActualEndTime = b.ChargingSession.ActualEndTime,
+                    ActualDurationHours = b.ChargingSession.ActualDurationHours
+                };
+            }
+
+            if (b.Dispute != null)
+            {
+                detailDto.DisputeDetail = new BookingDisputeDetailDto
+                {
+                    Id = b.Dispute.Id,
+                    Reason = b.Dispute.Reason,
+                    Status = b.Dispute.Status.ToString(),
+                    Description = b.Dispute.Description,
+                    ResolvedAt = b.Dispute.ResolvedAt,
+                    AdminNote = b.Dispute.AdminNote,
+                    CreatedAt = b.Dispute.CreatedAt
+                };
+            }
+
+            if (b.Invoice != null)
+            {
+                detailDto.InvoiceDetail = new BookingInvoiceDetailDto
+                {
+                    Id = b.Invoice.Id,
+                    ChargingAmount = b.Invoice.ChargingAmount,
+                    ServiceAmount = b.Invoice.ServiceAmount,
+                    VatAmount = b.Invoice.VatAmount,
+                    PlatformFee = b.Invoice.PlatformFee,
+                    TotalAmount = b.Invoice.TotalAmount,
+                    Status = b.Invoice.Status.ToString(),
+                    CreatedAt = b.Invoice.CreatedAt
+                };
+            }
+
+            return detailDto;
         }
 
         /// <summary>Hoàn stock cho ExtraService khi cancel booking đã paid.</summary>

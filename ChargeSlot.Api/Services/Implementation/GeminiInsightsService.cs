@@ -1,9 +1,7 @@
 using System.Text;
 using System.Text.Json;
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Analytics;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace ChargeSlot.Api.Services.Implementation

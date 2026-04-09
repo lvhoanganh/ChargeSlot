@@ -1,12 +1,10 @@
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Slot;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
-
 using ChargeSlot.Api.Helpers;
+
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class ChargingSlotService : IChargingSlotService

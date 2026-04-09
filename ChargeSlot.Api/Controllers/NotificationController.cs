@@ -1,4 +1,4 @@
-using ChargeSlot.Api.Repositories.Interfaces;
+using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -10,13 +10,11 @@ namespace ChargeSlot.Api.Controllers
     [Authorize]
     public class NotificationController : ControllerBase
     {
-        private readonly INotificationRepository _notificationRepo;
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly INotificationService _notificationService;
 
-        public NotificationController(INotificationRepository notificationRepo, IUnitOfWork unitOfWork)
+        public NotificationController(INotificationService notificationService)
         {
-            _notificationRepo = notificationRepo;
-            _unitOfWork = unitOfWork;
+            _notificationService = notificationService;
         }
 
         private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -29,21 +27,9 @@ namespace ChargeSlot.Api.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
-            var all = await _notificationRepo.GetByUserAsync(GetUserId());
-            var total = all.Count;
-            var items = all
-                .OrderByDescending(n => n.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(n => new
-                {
-                    n.Id,
-                    n.Title,
-                    n.Content,
-                    Type = n.Type.ToString(),
-                    n.IsRead,
-                    n.CreatedAt
-                }).ToList();
+            var userId = GetUserId();
+            var items = await _notificationService.GetByUserAsync(userId, page, pageSize);
+            var total = await _notificationService.GetTotalCountAsync(userId);
             return Ok(new { total, page, pageSize, items });
         }
 
@@ -53,8 +39,7 @@ namespace ChargeSlot.Api.Controllers
         [HttpGet("unread-count")]
         public async Task<IActionResult> GetUnreadCount()
         {
-            var all = await _notificationRepo.GetByUserAsync(GetUserId());
-            var count = all.Count(n => !n.IsRead);
+            var count = await _notificationService.GetUnreadCountAsync(GetUserId());
             return Ok(new { unreadCount = count });
         }
 
@@ -64,16 +49,19 @@ namespace ChargeSlot.Api.Controllers
         [HttpPut("{id}/read")]
         public async Task<IActionResult> MarkAsRead(int id)
         {
-            var notification = await _notificationRepo.GetByIdAsync(id);
-            if (notification == null) return NotFound();
-            if (notification.UserId != GetUserId()) return Forbid();
-
-            notification.IsRead = true;
-            _notificationRepo.Update(notification);
-            await _unitOfWork.CompleteAsync();
-            return Ok(new { message = "Đã đánh dấu đã đọc." });
+            try
+            {
+                await _notificationService.MarkAsReadAsync(GetUserId(), id);
+                return Ok(new { message = "Đã đánh dấu đã đọc." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
         }
     }
 }
-
-

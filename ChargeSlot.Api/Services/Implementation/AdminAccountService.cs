@@ -2,8 +2,6 @@ using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.DTOs.Admin;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
-using ChargeSlot.Api.Services.Implementation;
-using Microsoft.EntityFrameworkCore;
 using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Helpers;

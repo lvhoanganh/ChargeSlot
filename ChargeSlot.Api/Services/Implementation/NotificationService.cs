@@ -1,11 +1,12 @@
+using ChargeSlot.Api.DTOs.Notification;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
-
 using ChargeSlot.Api.Helpers;
+
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class NotificationService : INotificationService
@@ -32,7 +33,6 @@ namespace ChargeSlot.Api.Services.Implementation
 
         public async Task SendAsync(int userId, string title, string content, NotificationType type)
         {
-            // 1. Lưu notification vào DB (in-app) — giữ nguyên logic cũ
             var notification = new Notification
             {
                 UserId = userId,
@@ -45,7 +45,6 @@ namespace ChargeSlot.Api.Services.Implementation
             _notificationRepo.Add(notification);
             await _unitOfWork.CompleteAsync();
 
-            // 2. Gửi email CC — nếu user có email đã xác thực
             try
             {
                 var user = await _userManager.FindByIdAsync(userId.ToString());
@@ -77,11 +76,51 @@ namespace ChargeSlot.Api.Services.Implementation
             }
             catch (Exception ex)
             {
-                // Email fail KHÔNG block notification — chỉ log warning
                 _logger.LogWarning(ex, "[Notification] Failed to send email CC to user {UserId}", userId);
             }
         }
+
+        public async Task<List<NotificationDto>> GetByUserAsync(int userId, int page, int pageSize)
+        {
+            var all = await _notificationRepo.GetByUserAsync(userId);
+            return all
+                .OrderByDescending(n => n.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(n => new NotificationDto
+                {
+                    Id = n.Id,
+                    Title = n.Title,
+                    Content = n.Content,
+                    Type = n.Type.ToString(),
+                    IsRead = n.IsRead,
+                    CreatedAt = n.CreatedAt
+                }).ToList();
+        }
+
+        public async Task<int> GetTotalCountAsync(int userId)
+        {
+            var all = await _notificationRepo.GetByUserAsync(userId);
+            return all.Count;
+        }
+
+        public async Task<int> GetUnreadCountAsync(int userId)
+        {
+            var all = await _notificationRepo.GetByUserAsync(userId);
+            return all.Count(n => !n.IsRead);
+        }
+
+        public async Task MarkAsReadAsync(int userId, int notificationId)
+        {
+            var notification = await _notificationRepo.GetByIdAsync(notificationId)
+                ?? throw new InvalidOperationException("Thông báo không tồn tại.");
+
+            if (notification.UserId != userId)
+                throw new UnauthorizedAccessException("Bạn không có quyền truy cập thông báo này.");
+
+            notification.IsRead = true;
+            _notificationRepo.Update(notification);
+            await _unitOfWork.CompleteAsync();
+        }
     }
 }
-
-

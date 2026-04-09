@@ -1,11 +1,9 @@
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Kyc;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace ChargeSlot.Api.Services.Implementation

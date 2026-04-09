@@ -1,13 +1,11 @@
 using ChargeSlot.Api.Helpers;
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
-using ChargeSlot.Api.Helpers;
 using Microsoft.Extensions.Configuration;
 using ChargeSlot.Api.DTOs.Payment;
+
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class PaymentService : IPaymentService
@@ -71,8 +69,10 @@ namespace ChargeSlot.Api.Services.Implementation
             await _unitOfWork.CompleteAsync();
 
             // Cộng tiền vào ESCROW wallet (Atomic)
-            var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
-            var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING");
+            var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW")
+                ?? throw new InvalidOperationException("Ví hệ thống ESCROW chưa được cấu hình.");
+            var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
+                ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
             await _unitOfWork.ExecuteSqlRawSafeAsync(
                 "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
                 booking.TotalAmount, escrowWallet!.Id);
@@ -155,7 +155,8 @@ namespace ChargeSlot.Api.Services.Implementation
             await _unitOfWork.CompleteAsync();
 
             // Ghi ledger double-entry: DEBIT từ CLEARING (VNPay refund), CREDIT vào ví Driver
-            var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING");
+            var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
+                ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "PaymentRaceRefund",
@@ -304,7 +305,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 _walletRepo.Update(wallet);
             await _unitOfWork.CompleteAsync();
 
-                var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING");
+                var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
+                    ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
                 var ledgerTx = new LedgerTransaction
                 {
                     ReferenceType = "TopUp",
@@ -496,7 +498,8 @@ namespace ChargeSlot.Api.Services.Implementation
             _walletRepo.Update(wallet);
             await _unitOfWork.CompleteAsync();
 
-            var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING");
+            var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
+                ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "BookingFallbackDeposit",

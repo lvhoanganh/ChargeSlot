@@ -28,5 +28,6 @@ namespace ChargeSlot.Api.Services.Interfaces
         // Admin Overview
         Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<WalletDto>> GetAdminAllWalletsAsync(ChargeSlot.Api.DTOs.Admin.Overview.WalletFilterDto filter);
         Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<TransactionHistoryDto>> GetAdminWalletTransactionsAsync(int walletId, ChargeSlot.Api.DTOs.Admin.Overview.TransactionFilterDto filter);
+        Task<ChargeSlot.Api.DTOs.Admin.Overview.TransactionDetailDto?> GetAdminTransactionDetailAsync(long transactionId);
     }
 }
