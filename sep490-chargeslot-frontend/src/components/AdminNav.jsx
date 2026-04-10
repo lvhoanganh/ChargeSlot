@@ -314,6 +314,12 @@ export default function AdminNav() {
           className={`cs-admin-bnav__item ${location.pathname.startsWith("/admin/admin-profile") ||
             location.pathname.startsWith("/admin/disputes") ||
             location.pathname.startsWith("/admin/system-config") ||
+            location.pathname.startsWith("/admin/manage-kyc") ||
+            location.pathname.startsWith("/admin/withdraws") ||
+            location.pathname.startsWith("/admin/bookings") ||
+            location.pathname.startsWith("/admin/sessions") ||
+            location.pathname.startsWith("/admin/invoices") ||
+            location.pathname.startsWith("/admin/wallets") ||
             mobileMoreOpen ? "cs-admin-bnav__item--active" : ""
             }`}
           onClick={() => setMobileMoreOpen(true)}
@@ -347,11 +353,15 @@ export default function AdminNav() {
         </div>
         <div className="cs-more-sheet__grid">
           {[
-            { label: "Hồ sơ", to: "/admin/admin-profile" },
-            { label: "Duyệt hồ sơ chủ trạm", to: "/admin/manage-kyc" },
-            { label: "Tranh chấp", to: "/admin/disputes" },
-            { label: "Rút tiền", to: "/admin/withdraws" },
-            { label: "Cấu hình", to: "/admin/system-config" },
+            { label: "Hồ sơ", to: "/admin/admin-profile", emoji: "👤" },
+            { label: "Duyệt hồ sơ chủ trạm", to: "/admin/manage-kyc", emoji: "🆔" },
+            { label: "Tranh chấp", to: "/admin/disputes", emoji: "⚖️" },
+            { label: "Rút tiền", to: "/admin/withdraws", emoji: "💸" },
+            { label: "Cấu hình", to: "/admin/system-config", emoji: "⚙️" },
+            { label: "Bookings", to: "/admin/bookings", emoji: "📊" },
+            { label: "Phiên sạc", to: "/admin/sessions", emoji: "⚡" },
+            { label: "Hóa đơn", to: "/admin/invoices", emoji: "📝" },
+            { label: "Ví & Vốn", to: "/admin/wallets", emoji: "💰" },
           ].map((item) => (
             <button
               key={item.to}

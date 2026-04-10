@@ -3,11 +3,24 @@ import { useQuery } from "@tanstack/react-query";
 import { adminFinanceApi } from "@/services/api";
 import Pagination from "@/components/Pagination";
 
+// System wallets mapping
+const SYSTEM_WALLETS = {
+  1: { code: "ESCROW", label: "💰 Giữ Tiền (Escrow)", desc: "Giữ tiền booking đang hoạt động" },
+  2: { code: "PLATFORM_REVENUE", label: "📈 Doanh Thu Sàn", desc: "Lợi nhuận sàn (5% phí)" },
+  3: { code: "CLEARING", label: "🏦 Cổng Thanh Toán", desc: "Gateway VNPay/SePay" },
+  99: { code: "TAX_HOLD", label: "🧾 Giữ Thuế", desc: "Thuế GTGT 8% giữ hộ chủ trạm" }
+};
+
 function formatDate(dateStr) {
   if (!dateStr) return "—";
   const s = String(dateStr);
   const d = new Date(String(s).replace("Z", ""));
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatCurrency(value) {
+  if (!value) return "0 đ";
+  return `${(value || 0).toLocaleString()} đ`;
 }
 
 // TransactionDetailModal Component
@@ -18,10 +31,15 @@ function TransactionDetailModal({ transactionId, onClose }) {
     enabled: !!transactionId,
   });
 
+  // Verify double-entry accounting: total debit must equal total credit
+  const debitTotal = tx?.entries?.filter((e) => e.direction === "Debit").reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
+  const creditTotal = tx?.entries?.filter((e) => e.direction === "Credit").reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
+  const isBalanced = Math.abs(debitTotal - creditTotal) < 0.01;
+
   return (
     <>
       <div className="cs-modal-overlay" onClick={onClose} />
-      <div className="cs-modal" style={{ maxWidth: 600 }}>
+      <div className="cs-modal" style={{ maxWidth: 700 }}>
         <div className="cs-modal__header">
           <h2 className="cs-modal__title">Chi tiết dòng tiền (Sổ cái)</h2>
           <button onClick={onClose} className="cs-modal__close">&times;</button>
@@ -54,29 +72,68 @@ function TransactionDetailModal({ transactionId, onClose }) {
                 <strong style={{ color: "#1e293b", fontSize: 14, textAlign: "right", maxWidth: "60%" }}>{tx.memo || "—"}</strong>
               </div>
 
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#334155", marginBottom: 16 }}>💰 Các bút toán trung chuyển (Entries)</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {tx.entries && tx.entries.map((entry, idx) => (
-                  <div key={idx} style={{
-                    padding: 16, borderRadius: 12, border: "1px solid #e2e8f0",
-                    background: entry.direction === "Credit" ? "#f0fdf4" : "#fef2f2"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: "#334155" }}>
-                        Ví {entry.walletType} (#{entry.walletId})
-                      </span>
-                      <span style={{ fontSize: 15, fontWeight: 800, color: entry.direction === "Credit" ? "#16a34a" : "#dc2626" }}>
-                        {entry.direction === "Credit" ? "+" : "-"}{entry.amount?.toLocaleString()} đ
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 13, color: "#64748b" }}>
-                      Chủ sở hữu: <strong>{entry.ownerName}</strong>
-                    </div>
-                    <div style={{ fontSize: 12, color: entry.direction === "Credit" ? "#166534" : "#991b1b", marginTop: 4, fontWeight: 600 }}>
-                      Chiều: {entry.direction}
+              {/* Balance check badge */}
+              <div style={{ marginBottom: 20, padding: 12, background: isBalanced ? "#f0fdf4" : "#fef2f2", border: `1px solid ${isBalanced ? "#bbf7d0" : "#fecaca"}`, borderRadius: 8, display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 20 }}>{isBalanced ? "✅" : "❌"}</span>
+                <div>
+                  <div style={{ fontWeight: 700, color: isBalanced ? "#166534" : "#991b1b", fontSize: 14 }}>
+                    {isBalanced ? "✓ Sổ Cái Cân Bằng" : "✗ SỔ CÁI LỆCH"}
+                  </div>
+                  <div style={{ fontSize: 12, color: isBalanced ? "#166534" : "#991b1b", marginTop: 2 }}>
+                    Ghi Nợ: {formatCurrency(debitTotal)} | Ghi Có: {formatCurrency(creditTotal)}
+                  </div>
+                </div>
+              </div>
+
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#334155", marginBottom: 16 }}>📊 Bút Toán Ghi Nợ (Debit) & Ghi Có (Credit)</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                {/* Debits */}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 12, paddingBottom: 8, borderBottom: "2px solid #fee2e2" }}>
+                    📤 GHI NỢ (Chi Ra)
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {tx.entries?.filter((e) => e.direction === "Debit").map((entry, idx) => (
+                      <div key={idx} style={{
+                        padding: 12, borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2"
+                      }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#7f1d1d", marginBottom: 4 }}>
+                          {entry.walletType === "System" ? `📍 Hệ Thống (${entry.ownerName})` : entry.ownerName}
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: "#dc2626" }}>
+                          -{formatCurrency(entry.amount)}
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ padding: 12, borderRadius: 8, background: "#fecaca", fontWeight: 700, color: "#991b1b", textAlign: "center", fontSize: 13 }}>
+                      Tổng: {formatCurrency(debitTotal)}
                     </div>
                   </div>
-                ))}
+                </div>
+
+                {/* Credits */}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 12, paddingBottom: 8, borderBottom: "2px solid #dcfce7" }}>
+                    📥 GHI CÓ (Tiền Vào)
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {tx.entries?.filter((e) => e.direction === "Credit").map((entry, idx) => (
+                      <div key={idx} style={{
+                        padding: 12, borderRadius: 8, border: "1px solid #bbf7d0", background: "#f0fdf4"
+                      }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#166534", marginBottom: 4 }}>
+                          {entry.walletType === "System" ? `📍 Hệ Thống (${entry.ownerName})` : entry.ownerName}
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: "#16a34a" }}>
+                          +{formatCurrency(entry.amount)}
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ padding: 12, borderRadius: 8, background: "#bbf7d0", fontWeight: 700, color: "#166534", textAlign: "center", fontSize: 13 }}>
+                      Tổng: {formatCurrency(creditTotal)}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -112,12 +169,21 @@ function TransactionDetailModal({ transactionId, onClose }) {
 // Drawer Component to show transactions
 function WalletTransactionsDrawer({ walletId, onClose }) {
   const [page, setPage] = useState(1);
+  const [txTypeFilter, setTxTypeFilter] = useState("ALL");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const pageSize = 20;
   const [detailTxId, setDetailTxId] = useState(null);
 
   const { data: rawData, isLoading, error } = useQuery({
-    queryKey: ["admin-wallet-transactions", walletId, page],
-    queryFn: () => adminFinanceApi.getWalletTransactions(walletId, { page, pageSize }),
+    queryKey: ["admin-wallet-transactions", walletId, page, txTypeFilter, fromDate, toDate],
+    queryFn: () => {
+      const filter = { page, pageSize };
+      if (txTypeFilter !== "ALL") filter.transactionType = txTypeFilter;
+      if (fromDate) filter.fromDate = fromDate;
+      if (toDate) filter.toDate = toDate;
+      return adminFinanceApi.getWalletTransactions(walletId, filter);
+    },
     enabled: !!walletId,
   });
 
@@ -133,6 +199,61 @@ function WalletTransactionsDrawer({ walletId, onClose }) {
           <button onClick={onClose} className="cs-drawer__close">&times;</button>
         </div>
         <div className="cs-drawer__content">
+          {/* Filters */}
+          <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 auto", minWidth: "150px" }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", display: "block", marginBottom: 6 }}>Chiều GD</label>
+              <select
+                value={txTypeFilter}
+                onChange={(e) => { setTxTypeFilter(e.target.value); setPage(1); }}
+                style={{
+                  width: "100%", height: 36, border: "1px solid #e5e7eb", borderRadius: 8,
+                  padding: "0 10px", fontSize: 13, outline: "none", background: "#f9fafb"
+                }}
+              >
+                <option value="ALL">Tất cả</option>
+                <option value="Credit">Credit (Vào)</option>
+                <option value="Debit">Debit (Ra)</option>
+              </select>
+            </div>
+            <div style={{ flex: "1 1 auto", minWidth: "140px" }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", display: "block", marginBottom: 6 }}>Từ ngày</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+                style={{
+                  width: "100%", height: 36, border: "1px solid #e5e7eb", borderRadius: 8,
+                  padding: "0 10px", fontSize: 13, outline: "none", background: "#f9fafb"
+                }}
+              />
+            </div>
+            <div style={{ flex: "1 1 auto", minWidth: "140px" }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", display: "block", marginBottom: 6 }}>Đến ngày</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+                style={{
+                  width: "100%", height: 36, border: "1px solid #e5e7eb", borderRadius: 8,
+                  padding: "0 10px", fontSize: 13, outline: "none", background: "#f9fafb"
+                }}
+              />
+            </div>
+            <div style={{ flex: "0 1 auto", alignSelf: "flex-end" }}>
+              <button
+                onClick={() => { setTxTypeFilter("ALL"); setFromDate(""); setToDate(""); setPage(1); }}
+                style={{
+                  height: 36, padding: "0 12px", border: "1px solid #e5e7eb", borderRadius: 8,
+                  background: "#f9fafb", fontSize: 13, fontWeight: 500, color: "#64748b",
+                  cursor: "pointer", transition: "all 0.2s"
+                }}
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+
           {isLoading ? (
             <div style={{ textAlign: "center", padding: "40px 0" }}>Đang tải...</div>
           ) : error ? (
@@ -146,7 +267,9 @@ function WalletTransactionsDrawer({ walletId, onClose }) {
                   <tr>
                     <th>Mã GD</th>
                     <th>Loại</th>
+                    <th>Chiều</th>
                     <th>Số Tiền</th>
+                    <th>Mô tả</th>
                     <th>Ngày/Giờ</th>
                     <th style={{ textAlign: "center" }}>Chi tiết</th>
                   </tr>
@@ -155,16 +278,28 @@ function WalletTransactionsDrawer({ walletId, onClose }) {
                   {txs.map((tx) => (
                     <tr key={tx.id}>
                       <td className="cs-admin-table__id">TX_{tx.id}</td>
-                      <td>{tx.type || tx.transactionType}</td>
-                      <td style={{ color: tx.amount > 0 ? "#16a34a" : "#dc2626", fontWeight: "bold" }}>
-                        {tx.amount > 0 ? "+" : ""}{tx.amount?.toLocaleString()} đ
+                      <td style={{ fontSize: 13, fontWeight: 500 }}>{tx.type || tx.transactionType}</td>
+                      <td>
+                        <span style={{
+                          display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 12, fontWeight: 600,
+                          background: tx.direction === "Credit" ? "#dcfce7" : "#fee2e2",
+                          color: tx.direction === "Credit" ? "#166534" : "#991b1b"
+                        }}>
+                          {tx.direction}
+                        </span>
                       </td>
-                      <td style={{ color: "#64748b", fontSize: 13 }}>{formatDate(tx.createdAt)}</td>
+                      <td style={{ color: tx.direction === "Credit" ? "#16a34a" : "#dc2626", fontWeight: "bold" }}>
+                        {tx.direction === "Credit" ? "+" : "-"}{formatCurrency(tx.amount)}
+                      </td>
+                      <td style={{ fontSize: 12, color: "#64748b", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {tx.memo || "—"}
+                      </td>
+                      <td style={{ color: "#64748b", fontSize: 12 }}>{formatDate(tx.createdAt)}</td>
                       <td style={{ textAlign: "center" }}>
                         <button
                           onClick={() => setDetailTxId(tx.id)}
                           className="cs-admin-btn"
-                          style={{ padding: "4px 8px", fontSize: 13 }}
+                          style={{ padding: "4px 8px", fontSize: 12 }}
                         >
                           Soi
                         </button>
@@ -217,22 +352,43 @@ export default function AdminWallets() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [page, setPage] = useState(1);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const pageSize = 20;
   
   const [selectedWalletId, setSelectedWalletId] = useState(null);
 
+  // Fetch user wallets
   const { data: rawData, isLoading, error } = useQuery({
-    queryKey: ["admin-fin-wallets", typeFilter, page],
+    queryKey: ["admin-fin-wallets", typeFilter, page, fromDate, toDate],
     queryFn: () => {
         const filter = { page, pageSize };
         if (typeFilter !== "ALL") filter.walletType = typeFilter;
+        if (fromDate) filter.fromDate = fromDate;
+        if (toDate) filter.toDate = toDate;
         return adminFinanceApi.getWallets(filter);
     },
     refetchInterval: 30000,
   });
 
+  // Fetch system wallets for dashboard cards
+  const { data: systemWalletsData } = useQuery({
+    queryKey: ["admin-system-wallets"],
+    queryFn: () => adminFinanceApi.getWallets({ walletType: "System", pageSize: 100 }),
+    refetchInterval: 30000,
+  });
+
   const wallets = rawData?.items ?? [];
   const totalCount = rawData?.totalCount ?? 0;
+  const systemWallets = useMemo(() => {
+    const items = systemWalletsData?.items ?? [];
+    return [
+      items.find(w => w.id === 1),
+      items.find(w => w.id === 2),
+      items.find(w => w.id === 3),
+      items.find(w => w.id === 99),
+    ].filter(Boolean);
+  }, [systemWalletsData]);
 
   const filtered = useMemo(() => {
     const normalize = (str) => {
@@ -278,10 +434,56 @@ export default function AdminWallets() {
     <div className="cs-admin-page">
       <div className="cs-admin-page__header">
         <div>
-          <h1 className="cs-admin-page__title">Giám sát Vốn & Ví (Tổng: {totalCount})</h1>
-          <p className="cs-admin-page__subtitle">Công cụ theo dõi dòng tiền Hệ thống</p>
+          <h1 className="cs-admin-page__title">💼 Giám Sát Vốn & Ví Hệ Thống</h1>
+          <p className="cs-admin-page__subtitle">Công cụ theo dõi dòng tiền từ 4 ví: Escrow, Platform Revenue, Clearing, Tax Hold</p>
         </div>
       </div>
+
+      {/* System Wallets Dashboard Cards */}
+      {systemWallets.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, marginBottom: 28 }}>
+          {systemWallets.map((wallet) => {
+            const info = SYSTEM_WALLETS[wallet.id];
+            const totalBalance = (wallet.availableBalance || 0) + (wallet.frozenBalance || 0);
+            return (
+              <div key={wallet.id} style={{
+                background: "white", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.05)", transition: "all 0.3s"
+              }} onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"} 
+                 onMouseLeave={(e) => e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.05)"}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 12 }}>{info.label}</h3>
+                <p style={{ fontSize: 12, color: "#64748b", marginBottom: 16, lineHeight: 1.4 }}>{info.desc}</p>
+                <div style={{ background: "#f9fafb", borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: "#64748b" }}>Khả dụng:</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>{formatCurrency(wallet.availableBalance || 0)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: "#64748b" }}>Đông lạnh:</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#f97316" }}>{formatCurrency(wallet.frozenBalance || 0)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b" }}>Tổng:</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#3b82f6" }}>{formatCurrency(totalBalance)}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedWalletId(wallet.id)}
+                  style={{
+                    width: "100%", padding: 10, background: "#f0f9ff", border: "1px solid #bfdbfe",
+                    borderRadius: 8, fontSize: 13, fontWeight: 600, color: "#1e40af", cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => {e.currentTarget.style.background = "#e0f2fe"; e.currentTarget.style.borderColor = "#7dd3fc";}}
+                  onMouseLeave={(e) => {e.currentTarget.style.background = "#f0f9ff"; e.currentTarget.style.borderColor = "#bfdbfe";}}
+                >
+                  → Soi Giao Dịch
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="cs-admin-filter">
         <div className="cs-admin-filter__search">
@@ -308,15 +510,37 @@ export default function AdminWallets() {
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả loại Ví</option>
-          <option value="System">Ví Tổng Hệ Thống (System)</option>
-          <option value="Owner">Ví Chủ Trạm (Owner)</option>
-          <option value="Driver">Ví Tài Xế (Driver)</option>
+          <option value="System">Ví Hệ Thống</option>
+          <option value="Owner">Ví Chủ Trạm</option>
+          <option value="Driver">Ví Tài Xế</option>
         </select>
-        <button onClick={() => { setSearch(""); setTypeFilter("ALL"); setPage(1); }} className="cs-admin-filter__reset">
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div style={{ minWidth: 130 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", display: "block", marginBottom: 4 }}>Từ ngày</label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+              className="cs-admin-filter__select"
+              style={{ height: 42, padding: "0 12px", background: "#f9fafb" }}
+            />
+          </div>
+          <div style={{ minWidth: 130 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", display: "block", marginBottom: 4 }}>Đến ngày</label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+              className="cs-admin-filter__select"
+              style={{ height: 42, padding: "0 12px", background: "#f9fafb" }}
+            />
+          </div>
+        </div>
+        <button onClick={() => { setSearch(""); setTypeFilter("ALL"); setFromDate(""); setToDate(""); setPage(1); }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Đặt lại
+          Reset
         </button>
       </div>
 
@@ -325,16 +549,17 @@ export default function AdminWallets() {
           <thead>
             <tr>
               <th>Mã Ví</th>
-              <th>Người Dùng (Owner/Driver)</th>
+              <th>Người Dùng / Hệ Thống</th>
               <th>Loại Ví</th>
-              <th>Số Dư (Kế toán)</th>
-              <th style={{ textAlign: "center" }}>Hành động</th>
+              <th>Số Dư Kế Toán</th>
+              <th>Ngày Tạo</th>
+              <th style={{ textAlign: "center" }}>Hành Động</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="cs-admin-table__empty">
+                <td colSpan={6} className="cs-admin-table__empty">
                   <p>Không tìm thấy ví nào khớp.</p>
                 </td>
               </tr>
@@ -344,8 +569,8 @@ export default function AdminWallets() {
                   <tr key={w.id}>
                     <td className="cs-admin-table__id">WA_{w.id}</td>
                     <td className="cs-admin-table__name">
-                      {w.walletType === "System" ? "Hệ Thống" : 
-                       w.walletType === "Owner" ? "Chủ Trạm (Owner)" : "Tài Xế (Driver)"}
+                      {w.walletType === "System" ? "📍 Hệ Thống" : 
+                       w.walletType === "Owner" ? "🏪 Chủ Trạm" : "🚗 Tài Xế"}
                     </td>
                     <td>
                       {w.walletType === "System" ? (
@@ -362,10 +587,11 @@ export default function AdminWallets() {
                         </span>
                       )}
                     </td>
-                    <td style={{ fontWeight: "700", color: "#16a34a", fontSize: "16px" }}>{w.availableBalance?.toLocaleString() || "0"} đ <br/><span style={{fontSize: "12px", color: "#64748b"}}>(Băng: {w.frozenBalance?.toLocaleString() || "0"} đ)</span></td>
+                    <td style={{ fontWeight: "700", color: "#16a34a", fontSize: "15px" }}>{formatCurrency(w.availableBalance || 0)} <br/><span style={{fontSize: "11px", color: "#64748b", fontWeight: "500"}}>(Đông: {formatCurrency(w.frozenBalance || 0)})</span></td>
+                    <td style={{ fontSize: 13, color: "#64748b" }}>{formatDate(w.createdAt)}</td>
                     <td style={{ textAlign: "center" }}>
                       <button onClick={() => setSelectedWalletId(w.id)} className="cs-admin-btn">
-                        Soi Giao Dịch
+                        Soi
                       </button>
                     </td>
                   </tr>

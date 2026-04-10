@@ -1078,12 +1078,16 @@ export const adminOperationsApi = {
 export const adminFinanceApi = {
     /**
      * Soi tình trạng tất cả ví (Lọc động + Phân trang)
-     * @param {{ walletType, systemCode, page, pageSize }} filter
+     * GET /api/admin/finance/wallets
+     * @param {{ walletType, userId, systemCode, page, pageSize, fromDate, toDate }} filter
      */
     getWallets: (filter = {}) => {
         const params = new URLSearchParams();
         if (filter.walletType) params.set("walletType", filter.walletType);
+        if (filter.userId) params.set("userId", String(filter.userId));
         if (filter.systemCode) params.set("systemCode", filter.systemCode);
+        if (filter.fromDate) params.set("fromDate", filter.fromDate);
+        if (filter.toDate) params.set("toDate", filter.toDate);
         params.set("page", String(filter.page || 1));
         params.set("pageSize", String(filter.pageSize || 20));
         return apiFetch(`/admin/finance/wallets?${params.toString()}`);
@@ -1091,16 +1095,27 @@ export const adminFinanceApi = {
 
     /**
      * Sổ cái chi tiết của một ví (Phân trang)
+     * GET /api/admin/finance/wallets/{walletId}/transactions
      * @param {number} walletId
-     * @param {{ transactionType, page, pageSize }} filter
+     * @param {{ transactionType, page, pageSize, fromDate, toDate }} filter
      */
     getWalletTransactions: (walletId, filter = {}) => {
         const params = new URLSearchParams();
         if (filter.transactionType) params.set("transactionType", filter.transactionType);
+        if (filter.fromDate) params.set("fromDate", filter.fromDate);
+        if (filter.toDate) params.set("toDate", filter.toDate);
         params.set("page", String(filter.page || 1));
         params.set("pageSize", String(filter.pageSize || 20));
         return apiFetch(`/admin/finance/wallets/${walletId}/transactions?${params.toString()}`);
     },
+
+    /**
+     * Chi tiết một giao dịch (sổ cái — double-entry accounting)
+     * GET /api/admin/finance/transactions/{transactionId}
+     * @param {number} transactionId
+     */
+    getTransactionDetail: (transactionId) =>
+        apiFetch(`/admin/finance/transactions/${transactionId}`),
 };
 
 // Removed duplicate adminAccountApi
