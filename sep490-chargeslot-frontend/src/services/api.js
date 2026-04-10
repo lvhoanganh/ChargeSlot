@@ -860,13 +860,14 @@ export const chatApi = {
      * Response: { total, page, pageSize, items }
      */
     getConversations: (page = 1, pageSize = 20) =>
-        apiFetch(`/chat/rooms?page=${page}&pageSize=${pageSize}`),
+        apiFetch(`/chat?page=${page}&pageSize=${pageSize}`),
 
     /**
-     * Lịch sử tin nhắn theo roomId (phân trang)
+     * Lịch sử tin nhắn theo bookingId (phân trang)
+     * Response: { conversationId, total, page, pageSize, messages }
      */
-    getMessages: (roomId, page = 1, pageSize = 50) =>
-        apiFetch(`/chat/room/${roomId}/messages?page=${page}&pageSize=${pageSize}`),
+    getMessages: (bookingId, page = 1, pageSize = 50) =>
+        apiFetch(`/chat/${bookingId}?page=${page}&pageSize=${pageSize}`),
 
     /** Gửi tin nhắn */
     sendMessage: (bookingId, content) =>

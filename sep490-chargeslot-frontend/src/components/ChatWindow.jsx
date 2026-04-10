@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as signalR from "@microsoft/signalr";
+import { formatTimeVN } from "@/utils/dateVN";
 
 const API_BASE = "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net";
 
@@ -134,7 +135,7 @@ export default function ChatWindow({ conversationId, bookingId, messages = [], o
                   opacity: 0.7,
                   color: isMine ? "rgba(255,255,255,0.8)" : "#94a3b8",
                 }}>
-                  {new Date(String(msg.createdAt).replace("Z", "")).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                  {formatTimeVN(msg.createdAt)}
                   {isMine && msg.isRead && " ✓✓"}
                 </div>
               </div>

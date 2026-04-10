@@ -24,7 +24,12 @@ export default function ChatPage() {
       
       // Support old format ({messages: []}) and new PagedResultDto ({items: []})
       const fallbackList = Array.isArray(chatData) ? chatData : [];
-      setMessages(chatData?.items || chatData?.messages || fallbackList);
+      const rawMessages = chatData?.items || chatData?.messages || fallbackList;
+      
+      // Backend returns messages oldestFirst
+      // UI renders oldestFirst (oldest at top, newest at bottom)
+      // This matches natural chat scroll: scroll up = see older, scroll down = see newer
+      setMessages(Array.isArray(rawMessages) ? rawMessages : []);
       
       setBookingStatus(booking?.status || null);
     }).finally(() => setLoading(false));

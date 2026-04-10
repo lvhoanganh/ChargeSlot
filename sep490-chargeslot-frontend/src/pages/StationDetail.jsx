@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { stationApi } from "@/services/api";
+import { stationApi, chargingApi } from "@/services/api";
 import { formatVN } from "@/utils/dateVN";
 import { showToast } from "@/components/Toast";
 import { showConfirm } from "@/components/ConfirmDialog";
@@ -12,6 +12,7 @@ export default function StationDetail() {
   const [station, setStation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeSlotIds, setActiveSlotIds] = useState(new Set()); // Track slots with active sessions
 
   const dayNames = [
     "Chủ nhật",
@@ -26,6 +27,30 @@ export default function StationDetail() {
   useEffect(() => {
     loadStation();
   }, [id]);
+
+  // Fetch active charging sessions for this station
+  useEffect(() => {
+    if (!id || !station?.chargingSlots) return;
+    const fetchActiveSessions = async () => {
+      try {
+        const response = await chargingApi.getByStationId(Number(id));
+        const activeSessions = Array.isArray(response)
+          ? response.filter(s => !s.actualEndTime && s.bookingStatus !== "Completed")
+          : (response?.items || []).filter(s => !s.actualEndTime && s.bookingStatus !== "Completed");
+        
+        const slotIds = new Set(activeSessions.map(s => s.slotId));
+        setActiveSlotIds(slotIds);
+      } catch { 
+        // Reset on error
+        setActiveSlotIds(new Set());
+      }
+    };
+    
+    fetchActiveSessions();
+    // Poll every 5 seconds to update active slots
+    const interval = setInterval(fetchActiveSessions, 5000);
+    return () => clearInterval(interval);
+  }, [id, station?.chargingSlots]);
 
   const loadStation = async () => {
     try {
@@ -333,65 +358,32 @@ export default function StationDetail() {
                   Các slot sạc ({station.chargingSlots.length})
                 </h2>
 
-                {/* Tóm tắt trạng thái slot */}
-                {(() => {
-                  const occupied = station.chargingSlots.filter(s => s.status === "Occupied").length;
-                  const available = station.chargingSlots.filter(s => s.status === "Active" || s.status === "Available").length;
-                  if (occupied === 0) return null;
-                  return (
-                    <div className="mb-4 flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-                      <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-                      <span className="text-sm font-semibold text-red-700">
-                        {occupied} slot đang có khách sạc
-                      </span>
-                      {available > 0 && (
-                        <span className="ml-auto text-sm text-green-600 font-medium">
-                          {available} slot trống
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
-
                 <div className="space-y-3">
                   {station.chargingSlots.map((slot) => {
-                    const slotStatusMap = {
-                      Available:   { label: "Sẵn sàng",  color: "text-green-700", bg: "bg-green-100" },
-                      Active:      { label: "Sẵn sàng",  color: "text-green-700", bg: "bg-green-100" },
-                      Occupied:    { label: "Đang dùng", color: "text-red-700",   bg: "bg-red-100" },
-                      Maintenance: { label: "Bảo trì",   color: "text-orange-700", bg: "bg-orange-100" },
-                      Inactive:    { label: "Ngưng",     color: "text-gray-600", bg: "bg-gray-100" },
-                    };
-                    const ss = slotStatusMap[slot.status] || { label: slot.status, color: "text-gray-600", bg: "bg-gray-100" };
-                    const isOccupied = slot.status === "Occupied";
+                    // Check if this slot has an active charging session
+                    const hasActiveSession = activeSlotIds.has(slot.id);
+                    const displayStatus = hasActiveSession ? "Occupied" : slot.status;
+                    
                     return (
                       <div
                         key={slot.id}
-                        className={`flex justify-between items-center p-3 rounded-lg border ${isOccupied ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}`}
+                        className="flex justify-between items-center p-3 bg-gray-50 rounded border"
                       >
-                        <div className="flex items-center gap-3">
-                          {isOccupied && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping flex-shrink-0" />
-                          )}
-                          <div>
-                            <div className="font-medium text-gray-900 flex items-center gap-2">
-                              {slot.slotName}
-                              {isOccupied && (
-                                <span className="text-xs font-bold text-red-600 animate-pulse">⚡ Đang sạc</span>
-                              )}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {slot.connectorType} • {slot.powerOutput}kW
-                            </div>
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {slot.slotName}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {slot.connectorType} • {slot.powerOutput}kW
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="font-semibold text-orange-600">
                             {slot.pricePerHour?.toLocaleString("vi-VN")}đ/giờ
                           </div>
-                          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${ss.color} ${ss.bg}`}>
-                            {ss.label}
-                          </span>
+                          <div className={`text-xs ${hasActiveSession ? "text-red-600 font-medium" : "text-gray-500"}`}>
+                            {displayStatus === "Occupied" ? "Đang dùng" : displayStatus}
+                          </div>
                         </div>
                       </div>
                     );
@@ -399,7 +391,6 @@ export default function StationDetail() {
                 </div>
               </div>
             )}
-
           </div>
 
           {/* Side Info */}
