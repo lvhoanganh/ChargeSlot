@@ -5,7 +5,6 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { publicStationApi, reviewApi, favoriteApi, chargingApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
-import { formatDateVN } from "@/utils/dateVN";
 
 /* ─── Inject pulse animation (same as StationMap) ─── */
 if (!document.getElementById("station-marker-pulse")) {
@@ -69,11 +68,11 @@ const statusConfig = {
 };
 
 const slotStatusConfig = {
-  Available: { label: "Sẵn sàng", color: "#22c55e", bg: "#f0fdf4" },
-  Active:    { label: "Sẵn sàng", color: "#22c55e", bg: "#f0fdf4" },
-  Occupied:  { label: "Đang dùng", color: "#ef4444", bg: "#fef2f2" },
+  Available: { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
+  Active: { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
+  Occupied: { label: "Đang dùng", color: "#ef4444", bg: "#fef2f2" },
   Maintenance: { label: "Bảo trì", color: "#f97316", bg: "#fff7ed" },
-  Inactive:  { label: "Ngưng", color: "#6b7280", bg: "#f3f4f6" },
+  Inactive: { label: "Ngưng", color: "#6b7280", bg: "#f3f4f6" },
 };
 
 export default function StationDetailDriver() {
@@ -82,7 +81,6 @@ export default function StationDetailDriver() {
   const [station, setStation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeSlotIds, setActiveSlotIds] = useState(new Set()); // Track slots with active charging sessions
   const [loginToast, setLoginToast] = useState(false);
   const toastTimer = useRef(null);
   const { token } = useAuthStore();
@@ -93,6 +91,7 @@ export default function StationDetailDriver() {
   const [hasMoreReviews, setHasMoreReviews] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
+  const [occupiedSlots, setOccupiedSlots] = useState(new Set());
 
   function handleBooking() {
     if (!token) {
@@ -120,38 +119,44 @@ export default function StationDetailDriver() {
     return () => { cancelled = true; };
   }, [id]);
 
-  // Fetch active charging sessions for this station to show "Đang dùng" status
+  // Fetch active sessions to mark occupied slots
   useEffect(() => {
-    if (!id || !station?.chargingSlots) return;
-    const fetchActiveSessions = async () => {
-      try {
-        const activeSessions = await chargingApi.getByStationId(Number(id));
-        const sessionsArray = Array.isArray(activeSessions) ? activeSessions : [];
-        // Filter only active sessions (not completed)
-        const active = sessionsArray.filter(s => !s.actualEndTime && s.bookingStatus !== "Completed");
-        const slotIds = new Set(active.map(s => s.slotId));
-        setActiveSlotIds(slotIds);
-      } catch { 
-        // Reset on error
-        setActiveSlotIds(new Set());
-      }
-    };
-    
-    fetchActiveSessions();
-    // Poll every 5 seconds to update active slots real-time
-    const interval = setInterval(fetchActiveSessions, 5000);
+    chargingApi.getActiveSessions()
+      .then((sessions) => {
+        const occupied = new Set();
+        if (Array.isArray(sessions)) {
+          sessions.forEach(session => {
+            if (session.slotId) occupied.add(session.slotId);
+          });
+        }
+        setOccupiedSlots(occupied);
+      })
+      .catch(() => setOccupiedSlots(new Set()));
+    const interval = setInterval(() => {
+      chargingApi.getActiveSessions()
+        .then((sessions) => {
+          const occupied = new Set();
+          if (Array.isArray(sessions)) {
+            sessions.forEach(session => {
+              if (session.slotId) occupied.add(session.slotId);
+            });
+          }
+          setOccupiedSlots(occupied);
+        })
+        .catch(() => {});
+    }, 10000);
     return () => clearInterval(interval);
-  }, [id, station?.chargingSlots]);
+  }, []);
 
   // Fetch reviews
   useEffect(() => {
     if (!id) return;
-    reviewApi.getSummary(Number(id)).then(setReviewSummary).catch(() => { });
+    reviewApi.getSummary(Number(id)).then(setReviewSummary).catch(() => {});
     reviewApi.getByStation(Number(id), 1, 5).then((data) => {
       const list = Array.isArray(data) ? data : (data?.items || []);
       setReviews(list);
       setHasMoreReviews(list.length >= 5);
-    }).catch(() => { });
+    }).catch(() => {});
   }, [id]);
 
   // Check favorite status
@@ -159,7 +164,7 @@ export default function StationDetailDriver() {
     if (!id || !token) return;
     favoriteApi.check(Number(id))
       .then(data => setIsFavorite(data?.isFavorite || false))
-      .catch(() => { });
+      .catch(() => {});
   }, [id, token]);
 
   async function toggleFavorite() {
@@ -228,16 +233,7 @@ export default function StationDetailDriver() {
 
   const st = statusConfig[station.operationalStatus] || statusConfig.Open;
   const availableSlots = (station.chargingSlots || []).filter(
-    (s) => {
-      const hasActiveSession = activeSlotIds.has(s.id);
-      return !hasActiveSession && (s.status === "Available" || s.status === "Active");
-    }
-  ).length;
-  const occupiedSlots = (station.chargingSlots || []).filter(
-    (s) => {
-      const hasActiveSession = activeSlotIds.has(s.id);
-      return hasActiveSession || s.status === "Occupied";
-    }
+    (s) => s.status === "Available" || s.status === "Active"
   ).length;
 
   return (
@@ -353,22 +349,13 @@ export default function StationDetailDriver() {
         </div>
 
         {/* Quick stats */}
-          <div className={`grid ${reviewSummary ? 'grid-cols-4' : 'grid-cols-3'} gap-3 mb-6`}>
+        <div className={`grid ${reviewSummary ? 'grid-cols-4' : 'grid-cols-3'} gap-3 mb-6`}>
           <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
             <div className="text-2xl font-bold text-green-500">
               {availableSlots}
             </div>
             <div className="text-xs text-gray-500 mt-1">Slot trống</div>
           </div>
-          {occupiedSlots > 0 && (
-            <div className="bg-red-50 rounded-2xl shadow-sm p-4 text-center border border-red-100">
-              <div className="flex items-center justify-center gap-1">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-2xl font-bold text-red-500">{occupiedSlots}</span>
-              </div>
-              <div className="text-xs text-red-500 font-semibold mt-1">Đang dùng</div>
-            </div>
-          )}
           <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
             <div className="text-2xl font-bold text-blue-500">
               {station.chargingSlots.length}
@@ -478,28 +465,21 @@ export default function StationDetailDriver() {
 
           <div className="space-y-3">
             {station.chargingSlots.map((slot) => {
-              // Check if slot has active session (real-time "Đang dùng" status)
-              const hasActiveSession = activeSlotIds.has(slot.id);
-              const displayStatus = hasActiveSession ? "Occupied" : slot.status;
-              const ss = slotStatusConfig[displayStatus] || slotStatusConfig.Available;
-              const isOccupied = displayStatus === "Occupied";
+              const isOccupied = occupiedSlots.has(slot.id);
+              const displayStatus = isOccupied ? "Occupied" : slot.status;
+              const ss =
+                slotStatusConfig[displayStatus] || slotStatusConfig[slot.status] || slotStatusConfig.Available;
               return (
                 <div
                   key={slot.id}
-                  className="flex items-center justify-between p-3 rounded-xl border transition-colors"
-                  style={{
-                    background: ss.bg,
-                    borderColor: isOccupied ? "#fca5a5" : "#f3f4f6",
-                  }}
+                  className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
+                  style={{ background: `${ss.bg}` }}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center relative"
+                      className="w-10 h-10 rounded-lg flex items-center justify-center"
                       style={{ background: `${ss.color}20` }}
                     >
-                      {isOccupied && (
-                        <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 animate-ping" />
-                      )}
                       <svg
                         width="18"
                         height="18"
@@ -512,13 +492,8 @@ export default function StationDetailDriver() {
                       </svg>
                     </div>
                     <div>
-                      <div className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                      <div className="font-semibold text-gray-900 text-sm">
                         {slot.slotName}
-                        {isOccupied && (
-                          <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full border border-red-200 animate-pulse">
-                            ⚡ Đang sạc
-                          </span>
-                        )}
                       </div>
                       <div className="text-xs text-gray-500">
                         Vị trí: {slot.positionY && slot.positionX ? `${String.fromCharCode(64 + Number(slot.positionY))}${slot.positionX}` : "—"}
@@ -527,8 +502,8 @@ export default function StationDetailDriver() {
                   </div>
                   <div className="text-right">
                     <span
-                      className="text-xs font-semibold px-2 py-1 rounded-full"
-                      style={{ color: ss.color, background: `${ss.color}15`, border: `1px solid ${ss.color}30` }}
+                      className="text-xs font-medium px-2 py-0.5 rounded-full"
+                      style={{ color: ss.color, background: `${ss.color}15` }}
                     >
                       {ss.label}
                     </span>
@@ -548,7 +523,7 @@ export default function StationDetailDriver() {
                 <div className="space-y-1">
                   {tiers.map((tier, idx) => (
                     <div key={idx} className="flex justify-between text-xs bg-gray-50 rounded-lg px-3 py-2">
-                      <span className="text-gray-500">{String(tier.startTime).substring(0, 5)}–{String(tier.endTime).substring(0, 5)}</span>
+                      <span className="text-gray-500">{String(tier.startTime).substring(0,5)}–{String(tier.endTime).substring(0,5)}</span>
                       <span className="font-bold text-amber-600">{tier.pricePerHour?.toLocaleString("vi-VN")}đ/h</span>
                     </div>
                   ))}
@@ -584,14 +559,16 @@ export default function StationDetailDriver() {
               return (
                 <div
                   key={day}
-                  className={`flex justify-between text-sm px-3 py-2 rounded-lg ${isToday
+                  className={`flex justify-between text-sm px-3 py-2 rounded-lg ${
+                    isToday
                       ? "bg-orange-50 border border-orange-100"
                       : ""
-                    }`}
+                  }`}
                 >
                   <span
-                    className={`font-medium ${isToday ? "text-orange-600" : "text-gray-700"
-                      }`}
+                    className={`font-medium ${
+                      isToday ? "text-orange-600" : "text-gray-700"
+                    }`}
                   >
                     {dayNames[day]}
                     {isToday && (
@@ -639,7 +616,7 @@ export default function StationDetailDriver() {
               {station.images.map((img) => (
                 <img
                   key={img.id}
-                  src={img.imageUrl?.startsWith("http") ? img.imageUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${img.imageUrl}`}
+                  src={img.imageUrl?.startsWith("http") ? img.imageUrl : `http://localhost:5162${img.imageUrl}`}
                   alt="Station"
                   className="w-full h-40 object-cover rounded-xl"
                 />
@@ -680,13 +657,13 @@ export default function StationDetailDriver() {
                 <div key={r.id} className="border-b border-gray-50 pb-3 last:border-0">
                   <div className="flex items-center gap-2 mb-1">
                     {r.driverAvatarUrl ? (
-                      <img src={r.driverAvatarUrl.startsWith("/") ? `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${r.driverAvatarUrl}` : r.driverAvatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                      <img src={r.driverAvatarUrl.startsWith("/") ? `http://localhost:5162${r.driverAvatarUrl}` : r.driverAvatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
                     ) : (
                       <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs">👤</div>
                     )}
                     <span className="text-sm font-semibold text-gray-800">{r.driverName || "Driver"}</span>
                     <span className="text-xs text-amber-500">{"⭐".repeat(r.rating)}</span>
-                    <span className="text-xs text-gray-400 ml-auto">{formatDateVN(r.createdAt)}</span>
+                    <span className="text-xs text-gray-400 ml-auto">{new Date(r.createdAt).toLocaleDateString("vi-VN")}</span>
                   </div>
                   {r.comment && <p className="text-sm text-gray-600 ml-9">{r.comment}</p>}
                   {r.ownerReply && (
@@ -740,9 +717,9 @@ export default function StationDetailDriver() {
           className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ${loginToast
             ? "opacity-100 translate-y-0"
             : "opacity-0 -translate-y-4 pointer-events-none"
-            }`}
+          }`}
         >
-          <div className="flex items-center gap-3 bg-white border border-orange-200 shadow-2xl rounded-xl px-5 py-4" style={{ minWidth: "min(360px, calc(100vw - 32px))" }}>
+          <div className="flex items-center gap-3 bg-white border border-orange-200 shadow-2xl rounded-xl px-5 py-4 min-w-[360px]">
             <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
               <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />

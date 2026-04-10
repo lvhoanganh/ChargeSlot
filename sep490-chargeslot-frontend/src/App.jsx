@@ -11,7 +11,6 @@ import AuthAdminMiddleware from "./middlewares/AuthAdminMiddleware";
 import AuthOwnerMiddleware from "./middlewares/AuthOwnerMiddleware";
 import AuthDriverMiddleware from "./middlewares/AuthDriverMiddleware";
 import PublicMiddleware from "./middlewares/PublicMiddleware";
-import AiCopilot from "./components/AiCopilot";
 
 // ── Common pages ──────────────────────────────────────────────
 const HomePage = lazy(() => import("./pages/common/HomePage"));
@@ -253,7 +252,6 @@ export default function App() {
       </AppErrorBoundary>
       <ConfirmDialogContainer />
       <ToastContainer />
-      <AiCopilot />
     </div>
   );
 }

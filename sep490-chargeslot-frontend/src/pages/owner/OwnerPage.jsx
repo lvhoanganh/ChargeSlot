@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { showConfirm } from "@/components/ConfirmDialog";
-import { stationApi, slotApi, stationPricingApi } from "@/services/api";
+import { stationApi, slotApi, stationPricingApi, chargingApi } from "@/services/api";
 import { QRCodeSVG } from "qrcode.react";
 import { showToast } from "@/components/Toast";
 import TimePicker24h from "@/components/TimePicker24h";
@@ -31,6 +31,7 @@ export default function OwnerPage() {
   const [actionLoading, setActionLoading] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [occupiedSlots, setOccupiedSlots] = useState(new Set());
 
   function fetchStations() {
     setLoading(true);
@@ -41,6 +42,35 @@ export default function OwnerPage() {
   }
 
   useEffect(() => { fetchStations(); }, []);
+
+  // Fetch active sessions to mark occupied slots
+  useEffect(() => {
+    chargingApi.getActiveSessions()
+      .then((sessions) => {
+        const occupied = new Set();
+        if (Array.isArray(sessions)) {
+          sessions.forEach(session => {
+            if (session.slotId) occupied.add(session.slotId);
+          });
+        }
+        setOccupiedSlots(occupied);
+      })
+      .catch(() => setOccupiedSlots(new Set()));
+    const interval = setInterval(() => {
+      chargingApi.getActiveSessions()
+        .then((sessions) => {
+          const occupied = new Set();
+          if (Array.isArray(sessions)) {
+            sessions.forEach(session => {
+              if (session.slotId) occupied.add(session.slotId);
+            });
+          }
+          setOccupiedSlots(occupied);
+        })
+        .catch(() => {});
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function handleSubmitForApproval(id) {
     if (!(await showConfirm("Gửi trạm sạc để Admin duyệt?", "Xác nhận gửi duyệt"))) return;
@@ -291,7 +321,9 @@ export default function OwnerPage() {
                                   );
 
                                   if (slot) {
-                                    const sc = slotColors[slot.status] || slotColors.Inactive;
+                                    const isOccupied = occupiedSlots.has(slot.id);
+                                    const displayStatus = isOccupied ? "Occupied" : slot.status;
+                                    const sc = slotColors[displayStatus] || slotColors[slot.status] || slotColors.Inactive;
                                     const isSelected = selectedSlot === slot.id;
                                     return (
                                       <button
