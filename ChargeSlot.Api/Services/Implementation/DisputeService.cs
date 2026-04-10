@@ -111,17 +111,17 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     invoice.Status = InvoiceStatus.UnderDispute;
                     invoice.UpdatedAt = DateTimeHelper.VietnamNow();
+                    _invoiceRepo.Update(invoice);
                 }
 
                 // Booking → Disputed
                 booking.Status = BookingStatus.Disputed;
                 booking.UpdatedAt = DateTimeHelper.VietnamNow();
+                _bookingRepo.Update(booking);
 
-                // Freeze ESCROW balance (Atomic SQL update)
+                // Freeze ESCROW balance (Atomic via Repository)
                 var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
-                await _unitOfWork.ExecuteSqlRawSafeAsync(
-                    "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0}, FrozenBalance = FrozenBalance + {0} WHERE Id = {1}",
-                    booking.TotalAmount, escrowWallet!.Id);
+                await _walletRepo.AdjustBalanceAtomicAsync(escrowWallet!.Id, -booking.TotalAmount, booking.TotalAmount);
 
                 await _unitOfWork.CompleteAsync();
                 await transaction.CommitAsync();
@@ -243,12 +243,15 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     dispute.Invoice.Status = InvoiceStatus.Resolved;
                     dispute.Invoice.UpdatedAt = now;
+                    _invoiceRepo.Update(dispute.Invoice);
                 }
 
                 // Booking → Completed
                 dispute.Booking.Status = BookingStatus.Completed;
                 dispute.Booking.UpdatedAt = now;
+                _bookingRepo.Update(dispute.Booking);
 
+                _disputeRepo.Update(dispute);
                 await _unitOfWork.CompleteAsync();
 
                 // ── WALLET SETTLEMENT ──
@@ -394,13 +397,9 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var refundAmount = booking.TotalAmount;
 
-            // Unfreeze from ESCROW.FrozenBalance (Atomic SQL update)
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET FrozenBalance = FrozenBalance - {0} WHERE Id = {1}",
-                refundAmount, escrowWallet!.Id);
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                refundAmount, driverWallet.Id);
+            // Unfreeze from ESCROW.FrozenBalance → refund to Driver (Atomic via Repository)
+            await _walletRepo.AdjustBalanceAtomicAsync(escrowWallet!.Id, 0, -refundAmount);
+            await _walletRepo.AdjustBalanceAtomicAsync(driverWallet.Id, refundAmount, 0);
 
             var ledger = new LedgerTransaction
             {
@@ -429,6 +428,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
             var platformWallet = await _walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE");
+            var taxWallet = await _walletRepo.GetBySystemCodeAsync("TAX_HOLD");
 
             var ownerWallet = await _walletRepo.GetByUserIdAsync(ownerUserId);
             if (ownerWallet == null)
@@ -448,14 +448,13 @@ namespace ChargeSlot.Api.Services.Implementation
             var ownerNet = invoice.ChargingAmount;
             var platformFee = invoice.PlatformFee;
             var vatAmount = invoice.VatAmount;
+            var totalDeduct = ownerNet + platformFee + vatAmount;
 
-            // Unfreeze from ESCROW.FrozenBalance → distribute (Atomic SQL update)
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET FrozenBalance = FrozenBalance - {0}, AvailableBalance = AvailableBalance + {1} WHERE Id = {2}",
-                (ownerNet + platformFee + vatAmount), vatAmount, escrowWallet!.Id);
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                ownerNet, ownerWallet.Id);
+            // 1. Unfreeze ALL back to ESCROW.AvailableBalance (Atomic via Repository)
+            await _walletRepo.UnfreezeAtomicAsync(escrowWallet!.Id, totalDeduct);
+
+            // 2. ESCROW → Owner (Atomic via Repository)
+            await _walletRepo.TransferAtomicAsync(escrowWallet.Id, ownerWallet.Id, ownerNet);
 
             _ledgerRepo.Add(new LedgerTransaction
             {
@@ -470,11 +469,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             });
 
-            // ESCROW → PLATFORM_REVENUE (already unfrozen above, Atomic logic)
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                platformFee, platformWallet!.Id);
-            // VAT stays as revenue in ESCROW for tax authority payment later
+            // 3. ESCROW → PLATFORM_REVENUE (Atomic via Repository)
+            await _walletRepo.TransferAtomicAsync(escrowWallet.Id, platformWallet!.Id, platformFee);
 
             _ledgerRepo.Add(new LedgerTransaction
             {
@@ -488,6 +484,25 @@ namespace ChargeSlot.Api.Services.Implementation
                     new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
                 }
             });
+
+            // 4. ESCROW → TAX_HOLD (Atomic via Repository)
+            if (vatAmount > 0)
+            {
+                await _walletRepo.TransferAtomicAsync(escrowWallet.Id, taxWallet!.Id, vatAmount);
+
+                _ledgerRepo.Add(new LedgerTransaction
+                {
+                    ReferenceType = "TaxHold",
+                    ReferenceId = booking.Id,
+                    Memo = $"Thuế GTGT Dispute #{dispute.Id} - {vatAmount:N0}đ",
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = vatAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = taxWallet.Id, Direction = LedgerDirection.Credit, Amount = vatAmount, CreatedAt = now }
+                    }
+                });
+            }
 
             await _unitOfWork.CompleteAsync();
         }

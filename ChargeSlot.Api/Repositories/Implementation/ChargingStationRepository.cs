@@ -161,8 +161,12 @@ namespace ChargeSlot.Api.Repositories.Implementation
 
             if (!string.IsNullOrWhiteSpace(status))
             {
-                var sValue = status.Trim().ToUpper();
-                if (Enum.TryParse<OperationalStatus>(sValue, true, out var opStatus))
+                var sValue = status.Trim();
+                if (Enum.TryParse<ApprovalStatus>(sValue, true, out var approvalStatus))
+                {
+                    query = query.Where(s => s.ApprovalStatus == approvalStatus);
+                }
+                else if (Enum.TryParse<OperationalStatus>(sValue, true, out var opStatus))
                 {
                     query = query.Where(s => s.OperationalStatus == opStatus);
                 }

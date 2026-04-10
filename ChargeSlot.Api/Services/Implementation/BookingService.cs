@@ -77,10 +77,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     throw new InvalidOperationException("Hệ thống chỉ nhận khung giờ chẵn tới mức giây (00s). Không nhận giờ phân mảnh.");
 
                 // Cấp khóa lock đồng bộ (Prevent Simultaneous Double Booking)
-                var lockResource = $"SlotLock_{dto.SlotId}";
-                await _unitOfWork.ExecuteSqlRawSafeAsync(
-                    "EXEC sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000",
-                    lockResource);
+                await _bookingRepo.AcquireSlotLockAsync(dto.SlotId);
 
                 // Validate: StartTime phải trong tương lai và cách hiện tại ít nhất 30 phút
                 var minutesUntilStart = (dto.StartTime - DateTimeHelper.VietnamNow()).TotalMinutes;
@@ -290,10 +287,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     ?? throw new InvalidOperationException("Booking không tồn tại.");
 
                 // Lock độc quyền trên Slot này để chống việc Accept 2 Booking cùng 1 lúc (Double-Booking Race Condition)
-                var lockResource = $"SlotLock_{booking.SlotId}";
-                await _unitOfWork.ExecuteSqlRawSafeAsync(
-                    "EXEC sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000",
-                    lockResource);
+                await _bookingRepo.AcquireSlotLockAsync(booking.SlotId);
 
                 // Verify owner quyền
                 if (booking.ChargingSlot.ChargingStation.OwnerUserId != ownerUserId)
@@ -663,6 +657,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
             var platformWallet = await _walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE");
+            var taxWallet = await _walletRepo.GetBySystemCodeAsync("TAX_HOLD");
             var ownerWallet = await _walletRepo.GetByUserIdAsync(ownerUserId);
 
             if (ownerWallet == null)
@@ -679,21 +674,11 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _unitOfWork.CompleteAsync();
             }
 
-            // Chuyển tiền nét cho Owner (Atomic để tránh lỗ hổng Lost Update tranh chấp luồng)
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
-                ownerNet, escrowWallet!.Id);
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                ownerNet, ownerWallet.Id);
+            // Chuyển tiền nét cho Owner (Atomic via Repository)
+            await _walletRepo.TransferAtomicAsync(escrowWallet!.Id, ownerWallet.Id, ownerNet);
 
-            // Chuyển phí nền tảng (Atomic)
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
-                platformFee, escrowWallet!.Id);
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                platformFee, platformWallet!.Id);
+            // Chuyển phí nền tảng (Atomic via Repository)
+            await _walletRepo.TransferAtomicAsync(escrowWallet.Id, platformWallet!.Id, platformFee);
 
             var now = DateTimeHelper.VietnamNow();
 
@@ -710,6 +695,25 @@ namespace ChargeSlot.Api.Services.Implementation
                     new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
                 }
             });
+
+            // Chuyển tiền thuế VAT sang TAX_HOLD
+            if (vatAmount > 0)
+            {
+                await _walletRepo.TransferAtomicAsync(escrowWallet.Id, taxWallet!.Id, vatAmount);
+
+                _ledgerRepo.Add(new LedgerTransaction
+                {
+                    ReferenceType = "BookingCancelTaxHold",
+                    ReferenceId = booking.Id,
+                    Memo = $"Thuế GTGT tiền hủy chuyến booking #{booking.Id} - {vatAmount:N0}đ",
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = vatAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = taxWallet.Id, Direction = LedgerDirection.Credit, Amount = vatAmount, CreatedAt = now }
+                    }
+                });
+            }
 
             await _unitOfWork.CompleteAsync();
         }
@@ -733,13 +737,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _unitOfWork.CompleteAsync();
             }
 
-            // Sử dụng SQL Atomic nguyên thủy để chống đè tiền Escrow
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
-                amount, escrowWallet!.Id);
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                amount, userWallet.Id);
+            // Chuyển tiền từ ESCROW (Atomic via Repository)
+            await _walletRepo.TransferAtomicAsync(escrowWallet!.Id, userWallet.Id, amount);
 
             _ledgerRepo.Add(new LedgerTransaction
             {

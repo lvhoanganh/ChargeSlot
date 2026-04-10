@@ -68,14 +68,12 @@ namespace ChargeSlot.Api.Services.Implementation
             _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
 
-            // Cộng tiền vào ESCROW wallet (Atomic)
+            // Cộng tiền vào ESCROW wallet (Atomic via Repository)
             var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW")
                 ?? throw new InvalidOperationException("Ví hệ thống ESCROW chưa được cấu hình.");
             var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
                 ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                booking.TotalAmount, escrowWallet!.Id);
+            await _walletRepo.AdjustBalanceAtomicAsync(escrowWallet.Id, booking.TotalAmount, 0);
             await _unitOfWork.CompleteAsync();
 
             // Ghi ledger double-entry: DEBIT từ CLEARING (VNPay gateway), CREDIT vào ESCROW
