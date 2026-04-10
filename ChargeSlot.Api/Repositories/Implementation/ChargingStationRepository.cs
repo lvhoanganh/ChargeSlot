@@ -152,6 +152,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
         public async Task<(List<ChargingStation> Items, int Total)> GetAdminStationsPagedAsync(string? status, string? search, int page, int pageSize)
         {
             var query = _context.ChargingStations
+                .Include(s => s.Owner).ThenInclude(o => o.User)
                 .Include(s => s.Images)
                 .Include(s => s.OperatingHours)
                 .Include(s => s.ChargingSlots)

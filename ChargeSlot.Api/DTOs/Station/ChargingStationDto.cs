@@ -4,6 +4,7 @@ namespace ChargeSlot.Api.DTOs.Station
     {
         public int Id { get; set; }
         public int OwnerUserId { get; set; }
+        public string? OwnerName { get; set; }
         public string Name { get; set; } = null!;
         public string Address { get; set; } = null!;
         public string? Description { get; set; }

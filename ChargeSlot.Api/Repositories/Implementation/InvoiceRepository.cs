@@ -81,7 +81,10 @@ namespace ChargeSlot.Api.Repositories.Implementation
 
         public async Task<(List<Invoice> Items, int TotalCount)> GetAdminAllInvoicesAsync(ChargeSlot.Api.DTOs.Admin.Overview.InvoiceFilterDto filter)
         {
-            IQueryable<Invoice> query = _db.Invoices.AsNoTracking();
+            IQueryable<Invoice> query = _db.Invoices
+                .Include(i => i.Booking).ThenInclude(b => b.Driver).ThenInclude(d => d.User)
+                .Include(i => i.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .AsNoTracking();
 
             if (!string.IsNullOrEmpty(filter.Status))
             {

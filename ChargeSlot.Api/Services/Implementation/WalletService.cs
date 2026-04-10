@@ -670,6 +670,18 @@ namespace ChargeSlot.Api.Services.Implementation
             return new WalletDto
             {
                 Id = w.Id,
+                UserId = w.UserId,
+                OwnerName = w.WalletType == Enums.WalletType.System
+                    ? w.SystemCode switch
+                    {
+                        "ESCROW" => "Hệ thống (Escrow)",
+                        "PLATFORM_REVENUE" => "Hệ thống (Platform Revenue)",
+                        "TAX_HOLD" => "Hệ thống (Tax Hold)",
+                        "CLEARING" => "Hệ thống (Clearing)",
+                        _ => $"Hệ thống ({w.SystemCode})"
+                    }
+                    : (w.User?.FullName ?? "N/A"),
+                SystemCode = w.SystemCode,
                 AvailableBalance = w.AvailableBalance,
                 FrozenBalance = w.FrozenBalance,
                 WalletType = w.WalletType.ToString(),

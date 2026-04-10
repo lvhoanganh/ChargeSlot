@@ -937,6 +937,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 Id = station.Id,
                 OwnerUserId = station.OwnerUserId,
+                OwnerName = station.Owner?.User?.FullName,
                 Name = station.Name,
                 Address = station.Address,
                 Description = station.Description,

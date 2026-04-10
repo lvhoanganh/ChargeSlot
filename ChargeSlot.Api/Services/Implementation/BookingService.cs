@@ -197,13 +197,9 @@ namespace ChargeSlot.Api.Services.Implementation
                     throw new InvalidOperationException(
                         $"Bạn chỉ có {driver.LoyaltyPoints:N0} điểm, không đủ {dto.PointsToUse:N0} điểm.");
 
-                // Load max redeem rate from config
-                var maxRedeemRate = await _configService.GetDecimalAsync("LoyaltyMaxRedeemRate", 0.5m);
-                var maxPointsAllowed = Math.Floor(totalAmount * maxRedeemRate);
-
-                if (dto.PointsToUse > maxPointsAllowed)
+                if (dto.PointsToUse > totalAmount)
                     throw new InvalidOperationException(
-                        $"Tối đa được dùng {maxPointsAllowed:N0} điểm ({maxRedeemRate * 100:N0}% của {totalAmount:N0}đ).");
+                        $"Số điểm sử dụng ({dto.PointsToUse:N0}) không được vượt quá giá trị đơn hàng ({totalAmount:N0}đ).");
 
                 pointsUsed = dto.PointsToUse;
                 pointsDiscountAmount = pointsUsed; // 1 điểm = 1 VND

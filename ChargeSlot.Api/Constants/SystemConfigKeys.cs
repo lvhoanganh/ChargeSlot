@@ -21,5 +21,10 @@ namespace ChargeSlot.Api.Constants
         public const string Ban_Duration_Days_FirstOffense = "Ban_Duration_Days_FirstOffense";
         
         public const string OTP_Expiry_Minutes = "OTP_Expiry_Minutes";
+        public const string OTP_Cooldown_Seconds = "OTP_Cooldown_Seconds";
+        
+        public const string Withdraw_AutoConfirm_Hours = "Withdraw_AutoConfirm_Hours";
+        public const string Invoice_AutoConfirm_Hours = "Invoice_AutoConfirm_Hours";
+        public const string Reminder_Window_Hours = "Reminder_Window_Hours";
     }
 }

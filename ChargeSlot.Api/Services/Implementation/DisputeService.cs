@@ -23,6 +23,8 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IFileStorageService _fileStorageService;
         private readonly Lazy<IBookingService> _lazyBookingService;
         private readonly Lazy<ISystemConfigService> _lazyConfigService;
+        private readonly Lazy<IDriverRepository> _lazyDriverRepo;
+        private readonly Lazy<ILoyaltyTransactionRepository> _lazyLoyaltyRepo;
 
         private static readonly string[] AllowedFileExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".mp4", ".avi", ".mov", ".webm", ".pdf" };
         private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
@@ -52,6 +54,8 @@ namespace ChargeSlot.Api.Services.Implementation
             _fileStorageService = fileStorageService;
             _lazyBookingService = new Lazy<IBookingService>(() => serviceProvider.GetRequiredService<IBookingService>());
             _lazyConfigService = new Lazy<ISystemConfigService>(() => serviceProvider.GetRequiredService<ISystemConfigService>());
+            _lazyDriverRepo = new Lazy<IDriverRepository>(() => serviceProvider.GetRequiredService<IDriverRepository>());
+            _lazyLoyaltyRepo = new Lazy<ILoyaltyTransactionRepository>(() => serviceProvider.GetRequiredService<ILoyaltyTransactionRepository>());
         }
 
         /// <summary>
@@ -136,7 +140,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _notificationService.SendAsync(
                     ownerUserId,
                     "Khiếu nại mới từ Driver",
-                    $"{booking.Driver?.User?.FullName ?? "Driver"} khiếu nại về phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name}. Lý do: {dto.Reason}. Bạn có 24h để nộp bằng chứng phản hồi.",
+                    $"{booking.Driver?.User?.FullName ?? "Driver"} khiếu nại về phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name}. Lý do: {dto.Reason}. Bạn có {configs.Dispute_OwnerEvidence_Hours}h để nộp bằng chứng phản hồi.",
                     NotificationType.Dispute);
 
                 var adminUsers = await _userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
@@ -415,6 +419,26 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             };
             _ledgerRepo.Add(ledger);
+
+            // Refund Loyalty Points if applicable
+            if (booking.PointsUsed > 0)
+            {
+                var driver = await _lazyDriverRepo.Value.GetByUserIdAsync(booking.DriverUserId, tracking: true);
+                if (driver != null)
+                {
+                    driver.LoyaltyPoints += booking.PointsUsed;
+                    _lazyLoyaltyRepo.Value.Add(new LoyaltyTransaction
+                    {
+                        DriverUserId = booking.DriverUserId,
+                        BookingId = booking.Id,
+                        Type = "Refund",
+                        Points = booking.PointsUsed,
+                        Description = $"Hoàn {booking.PointsUsed:N0} điểm (thắng khiếu nại #{dispute.Id})",
+                        CreatedAt = now
+                    });
+                }
+            }
+
             await _unitOfWork.CompleteAsync();
         }
 

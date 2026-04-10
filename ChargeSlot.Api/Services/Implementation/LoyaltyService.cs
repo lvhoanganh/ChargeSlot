@@ -8,16 +8,16 @@ namespace ChargeSlot.Api.Services.Implementation
     {
         private readonly ILoyaltyRepository _loyaltyRepo;
         private readonly IDriverRepository _driverRepo;
-        private readonly ISystemConfigRepository _configRepo;
+        private readonly ISystemConfigService _configService;
 
         public LoyaltyService(
             ILoyaltyRepository loyaltyRepo,
             IDriverRepository driverRepo,
-            ISystemConfigRepository configRepo)
+            ISystemConfigService configService)
         {
             _loyaltyRepo = loyaltyRepo;
             _driverRepo = driverRepo;
-            _configRepo = configRepo;
+            _configService = configService;
         }
 
         public async Task<LoyaltyInfoDto> GetLoyaltyInfoAsync(int driverUserId)
@@ -28,11 +28,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Driver profile không tồn tại.");
             }
 
-            var earnRateConfig = await _configRepo.GetByKeyAsync("LoyaltyEarnRate");
-            var maxRedeemConfig = await _configRepo.GetByKeyAsync("LoyaltyMaxRedeemRate");
-            
-            var earnRate = decimal.TryParse(earnRateConfig?.Value, out var er) ? er : 0.05m;
-            var maxRedeemRate = decimal.TryParse(maxRedeemConfig?.Value, out var mr) ? mr : 0.5m;
+            var earnRate = await _configService.GetDecimalAsync(Constants.SystemConfigKeys.Loyalty_Earn_Rate, 0.05m);
+            var maxRedeemRate = 1.0m; // 100% - User can spend all points
 
             var transactions = await _loyaltyRepo.GetRecentHistoryAsync(driverUserId, 20);
 

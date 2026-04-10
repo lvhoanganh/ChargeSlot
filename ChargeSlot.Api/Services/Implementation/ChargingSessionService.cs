@@ -534,6 +534,8 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 Id = invoice.Id,
                 BookingId = invoice.BookingId,
+                DriverName = invoice.Booking?.Driver?.User?.FullName,
+                StationName = invoice.Booking?.ChargingSlot?.ChargingStation?.Name,
                 ChargingAmount = invoice.ChargingAmount,
                 ServiceAmount = invoice.ServiceAmount,
                 VatAmount = invoice.VatAmount,

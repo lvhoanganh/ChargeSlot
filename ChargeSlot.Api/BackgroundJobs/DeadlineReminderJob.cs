@@ -21,8 +21,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<DeadlineReminderJob> _logger;
 
-        /// <summary>Gửi nhắc trước deadline bao lâu.</summary>
-        private static readonly TimeSpan ReminderWindow = TimeSpan.FromHours(1);
+
 
         public DeadlineReminderJob(IServiceProvider serviceProvider, ILogger<DeadlineReminderJob> logger)
         {
@@ -39,11 +38,18 @@ namespace ChargeSlot.Api.BackgroundJobs
             {
                 try
                 {
-                    await RemindInvoicePendingConfirmAsync(stoppingToken);
-                    await RemindWithdrawPendingConfirmAsync(stoppingToken);
-                    await RemindDisputeOwnerEvidenceAsync(stoppingToken);
-                    await RemindDisputeAdminReviewAsync(stoppingToken);
-                    await RemindBookingApproachingAsync(stoppingToken);
+                    using var configScope = _serviceProvider.CreateScope();
+                    var configService = configScope.ServiceProvider.GetRequiredService<ISystemConfigService>();
+                    var reminderHours = await configService.GetIntAsync(Constants.SystemConfigKeys.Reminder_Window_Hours, 1);
+                    var autoConfirmHours = await configService.GetIntAsync(Constants.SystemConfigKeys.Invoice_AutoConfirm_Hours, 24);
+                    var withdrawAutoHours = await configService.GetIntAsync(Constants.SystemConfigKeys.Withdraw_AutoConfirm_Hours, 24);
+                    var reminderWindow = TimeSpan.FromHours(reminderHours);
+
+                    await RemindInvoicePendingConfirmAsync(autoConfirmHours, reminderHours, stoppingToken);
+                    await RemindWithdrawPendingConfirmAsync(withdrawAutoHours, reminderHours, stoppingToken);
+                    await RemindDisputeOwnerEvidenceAsync(reminderWindow, stoppingToken);
+                    await RemindDisputeAdminReviewAsync(reminderWindow, stoppingToken);
+                    await RemindBookingApproachingAsync(reminderWindow, stoppingToken);
                 }
                 catch (Exception ex)
                 {
@@ -58,7 +64,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         // 1. Invoice PendingConfirm > 23h (tức còn <1h trước auto-confirm)
         //    → Nhắc Driver xác nhận hoặc khiếu nại
         // ═══════════════════════════════════════════════════════
-        private async Task RemindInvoicePendingConfirmAsync(CancellationToken ct)
+        private async Task RemindInvoicePendingConfirmAsync(int autoConfirmHours, int reminderHours, CancellationToken ct)
         {
             using var scope = _serviceProvider.CreateScope();
             var invoiceRepo = scope.ServiceProvider.GetRequiredService<IInvoiceRepository>();
@@ -66,9 +72,9 @@ namespace ChargeSlot.Api.BackgroundJobs
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var now = DateTimeHelper.VietnamNow();
-            // Invoice tạo > 23h nhưng < 24h (tức còn 0-1 tiếng trước auto-confirm)
-            var reminderStart = now.AddHours(-24);     // đã quá 24h → bỏ qua (auto-confirm đã chạy)
-            var reminderEnd = now.AddHours(-23);       // tạo cách đây 23h → còn 1h
+            // Invoice tạo > (autoConfirmHours - reminderHours)h nhưng < autoConfirmHoursH
+            var reminderStart = now.AddHours(-autoConfirmHours);
+            var reminderEnd = now.AddHours(-(autoConfirmHours - reminderHours));
 
             var invoices = await invoiceRepo.GetPendingConfirmForReminderAsync(reminderStart, reminderEnd);
 
@@ -107,7 +113,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         // ═══════════════════════════════════════════════════════
         // 2. Withdraw TransferCompleted > 23h → nhắc User xác nhận nhận tiền
         // ═══════════════════════════════════════════════════════
-        private async Task RemindWithdrawPendingConfirmAsync(CancellationToken ct)
+        private async Task RemindWithdrawPendingConfirmAsync(int autoConfirmHours, int reminderHours, CancellationToken ct)
         {
             using var scope = _serviceProvider.CreateScope();
             var withdrawRepo = scope.ServiceProvider.GetRequiredService<IWithdrawRequestRepository>();
@@ -115,8 +121,8 @@ namespace ChargeSlot.Api.BackgroundJobs
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var now = DateTimeHelper.VietnamNow();
-            var reminderStart = now.AddHours(-24);
-            var reminderEnd = now.AddHours(-23);
+            var reminderStart = now.AddHours(-autoConfirmHours);
+            var reminderEnd = now.AddHours(-(autoConfirmHours - reminderHours));
 
             var requests = await withdrawRepo.GetTransferCompletedForReminderAsync(reminderStart, reminderEnd);
 
@@ -148,7 +154,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         // ═══════════════════════════════════════════════════════
         // 3. Dispute OwnerEvidenceDeadline sắp hết → nhắc Owner nộp bằng chứng
         // ═══════════════════════════════════════════════════════
-        private async Task RemindDisputeOwnerEvidenceAsync(CancellationToken ct)
+        private async Task RemindDisputeOwnerEvidenceAsync(TimeSpan reminderWindow, CancellationToken ct)
         {
             using var scope = _serviceProvider.CreateScope();
             var disputeRepo = scope.ServiceProvider.GetRequiredService<IDisputeRepository>();
@@ -156,7 +162,7 @@ namespace ChargeSlot.Api.BackgroundJobs
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var now = DateTimeHelper.VietnamNow();
-            var reminderCutoff = now.Add(ReminderWindow); // Deadline trong vòng 1h tới
+            var reminderCutoff = now.Add(reminderWindow); // Deadline trong vòng reminderWindow tới
 
             var disputes = await disputeRepo.GetOwnerEvidenceForReminderAsync(now, reminderCutoff);
 
@@ -194,7 +200,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         // ═══════════════════════════════════════════════════════
         // 4. Dispute AdminReviewDeadline sắp hết → nhắc Admin phán quyết
         // ═══════════════════════════════════════════════════════
-        private async Task RemindDisputeAdminReviewAsync(CancellationToken ct)
+        private async Task RemindDisputeAdminReviewAsync(TimeSpan reminderWindow, CancellationToken ct)
         {
             using var scope = _serviceProvider.CreateScope();
             var disputeRepo = scope.ServiceProvider.GetRequiredService<IDisputeRepository>();
@@ -203,7 +209,7 @@ namespace ChargeSlot.Api.BackgroundJobs
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var now = DateTimeHelper.VietnamNow();
-            var reminderCutoff = now.Add(ReminderWindow);
+            var reminderCutoff = now.Add(reminderWindow);
 
             var disputes = await disputeRepo.GetAdminReviewForReminderAsync(now, reminderCutoff);
 
@@ -244,7 +250,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         // 5. Booking Paid → sắp đến giờ sạc (1h trước StartTime)
         //    → Nhắc Driver chuẩn bị check-in
         // ═══════════════════════════════════════════════════════
-        private async Task RemindBookingApproachingAsync(CancellationToken ct)
+        private async Task RemindBookingApproachingAsync(TimeSpan reminderWindow, CancellationToken ct)
         {
             using var scope = _serviceProvider.CreateScope();
             var bookingRepo = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
@@ -252,7 +258,7 @@ namespace ChargeSlot.Api.BackgroundJobs
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var now = DateTimeHelper.VietnamNow();
-            var reminderCutoff = now.Add(ReminderWindow);
+            var reminderCutoff = now.Add(reminderWindow);
 
             var bookings = await bookingRepo.GetApproachingPaidBookingsAsync(now, reminderCutoff);
 

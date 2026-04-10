@@ -16,7 +16,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<InvoiceAutoConfirmJob> _logger;
 
-        private static readonly TimeSpan AutoConfirmDeadline = TimeSpan.FromHours(24);
+
 
         public InvoiceAutoConfirmJob(IServiceProvider serviceProvider, ILogger<InvoiceAutoConfirmJob> logger)
         {
@@ -31,11 +31,13 @@ namespace ChargeSlot.Api.BackgroundJobs
                 try
                 {
                     List<int> expiredInvoiceIds;
-                    var deadline = DateTimeHelper.VietnamNow() - AutoConfirmDeadline;
 
-                    // 1. Chỉ lấy danh sách ID (tránh nạp nguyên object khổng lồ vào tracking của outer_scope)
+                    // 1. Chỉ lấy danh sách ID
                     using (var outerScope = _serviceProvider.CreateScope())
                     {
+                        var configService = outerScope.ServiceProvider.GetRequiredService<ISystemConfigService>();
+                        var autoConfirmHours = await configService.GetIntAsync(Constants.SystemConfigKeys.Invoice_AutoConfirm_Hours, 24);
+                        var deadline = DateTimeHelper.VietnamNow() - TimeSpan.FromHours(autoConfirmHours);
                         var invoiceRepo = outerScope.ServiceProvider.GetRequiredService<IInvoiceRepository>();
                         expiredInvoiceIds = await invoiceRepo.GetExpiredPendingConfirmIdsAsync(deadline);
                     }

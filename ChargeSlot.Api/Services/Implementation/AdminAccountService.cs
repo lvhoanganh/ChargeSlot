@@ -22,6 +22,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IOwnerRepository _ownerRepo;
         private readonly IDriverRepository _driverRepo;
         private readonly IWalletRepository _walletRepo;
+        private readonly ISystemConfigService _systemConfig;
 
         public AdminAccountService(
             IAdminAccountRepository adminAccountRepository,
@@ -35,7 +36,8 @@ namespace ChargeSlot.Api.Services.Implementation
             IUserOtpRepository otpRepository,
             IOwnerRepository ownerRepo,
             IDriverRepository driverRepo,
-            IWalletRepository walletRepo)
+            IWalletRepository walletRepo,
+            ISystemConfigService systemConfig)
         {
             _adminAccountRepository = adminAccountRepository;
             _bookingRepo = bookingRepo;
@@ -49,6 +51,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _ownerRepo = ownerRepo;
             _driverRepo = driverRepo;
             _walletRepo = walletRepo;
+            _systemConfig = systemConfig;
         }
 
         public async Task<PagedResultDto<AccountListItemDto>> GetAccountsAsync(
@@ -387,8 +390,9 @@ namespace ChargeSlot.Api.Services.Implementation
             // We use the admin's email as the identifier.
             var identifier = "admin_sec_pass_" + adminUserId.ToString();
 
-            // Check Cooldown 30s
-            var remainingSeconds = await _otpRepository.GetRemainingCooldownSecondsAsync(identifier, TimeSpan.FromSeconds(30));
+            // Check Cooldown
+            var cooldownSeconds = await _systemConfig.GetIntAsync(SystemConfigKeys.OTP_Cooldown_Seconds, 30);
+            var remainingSeconds = await _otpRepository.GetRemainingCooldownSecondsAsync(identifier, TimeSpan.FromSeconds(cooldownSeconds));
             if (remainingSeconds > 0)
                 throw new InvalidOperationException($"Vui lòng đợi {remainingSeconds} giây trước khi gửi lại yêu cầu.");
 
@@ -396,12 +400,13 @@ namespace ChargeSlot.Api.Services.Implementation
             var otp = Random.Shared.Next(100000, 999999).ToString();
             var otpHash = BCrypt.Net.BCrypt.HashPassword(otp);
 
+            var otpExpiryMinutes = await _systemConfig.GetIntAsync(SystemConfigKeys.OTP_Expiry_Minutes, 5);
             var entity = new ChargeSlot.Api.Models.UserOtp
             {
                 PhoneNumber = identifier, // Storing identifier in PhoneNumber column temporarily
                 OtpHash = otpHash,
                 Purpose = ChargeSlot.Api.Enums.OtpPurpose.ResetSecondaryPassword,
-                ExpiredAt = DateTimeHelper.VietnamNow().AddMinutes(5),
+                ExpiredAt = DateTimeHelper.VietnamNow().AddMinutes(otpExpiryMinutes),
                 IsUsed = false,
                 CreatedAt = DateTimeHelper.VietnamNow()
             };

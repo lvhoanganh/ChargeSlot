@@ -17,13 +17,15 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IConfiguration _config;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ISystemConfigService _systemConfig;
         
-        public OtpService(IUserOtpRepository otpRepository, UserManager<ApplicationUser> userManager, IConfiguration config, IUnitOfWork unitOfWork)
+        public OtpService(IUserOtpRepository otpRepository, UserManager<ApplicationUser> userManager, IConfiguration config, IUnitOfWork unitOfWork, ISystemConfigService systemConfig)
         {
             _otpRepository = otpRepository;
             _userManager = userManager;
             _config = config;
             _unitOfWork = unitOfWork;
+            _systemConfig = systemConfig;
         }
 
         public async Task SendOtpAsync(string phoneNumber, OtpPurpose purpose)
@@ -34,11 +36,11 @@ namespace ChargeSlot.Api.Services.Implementation
             var existing = await _userManager.FindByNameAsync(phone);
             if (existing == null)
                 throw new InvalidOperationException("Phone number not exist.");
-            // ⏱️ CHẶN SPAM OTP (30s)
+            var cooldownSeconds = await _systemConfig.GetIntAsync(Constants.SystemConfigKeys.OTP_Cooldown_Seconds, 30);
             var remainingSeconds =
                 await _otpRepository.GetRemainingCooldownSecondsAsync(
                     phone,
-                    TimeSpan.FromSeconds(30)
+                    TimeSpan.FromSeconds(cooldownSeconds)
                 );
 
             if (remainingSeconds > 0)
@@ -53,12 +55,13 @@ namespace ChargeSlot.Api.Services.Implementation
             var otpHash = HashOtp(otp);
 
             // 3️⃣ Tạo entity
+            var otpExpiryMinutes = await _systemConfig.GetIntAsync(Constants.SystemConfigKeys.OTP_Expiry_Minutes, 5);
             var entity = new UserOtp
             {
                 PhoneNumber = phone,
                 OtpHash = otpHash,
                 Purpose = purpose,
-                ExpiredAt = DateTimeHelper.VietnamNow().AddMinutes(5),
+                ExpiredAt = DateTimeHelper.VietnamNow().AddMinutes(otpExpiryMinutes),
                 IsUsed = false,
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
@@ -79,11 +82,12 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Phone number already registered.");
             
 
-            // ⏱️ CHẶN SPAM OTP (30s)
+            // ⏱️ CHẶN SPAM OTP
+            var cooldownSeconds = await _systemConfig.GetIntAsync(Constants.SystemConfigKeys.OTP_Cooldown_Seconds, 30);
             var remainingSeconds =
                 await _otpRepository.GetRemainingCooldownSecondsAsync(
                     phone,
-                    TimeSpan.FromSeconds(30)
+                    TimeSpan.FromSeconds(cooldownSeconds)
                 );
 
             if (remainingSeconds > 0)
@@ -98,12 +102,13 @@ namespace ChargeSlot.Api.Services.Implementation
             var otpHash = HashOtp(otp);
 
             // 3️⃣ Tạo entity
+            var otpExpiryMinutes = await _systemConfig.GetIntAsync(Constants.SystemConfigKeys.OTP_Expiry_Minutes, 5);
             var entity = new UserOtp
             {
                 PhoneNumber = phone,
                 OtpHash = otpHash,
                 Purpose = purpose,
-                ExpiredAt = DateTimeHelper.VietnamNow().AddMinutes(5),
+                ExpiredAt = DateTimeHelper.VietnamNow().AddMinutes(otpExpiryMinutes),
                 IsUsed = false,
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
