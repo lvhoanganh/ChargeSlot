@@ -40,7 +40,9 @@ export default function AdminInvoices() {
       if (!keyword) return true;
       return (
         String(inv.id).includes(keyword) ||
-        String(inv.bookingId).includes(keyword)
+        String(inv.bookingId).includes(keyword) ||
+        normalize(inv.driverName || "").includes(keyword) ||
+        normalize(inv.stationName || "").includes(keyword)
       );
     });
   }, [invoices, search]);
@@ -89,7 +91,7 @@ export default function AdminInvoices() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Tìm mã Hóa Đơn, Booking..."
+            placeholder="Tìm mã Hóa Đơn, Booking, Tài xế, Trạm..."
             className="cs-admin-filter__input"
           />
         </div>
@@ -119,6 +121,8 @@ export default function AdminInvoices() {
             <tr>
               <th>Mã Hóa Đơn (INV)</th>
               <th>Mã Lịch</th>
+              <th>Tài xế</th>
+              <th>Trạm sạc</th>
               <th>Ngày xuất</th>
               <th>Tiền Sạc</th>
               <th>Thuế VAT</th>
@@ -129,7 +133,7 @@ export default function AdminInvoices() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="cs-admin-table__empty">
+                <td colSpan={9} className="cs-admin-table__empty">
                   <p>Không tìm thấy hóa đơn nào khớp.</p>
                 </td>
               </tr>
@@ -139,6 +143,8 @@ export default function AdminInvoices() {
                   <tr key={inv.id}>
                     <td className="cs-admin-table__id">INV_{inv.id}</td>
                     <td className="cs-admin-table__name">#{inv.bookingId}</td>
+                    <td style={{ color: "#64748b", fontSize: "13px" }}>{inv.driverName || "—"}</td>
+                    <td style={{ color: "#64748b", fontSize: "13px" }}>{inv.stationName || "—"}</td>
                     <td style={{ color: "#64748b", fontSize: "13px" }}>{formatDate(inv.createdAt)}</td>
                     <td style={{ color: "#64748b" }}>{inv.chargingAmount?.toLocaleString() || "0"} đ</td>
                     <td style={{ color: "#64748b" }}>{inv.vatAmount?.toLocaleString() || "0"} đ</td>

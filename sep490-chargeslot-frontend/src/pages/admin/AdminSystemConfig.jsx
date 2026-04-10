@@ -29,6 +29,14 @@ const CONFIG_GROUPS = [
     ],
   },
   {
+    title: "⏰ Tự động xác nhận",
+    fields: [
+      { key: "withdraw_AutoConfirm_Hours", label: "Auto-confirm rút tiền (giờ)", hint: "Giờ chờ tự động xác nhận rút tiền nếu User không phản hồi (1-168)", type: "int" },
+      { key: "invoice_AutoConfirm_Hours", label: "Auto-confirm hóa đơn (giờ)", hint: "Giờ chờ tự động xác nhận hóa đơn nếu Driver không phản hồi (1-168)", type: "int" },
+      { key: "reminder_Window_Hours", label: "Cửa sổ nhắc nhở (giờ)", hint: "Gửi nhắc nhở trước deadline bao nhiêu giờ (1-24)", type: "int" },
+    ],
+  },
+  {
     title: "⚖️ Tranh chấp",
     fields: [
       { key: "dispute_Limit_Per_Month", label: "Giới hạn tranh chấp/tháng", hint: "Số lần tạo dispute tối đa mỗi tháng", type: "int" },

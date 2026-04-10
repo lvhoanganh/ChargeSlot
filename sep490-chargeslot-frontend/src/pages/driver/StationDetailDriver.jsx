@@ -121,32 +121,38 @@ export default function StationDetailDriver() {
 
   // Fetch active sessions to mark occupied slots
   useEffect(() => {
-    chargingApi.getActiveSessions()
-      .then((sessions) => {
+    if (!id) return;
+    chargingApi.getByStationId(Number(id))
+      .then((response) => {
         const occupied = new Set();
-        if (Array.isArray(sessions)) {
-          sessions.forEach(session => {
+        // response có thể là array hoặc object có items property
+        const sessions = Array.isArray(response) ? response : (response?.items || []);
+        // Filter để lấy chỉ sessions đang active (chưa kết thúc)
+        sessions
+          .filter(s => !s.actualEndTime && s.bookingStatus !== "Completed")
+          .forEach(session => {
             if (session.slotId) occupied.add(session.slotId);
           });
-        }
         setOccupiedSlots(occupied);
       })
       .catch(() => setOccupiedSlots(new Set()));
+    
     const interval = setInterval(() => {
-      chargingApi.getActiveSessions()
-        .then((sessions) => {
+      chargingApi.getByStationId(Number(id))
+        .then((response) => {
           const occupied = new Set();
-          if (Array.isArray(sessions)) {
-            sessions.forEach(session => {
+          const sessions = Array.isArray(response) ? response : (response?.items || []);
+          sessions
+            .filter(s => !s.actualEndTime && s.bookingStatus !== "Completed")
+            .forEach(session => {
               if (session.slotId) occupied.add(session.slotId);
             });
-          }
           setOccupiedSlots(occupied);
         })
         .catch(() => {});
     }, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [id]);
 
   // Fetch reviews
   useEffect(() => {

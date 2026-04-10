@@ -181,7 +181,7 @@ export default function ChargingActive() {
     try {
       const result = await chargingApi.requestEarlyEnd(sessionData.id);
       setEarlyEndRequested(true);
-      autoStopTriggeredRef.current = true; // tránh auto-stop effect trigger lại
+      autoConfirmTriggeredRef.current = true; // tránh auto-stop effect trigger lại
       if (result) setSessionData(result);
     } catch (err) {
       setError(err?.message || "Lỗi khi gửi yêu cầu kết thúc sớm.");

@@ -559,15 +559,33 @@ export const chargingApi = {
             const activeSessions = await apiFetch("/charging/active");
             const sessionsArray = Array.isArray(activeSessions) ? activeSessions : (activeSessions?.items || []);
             
-            // Note: This assumes backend returns chargingSlot?.chargingStation?.id
-            // Filter sessions for this station
-            return sessionsArray.filter(s => 
-                s.chargingSlot?.chargingStationId === stationId || 
-                s.slot?.stationId === stationId ||
-                s.stationId === stationId
-            );
-        } catch {
-            return []; // Fallback to empty list on error
+            console.log("🔌 API: All active sessions:", sessionsArray);
+            
+            // Filter sessions for this station - try multiple property paths
+            const filtered = sessionsArray.filter(s => {
+                const chargingSlotStationId = s.chargingSlot?.chargingStationId;
+                const slotStationId = s.slot?.chargingStationId || s.slot?.stationId;
+                const directStationId = s.stationId;
+                
+                const matches = chargingSlotStationId === stationId || slotStationId === stationId || directStationId === stationId;
+                
+                if (matches) {
+                    console.log(`✅ Session ${s.id} matches station ${stationId}:`, {
+                        chargingSlotStationId,
+                        slotStationId,
+                        directStationId,
+                        slotId: s.slotId || s.slot?.id || s.chargingSlot?.id,
+                    });
+                }
+                
+                return matches;
+            });
+            
+            console.log("📍 Filtered sessions for station", stationId, ":", filtered);
+            return filtered;
+        } catch (err) {
+            console.error("❌ Error in getByStationId:", err);
+            return [];
         }
     },
 
@@ -1121,21 +1139,23 @@ export const adminFinanceApi = {
 // Removed duplicate adminAccountApi
 
 // ============================
-// AI COPILOT CHATBOT (RBAC)
+// AI COPILOT CHATBOT (RBAC) — DEPRECATED
 // ============================
-
-export const aiCopilotApi = {
-    /**
-     * Gửi tin nhắn tới AI Copilot theo role
-     * Endpoint: POST /api/Copilot/{role}/chat
-     * @param {"driver"|"owner"|"admin"} role
-     * @param {Array<{role:string, content:string}>} history  — tối đa 6 tin nhắn gần nhất
-     * @param {string} currentMessage                         — tối đa 500 ký tự
-     */
-    chat: (role, history, currentMessage, options = {}) =>
-        apiFetch(`/chat/${role}`, {
-            method: "POST",
-            body: JSON.stringify({ history, currentMessage }),
-            ...options
-        }),
-};
+// NOTE: BE đã xóa CopilotController vào lúc này
+// Endpoint này không còn khả dụng nên được deprecated
+// 
+// export const aiCopilotApi = {
+//     /**
+//      * Gửi tin nhắn tới AI Copilot theo role
+//      * Endpoint: POST /api/Copilot/{role}/chat
+//      * @param {"driver"|"owner"|"admin"} role
+//      * @param {Array<{role:string, content:string}>} history  — tối đa 6 tin nhắn gần nhất
+//      * @param {string} currentMessage                         — tối đa 500 ký tự
+//      */
+//     chat: (role, history, currentMessage, options = {}) =>
+//         apiFetch(`/chat/${role}`, {
+//             method: "POST",
+//             body: JSON.stringify({ history, currentMessage }),
+//             ...options
+//         }),
+// };

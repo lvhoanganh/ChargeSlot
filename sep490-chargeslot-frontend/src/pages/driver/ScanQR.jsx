@@ -158,16 +158,24 @@ export default function ScanQR() {
         }
 
         // Determine which step failed based on error message
-        if (msg.includes("thanh toán") || msg.includes("Paid") || msg.includes("status")) {
+        // Time window errors: "Chưa đến giờ check-in", "Đã quá thời gian check-in", etc.
+        if (msg.includes("giờ check-in") || msg.includes("check-in") && msg.includes("giờ") || msg.includes("time window") || msg.includes("quay lại lúc") || msg.includes("đã quá thời gian")) {
+          // Step 2: Time window check failed
           setSteps(prev => prev.map((s, i) =>
-            i === 1 ? { ...s, status: "fail" } : i === 0 ? { ...s, status: "done" } : s
+            i === 0 ? { ...s, status: "done" } : 
+            i === 1 ? { ...s, status: "done" } : 
+            i === 2 ? { ...s, status: "fail" } : s
           ));
-        } else if (msg.includes("giờ") || msg.includes("time") || msg.includes("window") || msg.includes("sớm") || msg.includes("muộn")) {
+        } else if (msg.includes("thanh toán") || msg.includes("Paid") || msg.includes("booking đã thanh toán") || msg.includes("không tìm thấy booking")) {
+          // Step 1: Booking payment verification failed
           setSteps(prev => prev.map((s, i) =>
-            i <= 1 ? { ...s, status: "done" } : i === 2 ? { ...s, status: "fail" } : s
+            i === 0 ? { ...s, status: "done" } : 
+            i === 1 ? { ...s, status: "fail" } : s
           ));
         } else {
+          // Default: Step 1 failed
           setSteps(prev => prev.map((s, i) =>
+            i === 0 ? { ...s, status: "done" } : 
             i === 1 ? { ...s, status: "fail" } : s
           ));
         }
