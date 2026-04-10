@@ -2,10 +2,19 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { chargingApi } from "@/services/api";
 
+const toLocalDate = (dt) => {
+  if (!dt) return null;
+  const s = String(dt).trim();
+  // Nếu có Z (UTC) → giữ nguyên, JS tự convert sang local
+  // Nếu không có offset → BE trả giờ VN Unspecified → thêm +07:00
+  if (s.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(s)) return new Date(s);
+  return new Date(s + "+07:00");
+};
+
 const toLocal = (dt) => {
-  if (!dt) return "—";
-  const s = String(dt);
-  return new Date(String(s).replace("Z", "")).toLocaleString("vi-VN");
+  const d = toLocalDate(dt);
+  if (!d || isNaN(d)) return "—";
+  return d.toLocaleString("vi-VN");
 };
 
 function formatDuration(s) {
@@ -93,8 +102,24 @@ export default function ChargingComplete() {
     );
   }
 
-  // Calculate duration
-  const actualDurationSec = session.actualDurationHours ? session.actualDurationHours * 3600 : 0;
+  // Tính thời gian sạc đúng:
+  // effectiveStart = max(actualStartTime, bookingStartTime)
+  // → loại trừ thời gian chờ trước giờ đặt lịch
+  const actualStartDate   = toLocalDate(session.actualStartTime);
+  const bookingStartDate  = toLocalDate(session.bookingStartTime);
+  const actualEndDate     = toLocalDate(session.actualEndTime);
+
+  // Giờ bắt đầu tính cước = max(actualStart, bookingStart)
+  const effectiveStartMs = Math.max(
+    actualStartDate  && !isNaN(actualStartDate)  ? actualStartDate.getTime()  : 0,
+    bookingStartDate && !isNaN(bookingStartDate) ? bookingStartDate.getTime() : 0,
+  );
+  const effectiveEndMs = actualEndDate && !isNaN(actualEndDate) ? actualEndDate.getTime() : 0;
+
+  // Duration chính xác (giây) — không dùng actualDurationHours của BE vì BE thiếu sót
+  const durationSec = effectiveStartMs && effectiveEndMs && effectiveEndMs > effectiveStartMs
+    ? Math.floor((effectiveEndMs - effectiveStartMs) / 1000)
+    : (session.actualDurationHours ? session.actualDurationHours * 3600 : 0);
 
   return (
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
@@ -116,7 +141,7 @@ export default function ChargingComplete() {
         <div className="mb-6">
           <div className="rounded-xl bg-white shadow-lg p-5 text-center">
             <span className="text-3xl">⏱️</span>
-            <p className="text-2xl font-bold text-gray-800 mt-2">{formatDuration(actualDurationSec)}</p>
+            <p className="text-2xl font-bold text-gray-800 mt-2">{formatDuration(durationSec)}</p>
             <p className="text-xs text-gray-500 mt-1">Thời gian sạc</p>
           </div>
         </div>
@@ -130,7 +155,10 @@ export default function ChargingComplete() {
             <InfoRow label="Mã booking" value={`#${session.bookingId}`} />
             <InfoRow label="Trạm sạc" value={session.stationName || "—"} />
             <InfoRow label="Cổng sạc" value={session.slotName || `Slot ${session.slotId}`} />
-            <InfoRow label="Bắt đầu" value={toLocal(session.actualStartTime || session.checkinTime)} />
+            <InfoRow
+              label="Bắt đầu sạc"
+              value={effectiveStartMs ? new Date(effectiveStartMs).toLocaleString("vi-VN") : "—"}
+            />
             <InfoRow label="Kết thúc" value={toLocal(session.actualEndTime || session.bookingEndTime)} />
             <div className="border-t border-gray-100 pt-3">
               <div className="flex items-center justify-between">

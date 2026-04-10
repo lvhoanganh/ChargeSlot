@@ -49,9 +49,11 @@ export default function ChargingActive() {
   const [waitRemaining, setWaitRemaining] = useState(0); // giây còn lại để chờ
   const [loading, setLoading] = useState(!session);
   const [confirming, setConfirming] = useState(false);
+  const [autoCompleting, setAutoCompleting] = useState(false); // đang tự động hoàn thành
   const [requestingEarlyEnd, setRequestingEarlyEnd] = useState(false);
   const [earlyEndRequested, setEarlyEndRequested] = useState(false);
   const [error, setError] = useState("");
+  const autoConfirmTriggeredRef = useRef(false); // tránh gọi confirmCompletion 2 lần
 
   // If no session from state, try to load from bookingId in URL or localStorage
   useEffect(() => {
@@ -120,33 +122,66 @@ export default function ChargingActive() {
     return () => clearInterval(interval);
   }, [sessionData]);
 
-  // Poll session status every 10s — check if Owner stopped
+  // Poll session status — nhanh hơn (3s) khi hết giờ, bình thường 10s
+  // Khi phát hiện CompletedPendingInvoice → tự động confirmCompletion luôn
   useEffect(() => {
     if (!sessionData) return;
-    const interval = setInterval(async () => {
+
+    // Tính isTimeUp ngay trong effect để dùng cho interval speed
+    const getIsTimeUp = () => {
+      const actMs = sessionData.actualStartTime ? toLocal(sessionData.actualStartTime).getTime() : Date.now();
+      const schedMs = sessionData.bookingStartTime ? toLocal(sessionData.bookingStartTime).getTime() : actMs;
+      const startMs = Math.max(isNaN(actMs) ? Date.now() : actMs, isNaN(schedMs) ? 0 : schedMs);
+      const endMs = toLocal(sessionData.bookingEndTime).getTime();
+      return Date.now() >= endMs;
+    };
+
+    async function pollOnce() {
       try {
         const updated = await chargingApi.getByBookingId(sessionData.bookingId);
-        if (updated) {
-          setSessionData(updated);
-          if (updated.earlyEndRequestedAt) setEarlyEndRequested(true);
-          if (updated.actualEndTime || updated.bookingStatus === "Completed") {
+        if (!updated) return;
+        setSessionData(updated);
+        if (updated.earlyEndRequestedAt) setEarlyEndRequested(true);
+
+        // Nếu đã Completed/actualEndTime → navigate
+        if (updated.actualEndTime || updated.bookingStatus === "Completed") {
+          localStorage.removeItem(lsKey);
+          navigate("/driver/charging-complete", { state: { session: updated } });
+          return;
+        }
+
+        // Khi hết giờ: nếu BE đã chuyển sang CompletedPendingInvoice → tự động confirm
+        if (updated.bookingStatus === "CompletedPendingInvoice" && !autoConfirmTriggeredRef.current) {
+          autoConfirmTriggeredRef.current = true;
+          setAutoCompleting(true);
+          try {
+            await chargingApi.confirmCompletion(updated.id);
             localStorage.removeItem(lsKey);
-            navigate("/driver/charging-complete", { state: { session: updated } });
+            navigate("/driver/charging-complete", { state: { session: { ...updated, bookingStatus: "Completed" } } });
+          } catch (err) {
+            // Nếu auto-confirm lỗi → vẫn cho driver bấm tay
+            autoConfirmTriggeredRef.current = false;
+            setAutoCompleting(false);
           }
         }
       } catch { /* ignore poll errors */ }
-    }, 10000);
+    }
+
+    // Quyết định interval: 3s khi hết giờ (cần phản hồi nhanh), 10s bình thường
+    const speed = getIsTimeUp() ? 3000 : 10000;
+    const interval = setInterval(pollOnce, speed);
     return () => clearInterval(interval);
-  }, [sessionData?.bookingId]);
+  }, [sessionData?.bookingId, earlyEndRequested]);
 
   async function handleRequestEarlyEnd() {
     if (!sessionData || earlyEndRequested) return;
-    if (!(await showConfirm("Bạn muốn yêu cầu kết thúc sạc sớm? Owner sẽ nhận được thông báo.", "Yêu cầu kết thúc sớm"))) return;
+    if (!(await showConfirm("Bạn muốn kết thúc sạc sớm? Hệ thống sẽ tự động xử lý.", "Kết thúc sớm"))) return;
     setRequestingEarlyEnd(true);
     setError("");
     try {
       const result = await chargingApi.requestEarlyEnd(sessionData.id);
       setEarlyEndRequested(true);
+      autoStopTriggeredRef.current = true; // tránh auto-stop effect trigger lại
       if (result) setSessionData(result);
     } catch (err) {
       setError(err?.message || "Lỗi khi gửi yêu cầu kết thúc sớm.");
@@ -328,11 +363,17 @@ export default function ChargingActive() {
           </div>
         )}
 
-        {/* Early end request */}
+        {/* Trạng thái khi hết giờ / early end */}
         {earlyEndRequested ? (
           <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
-            <p className="text-sm font-semibold text-amber-700">⏹️ Đã gửi yêu cầu kết thúc sớm</p>
-            <p className="text-xs text-amber-600 mt-1">Chờ Owner xác nhận dừng phiên sạc...</p>
+            <p className="text-sm font-semibold text-amber-700">
+              {autoCompleting ? "⏳ Đang hoàn tất phiên sạc..." : "⏰ Hết thời gian sạc"}
+            </p>
+            <p className="text-xs text-amber-600 mt-1">
+              {autoCompleting
+                ? "Hệ thống đang tự động xử lý hóa đơn, vui lòng chờ..."
+                : "Hệ thống đang tự động kết thúc phiên sạc..."}
+            </p>
           </div>
         ) : !isTimeUp && (
           <button
@@ -343,36 +384,36 @@ export default function ChargingActive() {
             {requestingEarlyEnd ? (
               <div className="w-4 h-4 border-2 border-amber-400 border-t-amber-700 rounded-full animate-spin" />
             ) : "⏹️"}
-            {requestingEarlyEnd ? "Đang gửi..." : "Yêu cầu kết thúc sớm"}
+            {requestingEarlyEnd ? "Đang gửi..." : "Kết thúc sớm"}
           </button>
         )}
 
-        {/* Nút Hoàn thành: chỉ hiện khi BE chuyển sang CompletedPendingInvoice */}
-        {sessionData.bookingStatus === "CompletedPendingInvoice" ? (
+        {/* Nút Hoàn thành thủ công: chỉ hiện khi BE = CompletedPendingInvoice và chưa auto-confirm */}
+        {sessionData.bookingStatus === "CompletedPendingInvoice" && !autoCompleting ? (
           <div>
             <div className="mb-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">
-              <p className="text-sm font-semibold text-green-700">✅ Phôi sạc đã kết thúc!</p>
-              <p className="text-xs text-green-600 mt-0.5">Xác nhận để nhận hóa đơn và đóng phôi sạc.</p>
+              <p className="text-sm font-semibold text-green-700">✅ Phiên sạc đã kết thúc!</p>
+              <p className="text-xs text-green-600 mt-0.5">Đang tự động xác nhận và tạo hóa đơn...</p>
             </div>
-            <button
-              onClick={handleConfirm}
-              disabled={confirming}
-              className="w-full h-14 bg-green-500 hover:bg-green-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-green-200 transition-all hover:shadow-xl cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {confirming ? (
-                <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
-              ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              )}
-              {confirming ? "Đang xử lý..." : "Hoàn thành phiên sạc"}
-            </button>
+            <div className="w-full h-14 bg-green-100 rounded-xl flex items-center justify-center gap-2">
+              <div className="w-5 h-5 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
+              <span className="text-sm text-green-700 font-semibold">Đang xử lý thanh toán...</span>
+            </div>
           </div>
-        ) : (
+        ) : autoCompleting ? (
+          <div className="w-full h-14 bg-green-100 rounded-xl flex items-center justify-center gap-2">
+            <div className="w-5 h-5 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
+            <span className="text-sm text-green-700 font-semibold">Đang hoàn tất phiên sạc...</span>
+          </div>
+        ) : !earlyEndRequested ? (
           <div className="w-full h-14 bg-gray-100 rounded-xl flex items-center justify-center gap-2">
             <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
-            <span className="text-sm text-gray-500 font-medium">Đang sạc — chờ kết thúc tự động...</span>
+            <span className="text-sm text-gray-500 font-medium">Đang sạc — tự động kết thúc khi hết giờ</span>
+          </div>
+        ) : (
+          <div className="w-full h-14 bg-amber-50 rounded-xl flex items-center justify-center gap-2 border border-amber-200">
+            <div className="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" />
+            <span className="text-sm text-amber-700 font-medium">Đang xử lý kết thúc phiên sạc...</span>
           </div>
         )}
       </div>
