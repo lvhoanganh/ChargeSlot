@@ -16,6 +16,11 @@ namespace ChargeSlot.Api.Data.Configurations
                 .OnDelete(DeleteBehavior.Restrict);
             builder.Property(x => x.BusinessName).HasMaxLength(255).IsRequired();
             builder.Property(x => x.TaxCode).HasMaxLength(100).IsRequired();
+
+            builder.HasOne(x => x.KycReviewedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.KycReviewedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

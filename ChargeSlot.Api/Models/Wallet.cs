@@ -1,6 +1,7 @@
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 OwnerBalance / ví tiền - DRIVER, OWNER, SYSTEM (ESCROW, PLATFORM_REVENUE).</summary>
@@ -13,9 +14,10 @@ namespace ChargeSlot.Api.Models
         /// <summary>System wallets: ESCROW, PLATFORM_REVENUE, CLEARING.</summary>
         public string? SystemCode { get; set; }
 
+        [System.ComponentModel.DataAnnotations.ConcurrencyCheck]
         public decimal AvailableBalance { get; set; }
         public decimal FrozenBalance { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 
         public ICollection<LedgerEntry> LedgerEntries { get; set; } = new List<LedgerEntry>();
     }

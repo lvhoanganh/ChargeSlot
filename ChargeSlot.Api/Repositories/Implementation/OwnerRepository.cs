@@ -28,15 +28,36 @@ namespace ChargeSlot.Api.Repositories.Implementation
             await _context.Owner.AddAsync(owner);
         }
 
+        public async Task<List<Owner>> GetPendingKycAsync()
+        {
+            return await _context.Owner
+                .Where(o => o.KycStatus == Enums.KycStatus.Pending)
+                .OrderBy(o => o.KycSubmittedAt)
+                .ToListAsync();
+        }
+
+        public async Task<List<Owner>> GetAllKycsAsync(string? status = null)
+        {
+            var query = _context.Owner.AsQueryable();
+
+            if (!string.IsNullOrEmpty(status) && Enum.TryParse<Enums.KycStatus>(status, true, out var parsed))
+            {
+                query = query.Where(o => o.KycStatus == parsed);
+            }
+
+            return await query.OrderByDescending(o => o.CreatedAt).ToListAsync();
+        }
+
+        public void Update(Owner owner)
+        {
+            _context.Owner.Update(owner);
+        }
+
         public void Remove(Owner owner)
         {
             _context.Owner.Remove(owner);
         }
-
-        public async Task SaveChangesAsync()
-        {
-            await _context.SaveChangesAsync();
-        }
     }
 }
+
 

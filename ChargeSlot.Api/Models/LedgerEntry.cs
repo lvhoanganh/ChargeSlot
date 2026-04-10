@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Enums;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>Single leg of double-entry (DEBIT or CREDIT to a Wallet).</summary>
@@ -14,6 +15,6 @@ namespace ChargeSlot.Api.Models
 
         public LedgerDirection Direction { get; set; }
         public decimal Amount { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
     }
 }

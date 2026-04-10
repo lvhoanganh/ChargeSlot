@@ -31,15 +31,15 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
-        /// Nạp tiền vào ví qua VNPay → trả về URL redirect
+        /// Nạp tiền vào ví qua mã VietQR (SePay)
         /// </summary>
         [HttpPost("top-up")]
         public async Task<IActionResult> TopUp([FromBody] TopUpDto dto)
         {
             try
             {
-                var paymentUrl = await _walletService.TopUpViaVnPayAsync(GetUserId(), dto.Amount, HttpContext);
-                return Ok(new { paymentUrl });
+                var qrUrl = await _walletService.GetSePayTopUpQrUrlAsync(GetUserId(), dto.Amount);
+                return Ok(new { qrUrl });
             }
             catch (InvalidOperationException ex)
             {
@@ -47,18 +47,6 @@ namespace ChargeSlot.Api.Controllers
             }
         }
 
-        /// <summary>
-        /// VNPay callback cho nạp tiền ví
-        /// </summary>
-        [HttpGet("top-up/vnpay-return")]
-        [AllowAnonymous]
-        public async Task<IActionResult> TopUpVnPayReturn()
-        {
-            await _walletService.ProcessTopUpCallbackAsync(Request.Query);
-            var responseCode = Request.Query["vnp_ResponseCode"].ToString();
-            var success = responseCode == "00";
-            return Ok(new { success, message = success ? "Nạp tiền thành công" : "Nạp tiền thất bại" });
-        }
 
         /// <summary>
         /// Thanh toán booking bằng số dư ví
@@ -80,6 +68,10 @@ namespace ChargeSlot.Api.Controllers
             {
                 return Forbid();
             }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi thanh toán." });
+            }
         }
 
         /// <summary>
@@ -90,8 +82,8 @@ namespace ChargeSlot.Api.Controllers
         {
             try
             {
-                var result = await _walletService.WithdrawAsync(GetUserId(), dto.Amount);
-                return Ok(new { message = "Yêu cầu rút tiền đã được gửi", wallet = result });
+                var result = await _walletService.WithdrawAsync(GetUserId(), dto);
+                return Ok(new { message = "Yêu cầu rút tiền đã được gửi", withdrawRequest = result });
             }
             catch (InvalidOperationException ex)
             {
@@ -100,13 +92,73 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
-        /// Lịch sử giao dịch ví
+        /// Xem danh sách yêu cầu rút tiền của mình (phân trang)
+        /// </summary>
+        [HttpGet("withdraw-requests")]
+        public async Task<IActionResult> GetWithdrawRequests(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var result = await _walletService.GetUserWithdrawRequestsAsync(GetUserId());
+            var total = result.Count;
+            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new { total, page, pageSize, items });
+        }
+
+        /// <summary>
+        /// Lịch sử giao dịch ví (phân trang)
         /// </summary>
         [HttpGet("transactions")]
-        public async Task<IActionResult> GetTransactions()
+        public async Task<IActionResult> GetTransactions(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var result = await _walletService.GetTransactionHistoryAsync(GetUserId());
-            return Ok(result);
+            var total = result.Count;
+            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new { total, page, pageSize, items });
+        }
+
+        /// <summary>
+        /// User xác nhận đã nhận tiền rút (TransferCompleted → Completed)
+        /// </summary>
+        [HttpPut("withdraw-requests/{id}/confirm")]
+        public async Task<IActionResult> ConfirmWithdrawReceived(int id)
+        {
+            try
+            {
+                var result = await _walletService.UserConfirmReceivedAsync(GetUserId(), id);
+                return Ok(new { message = "Đã xác nhận nhận tiền thành công", withdrawRequest = result });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// User báo chưa nhận được tiền (TransferCompleted → IssueReported)
+        /// </summary>
+        [HttpPut("withdraw-requests/{id}/report-issue")]
+        public async Task<IActionResult> ReportWithdrawIssue(int id, [FromBody] ReportWithdrawIssueDto dto)
+        {
+            try
+            {
+                var result = await _walletService.UserReportIssueAsync(GetUserId(), id, dto.IssueNote);
+                return Ok(new { message = "Đã gửi báo cáo, Admin sẽ xử lý sớm nhất", withdrawRequest = result });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

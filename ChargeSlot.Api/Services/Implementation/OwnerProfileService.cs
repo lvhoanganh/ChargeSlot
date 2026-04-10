@@ -1,17 +1,30 @@
 using ChargeSlot.Api.DTOs.Profile;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class OwnerProfileService : IOwnerProfileService
     {
         private readonly IOwnerRepository _ownerRepository;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IFileStorageService _fileStorageService;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public OwnerProfileService(IOwnerRepository ownerRepository)
+        public OwnerProfileService(
+            IOwnerRepository ownerRepository,
+            UserManager<ApplicationUser> userManager,
+            IFileStorageService fileStorageService,
+            IUnitOfWork unitOfWork)
         {
             _ownerRepository = ownerRepository;
+            _userManager = userManager;
+            _fileStorageService = fileStorageService;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<OwnerProfileDto?> GetByUserIdAsync(int userId)
@@ -37,7 +50,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     UserId = userId,
                     BusinessName = dto.BusinessName,
                     TaxCode = dto.TaxCode,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 };
 
                 await _ownerRepository.AddAsync(owner);
@@ -48,7 +61,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 owner.TaxCode = dto.TaxCode;
             }
 
-            await _ownerRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         public async Task DeleteForUserAsync(int userId)
@@ -57,7 +70,26 @@ namespace ChargeSlot.Api.Services.Implementation
             if (owner == null) return;
 
             _ownerRepository.Remove(owner);
-            await _ownerRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
+        }
+
+        public async Task<string> UploadAvatarAsync(int userId, IFormFile file)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString())
+                ?? throw new InvalidOperationException("User không tồn tại.");
+
+            // Delete old avatar on Firebase (bỏ qua URL cũ từ wwwroot tự động)
+            if (!string.IsNullOrEmpty(user.AvatarUrl))
+            {
+                await _fileStorageService.DeleteAsync(user.AvatarUrl);
+            }
+
+            // Upload lên Firebase Storage
+            var avatarUrl = await _fileStorageService.UploadAsync(file, $"avatars/{userId}");
+            user.AvatarUrl = avatarUrl;
+            await _userManager.UpdateAsync(user);
+
+            return avatarUrl;
         }
     }
 }

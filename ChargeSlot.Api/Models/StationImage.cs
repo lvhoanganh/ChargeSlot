@@ -1,3 +1,4 @@
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     public class StationImage
@@ -7,6 +8,6 @@ namespace ChargeSlot.Api.Models
         public ChargingStation ChargingStation { get; set; } = null!;
 
         public string ImageUrl { get; set; } = null!;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
     }
 }

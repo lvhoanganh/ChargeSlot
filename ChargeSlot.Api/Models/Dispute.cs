@@ -1,6 +1,7 @@
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 Dispute - driver submits, admin resolves (BR-70–74).</summary>
@@ -24,7 +25,16 @@ namespace ChargeSlot.Api.Models
         /// <summary>Admin Id (0) — không FK vì Admin config trong appsettings, không lưu DB.</summary>
         public int? ResolvedByUserId { get; set; }
         public DateTime? ResolvedAt { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        /// <summary>Timestamp khi status thay đổi lần cuối (dùng cho auto-resolve deadline).</summary>
+        public DateTime? StatusChangedAt { get; set; }
+        
+        // Snapshot Configurations
+        public DateTime? OwnerEvidenceDeadlineAt { get; set; }
+        public DateTime? AdminReviewDeadlineAt { get; set; }
+        public DateTime? OwnerReminderSentAt { get; set; }
+        public DateTime? AdminReminderSentAt { get; set; }
+
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 
         public ICollection<DisputeEvidence> Evidences { get; set; } = new List<DisputeEvidence>();
     }

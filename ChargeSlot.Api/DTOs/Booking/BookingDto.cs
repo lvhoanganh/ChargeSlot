@@ -13,11 +13,18 @@ namespace ChargeSlot.Api.DTOs.Booking
         public DateTime EndTime { get; set; }
         public decimal? DurationHours { get; set; }
         public decimal TotalAmount { get; set; }
+        public decimal ServiceAmount { get; set; }
+        public decimal PointsUsed { get; set; }
+        public decimal PointsDiscountAmount { get; set; }
+        public decimal PointsEarned { get; set; }
         public string? Note { get; set; }
         public string Status { get; set; } = null!;
         public string? RejectionReason { get; set; }
         public string? CancelReason { get; set; }
         public DateTime? PaymentExpiresAt { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        /// <summary>Danh sách dịch vụ thêm đã chọn.</summary>
+        public List<BookingExtraServiceDto>? ExtraServices { get; set; }
     }
 }

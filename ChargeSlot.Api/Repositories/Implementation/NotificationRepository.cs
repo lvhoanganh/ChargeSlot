@@ -27,16 +27,15 @@ namespace ChargeSlot.Api.Repositories.Implementation
             return await _db.Notifications.FindAsync(id);
         }
 
-        public async Task CreateAsync(Notification notification)
+        public void Add(Notification notification)
         {
             _db.Notifications.Add(notification);
-            await _db.SaveChangesAsync();
         }
 
-        public async Task UpdateAsync(Notification notification)
+        public void Update(Notification notification)
         {
             _db.Notifications.Update(notification);
-            await _db.SaveChangesAsync();
         }
     }
 }
+

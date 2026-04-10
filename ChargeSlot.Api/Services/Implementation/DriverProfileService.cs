@@ -1,17 +1,30 @@
 using ChargeSlot.Api.DTOs.Profile;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class DriverProfileService : IDriverProfileService
     {
         private readonly IDriverRepository _driverRepository;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IFileStorageService _fileStorageService;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public DriverProfileService(IDriverRepository driverRepository)
+        public DriverProfileService(
+            IDriverRepository driverRepository,
+            UserManager<ApplicationUser> userManager,
+            IFileStorageService fileStorageService,
+            IUnitOfWork unitOfWork)
         {
             _driverRepository = driverRepository;
+            _userManager = userManager;
+            _fileStorageService = fileStorageService;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<DriverProfileDto?> GetByUserIdAsync(int userId)
@@ -39,7 +52,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     VehicleType = dto.VehicleType,
                     LicensePlate = dto.LicensePlate,
                     LicenseNumber = dto.LicenseNumber,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.VietnamNow()
                 };
 
                 await _driverRepository.AddAsync(driver);
@@ -51,7 +64,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 driver.LicenseNumber = dto.LicenseNumber;
             }
 
-            await _driverRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         public async Task DeleteForUserAsync(int userId)
@@ -60,7 +73,26 @@ namespace ChargeSlot.Api.Services.Implementation
             if (driver == null) return;
 
             _driverRepository.Remove(driver);
-            await _driverRepository.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
+        }
+
+        public async Task<string> UploadAvatarAsync(int userId, IFormFile file)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString())
+                ?? throw new InvalidOperationException("User không tồn tại.");
+
+            // Delete old avatar on Firebase (bỏ qua URL cũ từ wwwroot tự động)
+            if (!string.IsNullOrEmpty(user.AvatarUrl))
+            {
+                await _fileStorageService.DeleteAsync(user.AvatarUrl);
+            }
+
+            // Upload lên Firebase Storage
+            var avatarUrl = await _fileStorageService.UploadAsync(file, $"avatars/{userId}");
+            user.AvatarUrl = avatarUrl;
+            await _userManager.UpdateAsync(user);
+
+            return avatarUrl;
         }
     }
 }

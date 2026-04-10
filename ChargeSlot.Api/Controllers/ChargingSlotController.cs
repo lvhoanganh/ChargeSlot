@@ -1,10 +1,14 @@
 using System.Security.Claims;
 using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.DTOs.Slot;
+using ChargeSlot.Api.DTOs.Station;
+using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Controllers
 {
     [ApiController]
@@ -25,6 +29,8 @@ namespace ChargeSlot.Api.Controllers
                      ?? throw new InvalidOperationException("UserId missing in token");
             return int.Parse(id);
         }
+
+        // ─────────────── SLOT CRUD ───────────────
 
         /// <summary>List all slots for a station.</summary>
         [HttpGet]
@@ -67,7 +73,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>Update a slot.</summary>
@@ -82,7 +88,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>Change slot status (Active, Inactive, Maintenance).</summary>
@@ -97,7 +103,7 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         /// <summary>Delete a slot.</summary>
@@ -112,7 +118,39 @@ namespace ChargeSlot.Api.Controllers
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        /// <summary>Regenerate QR Code for a slot.</summary>
+        [HttpPost("{id:int}/qr/regenerate")]
+        public async Task<IActionResult> RegenerateQrCode(int stationId, int id)
+        {
+            var userId = GetUserId();
+            try
+            {
+                var newToken = await _slotService.RegenerateQrCodeAsync(stationId, id, userId);
+                return Ok(new { message = "Mã QR mới đã được tạo thành công.", qrCodeToken = newToken });
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        /// <summary>
+        /// Xem lịch đặt slot và thời gian trống tiếp theo.
+        /// GET /api/stations/{stationId}/slots/{slotId}/availability?date=2026-03-24
+        /// </summary>
+        [HttpGet("{slotId:int}/availability")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAvailability(int stationId, int slotId, [FromQuery] DateTime? date)
+        {
+            try
+            {
+                var targetDate = date ?? DateTimeHelper.VietnamNow().Date;
+                var availability = await _slotService.GetSlotAvailabilityAsync(slotId, targetDate);
+                return Ok(availability);
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
         }
     }
 }

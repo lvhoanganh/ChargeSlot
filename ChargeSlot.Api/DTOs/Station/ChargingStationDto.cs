@@ -21,8 +21,17 @@ namespace ChargeSlot.Api.DTOs.Station
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
+        public int BanCount { get; set; }
+        public DateTime? BannedUntil { get; set; }
+
         public List<StationImageDto> Images { get; set; } = new();
         public List<OperatingHoursDto> OperatingHours { get; set; } = new();
         public List<DTOs.Slot.ChargingSlotDto> ChargingSlots { get; set; } = new();
+        public List<StationPricingDto> PricingTiers { get; set; } = new();
+        public List<ExtraServiceDto> ExtraServices { get; set; } = new();
+        public decimal AverageRating { get; set; }
+        public int TotalReviews { get; set; }
+        public double? DistanceKm { get; set; }
+        public int? AvailableSlotsCount { get; set; }
     }
 }

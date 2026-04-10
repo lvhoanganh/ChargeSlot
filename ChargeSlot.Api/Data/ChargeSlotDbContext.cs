@@ -22,9 +22,10 @@ namespace ChargeSlot.Api.Data
         public DbSet<ChargingStation> ChargingStations => Set<ChargingStation>();
         public DbSet<StationImage> StationImages => Set<StationImage>();
         public DbSet<StationOperatingHours> StationOperatingHours => Set<StationOperatingHours>();
+        public DbSet<StationUnavailableDate> StationUnavailableDates => Set<StationUnavailableDate>();
         public DbSet<ExtraService> ExtraServices => Set<ExtraService>();
         public DbSet<ChargingSlot> ChargingSlots => Set<ChargingSlot>();
-        public DbSet<SlotPricing> SlotPricings => Set<SlotPricing>();
+        public DbSet<StationPricing> StationPricings => Set<StationPricing>();
         public DbSet<Booking> Bookings => Set<Booking>();
         public DbSet<BookingExtraService> BookingExtraServices => Set<BookingExtraService>();
         public DbSet<Payment> Payments => Set<Payment>();
@@ -34,11 +35,16 @@ namespace ChargeSlot.Api.Data
         public DbSet<Dispute> Disputes => Set<Dispute>();
         public DbSet<DisputeEvidence> DisputeEvidences => Set<DisputeEvidence>();
         public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
-        public DbSet<PayoutRequest> PayoutRequests => Set<PayoutRequest>();
         public DbSet<Wallet> Wallets => Set<Wallet>();
         public DbSet<LedgerTransaction> LedgerTransactions => Set<LedgerTransaction>();
         public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+        public DbSet<FavoriteStation> FavoriteStations => Set<FavoriteStation>();
+        public DbSet<SystemConfig> SystemConfigs => Set<SystemConfig>();
+        public DbSet<LoyaltyTransaction> LoyaltyTransactions => Set<LoyaltyTransaction>();
+        public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
+        public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+        public DbSet<WithdrawRequest> WithdrawRequests => Set<WithdrawRequest>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -46,6 +52,7 @@ namespace ChargeSlot.Api.Data
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(ChargeSlotDbContext).Assembly);
             SeedRoles(modelBuilder);
             SeedSystemWallets(modelBuilder);
+            SeedSystemConfigs(modelBuilder);
         }
 
         private static void SeedRoles(ModelBuilder modelBuilder)
@@ -64,6 +71,14 @@ namespace ChargeSlot.Api.Data
                 new Wallet { Id = 1, WalletType = Enums.WalletType.System, SystemCode = "ESCROW", AvailableBalance = 0, FrozenBalance = 0, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                 new Wallet { Id = 2, WalletType = Enums.WalletType.System, SystemCode = "PLATFORM_REVENUE", AvailableBalance = 0, FrozenBalance = 0, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                 new Wallet { Id = 3, WalletType = Enums.WalletType.System, SystemCode = "CLEARING", AvailableBalance = 0, FrozenBalance = 0, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+            );
+        }
+
+        private static void SeedSystemConfigs(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<SystemConfig>().HasData(
+                new SystemConfig { Key = "LoyaltyEarnRate", Value = "0.05", Description = "Tỷ lệ tích điểm (5% = 0.05)", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new SystemConfig { Key = "LoyaltyMaxRedeemRate", Value = "0.5", Description = "Tối đa dùng bao nhiêu % booking bằng điểm (50% = 0.5)", UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
             );
         }
     }

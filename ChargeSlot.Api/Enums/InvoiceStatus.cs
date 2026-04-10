@@ -5,6 +5,7 @@ namespace ChargeSlot.Api.Enums
     {
         PendingConfirm = 0,
         Confirmed = 1,
-        UnderDispute = 2
+        UnderDispute = 2,
+        Resolved = 3
     }
 }

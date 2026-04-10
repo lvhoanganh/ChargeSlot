@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,17 +26,20 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .FirstOrDefaultAsync(w => w.UserId == userId);
         }
 
-        public async Task<Wallet> CreateAsync(Wallet wallet)
+        public async Task<Wallet?> GetBySystemCodeAsync(string systemCode)
         {
-            _db.Wallets.Add(wallet);
-            await _db.SaveChangesAsync();
-            return wallet;
+            return await _db.Wallets
+                .FirstOrDefaultAsync(w => w.SystemCode == systemCode);
         }
 
-        public async Task UpdateAsync(Wallet wallet)
+        public void Add(Wallet wallet)
+        {
+            _db.Wallets.Add(wallet);
+        }
+
+        public void Update(Wallet wallet)
         {
             _db.Wallets.Update(wallet);
-            await _db.SaveChangesAsync();
         }
 
         public async Task<List<LedgerEntry>> GetTransactionHistoryAsync(int walletId, int take = 50)
@@ -48,10 +52,54 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
-        public async Task AddLedgerTransactionAsync(LedgerTransaction transaction)
+        public void AddLedgerTransaction(LedgerTransaction transaction)
         {
             _db.LedgerTransactions.Add(transaction);
-            await _db.SaveChangesAsync();
+        }
+        public async Task<(List<Wallet> Items, int TotalCount)> GetAdminAllWalletsAsync(ChargeSlot.Api.DTOs.Admin.Overview.WalletFilterDto filter)
+        {
+            var query = _db.Wallets
+                .Include(w => w.User)
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(filter.WalletType))
+            {
+                if (Enum.TryParse<WalletType>(filter.WalletType, true, out var typeEnum))
+                {
+                    query = query.Where(w => w.WalletType == typeEnum);
+                }
+            }
+
+            if (filter.UserId.HasValue)
+            {
+                query = query.Where(w => w.UserId == filter.UserId.Value);
+            }
+
+            if (!string.IsNullOrEmpty(filter.SystemCode))
+            {
+                query = query.Where(w => w.SystemCode == filter.SystemCode);
+            }
+
+            if (filter.FromDate.HasValue)
+            {
+                query = query.Where(w => w.CreatedAt >= filter.FromDate.Value);
+            }
+            if (filter.ToDate.HasValue)
+            {
+                query = query.Where(w => w.CreatedAt <= filter.ToDate.Value);
+            }
+
+            int totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(w => w.CreatedAt)
+                .Skip((filter.Page - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
         }
     }
 }
+

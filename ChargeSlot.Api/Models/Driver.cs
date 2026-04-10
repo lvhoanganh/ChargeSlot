@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Models.Identity;
 
+using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 Driver - extends User, driver-specific data.</summary>
@@ -11,7 +12,8 @@ namespace ChargeSlot.Api.Models
         public string? VehicleType { get; set; }
         public string? LicensePlate { get; set; }
         public string? LicenseNumber { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public decimal LoyaltyPoints { get; set; } = 0;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     }

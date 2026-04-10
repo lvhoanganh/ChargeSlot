@@ -13,16 +13,10 @@ namespace ChargeSlot.Api.Controllers
     {
         private readonly IAuthService _authService;
 
-        private readonly IOtpService _otpService;
-
-        public AuthController(
-            IAuthService authService,
-            IOtpService otpService)
+        public AuthController(IAuthService authService)
         {
             _authService = authService;
-            _otpService = otpService;
         }
-
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
@@ -30,11 +24,57 @@ namespace ChargeSlot.Api.Controllers
             try
             {
                 await _authService.RegisterAsync(dto);
-                return Ok(new { message = "Register success" });
+                return Ok(new { message = "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản." });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi đăng ký." });
+            }
+        }
+
+        /// <summary>Lấy thông tin tài khoản hiện tại (email, role, avatar, trạng thái verify...).</summary>
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetCurrentUser()
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                var userInfo = await _authService.GetCurrentUserInfoAsync(userId);
+                return Ok(userInfo);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi lấy thông tin tài khoản." });
+            }
+        }
+
+        /// <summary>Cập nhật thông tin tài khoản cơ bản (ví dụ: họ và tên).</summary>
+        [Authorize]
+        [HttpPut("me")]
+        public async Task<IActionResult> UpdateCurrentUser([FromBody] UpdateUserInfoDto dto)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                await _authService.UpdateCurrentUserInfoAsync(userId, dto);
+                return Ok(new { message = "Cập nhật thông tin thành công." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi cập nhật thông tin tài khoản." });
             }
         }
 
@@ -46,9 +86,17 @@ namespace ChargeSlot.Api.Controllers
                 var result = await _authService.LoginAsync(dto);
                 return Ok(result);
             }
-            catch (Exception ex)
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi đăng nhập." });
             }
         }
 
@@ -61,9 +109,17 @@ namespace ChargeSlot.Api.Controllers
                 var result = await _authService.RefreshTokenAsync(dto.RefreshToken);
                 return Ok(result);
             }
-            catch (Exception ex)
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi refresh token." });
             }
         }
 
@@ -78,9 +134,13 @@ namespace ChargeSlot.Api.Controllers
                 await _authService.RevokeTokenAsync(dto.RefreshToken, userId);
                 return Ok(new { message = "Token revoked." });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi revoke token." });
             }
         }
 
@@ -91,90 +151,118 @@ namespace ChargeSlot.Api.Controllers
             {
                 await _authService.ResetPasswordAsync(
                     dto.PhoneNumber,
-                    dto.NewPassword
+                    dto.NewPassword,
+                    dto.FirebaseIdToken
                 );
 
                 return Ok(new { message = "Password reset successful" });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi reset mật khẩu." });
+            }
         }
 
-        [HttpPost("register/send-otp")]
-        public async Task<IActionResult> SendOtp([FromBody] SendOtpDto dto)
+        /// <summary>Đổi mật khẩu (cần đăng nhập, nhập mật khẩu cũ).</summary>
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
             try
             {
-                await _otpService.SendOtpAsync(
-                    dto.PhoneNumber,
-                    OtpPurpose.Register
-                );
-                return Ok(new { message = "OTP sent" });
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                await _authService.ChangePasswordAsync(userId, dto.CurrentPassword, dto.NewPassword);
+                return Ok(new { message = "Đổi mật khẩu thành công." });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi đổi mật khẩu." });
+            }
         }
 
-        [HttpPost("register/verify-otp")]
-        public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpDto dto)
+        /// <summary>Kiểm tra SĐT đã được đăng ký chưa (dùng trước khi gửi OTP để tránh lãng phí).</summary>
+        [HttpGet("check-phone")]
+        public async Task<IActionResult> CheckPhoneExists([FromQuery] string phoneNumber)
         {
             try
             {
-                await _otpService.VerifyOtpAsync(
-                    dto.PhoneNumber,
-                    dto.Otp,
-                    OtpPurpose.Register
-                   );
-                return Ok(new { message = "OTP verified" });
+                if (string.IsNullOrWhiteSpace(phoneNumber))
+                    return BadRequest(new { message = "Vui lòng cung cấp số điện thoại." });
+
+                var exists = await _authService.CheckPhoneExistsAsync(phoneNumber);
+                return Ok(new { exists });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return BadRequest(new { message = ex.Message });
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi kiểm tra số điện thoại." });
             }
         }
 
-        [HttpPost("forgot-password/send-otp")]
-        public async Task<IActionResult> SendOtpForReset([FromBody] SendOtpDto dto)
+        /// <summary>Xác thực email sau khi user click link trong email.</summary>
+        [HttpPost("verify-email")]
+        public async Task<IActionResult> VerifyEmail([FromBody] DTOs.Auth.VerifyEmailDto dto)
         {
             try
             {
-                await _otpService.SendOtpAsync(
-                    dto.PhoneNumber,
-                    OtpPurpose.ResetPassword
-                );
-
-                return Ok(new { message = "OTP sent for reset password" });
+                await _authService.VerifyEmailAsync(dto.UserId, dto.Token);
+                return Ok(new { message = "Xác thực email thành công! Bạn có thể đăng nhập." });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi xác thực email." });
+            }
         }
 
-        [HttpPost("forgot-password/verify-otp")]
-        public async Task<IActionResult> VerifyOtpForReset([FromBody] VerifyOtpDto dto)
+        /// <summary>User cũ thêm email (cần đăng nhập). Hệ thống sẽ gửi link verify tới email.</summary>
+        [Authorize]
+        [HttpPost("add-email")]
+        public async Task<IActionResult> AddEmail([FromBody] DTOs.Auth.AddEmailDto dto)
         {
             try
             {
-                await _otpService.VerifyOtpAsync(
-                    dto.PhoneNumber,
-                    dto.Otp,
-                    OtpPurpose.ResetPassword
-                );
-
-                return Ok(new { message = "OTP verified for reset password" });
+                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                await _authService.AddEmailAsync(userId, dto.Email);
+                return Ok(new { message = "Link xác thực đã được gửi đến email của bạn." });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi thêm email." });
+            }
         }
 
-
+        /// <summary>Gửi lại link xác thực email (không cần đăng nhập, dùng userId).</summary>
+        [HttpPost("resend-verification")]
+        public async Task<IActionResult> ResendVerification([FromBody] DTOs.Auth.ResendVerificationDto dto)
+        {
+            try
+            {
+                await _authService.ResendVerificationEmailAsync(dto.UserId);
+                return Ok(new { message = "Link xác thực đã được gửi lại." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi gửi lại link xác thực." });
+            }
+        }
     }
 }
-
