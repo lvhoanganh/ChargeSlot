@@ -303,7 +303,8 @@ export default function NotificationBell() {
         .catch(() => { });
     };
     fetchNoti();
-    const interval = setInterval(fetchNoti, 15000);
+    // Tăng interval 15s → 30s để giảm tải API
+    const interval = setInterval(fetchNoti, 30000);
     return () => clearInterval(interval);
   }, [page]);
 

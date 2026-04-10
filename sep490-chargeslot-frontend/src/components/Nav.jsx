@@ -2,7 +2,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/authStore";
 import { useState, useRef, useEffect } from "react";
-import { walletApi, chargingApi, bookingApi } from "@/services/api";
+import { walletApi, chargingApi } from "@/services/api";
 import NotificationBell from "@/components/NotificationBell";
 import ChargeSlotLogo from "@/components/ChargeSlotLogo";
 
@@ -111,40 +111,25 @@ export default function Nav() {
       const uId = localStorage.getItem("userId") || "guest";
       const key = `activeChargingBooking_${uId}`;
       const bookingId = localStorage.getItem(key);
-      if (bookingId) {
-        chargingApi.getByBookingId(Number(bookingId))
-          .then(data => {
-            if (data && !data.actualEndTime) {
-              setActiveSession(data);
-            } else {
-              localStorage.removeItem(key);
-              setActiveSession(null);
-            }
-          })
-          .catch(() => setActiveSession(null));
-      } else {
-        // Fallback: check bookings for active session
-        bookingApi.getDriverBookings()
-          .then(bookings => {
-            const list = Array.isArray(bookings) ? bookings : (bookings?.items ?? []);
-            const active = list.find(b => b.status === "CheckedIn" || b.status === "InProgress");
-            if (active) {
-              localStorage.setItem(key, String(active.id));
-              chargingApi.getByBookingId(active.id)
-                .then(data => {
-                  if (data && !data.actualEndTime) setActiveSession(data);
-                  else setActiveSession(null);
-                })
-                .catch(() => setActiveSession(null));
-            } else {
-              setActiveSession(null);
-            }
-          })
-          .catch(() => setActiveSession(null));
+      if (!bookingId) {
+        // Không có session trong localStorage → set null ngay, KHÔNG gọi API nặng
+        setActiveSession(null);
+        return;
       }
+      chargingApi.getByBookingId(Number(bookingId))
+        .then(data => {
+          if (data && !data.actualEndTime) {
+            setActiveSession(data);
+          } else {
+            localStorage.removeItem(key);
+            setActiveSession(null);
+          }
+        })
+        .catch(() => setActiveSession(null));
     }
     checkSession();
-    const interval = setInterval(checkSession, 15000);
+    // Tăng interval 15s → 30s để giảm tải API
+    const interval = setInterval(checkSession, 30000);
     return () => clearInterval(interval);
   }, [token, normalizedRole]);
 
@@ -877,9 +862,9 @@ export default function Nav() {
           left: 0;
           width: 100%;
           height: 64px;
-          background: rgba(255, 255, 255, 0.92);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
           border-bottom: 1px solid rgba(0, 0, 0, 0.06);
           z-index: 30;
           display: flex;
@@ -1015,9 +1000,9 @@ export default function Nav() {
           pointer-events: auto;
         }
         .cs-more-dropdown__inner {
-          background: rgba(255, 255, 255, 0.97);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
           border: 1px solid rgba(0, 0, 0, 0.06);
           border-radius: 14px;
           padding: 6px;
@@ -1138,9 +1123,9 @@ export default function Nav() {
           pointer-events: auto;
         }
         .cs-profile-dropdown__card {
-          background: rgba(255, 255, 255, 0.97);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
           border: 1px solid rgba(0, 0, 0, 0.06);
           border-radius: 16px;
           overflow: hidden;
@@ -1159,9 +1144,9 @@ export default function Nav() {
           display: flex;
           align-items: center;
           gap: 12px;
-          background: rgba(255, 255, 255, 0.97);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
           border: 1px solid #fed7aa;
           box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
           border-radius: 14px;
@@ -1279,9 +1264,9 @@ export default function Nav() {
           right: 0;
           width: min(320px, 100vw);
           height: 100vh;
-          background: rgba(255, 255, 255, 0.98);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
+          background: rgba(255, 255, 255, 0.99);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
           z-index: 45;
           flex-direction: column;
           transform: translateX(100%);
@@ -1535,8 +1520,8 @@ export default function Nav() {
           right: 0;
           z-index: 40;
           background: rgba(255, 255, 255, 0.97);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
           border-top: 1px solid rgba(0, 0, 0, 0.07);
           box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.06);
           padding-bottom: env(safe-area-inset-bottom, 0px);

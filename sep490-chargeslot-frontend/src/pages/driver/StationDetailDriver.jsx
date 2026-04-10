@@ -69,11 +69,11 @@ const statusConfig = {
 };
 
 const slotStatusConfig = {
-  Available: { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
-  Active: { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
-  Occupied: { label: "Đang dùng", color: "#ef4444", bg: "#fef2f2" },
+  Available: { label: "Sẵn sàng", color: "#22c55e", bg: "#f0fdf4" },
+  Active:    { label: "Sẵn sàng", color: "#22c55e", bg: "#f0fdf4" },
+  Occupied:  { label: "Đang dùng", color: "#ef4444", bg: "#fef2f2" },
   Maintenance: { label: "Bảo trì", color: "#f97316", bg: "#fff7ed" },
-  Inactive: { label: "Ngưng", color: "#6b7280", bg: "#f3f4f6" },
+  Inactive:  { label: "Ngưng", color: "#6b7280", bg: "#f3f4f6" },
 };
 
 export default function StationDetailDriver() {
@@ -206,6 +206,9 @@ export default function StationDetailDriver() {
   const availableSlots = (station.chargingSlots || []).filter(
     (s) => s.status === "Available" || s.status === "Active"
   ).length;
+  const occupiedSlots = (station.chargingSlots || []).filter(
+    (s) => s.status === "Occupied"
+  ).length;
 
   return (
     <div className="min-h-screen bg-[#f3f4f5]">
@@ -320,13 +323,22 @@ export default function StationDetailDriver() {
         </div>
 
         {/* Quick stats */}
-        <div className={`grid ${reviewSummary ? 'grid-cols-4' : 'grid-cols-3'} gap-3 mb-6`}>
+          <div className={`grid ${reviewSummary ? 'grid-cols-4' : 'grid-cols-3'} gap-3 mb-6`}>
           <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
             <div className="text-2xl font-bold text-green-500">
               {availableSlots}
             </div>
             <div className="text-xs text-gray-500 mt-1">Slot trống</div>
           </div>
+          {occupiedSlots > 0 && (
+            <div className="bg-red-50 rounded-2xl shadow-sm p-4 text-center border border-red-100">
+              <div className="flex items-center justify-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-2xl font-bold text-red-500">{occupiedSlots}</span>
+              </div>
+              <div className="text-xs text-red-500 font-semibold mt-1">Đang dùng</div>
+            </div>
+          )}
           <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
             <div className="text-2xl font-bold text-blue-500">
               {station.chargingSlots.length}
@@ -438,17 +450,24 @@ export default function StationDetailDriver() {
             {station.chargingSlots.map((slot) => {
               const ss =
                 slotStatusConfig[slot.status] || slotStatusConfig.Available;
+              const isOccupied = slot.status === "Occupied";
               return (
                 <div
                   key={slot.id}
-                  className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
-                  style={{ background: `${ss.bg}` }}
+                  className="flex items-center justify-between p-3 rounded-xl border transition-colors"
+                  style={{
+                    background: ss.bg,
+                    borderColor: isOccupied ? "#fca5a5" : "#f3f4f6",
+                  }}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center"
+                      className="w-10 h-10 rounded-lg flex items-center justify-center relative"
                       style={{ background: `${ss.color}20` }}
                     >
+                      {isOccupied && (
+                        <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 animate-ping" />
+                      )}
                       <svg
                         width="18"
                         height="18"
@@ -461,8 +480,13 @@ export default function StationDetailDriver() {
                       </svg>
                     </div>
                     <div>
-                      <div className="font-semibold text-gray-900 text-sm">
+                      <div className="font-semibold text-gray-900 text-sm flex items-center gap-2">
                         {slot.slotName}
+                        {isOccupied && (
+                          <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full border border-red-200 animate-pulse">
+                            ⚡ Đang sạc
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-gray-500">
                         Vị trí: {slot.positionY && slot.positionX ? `${String.fromCharCode(64 + Number(slot.positionY))}${slot.positionX}` : "—"}
@@ -471,8 +495,8 @@ export default function StationDetailDriver() {
                   </div>
                   <div className="text-right">
                     <span
-                      className="text-xs font-medium px-2 py-0.5 rounded-full"
-                      style={{ color: ss.color, background: `${ss.color}15` }}
+                      className="text-xs font-semibold px-2 py-1 rounded-full"
+                      style={{ color: ss.color, background: `${ss.color}15`, border: `1px solid ${ss.color}30` }}
                     >
                       {ss.label}
                     </span>

@@ -446,9 +446,9 @@ export default function OwnerNav() {
           left: 0;
           width: 100%;
           height: 64px;
-          background: rgba(255, 255, 255, 0.92);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
           border-bottom: 1px solid rgba(0, 0, 0, 0.06);
           z-index: 30;
           display: flex;
@@ -513,8 +513,8 @@ export default function OwnerNav() {
         }
         .cs-more-dropdown--open { opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
         .cs-more-dropdown__inner {
-          background: rgba(255,255,255,0.97); backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(0,0,0,0.06);
+          background: rgba(255,255,255,0.98); backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(0,0,0,0.06);
           border-radius: 14px; padding: 6px;
           box-shadow: 0 12px 40px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.04);
         }
@@ -552,8 +552,8 @@ export default function OwnerNav() {
         }
         .cs-profile-dropdown--open { opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
         .cs-profile-dropdown__card {
-          background: rgba(255,255,255,0.97); backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(0,0,0,0.06);
+          background: rgba(255,255,255,0.98); backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(0,0,0,0.06);
           border-radius: 16px; overflow: hidden;
           box-shadow: 0 16px 48px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.04);
         }
@@ -570,7 +570,7 @@ export default function OwnerNav() {
           display: none;
           position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
           background: rgba(255,251,245,0.97);
-          backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+          backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
           border-top: 1px solid rgba(249,115,22,0.12);
           box-shadow: 0 -4px 24px rgba(0,0,0,0.06);
           padding-bottom: env(safe-area-inset-bottom, 0px);

@@ -455,9 +455,9 @@ export const bookingApi = {
 
     /**
      * Owner xem danh sách booking (kèm filter status)
-     * Backend chưa hỗ trợ chia ongoing/history server-side nên sẽ fetch cục lớn
+     * Giảm pageSize 500 → 100 để tránh fetch quá nặng
      */
-    getOwnerBookings: (status = null, page = 1, pageSize = 500) => {
+    getOwnerBookings: (status = null, page = 1, pageSize = 100) => {
         const params = new URLSearchParams();
         if (status) params.set("status", status);
         params.set("page", String(page));

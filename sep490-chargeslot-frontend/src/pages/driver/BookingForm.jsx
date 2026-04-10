@@ -464,19 +464,32 @@ export default function BookingForm() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8, marginBottom: 20 }}>
               {slots.map((slot) => {
                 const isActive = slot.status === "Active" || slot.status === "Available";
+                const isOccupied = slot.status === "Occupied";
                 const isSelected = selectedSlot === slot.id;
                 const canSelect = isActive || slot.status === "Booked";
+                const statusLabel = isOccupied ? "Đang dùng" : isActive ? "Sẵn sàng" : slot.status === "Booked" ? "Có lịch đặt" : slot.status === "Inactive" ? "Ngưng" : slot.status === "Maintenance" ? "Bảo trì" : slot.status;
+                const statusColor = isOccupied ? "#ef4444" : isActive ? "#22c55e" : slot.status === "Booked" ? "#f59e0b" : "#6b7280";
                 return (
                   <button type="button" key={slot.id} disabled={!canSelect} onClick={() => setSelectedSlot(slot.id)}
-                    style={{ padding: "12px 10px", borderRadius: 12, border: isSelected ? "2px solid #f97316" : "2px solid #e5e7eb", background: isSelected ? "#fff7ed" : !canSelect ? "#f3f4f6" : "#fff", cursor: canSelect ? "pointer" : "not-allowed", opacity: canSelect ? 1 : 0.5, textAlign: "center" }}>
+                    style={{
+                      padding: "12px 10px", borderRadius: 12,
+                      border: isSelected ? "2px solid #f97316" : isOccupied ? "2px solid #fca5a5" : "2px solid #e5e7eb",
+                      background: isSelected ? "#fff7ed" : isOccupied ? "#fef2f2" : !canSelect ? "#f3f4f6" : "#fff",
+                      cursor: canSelect ? "pointer" : "not-allowed", opacity: canSelect ? 1 : 0.75, textAlign: "center",
+                      position: "relative",
+                    }}>
+                    {isOccupied && (
+                      <span style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block", animation: "ping 1s cubic-bezier(0,0,0.2,1) infinite" }} />
+                    )}
                     <div style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{slot.slotName}</div>
-                    <div style={{ fontSize: 11, color: slot.status === "Booked" ? "#f59e0b" : isActive ? "#22c55e" : "#ef4444", marginTop: 2 }}>
-                      {isActive ? "Trống" : slot.status === "Booked" ? "Có lịch đặt" : slot.status === "Inactive" ? "Ngưng" : slot.status === "Maintenance" ? "Bảo trì" : slot.status}
+                    <div style={{ fontSize: 11, color: statusColor, marginTop: 2, fontWeight: 600 }}>
+                      {isOccupied ? "⚡ " : ""}{statusLabel}
                     </div>
                   </button>
                 );
               })}
             </div>
+
 
             {/* Pricing tiers */}
             {selectedSlot && (() => {
