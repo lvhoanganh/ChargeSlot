@@ -551,6 +551,26 @@ export const chargingApi = {
 
     getActiveSessions: () => apiFetch("/charging/active"),
 
+    /** Get active sessions for a specific station (Filter client-side) */
+    getByStationId: async (stationId) => {
+        try {
+            // Backend doesn't have /charging/station/{id} endpoint yet
+            // So we fetch all active sessions and filter by stationId
+            const activeSessions = await apiFetch("/charging/active");
+            const sessionsArray = Array.isArray(activeSessions) ? activeSessions : (activeSessions?.items || []);
+            
+            // Note: This assumes backend returns chargingSlot?.chargingStation?.id
+            // Filter sessions for this station
+            return sessionsArray.filter(s => 
+                s.chargingSlot?.chargingStationId === stationId || 
+                s.slot?.stationId === stationId ||
+                s.stationId === stationId
+            );
+        } catch {
+            return []; // Fallback to empty list on error
+        }
+    },
+
     getByBookingId: (bookingId) => apiFetch(`/charging/booking/${bookingId}`),
 
     getInvoice: (bookingId) => apiFetch(`/charging/invoice/${bookingId}`),

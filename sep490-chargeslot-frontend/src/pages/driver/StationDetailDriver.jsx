@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { publicStationApi, reviewApi, favoriteApi } from "@/services/api";
+import { publicStationApi, reviewApi, favoriteApi, chargingApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 import { formatDateVN } from "@/utils/dateVN";
 
@@ -82,6 +82,7 @@ export default function StationDetailDriver() {
   const [station, setStation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeSlotIds, setActiveSlotIds] = useState(new Set()); // Track slots with active charging sessions
   const [loginToast, setLoginToast] = useState(false);
   const toastTimer = useRef(null);
   const { token } = useAuthStore();
@@ -118,6 +119,29 @@ export default function StationDetailDriver() {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  // Fetch active charging sessions for this station to show "Đang dùng" status
+  useEffect(() => {
+    if (!id || !station?.chargingSlots) return;
+    const fetchActiveSessions = async () => {
+      try {
+        const activeSessions = await chargingApi.getByStationId(Number(id));
+        const sessionsArray = Array.isArray(activeSessions) ? activeSessions : [];
+        // Filter only active sessions (not completed)
+        const active = sessionsArray.filter(s => !s.actualEndTime && s.bookingStatus !== "Completed");
+        const slotIds = new Set(active.map(s => s.slotId));
+        setActiveSlotIds(slotIds);
+      } catch { 
+        // Reset on error
+        setActiveSlotIds(new Set());
+      }
+    };
+    
+    fetchActiveSessions();
+    // Poll every 5 seconds to update active slots real-time
+    const interval = setInterval(fetchActiveSessions, 5000);
+    return () => clearInterval(interval);
+  }, [id, station?.chargingSlots]);
 
   // Fetch reviews
   useEffect(() => {
@@ -204,10 +228,16 @@ export default function StationDetailDriver() {
 
   const st = statusConfig[station.operationalStatus] || statusConfig.Open;
   const availableSlots = (station.chargingSlots || []).filter(
-    (s) => s.status === "Available" || s.status === "Active"
+    (s) => {
+      const hasActiveSession = activeSlotIds.has(s.id);
+      return !hasActiveSession && (s.status === "Available" || s.status === "Active");
+    }
   ).length;
   const occupiedSlots = (station.chargingSlots || []).filter(
-    (s) => s.status === "Occupied"
+    (s) => {
+      const hasActiveSession = activeSlotIds.has(s.id);
+      return hasActiveSession || s.status === "Occupied";
+    }
   ).length;
 
   return (
@@ -448,9 +478,11 @@ export default function StationDetailDriver() {
 
           <div className="space-y-3">
             {station.chargingSlots.map((slot) => {
-              const ss =
-                slotStatusConfig[slot.status] || slotStatusConfig.Available;
-              const isOccupied = slot.status === "Occupied";
+              // Check if slot has active session (real-time "Đang dùng" status)
+              const hasActiveSession = activeSlotIds.has(slot.id);
+              const displayStatus = hasActiveSession ? "Occupied" : slot.status;
+              const ss = slotStatusConfig[displayStatus] || slotStatusConfig.Available;
+              const isOccupied = displayStatus === "Occupied";
               return (
                 <div
                   key={slot.id}
