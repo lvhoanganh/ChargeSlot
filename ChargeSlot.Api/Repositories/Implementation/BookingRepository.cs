@@ -349,6 +349,14 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 booking.ReminderSentAt = sentAt;
         }
 
+        public async Task AcquireSlotLockAsync(int slotId)
+        {
+            var lockResource = $"SlotLock_{slotId}";
+            await _db.Database.ExecuteSqlRawSafeAsync(
+                "EXEC sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000",
+                lockResource);
+        }
+
     }
 }
 

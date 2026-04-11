@@ -29,6 +29,9 @@ namespace ChargeSlot.Api.Repositories.Interfaces
         Task<List<Booking>> GetCheckedInOvertimeAsync(DateTime cutoff);
         Task<List<Booking>> GetApproachingPaidBookingsAsync(DateTime now, DateTime cutoff);
         Task MarkReminderSentAsync(int bookingId, DateTime sentAt);
+
+        /// <summary>SQL Server distributed lock per slot (sp_getapplock). Must be called inside a transaction.</summary>
+        Task AcquireSlotLockAsync(int slotId);
     }
 }
 

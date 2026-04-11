@@ -70,7 +70,8 @@ namespace ChargeSlot.Api.Data
             modelBuilder.Entity<Wallet>().HasData(
                 new Wallet { Id = 1, WalletType = Enums.WalletType.System, SystemCode = "ESCROW", AvailableBalance = 0, FrozenBalance = 0, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                 new Wallet { Id = 2, WalletType = Enums.WalletType.System, SystemCode = "PLATFORM_REVENUE", AvailableBalance = 0, FrozenBalance = 0, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-                new Wallet { Id = 3, WalletType = Enums.WalletType.System, SystemCode = "CLEARING", AvailableBalance = 0, FrozenBalance = 0, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+                new Wallet { Id = 3, WalletType = Enums.WalletType.System, SystemCode = "CLEARING", AvailableBalance = 0, FrozenBalance = 0, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+                new Wallet { Id = 99, WalletType = Enums.WalletType.System, SystemCode = "TAX_HOLD", AvailableBalance = 0, FrozenBalance = 0, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
             );
         }
 

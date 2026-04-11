@@ -1,7 +1,6 @@
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore.Storage;
-using ChargeSlot.Api.Helpers;
 
 namespace ChargeSlot.Api.Repositories.Implementation
 {
@@ -22,11 +21,6 @@ namespace ChargeSlot.Api.Repositories.Implementation
         public async Task<IDbContextTransaction> BeginTransactionAsync()
         {
             return await _context.Database.BeginTransactionAsync();
-        }
-
-        public async Task<int> ExecuteSqlRawSafeAsync(string sql, params object[] parameters)
-        {
-            return await _context.Database.ExecuteSqlRawSafeAsync(sql, parameters);
         }
 
         public void Dispose()

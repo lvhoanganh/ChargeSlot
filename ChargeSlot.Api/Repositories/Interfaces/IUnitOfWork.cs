@@ -6,6 +6,5 @@ namespace ChargeSlot.Api.Repositories.Interfaces
     {
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
-        Task<int> ExecuteSqlRawSafeAsync(string sql, params object[] parameters);
     }
 }

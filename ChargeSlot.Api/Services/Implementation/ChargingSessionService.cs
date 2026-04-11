@@ -361,6 +361,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 ?? throw new InvalidOperationException("Ví hệ thống ESCROW chưa được cấu hình.");
             var platformWallet = await _walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE")
                 ?? throw new InvalidOperationException("Ví hệ thống PLATFORM_REVENUE chưa được cấu hình.");
+            var taxWallet = await _walletRepo.GetBySystemCodeAsync("TAX_HOLD")
+                ?? throw new InvalidOperationException("Ví hệ thống TAX_HOLD chưa được cấu hình.");
 
             // Get or create Owner wallet
             var ownerWallet = await _walletRepo.GetByUserIdAsync(ownerUserId);
@@ -380,16 +382,10 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var ownerNet = invoice.ChargingAmount;  // Net amount after VAT + platform fee deducted
             var platformFee = invoice.PlatformFee;
-            var totalDeducted = ownerNet + platformFee; // VAT stays in ESCROW (paid to tax authority later)
+            var vatAmount = invoice.VatAmount;
 
-            // 1. ESCROW → Owner: net amount atomically
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
-                ownerNet, escrowWallet.Id);
-                
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                ownerNet, ownerWallet.Id);
+            // 1. ESCROW → Owner: net amount (Atomic via Repository)
+            await _walletRepo.TransferAtomicAsync(escrowWallet.Id, ownerWallet.Id, ownerNet);
 
             var ownerLedger = new LedgerTransaction
             {
@@ -407,14 +403,8 @@ namespace ChargeSlot.Api.Services.Implementation
             _walletRepo.AddLedgerTransaction(ownerLedger);
                     await _unitOfWork.CompleteAsync();
 
-            // 2. ESCROW → PLATFORM_REVENUE: platform fee atomically
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
-                platformFee, escrowWallet.Id);
-                
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                platformFee, platformWallet.Id);
+            // 2. ESCROW → PLATFORM_REVENUE: platform fee (Atomic via Repository)
+            await _walletRepo.TransferAtomicAsync(escrowWallet.Id, platformWallet.Id, platformFee);
 
             var feeLedger = new LedgerTransaction
             {
@@ -432,8 +422,27 @@ namespace ChargeSlot.Api.Services.Implementation
             _walletRepo.AddLedgerTransaction(feeLedger);
                     await _unitOfWork.CompleteAsync();
 
-            // Note: VAT (invoice.VatAmount) remains in ESCROW for tax authority payment
-            // A separate admin process would handle VAT remittance
+            // 3. ESCROW → TAX_HOLD: VAT tax atomically
+            if (vatAmount > 0)
+            {
+                await _walletRepo.TransferAtomicAsync(escrowWallet.Id, taxWallet.Id, vatAmount);
+
+                var taxLedger = new LedgerTransaction
+                {
+                    ReferenceType = "TaxHold",
+                    ReferenceId = booking.Id,
+                    Memo = $"Thuế GTGT booking #{booking.Id} - {vatAmount:N0}đ",
+                    CreatedByUserId = null,
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = vatAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = taxWallet.Id, Direction = LedgerDirection.Credit, Amount = vatAmount, CreatedAt = now }
+                    }
+                };
+                _walletRepo.AddLedgerTransaction(taxLedger);
+                await _unitOfWork.CompleteAsync();
+            }
         }
 
         public async Task<ChargingSessionDto?> GetByBookingIdAsync(int bookingId)

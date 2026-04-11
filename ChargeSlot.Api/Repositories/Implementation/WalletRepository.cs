@@ -1,6 +1,7 @@
 using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Enums;
+using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -99,6 +100,44 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
 
             return (items, totalCount);
+        }
+
+        public async Task<int> AdjustBalanceAtomicAsync(int walletId, decimal availableDelta, decimal frozenDelta)
+        {
+            return await _db.Database.ExecuteSqlRawSafeAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0}, FrozenBalance = FrozenBalance + {1} WHERE Id = {2}",
+                availableDelta, frozenDelta, walletId);
+        }
+
+        public async Task TransferAtomicAsync(int sourceWalletId, int destWalletId, decimal amount)
+        {
+            await _db.Database.ExecuteSqlRawSafeAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1}",
+                amount, sourceWalletId);
+            await _db.Database.ExecuteSqlRawSafeAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
+                amount, destWalletId);
+        }
+
+        public async Task UnfreezeAtomicAsync(int walletId, decimal amount)
+        {
+            await _db.Database.ExecuteSqlRawSafeAsync(
+                "UPDATE Wallet SET FrozenBalance = FrozenBalance - {0}, AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
+                amount, walletId);
+        }
+
+        public async Task<int> DeductIfSufficientAsync(int walletId, decimal amount)
+        {
+            return await _db.Database.ExecuteSqlRawSafeAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1} AND AvailableBalance >= {0}",
+                amount, walletId);
+        }
+
+        public async Task<int> FreezeIfSufficientAsync(int walletId, decimal amount)
+        {
+            return await _db.Database.ExecuteSqlRawSafeAsync(
+                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0}, FrozenBalance = FrozenBalance + {0} WHERE Id = {1} AND AvailableBalance >= {0}",
+                amount, walletId);
         }
     }
 }

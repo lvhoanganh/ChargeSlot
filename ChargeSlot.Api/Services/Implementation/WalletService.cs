@@ -120,19 +120,15 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException(
                     $"Số dư ví không đủ. Cần {booking.TotalAmount:N0} VND, hiện có {wallet.AvailableBalance:N0} VND.");
 
-            // BUG-1 FIX: Atomic SQL update tránh race condition
-            var rowsAffected = await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0} WHERE Id = {1} AND AvailableBalance >= {0}",
-                booking.TotalAmount, wallet.Id);
+            // BUG-1 FIX: Atomic SQL via Repository tránh race condition
+            var rowsAffected = await _walletRepo.DeductIfSufficientAsync(wallet.Id, booking.TotalAmount);
             if (rowsAffected == 0)
                 throw new InvalidOperationException("Số dư ví không đủ hoặc đã bị thay đổi bởi giao dịch khác (Kẹt ví).");
 
-            // Cộng tiền vào ESCROW (Atomic SQL update)
+            // Cộng tiền vào ESCROW (Atomic via Repository)
             var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW") 
                 ?? throw new InvalidOperationException("Ví hệ thống ESCROW chưa được cấu hình. Vui lòng liên hệ Admin.");
-            await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance + {0} WHERE Id = {1}",
-                booking.TotalAmount, escrowWallet.Id);
+            await _walletRepo.AdjustBalanceAtomicAsync(escrowWallet.Id, booking.TotalAmount, 0);
 
             // Ghi ledger: DEBIT từ ví Driver, CREDIT vào ESCROW
             var ledgerTx = new LedgerTransaction
@@ -279,10 +275,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException(
                     $"Số dư không đủ. Hiện có {wallet.AvailableBalance:N0} VND.");
 
-            // Atomic SQL: chống race condition khi rút tiền 2 lần cùng lúc
-            var rowsAffected = await _unitOfWork.ExecuteSqlRawSafeAsync(
-                "UPDATE Wallet SET AvailableBalance = AvailableBalance - {0}, FrozenBalance = FrozenBalance + {0} WHERE Id = {1} AND AvailableBalance >= {0}",
-                dto.Amount, wallet.Id);
+            // Atomic SQL via Repository: chống race condition khi rút tiền 2 lần cùng lúc
+            var rowsAffected = await _walletRepo.FreezeIfSufficientAsync(wallet.Id, dto.Amount);
             if (rowsAffected == 0)
                 throw new InvalidOperationException("Số dư không đủ hoặc đã bị thay đổi bởi giao dịch khác.");
 
@@ -760,7 +754,14 @@ namespace ChargeSlot.Api.Services.Implementation
                     WalletId = e.WalletId,
                     WalletType = e.Wallet?.WalletType.ToString() ?? "Unknown",
                     OwnerName = e.Wallet?.WalletType == Enums.WalletType.System 
-                        ? (e.Wallet.SystemCode == "ESCROW" ? "Hệ thống (Escrow)" : "Hệ thống (Platform Revenue)") 
+                        ? e.Wallet.SystemCode switch
+                        {
+                            "ESCROW" => "Hệ thống (Escrow)",
+                            "PLATFORM_REVENUE" => "Hệ thống (Platform Revenue)",
+                            "TAX_HOLD" => "Hệ thống (Tax Hold)",
+                            "CLEARING" => "Hệ thống (Clearing)",
+                            _ => $"Hệ thống ({e.Wallet.SystemCode})"
+                        }
                         : (e.Wallet?.User?.FullName ?? "N/A"),
                     Direction = e.Direction.ToString(),
                     Amount = e.Amount

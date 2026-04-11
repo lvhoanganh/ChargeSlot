@@ -236,7 +236,6 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IAiInsightsService, GeminiInsightsService>();
-builder.Services.AddScoped<IAiChatbotService, AiChatbotService>();
 
 // Miscellaneous Refactored Services
 builder.Services.AddScoped<IBankAccountRepository, BankAccountRepository>();
