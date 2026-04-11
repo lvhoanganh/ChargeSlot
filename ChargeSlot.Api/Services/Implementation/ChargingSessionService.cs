@@ -95,6 +95,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // 5. Update booking status
             booking.Status = BookingStatus.CheckedIn;
             booking.CheckedInAt = now;
+            booking.UpdatedAt = now;
             _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
 

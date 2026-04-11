@@ -155,14 +155,20 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 var user = await _userManager.FindByIdAsync(ownerUserId.ToString())
                     ?? throw new InvalidOperationException("User not found.");
-                await _ownerRepo.AddAsync(new Owner
+                ownerExists = new Owner
                 {
                     UserId = ownerUserId,
                     BusinessName = user.FullName,
                     TaxCode = "N/A",
                     CreatedAt = DateTimeHelper.VietnamNow()
-                });
+                };
+                await _ownerRepo.AddAsync(ownerExists);
                 await _unitOfWork.CompleteAsync();
+            }
+
+            if (ownerExists.KycStatus != KycStatus.Approved)
+            {
+                throw new InvalidOperationException("Hồ sơ doanh nghiệp chưa được duyệt. Vui lòng xác thực danh tính (KYC) và chờ Admin kiểm duyệt trước khi tạo trạm sạc.");
             }
 
             var station = new ChargingStation

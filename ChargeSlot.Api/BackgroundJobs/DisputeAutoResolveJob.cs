@@ -284,6 +284,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                 ?? throw new InvalidOperationException("ESCROW wallet not found");
             var platformWallet = await walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE")
                 ?? throw new InvalidOperationException("PLATFORM_REVENUE wallet not found");
+            var taxWallet = await walletRepo.GetBySystemCodeAsync("TAX_HOLD")
+                ?? throw new InvalidOperationException("TAX_HOLD wallet not found");
             var ownerWallet = await walletRepo.GetByUserIdAsync(ownerUserId);
 
             if (ownerWallet == null)
@@ -302,10 +304,13 @@ namespace ChargeSlot.Api.BackgroundJobs
             var platformFee = invoice.PlatformFee;
             var vatAmount = invoice.VatAmount;
 
+            // Unfreeze ALL from ESCROW.FrozenBalance
             escrowWallet.FrozenBalance -= (ownerNet + platformFee + vatAmount);
-            escrowWallet.AvailableBalance += vatAmount; // VAT stays in ESCROW AvailableBalance for later tax remittance
+
+            // Distribute: Owner + Platform + TAX_HOLD
             ownerWallet.AvailableBalance += ownerNet;
             platformWallet.AvailableBalance += platformFee;
+            taxWallet.AvailableBalance += vatAmount;
 
             ledgerRepo.Add(new LedgerTransaction
             {
@@ -332,6 +337,23 @@ namespace ChargeSlot.Api.BackgroundJobs
                     new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
                 }
             });
+
+            // VAT → TAX_HOLD
+            if (vatAmount > 0)
+            {
+                ledgerRepo.Add(new LedgerTransaction
+                {
+                    ReferenceType = "TaxHold",
+                    ReferenceId = booking.Id,
+                    Memo = $"Thuế GTGT auto-settle Dispute #{dispute.Id} - {vatAmount:N0}đ",
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = vatAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = taxWallet.Id, Direction = LedgerDirection.Credit, Amount = vatAmount, CreatedAt = now }
+                    }
+                });
+            }
 
             await unitOfWork.CompleteAsync();
         }

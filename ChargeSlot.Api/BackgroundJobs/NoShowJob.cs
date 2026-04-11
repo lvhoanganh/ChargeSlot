@@ -342,7 +342,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         }
 
         // ═══════════════════════════════════════════════════════
-        // SHARED: Settle ESCROW → Owner + Platform
+        // SHARED: Settle ESCROW → Owner + Platform + TAX_HOLD
         // ═══════════════════════════════════════════════════════
         private static async Task SettleToOwnerAsync(IWalletRepository walletRepo, ILedgerTransactionRepository ledgerRepo, IUnitOfWork unitOfWork, Booking booking, int ownerUserId, string referenceType, DateTime now)
         {
@@ -358,6 +358,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                 ?? throw new InvalidOperationException("ESCROW wallet not found");
             var platformWallet = await walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE")
                 ?? throw new InvalidOperationException("PLATFORM_REVENUE wallet not found");
+            var taxWallet = await walletRepo.GetBySystemCodeAsync("TAX_HOLD")
+                ?? throw new InvalidOperationException("TAX_HOLD wallet not found");
             var ownerWallet = await walletRepo.GetByUserIdAsync(ownerUserId);
 
             if (ownerWallet == null)
@@ -374,11 +376,13 @@ namespace ChargeSlot.Api.BackgroundJobs
                 await unitOfWork.CompleteAsync();
             }
 
-            // ESCROW → Owner (net) + Platform (fee) via tracked entities within transaction
-            escrowWallet.AvailableBalance -= (ownerNet + platformFee);
+            // ESCROW → Owner (net) + Platform (fee) + TAX_HOLD (VAT)
+            escrowWallet.AvailableBalance -= (ownerNet + platformFee + vatAmount);
             ownerWallet.AvailableBalance += ownerNet;
             platformWallet.AvailableBalance += platformFee;
+            taxWallet.AvailableBalance += vatAmount;
 
+            // Ledger: Settlement (Owner + Platform)
             ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = referenceType,
@@ -392,6 +396,24 @@ namespace ChargeSlot.Api.BackgroundJobs
                     new() { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
                 }
             });
+
+            // Ledger: VAT → TAX_HOLD
+            if (vatAmount > 0)
+            {
+                ledgerRepo.Add(new LedgerTransaction
+                {
+                    ReferenceType = "TaxHold",
+                    ReferenceId = booking.Id,
+                    Memo = $"Thuế GTGT {referenceType} booking #{booking.Id} - {vatAmount:N0}đ",
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new() { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = vatAmount, CreatedAt = now },
+                        new() { WalletId = taxWallet.Id, Direction = LedgerDirection.Credit, Amount = vatAmount, CreatedAt = now }
+                    }
+                });
+            }
+
             await unitOfWork.CompleteAsync();
         }
     }
