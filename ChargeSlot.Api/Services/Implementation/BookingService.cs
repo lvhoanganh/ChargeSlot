@@ -327,7 +327,10 @@ namespace ChargeSlot.Api.Services.Implementation
                 b.Status = BookingStatus.Rejected;
                 b.RejectionReason = "Slot đã được chấp nhận cho yêu cầu khác có giờ trùng.";
                 _bookingRepo.Update(b);
-            await _unitOfWork.CompleteAsync();
+                await _unitOfWork.CompleteAsync();
+
+                // Hoàn điểm loyalty cho Driver bị auto-reject
+                await RefundLoyaltyPointsAsync(b);
 
                 await _notificationService.SendAsync(
                     b.DriverUserId,
@@ -372,6 +375,9 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.RejectionReason = dto.RejectionReason;
             _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
+
+            // Hoàn điểm loyalty cho Driver (nếu đã dùng khi đặt)
+            await RefundLoyaltyPointsAsync(booking);
 
             // Send notify for Driver → END
             await _notificationService.SendAsync(
