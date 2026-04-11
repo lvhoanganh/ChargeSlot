@@ -73,7 +73,9 @@ namespace ChargeSlot.Api.BackgroundJobs
 
                             await unitOfWork.CompleteAsync();
 
-                            // Loyalty Points (dùng snapshot từ lúc tạo booking)
+                            // Loyalty Points: chỉ tích khi Driver đã check-in (no-show không được điểm)
+                            if (booking.CheckedInAt != null)
+                            {
                             var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
                             var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
                             if (pointsEarned > 0 && booking.Driver != null)
@@ -91,6 +93,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                                 });
                                 await unitOfWork.CompleteAsync();
                             }
+                            } // end CheckedInAt != null
 
                             // Settle payment: ESCROW → Owner + PLATFORM_REVENUE
                             await SettlePaymentAsync(walletRepo, ledgerRepo, unitOfWork, booking, invoice);

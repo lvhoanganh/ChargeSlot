@@ -106,9 +106,6 @@ namespace ChargeSlot.Api.BackgroundJobs
             var bookingRepo = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
             var slotRepo = scope.ServiceProvider.GetRequiredService<IChargingSlotRepository>();
             var invoiceRepo = scope.ServiceProvider.GetRequiredService<IInvoiceRepository>();
-            var walletRepo = scope.ServiceProvider.GetRequiredService<IWalletRepository>();
-            var ledgerRepo = scope.ServiceProvider.GetRequiredService<ILedgerTransactionRepository>();
-            var loyaltyTxRepo = scope.ServiceProvider.GetRequiredService<ILoyaltyTransactionRepository>();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
             var configService = scope.ServiceProvider.GetRequiredService<ISystemConfigService>();
@@ -126,7 +123,9 @@ namespace ChargeSlot.Api.BackgroundJobs
                 using var transaction = await unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    booking.Status = BookingStatus.Completed;
+                    // FIX: Set CompletedPendingInvoice thay vì Completed
+                    // → Cho Driver 24h review/dispute trước khi auto-confirm
+                    booking.Status = BookingStatus.CompletedPendingInvoice;
                     booking.UpdatedAt = now;
                     bookingRepo.Update(booking);
                     await unitOfWork.CompleteAsync();
@@ -138,7 +137,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                         await unitOfWork.CompleteAsync();
                     }
 
-                    // H1 FIX: Tạo Invoice (trước đây bị thiếu)
+                    // Tạo Invoice với PendingConfirm (chờ Driver review)
                     var grossAmount = booking.TotalAmount;
                     var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
                     var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
@@ -154,56 +153,35 @@ namespace ChargeSlot.Api.BackgroundJobs
                         VatAmount = vatAmount,
                         PlatformFee = platformFee,
                         TotalAmount = grossAmount,
-                        Status = InvoiceStatus.Confirmed, // Auto-confirmed (No-Show)
+                        Status = InvoiceStatus.PendingConfirm, // Chờ Driver review 24h
                         CreatedAt = now,
                         UpdatedAt = now
                     };
                     invoiceRepo.Add(invoice);
                     await unitOfWork.CompleteAsync();
 
-                    // H2 FIX: Loyalty Points (dùng snapshot từ lúc tạo booking)
-                    var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
-                    var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
-                    if (pointsEarned > 0 && booking.Driver != null)
-                    {
-                        booking.Driver.LoyaltyPoints += pointsEarned;
-                        booking.PointsEarned = pointsEarned;
-                        loyaltyTxRepo.Add(new LoyaltyTransaction
-                        {
-                            DriverUserId = booking.DriverUserId,
-                            BookingId = booking.Id,
-                            Type = "Earn",
-                            Points = pointsEarned,
-                            Description = $"Tích {pointsEarned:N0} điểm từ booking #{booking.Id} (auto-complete, no-show)",
-                            CreatedAt = now
-                        });
-                        await unitOfWork.CompleteAsync();
-                    }
+                    // Loyalty + Settlement sẽ do ConfirmCompletionAsync hoặc InvoiceAutoConfirmJob xử lý
+
+                    await transaction.CommitAsync();
+
+                    // Notify Driver: cho 24h review/dispute
+                    await notificationService.SendAsync(
+                        booking.DriverUserId,
+                        "Booking chưa check-in — vui lòng xác nhận",
+                        $"Bạn không check-in tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}). Hóa đơn {grossAmount:N0}đ đã được tạo. Bạn có 24h để xác nhận hoặc khiếu nại.",
+                        NotificationType.Booking);
 
                     var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
                     if (ownerUserId.HasValue)
                     {
-                        await SettleToOwnerAsync(walletRepo, ledgerRepo, unitOfWork, booking, ownerUserId.Value, "AutoComplete", now);
-                    }
-
-                    await transaction.CommitAsync();
-
-                    if (ownerUserId.HasValue)
-                    {
                         await notificationService.SendAsync(
                             ownerUserId.Value,
-                            "Booking đã hoàn thành tự động",
-                            $"Booking tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã hoàn thành.",
-                            NotificationType.Payment);
+                            "Driver không check-in",
+                            $"Driver không check-in tại slot {booking.ChargingSlot?.SlotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}). Chờ Driver xác nhận hóa đơn (24h).",
+                            NotificationType.Booking);
                     }
 
-                    await notificationService.SendAsync(
-                        booking.DriverUserId,
-                        "Booking đã hoàn thành",
-                        $"Booking tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) đã tự động hoàn thành.",
-                        NotificationType.Booking);
-
-                    _logger.LogInformation("Booking {BookingId} auto-completed (Paid, no check-in).", booking.Id);
+                    _logger.LogInformation("Booking {BookingId} no-show → CompletedPendingInvoice (Driver has 24h to review/dispute).", booking.Id);
                 }
                 catch (Exception ex)
                 {
@@ -221,9 +199,6 @@ namespace ChargeSlot.Api.BackgroundJobs
             using var scope = _serviceProvider.CreateScope();
             var bookingRepo = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
             var invoiceRepo = scope.ServiceProvider.GetRequiredService<IInvoiceRepository>();
-            var walletRepo = scope.ServiceProvider.GetRequiredService<IWalletRepository>();
-            var ledgerRepo = scope.ServiceProvider.GetRequiredService<ILedgerTransactionRepository>();
-            var loyaltyTxRepo = scope.ServiceProvider.GetRequiredService<ILoyaltyTransactionRepository>();
             var chargingSessionRepo = scope.ServiceProvider.GetRequiredService<IChargingSessionRepository>();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
@@ -251,7 +226,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                         chargingSessionRepo.Update(session);
                     }
 
-                    // 2. Create invoice
+                    // 2. Create invoice with PendingConfirm (chờ Driver review)
                     var grossAmount = booking.TotalAmount;
                     var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
                     var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
@@ -268,14 +243,14 @@ namespace ChargeSlot.Api.BackgroundJobs
                         VatAmount = vatAmount,
                         PlatformFee = platformFee,
                         TotalAmount = grossAmount,
-                        Status = InvoiceStatus.Confirmed, // Auto-confirmed (Owner quên dừng)
+                        Status = InvoiceStatus.PendingConfirm, // Chờ Driver review 24h
                         CreatedAt = now,
                         UpdatedAt = now
                     };
                     invoiceRepo.Add(invoice);
 
-                    // 3. Complete booking
-                    booking.Status = BookingStatus.Completed;
+                    // 3. Set CompletedPendingInvoice (cho Driver 24h review/dispute)
+                    booking.Status = BookingStatus.CompletedPendingInvoice;
                     booking.UpdatedAt = now;
 
                     // 4. Release slot
@@ -287,51 +262,28 @@ namespace ChargeSlot.Api.BackgroundJobs
 
                     await unitOfWork.CompleteAsync();
 
-                    // H2 FIX: Loyalty Points (dùng snapshot từ lúc tạo booking)
-                    var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
-                    var pointsEarned2 = Math.Floor(booking.TotalAmount * earnRate);
-                    if (pointsEarned2 > 0 && booking.Driver != null)
-                    {
-                        booking.Driver.LoyaltyPoints += pointsEarned2;
-                        booking.PointsEarned = pointsEarned2;
-                        loyaltyTxRepo.Add(new LoyaltyTransaction
-                        {
-                            DriverUserId = booking.DriverUserId,
-                            BookingId = booking.Id,
-                            Type = "Earn",
-                            Points = pointsEarned2,
-                            Description = $"Tích {pointsEarned2:N0} điểm từ booking #{booking.Id} (auto-stop overtime)",
-                            CreatedAt = now
-                        });
-                        await unitOfWork.CompleteAsync();
-                    }
-
-                    // 5. Settle payment
-                    var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
-                    if (ownerUserId.HasValue)
-                    {
-                        await SettleToOwnerAsync(walletRepo, ledgerRepo, unitOfWork, booking, ownerUserId.Value, "AutoStopComplete", now);
-                    }
+                    // Loyalty + Settlement sẽ do ConfirmCompletionAsync hoặc InvoiceAutoConfirmJob xử lý
 
                     await transaction.CommitAsync();
 
                     // Notifications (ngoài transaction)
                     await notificationService.SendAsync(
                         booking.DriverUserId,
-                        "Phiên sạc đã kết thúc tự động",
-                        $"Phiên sạc tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã tự động kết thúc vì đã quá thời gian booking.",
+                        "Phiên sạc đã kết thúc tự động — vui lòng xác nhận",
+                        $"Phiên sạc tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã tự động kết thúc. Hóa đơn {grossAmount:N0}đ đã được tạo. Bạn có 24h để xác nhận hoặc khiếu nại.",
                         NotificationType.Booking);
 
+                    var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
                     if (ownerUserId.HasValue)
                     {
                         await notificationService.SendAsync(
                             ownerUserId.Value,
                             "Phiên sạc đã kết thúc tự động",
-                            $"Phiên sạc tại slot {booking.ChargingSlot?.SlotName} đã tự động kết thúc (quá thời gian). Tiền đã settle vào ví của bạn.",
+                            $"Phiên sạc tại slot {booking.ChargingSlot?.SlotName} đã tự động kết thúc (quá thời gian). Chờ Driver xác nhận hóa đơn (24h).",
                             NotificationType.Payment);
                     }
 
-                    _logger.LogInformation("Booking {BookingId} auto-stopped (CheckedIn overtime).", booking.Id);
+                    _logger.LogInformation("Booking {BookingId} auto-stopped overtime → CompletedPendingInvoice (Driver has 24h to review/dispute).", booking.Id);
                 }
                 catch (Exception ex)
                 {
@@ -341,80 +293,5 @@ namespace ChargeSlot.Api.BackgroundJobs
             }
         }
 
-        // ═══════════════════════════════════════════════════════
-        // SHARED: Settle ESCROW → Owner + Platform + TAX_HOLD
-        // ═══════════════════════════════════════════════════════
-        private static async Task SettleToOwnerAsync(IWalletRepository walletRepo, ILedgerTransactionRepository ledgerRepo, IUnitOfWork unitOfWork, Booking booking, int ownerUserId, string referenceType, DateTime now)
-        {
-            var grossAmount = booking.TotalAmount;
-            var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
-            var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
-
-            var vatAmount = Math.Round(grossAmount * vatRate, 0);
-            var platformFee = Math.Round(grossAmount * platformFeeRate, 0);
-            var ownerNet = grossAmount - vatAmount - platformFee;
-
-            var escrowWallet = await walletRepo.GetBySystemCodeAsync("ESCROW")
-                ?? throw new InvalidOperationException("ESCROW wallet not found");
-            var platformWallet = await walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE")
-                ?? throw new InvalidOperationException("PLATFORM_REVENUE wallet not found");
-            var taxWallet = await walletRepo.GetBySystemCodeAsync("TAX_HOLD")
-                ?? throw new InvalidOperationException("TAX_HOLD wallet not found");
-            var ownerWallet = await walletRepo.GetByUserIdAsync(ownerUserId);
-
-            if (ownerWallet == null)
-            {
-                ownerWallet = new Wallet
-                {
-                    UserId = ownerUserId,
-                    WalletType = WalletType.Owner,
-                    AvailableBalance = 0,
-                    FrozenBalance = 0,
-                    CreatedAt = now
-                };
-                walletRepo.Add(ownerWallet);
-                await unitOfWork.CompleteAsync();
-            }
-
-            // ESCROW → Owner (net) + Platform (fee) + TAX_HOLD (VAT)
-            escrowWallet.AvailableBalance -= (ownerNet + platformFee + vatAmount);
-            ownerWallet.AvailableBalance += ownerNet;
-            platformWallet.AvailableBalance += platformFee;
-            taxWallet.AvailableBalance += vatAmount;
-
-            // Ledger: Settlement (Owner + Platform)
-            ledgerRepo.Add(new LedgerTransaction
-            {
-                ReferenceType = referenceType,
-                ReferenceId = booking.Id,
-                Memo = $"{referenceType} booking #{booking.Id} — Owner nhận {ownerNet:N0}đ, phí nền tảng {platformFee:N0}đ",
-                CreatedAt = now,
-                Entries = new List<LedgerEntry>
-                {
-                    new() { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = ownerNet + platformFee, CreatedAt = now },
-                    new() { WalletId = ownerWallet.Id, Direction = LedgerDirection.Credit, Amount = ownerNet, CreatedAt = now },
-                    new() { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
-                }
-            });
-
-            // Ledger: VAT → TAX_HOLD
-            if (vatAmount > 0)
-            {
-                ledgerRepo.Add(new LedgerTransaction
-                {
-                    ReferenceType = "TaxHold",
-                    ReferenceId = booking.Id,
-                    Memo = $"Thuế GTGT {referenceType} booking #{booking.Id} - {vatAmount:N0}đ",
-                    CreatedAt = now,
-                    Entries = new List<LedgerEntry>
-                    {
-                        new() { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = vatAmount, CreatedAt = now },
-                        new() { WalletId = taxWallet.Id, Direction = LedgerDirection.Credit, Amount = vatAmount, CreatedAt = now }
-                    }
-                });
-            }
-
-            await unitOfWork.CompleteAsync();
-        }
     }
 }

@@ -293,7 +293,9 @@ namespace ChargeSlot.Api.Services.Implementation
                 _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
 
-                // ── LOYALTY POINTS: tích điểm (dùng snapshot từ lúc tạo booking) ──
+                // ── LOYALTY POINTS: chỉ tích điểm khi Driver đã check-in (no-show không được điểm) ──
+                if (booking.CheckedInAt != null)
+                {
                 var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
                 var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
 
@@ -319,6 +321,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         await _unitOfWork.CompleteAsync();
                     }
                 }
+                } // end CheckedInAt != null
 
                 // ── WALLET SETTLEMENT ──
                 if (invoice != null)
