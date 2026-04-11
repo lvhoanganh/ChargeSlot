@@ -138,6 +138,21 @@ export default function ForgotPassword() {
 
     setIsLoading(true);
     try {
+      // ── Bước 1: Kiểm tra SĐT có tồn tại trong hệ thống không ──
+      // Gọi trước Firebase để tránh lãng phí OTP khi SĐT không đăng ký
+      try {
+        const checkResult = await authApi.checkPhone(phone);
+        if (!checkResult?.exists) {
+          showToast.error("Số điện thoại này chưa được đăng ký trong hệ thống. Vui lòng kiểm tra lại!");
+          setIsLoading(false);
+          return;
+        }
+      } catch (checkErr) {
+        // Nếu endpoint check-phone lỗi (404, 500...) → vẫn tiến hành để không block UX
+        console.warn("checkPhone API lỗi, bỏ qua:", checkErr.message);
+      }
+
+      // ── Bước 2: Gửi OTP qua Firebase (SĐT đã xác nhận tồn tại) ──
       const appVerifier = window.recaptchaVerifier;
       const result = await signInWithPhoneNumber(auth, phone, appVerifier);
       setConfirmationResult(result);

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Navigate } from "react-router-dom";
 import { ToastContainer } from "./components/Toast";
 import { ConfirmDialogContainer } from "./components/ConfirmDialog";
 
@@ -81,7 +81,6 @@ const OwnerWallet = lazy(() => import("./pages/owner/OwnerWallet"));
 const OwnerReviews = lazy(() => import("./pages/owner/OwnerReviews"));
 const OwnerExtraServices = lazy(() => import("./pages/owner/OwnerExtraServices"));
 const OwnerDashboard = lazy(() => import("./pages/owner/OwnerDashboard"));
-const OwnerAnalytics = lazy(() => import("./pages/owner/OwnerAnalytics"));
 
 // Loading fallback
 const PageLoader = () => (
@@ -247,7 +246,7 @@ export default function App() {
                 <Route path="chat/:bookingId" element={<ChatPage />} />
                 <Route path="change-password" element={<ChangePassword />} />
                 <Route path="dashboard" element={<OwnerDashboard />} />
-                <Route path="analytics" element={<OwnerAnalytics />} />
+                <Route path="analytics" element={<Navigate to="/owner/dashboard" replace />} />
               </Route>
             </Route>
 

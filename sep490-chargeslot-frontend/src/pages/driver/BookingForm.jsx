@@ -255,11 +255,13 @@ export default function BookingForm() {
     return "";
   })();
 
-  // Kiểm tra khung giờ hiện tại có tiếr giá hợp lệ không
+  // Kiểm tra khung giờ hiện tại có tier giá hợp lệ không
+  // Trả về true khi: (1) owner chưa tạo tier nào, hoặc (2) giờ chọn nằm trong tier có pricePerHour = 0
   const hasNoPriceForTime = (() => {
     if (!station || !startHHMM) return false;
     const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
-    if (tiers.length === 0) return false; // không có tier nào → không chặn (bản thân ko có giá)
+    // Chưa có tier nào → owner chưa cấu hình giá → chặn đặt lịch
+    if (tiers.length === 0) return true;
     const toMin = (str) => {
       if (!str) return 0;
       const [h, m] = String(str).split(':');
@@ -907,8 +909,16 @@ export default function BookingForm() {
                   <div style={{ background: "#fffbeb", color: "#92400e", padding: "12px 16px", borderRadius: 14, fontSize: 13, marginBottom: 12, border: "1px solid #fde68a", display: "flex", alignItems: "flex-start", gap: 8 }}>
                     <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
                     <div>
-                      <div style={{ fontWeight: 700, marginBottom: 2 }}>Khung giờ này chưa được thiết lập giá</div>
-                      <div style={{ fontSize: 12, color: "#a16207" }}>Vui lòng chọn khung giờ khác hoặc quay lại sau khi chủ trạm cập nhật giá.</div>
+                      <div style={{ fontWeight: 700, marginBottom: 2 }}>
+                        {(station?.pricingTiers || []).filter(t => t.isActive !== false).length === 0
+                          ? "Trạm sạc chưa được thiết lập giá"
+                          : "Khung giờ này chưa được thiết lập giá"}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#a16207" }}>
+                        {(station?.pricingTiers || []).filter(t => t.isActive !== false).length === 0
+                          ? "Chủ trạm chưa cấu hình bảng giá. Vui lòng quay lại sau khi chủ trạm cập nhật."
+                          : "Vui lòng chọn khung giờ khác hoặc quay lại sau khi chủ trạm cập nhật giá."}
+                      </div>
                     </div>
                   </div>
                 )}

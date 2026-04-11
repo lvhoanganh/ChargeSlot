@@ -144,25 +144,20 @@ export default function ChargingActive() {
         if (updated.earlyEndRequestedAt) setEarlyEndRequested(true);
 
         // Nếu đã Completed/actualEndTime → navigate
-        if (updated.actualEndTime || updated.bookingStatus === "Completed") {
+        if (updated.actualEndTime && updated.bookingStatus === "Completed") {
           localStorage.removeItem(lsKey);
           navigate("/driver/charging-complete", { state: { session: updated } });
           return;
         }
 
-        // Khi hết giờ: nếu BE đã chuyển sang CompletedPendingInvoice → tự động confirm
+        // Khi hết giờ: nếu BE đã chuyển sang CompletedPendingInvoice → chuyển qua BookingStatus để confirm thủ công
         if (updated.bookingStatus === "CompletedPendingInvoice" && !autoConfirmTriggeredRef.current) {
           autoConfirmTriggeredRef.current = true;
           setAutoCompleting(true);
-          try {
-            await chargingApi.confirmCompletion(updated.id);
-            localStorage.removeItem(lsKey);
-            navigate("/driver/charging-complete", { state: { session: { ...updated, bookingStatus: "Completed" } } });
-          } catch (err) {
-            // Nếu auto-confirm lỗi → vẫn cho driver bấm tay
-            autoConfirmTriggeredRef.current = false;
-            setAutoCompleting(false);
-          }
+          setTimeout(() => {
+             localStorage.removeItem(lsKey);
+             navigate(`/driver/booking/${updated.bookingId}`);
+          }, 1500);
         }
       } catch { /* ignore poll errors */ }
     }
@@ -388,22 +383,21 @@ export default function ChargingActive() {
           </button>
         )}
 
-        {/* Nút Hoàn thành thủ công: chỉ hiện khi BE = CompletedPendingInvoice và chưa auto-confirm */}
         {sessionData.bookingStatus === "CompletedPendingInvoice" && !autoCompleting ? (
           <div>
-            <div className="mb-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">
-              <p className="text-sm font-semibold text-green-700">✅ Phiên sạc đã kết thúc!</p>
-              <p className="text-xs text-green-600 mt-0.5">Đang tự động xác nhận và tạo hóa đơn...</p>
+            <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
+              <p className="text-sm font-semibold text-amber-700">🧾 Phiên sạc đã kết thúc!</p>
+              <p className="text-xs text-amber-600 mt-0.5">Vui lòng kiểm tra và xác nhận hóa đơn...</p>
             </div>
-            <div className="w-full h-14 bg-green-100 rounded-xl flex items-center justify-center gap-2">
-              <div className="w-5 h-5 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
-              <span className="text-sm text-green-700 font-semibold">Đang xử lý thanh toán...</span>
+            <div className="w-full h-14 bg-amber-100 rounded-xl flex items-center justify-center gap-2">
+              <div className="w-5 h-5 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" />
+              <span className="text-sm text-amber-700 font-semibold">Đang chuyển sang trang thanh toán...</span>
             </div>
           </div>
         ) : autoCompleting ? (
-          <div className="w-full h-14 bg-green-100 rounded-xl flex items-center justify-center gap-2">
-            <div className="w-5 h-5 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
-            <span className="text-sm text-green-700 font-semibold">Đang hoàn tất phiên sạc...</span>
+          <div className="w-full h-14 bg-amber-100 rounded-xl flex items-center justify-center gap-2">
+            <div className="w-5 h-5 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" />
+            <span className="text-sm text-amber-700 font-semibold">Đang chuyển sang trang xác nhận...</span>
           </div>
         ) : !earlyEndRequested ? (
           <div className="w-full h-14 bg-gray-100 rounded-xl flex items-center justify-center gap-2">
