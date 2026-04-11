@@ -9,8 +9,8 @@ namespace ChargeSlot.Api.BackgroundJobs
     /// <summary>
     /// Xử lý 3 trường hợp overdue:
     /// 1. WaitingOwner > 30 phút → auto-expire (Owner không phản hồi)
-    /// 2. Paid quá EndTime + 30 phút → auto-complete + settle (No-Show)
-    /// 3. CheckedIn quá EndTime + 30 phút → auto-stop + invoice + settle (Owner quên dừng)
+    /// 2. Paid quá EndTime + 30 phút → CompletedPendingInvoice (cho Driver 24h dispute, no-show)
+    /// 3. CheckedIn quá EndTime → auto-stop + CompletedPendingInvoice (giải phóng slot ngay)
     /// Chạy mỗi 60 giây.
     /// </summary>
     public class NoShowJob : BackgroundService
@@ -98,7 +98,8 @@ namespace ChargeSlot.Api.BackgroundJobs
         }
 
         // ═══════════════════════════════════════════════════════
-        // 2. Paid quá EndTime + 30 phút → Auto-complete + settle
+        // 2. Paid quá EndTime + 30 phút → CompletedPendingInvoice (No-Show)
+        //    Driver có 24h để review/dispute trước khi auto-confirm
         // ═══════════════════════════════════════════════════════
         private async Task ProcessPaidNoShowAsync()
         {
@@ -192,7 +193,8 @@ namespace ChargeSlot.Api.BackgroundJobs
         }
 
         // ═══════════════════════════════════════════════════════
-        // 3. CheckedIn quá EndTime + 30 phút → Auto-stop + invoice + settle
+        // 3. CheckedIn quá EndTime → Auto-stop + invoice (giải phóng slot ngay)
+        //    Không chờ 30 phút — hết giờ là xử lý luôn
         // ═══════════════════════════════════════════════════════
         private async Task ProcessCheckedInOvertimeAsync()
         {
@@ -202,13 +204,10 @@ namespace ChargeSlot.Api.BackgroundJobs
             var chargingSessionRepo = scope.ServiceProvider.GetRequiredService<IChargingSessionRepository>();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
-            var configService = scope.ServiceProvider.GetRequiredService<ISystemConfigService>();
 
-            var configs = await configService.GetCurrentConfigsAsync();
-            var graceTime = configs.NoShow_Grace_Minutes;
-
+            // Không chờ grace period — hết EndTime là auto-stop + giải phóng slot ngay
             var now = DateTimeHelper.VietnamNow();
-            var cutoff = now.AddMinutes(-graceTime);
+            var cutoff = now; // EndTime < now → hết giờ là xử lý luôn
 
             var overtimeBookings = await bookingRepo.GetCheckedInOvertimeAsync(cutoff);
 
