@@ -474,368 +474,449 @@ export default function BookingForm() {
   })();
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90 }}>
-      <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px 40px" }}>
-        <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 14, marginBottom: 12, display: "flex", alignItems: "center", gap: 4 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-          Quay lại
-        </button>
+    <div style={{ minHeight: "100vh", background: "#f0f4f8", paddingTop: 80 }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "0 24px 48px" }}>
 
-        <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 24 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1e293b", marginBottom: 4 }}>Đặt lịch sạc</h1>
-          <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>📍 {station.name} — {station.address}</p>
+        {/* Header */}
+        <div style={{ marginBottom: 20 }}>
+          <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 14, marginBottom: 10, display: "flex", alignItems: "center", gap: 4 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+            Quay lại
+          </button>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: "#1e293b", margin: 0 }}>Đặt lịch sạc</h1>
+          <p style={{ fontSize: 14, color: "#64748b", marginTop: 4 }}>📍 {station.name} — {station.address}</p>
+        </div>
 
-          <form onSubmit={handleSubmit}>
-            {/* Slot selection */}
-            <label style={labelStyle}>Chọn slot sạc</label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8, marginBottom: 20 }}>
-              {slots.map((slot) => {
-                const isActive = slot.status === "Active" || slot.status === "Available";
-                const isOccupied = slot.status === "Occupied";
-                const isSelected = selectedSlot === slot.id;
-                const canSelect = isActive || slot.status === "Booked";
-                const statusLabel = isOccupied ? "Đang dùng" : isActive ? "Sẵn sàng" : slot.status === "Booked" ? "Có lịch đặt" : slot.status === "Inactive" ? "Ngưng" : slot.status === "Maintenance" ? "Bảo trì" : slot.status;
-                const statusColor = isOccupied ? "#ef4444" : isActive ? "#22c55e" : slot.status === "Booked" ? "#f59e0b" : "#6b7280";
-                return (
-                  <button type="button" key={slot.id} disabled={!canSelect} onClick={() => setSelectedSlot(slot.id)}
-                    style={{
-                      padding: "12px 10px", borderRadius: 12,
-                      border: isSelected ? "2px solid #f97316" : isOccupied ? "2px solid #fca5a5" : "2px solid #e5e7eb",
-                      background: isSelected ? "#fff7ed" : isOccupied ? "#fef2f2" : !canSelect ? "#f3f4f6" : "#fff",
-                      cursor: canSelect ? "pointer" : "not-allowed", opacity: canSelect ? 1 : 0.75, textAlign: "center",
-                      position: "relative",
-                    }}>
-                    {isOccupied && (
-                      <span style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block", animation: "ping 1s cubic-bezier(0,0,0.2,1) infinite" }} />
-                    )}
-                    <div style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{slot.slotName}</div>
-                    <div style={{ fontSize: 11, color: statusColor, marginTop: 2, fontWeight: 600 }}>
-                      {isOccupied ? "⚡ " : ""}{statusLabel}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+        <form onSubmit={handleSubmit}>
+          {/* ===== 2-COLUMN LAYOUT ===== */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 24, alignItems: "start" }}>
 
+            {/* ========== CỘT TRÁI ========== */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-            {/* Pricing tiers */}
-            {selectedSlot && (() => {
-              const tiers = (station?.pricingTiers || []).filter(t => t.isActive !== false);
-              if (tiers.length === 0) return null;
-              return (
-                <div style={{ background: "#fffbeb", borderRadius: 10, padding: "10px 14px", marginBottom: 20, border: "1px solid #fde68a" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>⏰ Giá theo khung giờ — {station.name}</div>
-                  {tiers.map((tier, idx) => (
-                    <div key={idx} style={{ fontSize: 12, color: "#78350f", display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                      <span>{String(tier.startTime).substring(0, 5)} – {String(tier.endTime).substring(0, 5)}</span>
-                      <span style={{ fontWeight: 700, color: "#d97706" }}>{tier.pricePerHour?.toLocaleString("vi-VN")}đ/h</span>
-                    </div>
-                  ))}
+              {/* Slot selection */}
+              <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 24 }}>
+                <label style={labelStyle}>Chọn slot sạc</label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
+                  {slots.map((slot) => {
+                    const isActive = slot.status === "Active" || slot.status === "Available";
+                    const isOccupied = slot.status === "Occupied";
+                    const isSelected = selectedSlot === slot.id;
+                    const canSelect = isActive || slot.status === "Booked";
+                    const statusLabel = isOccupied ? "Đang dùng" : isActive ? "Sẵn sàng" : slot.status === "Booked" ? "Có lịch đặt" : slot.status === "Inactive" ? "Ngưng" : slot.status === "Maintenance" ? "Bảo trì" : slot.status;
+                    const statusColor = isOccupied ? "#ef4444" : isActive ? "#22c55e" : slot.status === "Booked" ? "#f59e0b" : "#6b7280";
+                    return (
+                      <button type="button" key={slot.id} disabled={!canSelect} onClick={() => setSelectedSlot(slot.id)}
+                        style={{
+                          padding: "12px 10px", borderRadius: 12,
+                          border: isSelected ? "2px solid #f97316" : isOccupied ? "2px solid #fca5a5" : "2px solid #e5e7eb",
+                          background: isSelected ? "#fff7ed" : isOccupied ? "#fef2f2" : !canSelect ? "#f3f4f6" : "#fff",
+                          cursor: canSelect ? "pointer" : "not-allowed", opacity: canSelect ? 1 : 0.75, textAlign: "center",
+                          position: "relative",
+                        }}>
+                        {isOccupied && (
+                          <span style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block", animation: "ping 1s cubic-bezier(0,0,0.2,1) infinite" }} />
+                        )}
+                        <div style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{slot.slotName}</div>
+                        <div style={{ fontSize: 11, color: statusColor, marginTop: 2, fontWeight: 600 }}>
+                          {isOccupied ? "⚡ " : ""}{statusLabel}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-              );
-            })()}
+              </div>
 
-            {/* ===== KHUNG GIỜ ĐÃ ĐẶT — hiện ngay sau khi chọn slot ===== */}
-            {selectedSlot && (
-              bookedRanges.length > 0 ? (
-                <div style={{ background: "#fef3c7", borderRadius: 12, padding: "12px 14px", marginBottom: 20, border: "1px solid #fde68a" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                    🔒 Khung giờ đã được đặt ngày {selectedDate ? selectedDate.split("-").reverse().join("/") : "hôm nay"} — vui lòng chọn giờ khác
+              {/* Pricing tiers */}
+              {selectedSlot && (() => {
+                const tiers = (station?.pricingTiers || []).filter(t => t.isActive !== false);
+                if (tiers.length === 0) return null;
+                return (
+                  <div style={{ background: "#fffbeb", borderRadius: 16, padding: "14px 18px", border: "1px solid #fde68a" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 8 }}>⏰ Giá theo khung giờ — {station.name}</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 6 }}>
+                      {tiers.map((tier, idx) => (
+                        <div key={idx} style={{ fontSize: 12, color: "#78350f", display: "flex", justifyContent: "space-between", background: "#fff8e1", borderRadius: 8, padding: "5px 10px" }}>
+                          <span>{String(tier.startTime).substring(0, 5)} – {String(tier.endTime).substring(0, 5)}</span>
+                          <span style={{ fontWeight: 700, color: "#d97706" }}>{tier.pricePerHour?.toLocaleString("vi-VN")}đ/h</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                    {bookedRanges.map((r, idx) => {
-                      const parseVN = (t) => {
+                );
+              })()}
+
+              {/* Khung giờ đã đặt */}
+              {selectedSlot && (
+                bookedRanges.length > 0 ? (
+                  <div style={{ background: "#fef3c7", borderRadius: 16, padding: "14px 18px", border: "1px solid #fde68a" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                      🔒 Khung giờ đã được đặt ngày {selectedDate ? selectedDate.split("-").reverse().join("/") : "hôm nay"} — vui lòng chọn giờ khác
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      {bookedRanges.map((r, idx) => {
+                        const parseVN = (t) => {
+                          if (typeof t === "string" && !t.includes("T")) {
+                            const [h,m] = t.split(":");
+                            const d = new Date(); d.setHours(h, m, 0, 0); return d;
+                          }
+                          return new Date(String(t).replace("Z", ""));
+                        };
+                        const start = parseVN(r.startTime);
+                        const end = parseVN(r.endTime);
+                        const fmtT = (d) => d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
+                        const statusLabel =
+                          r.status === "Paid" ? "Đã thanh toán" :
+                            r.status === "Confirmed" ? "Đã xác nhận" :
+                              r.status === "PendingPayment" ? "Chờ thanh toán" :
+                                r.status === "WaitingOwner" ? "Chờ duyệt" :
+                                  r.status === "CheckedIn" ? "Đã check-in" :
+                                    r.status === "InProgress" || r.status === "Charging" ? "Đang sạc" :
+                                      r.status === "Completed" ? "Hoàn thành" : r.status;
+                        return (
+                          <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderRadius: 8, padding: "7px 12px", border: "1px solid #fde68a" }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>🔴 {fmtT(start)} – {fmtT(end)}</span>
+                            <span style={{ fontSize: 11, color: "#b45309", background: "#fef9c3", padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>{statusLabel}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ background: "#f0fdf4", borderRadius: 14, padding: "10px 14px", border: "1px solid #bbf7d0", fontSize: 12, color: "#166534", fontWeight: 600 }}>
+                    📅 Chưa thấy lịch đặt ngày {selectedDate ? selectedDate.split("-").reverse().join("/") : "hôm nay"} — kiểm tra kỹ giờ trước khi đặt.
+                  </div>
+                )
+              )}
+
+              {/* Date picker */}
+              <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 24 }}>
+                <label style={labelStyle}>Chọn ngày</label>
+                <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6 }}>
+                  {Array.from({ length: 7 }, (_, i) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + i);
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, "0");
+                    const dd2 = String(d.getDate()).padStart(2, "0");
+                    const dateStr = `${yyyy}-${mm}-${dd2}`;
+                    const isSel = selectedDate === dateStr;
+                    const DAY_NAMES = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+                    const label = i === 0 ? "Hôm nay" : i === 1 ? "Ngày mai" : DAY_NAMES[d.getDay()];
+                    return (
+                      <button key={dateStr} type="button" onClick={() => setSelectedDate(dateStr)} style={{
+                        flexShrink: 0, minWidth: 68, padding: "8px 10px", borderRadius: 14,
+                        border: isSel ? "2px solid #f97316" : "1.5px solid #e5e7eb",
+                        background: isSel ? "linear-gradient(135deg,#fff7ed,#ffedd5)" : "#fff",
+                        color: isSel ? "#ea580c" : "#374151",
+                        cursor: "pointer", textAlign: "center",
+                        boxShadow: isSel ? "0 2px 8px rgba(249,115,22,0.2)" : "none",
+                        transition: "all 0.15s",
+                      }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: isSel ? "#ea580c" : "#94a3b8" }}>{label}</div>
+                        <div style={{ fontSize: 15, fontWeight: 800 }}>{dd2}/{mm}</div>
+                      </button>
+                    );
+                  })}
+
+                  {/* ===== Nút "Ngày khác" — date picker ẩn ===== */}
+                  {(() => {
+                    let isCustomActive = false;
+                    let customSelDate = null;
+                    if (selectedDate) {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const sel = new Date(selectedDate);
+                      sel.setHours(0, 0, 0, 0);
+                      const diffDays = Math.round((sel - today) / (1000 * 60 * 60 * 24));
+                      if (diffDays < 0 || diffDays >= 7) {
+                        isCustomActive = true;
+                        customSelDate = sel;
+                      }
+                    }
+                    return (
+                      <div style={{
+                        position: "relative", flexShrink: 0, minWidth: 68,
+                        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                        padding: "8px 10px", borderRadius: 14,
+                        border: isCustomActive ? "2px solid #f97316" : "1.5px dashed #cbd5e1",
+                        background: isCustomActive ? "linear-gradient(135deg,#fff7ed,#ffedd5)" : "#f8fafc",
+                        cursor: "pointer", transition: "all 0.15s",
+                        boxShadow: isCustomActive ? "0 2px 8px rgba(249,115,22,0.2)" : "none",
+                      }}>
+                        <input
+                          type="date"
+                          min={new Date().toISOString().split("T")[0]}
+                          value={isCustomActive && customSelDate ? selectedDate : ""}
+                          onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                          onChange={(e) => { if (e.target.value) setSelectedDate(e.target.value); }}
+                          style={{
+                            position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+                            opacity: 0, cursor: "pointer", width: "100%", height: "100%",
+                          }}
+                        />
+                        {isCustomActive && customSelDate ? (
+                          <>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: "#ea580c" }}>Đã chọn</div>
+                            <div style={{ fontSize: 15, fontWeight: 800, color: "#ea580c" }}>
+                              {String(customSelDate.getDate()).padStart(2, "0")}/{String(customSelDate.getMonth() + 1).padStart(2, "0")}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" style={{ marginBottom: 2 }}>
+                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                              <line x1="16" y1="2" x2="16" y2="6"/>
+                              <line x1="8" y1="2" x2="8" y2="6"/>
+                              <line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: "#64748b" }}>Ngày khác</div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Time + Timeline */}
+              <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 24 }}>
+                <label style={labelStyle}>Giờ bắt đầu — Thời lượng sạc</label>
+
+                {selectedDate && (
+                  <div style={{ position: "relative", height: 44, borderRadius: 12, overflow: "hidden", background: "#f1f5f9", border: "1.5px solid #e2e8f0", marginBottom: 14 }}>
+                    {[0, 6, 12, 18, 24].map(h => (
+                      <div key={h} style={{ position: "absolute", left: `${(h / 24) * 100}%`, top: 0, bottom: 0, borderLeft: "1px dashed #cbd5e1", display: "flex", alignItems: "flex-end", paddingBottom: 2 }}>
+                        <span style={{ fontSize: 9, color: "#94a3b8", marginLeft: 2 }}>{String(h).padStart(2, "0")}:00</span>
+                      </div>
+                    ))}
+                    {bookedRanges.map((r, i) => {
+                      const parseT = (t) => {
                         if (typeof t === "string" && !t.includes("T")) {
                           const [h,m] = t.split(":");
-                          const d = new Date(); d.setHours(h, m, 0, 0); return d;
+                          return parseInt(h) * 60 + parseInt(m);
                         }
-                        return new Date(String(t).replace("Z", ""));
+                        const d = new Date(String(t).replace("Z", ""));
+                        return d.getHours() * 60 + d.getMinutes();
                       };
-                      const start = parseVN(r.startTime);
-                      const end = parseVN(r.endTime);
-                      const fmtT = (d) => d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
-                      const statusLabel =
-                        r.status === "Paid" ? "Đã thanh toán" :
-                          r.status === "Confirmed" ? "Đã xác nhận" :
-                            r.status === "PendingPayment" ? "Chờ thanh toán" :
-                              r.status === "WaitingOwner" ? "Chờ duyệt" :
-                                r.status === "CheckedIn" ? "Đã check-in" :
-                                  r.status === "InProgress" || r.status === "Charging" ? "Đang sạc" :
-                                    r.status === "Completed" ? "Hoàn thành" : r.status;
+                      const sMin = parseT(r.startTime);
+                      const eMin = Math.min(parseT(r.endTime), 24 * 60);
+                      if (eMin <= sMin) return null;
                       return (
-                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderRadius: 8, padding: "7px 12px", border: "1px solid #fde68a" }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>🔴 {fmtT(start)} – {fmtT(end)}</span>
-                          <span style={{ fontSize: 11, color: "#b45309", background: "#fef9c3", padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>{statusLabel}</span>
+                        <div key={i} title={`${String(r.startTime).slice(11, 16)} – ${String(r.endTime).slice(11, 16)}: ${r.status}`} style={{
+                          position: "absolute", top: 4, bottom: 4,
+                          left: `${(sMin / 1440) * 100}%`, width: `${((eMin - sMin) / 1440) * 100}%`,
+                          background: "rgba(239,68,68,0.7)", borderRadius: 4,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          <span style={{ fontSize: 8, color: "#fff", fontWeight: 700 }}>🔒</span>
+                        </div>
+                      );
+                    })}
+                    {startHHMM && (() => {
+                      const [sh, sm] = startHHMM.split(":").map(Number);
+                      const sMin = sh * 60 + sm, eMin = sMin + duration * 60;
+                      if (eMin <= sMin) return null;
+                      return (
+                        <div style={{
+                          position: "absolute", top: 4, bottom: 4,
+                          left: `${(sMin / 1440) * 100}%`, width: `${((eMin - sMin) / 1440) * 100}%`,
+                          background: hasConflict ? "rgba(239,68,68,0.5)" : "rgba(249,115,22,0.75)", borderRadius: 4,
+                        }} />
+                      );
+                    })()}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: 16, alignItems: "flex-end" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>Giờ bắt đầu:</div>
+                    <TimePicker24h value={startHHMM} onChange={setStartHHMM} className="w-full text-center" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>Dự kiến sạc:</div>
+                    <div style={{ display: "flex", alignItems: "center", background: "#f8fafc", borderRadius: 10, border: "1.5px solid #e5e7eb", overflow: "hidden", height: 42 }}>
+                      <button type="button" onClick={() => setDuration(d => Math.max(0.5, d - 0.5))}
+                        style={{ width: 44, height: 42, background: "#fff", border: "none", cursor: "pointer", fontSize: 20, color: duration > 0.5 ? "#ea580c" : "#cbd5e1", borderRight: "1px solid #e5e7eb", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        disabled={duration <= 0.5}>−</button>
+                      <div style={{ flex: 1, textAlign: "center", fontSize: 14, fontWeight: 700, color: "#1e293b", userSelect: "none" }}>
+                        {duration} giờ {duration === 0.5 ? <span style={{fontSize: 11, fontWeight: 600, color: "#94a3b8"}}>(30p)</span> : ""}
+                      </div>
+                      <button type="button" onClick={() => setDuration(d => Math.min(maxAvailDuration, d + 0.5))}
+                        style={{ width: 44, height: 42, background: "#fff", border: "none", cursor: "pointer", fontSize: 20, color: (duration + 0.5) <= maxAvailDuration ? "#ea580c" : "#cbd5e1", borderLeft: "1px solid #e5e7eb", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        disabled={(duration + 0.5) > maxAvailDuration}>+</button>
+                    </div>
+                  </div>
+                </div>
+
+                {duration >= maxAvailDuration && maxAvailDuration < 24 && (
+                  <div style={{ marginTop: 10, fontSize: 12, color: "#d97706", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>⏳</span> Bạn đã đạt mốc thời lượng sạc giới hạn (do trạm đóng cửa hoặc có lịch đặt tiếp theo).
+                  </div>
+                )}
+                {startHHMM && hasConflict && (
+                  <div style={{ marginTop: 12, fontSize: 13, color: "#ef4444", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>🔒</span> Giờ bắt đầu hoặc thời lượng sạc trùng vào lịch đã đặt. Vui lòng giảm thời lượng hoặc chọn lúc khác!
+                  </div>
+                )}
+              </div>
+
+              {timeError && (
+                <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px 14px", borderRadius: 10, fontSize: 13, border: "1px solid #fecaca" }}>
+                  {timeError}
+                </div>
+              )}
+
+            </div>
+            {/* ========== KẾT THÚC CỘT TRÁI ========== */}
+
+            {/* ========== CỘT PHẢI ========== */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+              {/* Ghi chú */}
+              <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 24 }}>
+                <label style={labelStyle}>Ghi chú (tùy chọn)</label>
+                <textarea value={note} onChange={(e) => setNote(e.target.value)}
+                  placeholder="Ghi chú cho chủ trạm..."
+                  rows={3} style={{ ...inputStyle, resize: "vertical", marginBottom: 0 }} />
+              </div>
+
+              {/* Extra Services */}
+              {station.extraServices && station.extraServices.filter(es => es.isActive).length > 0 && (
+                <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 24 }}>
+                  <label style={labelStyle}>Dịch vụ bổ sung (tùy chọn)</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {station.extraServices.filter(es => es.isActive).map(es => {
+                      const qty = selectedExtras[es.id] || 0;
+                      const maxQty = es.totalStock != null ? Math.min(10, es.totalStock) : 10;
+                      return (
+                        <div key={es.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 12, border: qty > 0 ? "2px solid #a855f7" : "1.5px solid #e5e7eb", background: qty > 0 ? "#faf5ff" : "#f9fafb" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{es.serviceName}</div>
+                            {es.description && <div style={{ fontSize: 11, color: "#6b7280" }}>{es.description}</div>}
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#7c3aed", marginTop: 2 }}>
+                              {es.price.toLocaleString("vi-VN")}đ
+                              {es.totalStock != null && <span style={{ fontWeight: 400, color: "#9ca3af", marginLeft: 6 }}>Còn {es.totalStock}</span>}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <button type="button" onClick={() => updateExtraQty(es.id, -1)} disabled={qty <= 0}
+                              style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #d1d5db", background: qty > 0 ? "#fff" : "#f3f4f6", cursor: qty > 0 ? "pointer" : "not-allowed", fontSize: 16, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", minWidth: 20, textAlign: "center" }}>{qty}</span>
+                            <button type="button" onClick={() => updateExtraQty(es.id, 1)} disabled={qty >= maxQty}
+                              style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #d1d5db", background: qty < maxQty ? "#fff" : "#f3f4f6", cursor: qty < maxQty ? "pointer" : "not-allowed", fontSize: 16, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
-              ) : (
-                <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "10px 14px", marginBottom: 20, border: "1px solid #bbf7d0", fontSize: 12, color: "#166534", fontWeight: 600 }}>
-                  📅 Chưa thấy lịch đặt ngày {selectedDate ? selectedDate.split("-").reverse().join("/") : "hôm nay"} — kiểm tra kỹ giờ trước khi đặt.
-                </div>
-              )
-            )}
-
-            {/* ===== DATE PICKER ===== */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle}>Chọn ngày</label>
-              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6 }}>
-                {Array.from({ length: 7 }, (_, i) => {
-                  const d = new Date();
-                  d.setDate(d.getDate() + i);
-                  const yyyy = d.getFullYear();
-                  const mm = String(d.getMonth() + 1).padStart(2, "0");
-                  const dd2 = String(d.getDate()).padStart(2, "0");
-                  const dateStr = `${yyyy}-${mm}-${dd2}`;
-                  const isSel = selectedDate === dateStr;
-                  const DAY_NAMES = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
-                  const label = i === 0 ? "Hôm nay" : i === 1 ? "Ngày mai" : DAY_NAMES[d.getDay()];
-                  return (
-                    <button key={dateStr} type="button" onClick={() => setSelectedDate(dateStr)} style={{
-                      flexShrink: 0, minWidth: 68, padding: "8px 10px", borderRadius: 14,
-                      border: isSel ? "2px solid #f97316" : "1.5px solid #e5e7eb",
-                      background: isSel ? "linear-gradient(135deg,#fff7ed,#ffedd5)" : "#fff",
-                      color: isSel ? "#ea580c" : "#374151",
-                      cursor: "pointer", textAlign: "center",
-                      boxShadow: isSel ? "0 2px 8px rgba(249,115,22,0.2)" : "none",
-                      transition: "all 0.15s",
-                    }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: isSel ? "#ea580c" : "#94a3b8" }}>{label}</div>
-                      <div style={{ fontSize: 15, fontWeight: 800 }}>{dd2}/{mm}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* ===== TIME INPUTS + TIMELINE ===== */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle}>Giờ bắt đầu — Thời lượng sạc</label>
-
-              {/* Visual timeline bar */}
-              {selectedDate && (
-                <div style={{ position: "relative", height: 44, borderRadius: 12, overflow: "hidden", background: "#f1f5f9", border: "1.5px solid #e2e8f0", marginBottom: 14 }}>
-                  {[0, 6, 12, 18, 24].map(h => (
-                    <div key={h} style={{ position: "absolute", left: `${(h / 24) * 100}%`, top: 0, bottom: 0, borderLeft: "1px dashed #cbd5e1", display: "flex", alignItems: "flex-end", paddingBottom: 2 }}>
-                      <span style={{ fontSize: 9, color: "#94a3b8", marginLeft: 2 }}>{String(h).padStart(2, "0")}:00</span>
-                    </div>
-                  ))}
-                  {bookedRanges.map((r, i) => {
-                    const parseT = (t) => { 
-                      if (typeof t === "string" && !t.includes("T")) {
-                        const [h,m] = t.split(":");
-                        return parseInt(h) * 60 + parseInt(m);
-                      }
-                      const d = new Date(String(t).replace("Z", "")); 
-                      return d.getHours() * 60 + d.getMinutes(); 
-                    };
-                    const sMin = parseT(r.startTime);
-                    const eMin = Math.min(parseT(r.endTime), 24 * 60);
-                    if (eMin <= sMin) return null;
-                    return (
-                      <div key={i} title={`${String(r.startTime).slice(11, 16)} – ${String(r.endTime).slice(11, 16)}: ${r.status}`} style={{
-                        position: "absolute", top: 4, bottom: 4,
-                        left: `${(sMin / 1440) * 100}%`, width: `${((eMin - sMin) / 1440) * 100}%`,
-                        background: "rgba(239,68,68,0.7)", borderRadius: 4,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>
-                        <span style={{ fontSize: 8, color: "#fff", fontWeight: 700 }}>🔒</span>
-                      </div>
-                    );
-                  })}
-                  {startHHMM && (() => {
-                    const [sh, sm] = startHHMM.split(":").map(Number);
-                    const sMin = sh * 60 + sm, eMin = sMin + duration * 60;
-                    if (eMin <= sMin) return null;
-                    return (
-                      <div style={{
-                        position: "absolute", top: 4, bottom: 4,
-                        left: `${(sMin / 1440) * 100}%`, width: `${((eMin - sMin) / 1440) * 100}%`,
-                        background: hasConflict ? "rgba(239,68,68,0.5)" : "rgba(249,115,22,0.75)", borderRadius: 4,
-                      }} />
-                    );
-                  })()}
-                </div>
               )}
 
-
-              {/* 1 time picker + duration select */}
-              <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>Giờ bắt đầu:</div>
-                  <TimePicker24h
-                    value={startHHMM}
-                    onChange={setStartHHMM}
-                    className="w-full text-center"
-                  />
-                </div>
-                <div style={{ flex: 1, paddingBottom: 1 }}>
-                  <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>Dự kiến sạc:</div>
-                  <div style={{ display: "flex", alignItems: "center", background: "#f8fafc", borderRadius: 10, border: "1.5px solid #e5e7eb", overflow: "hidden", height: 42 }}>
-                    <button 
-                      type="button" 
-                      onClick={() => setDuration(d => Math.max(0.5, d - 0.5))} 
-                      style={{ width: 44, height: 42, background: "#fff", border: "none", cursor: "pointer", fontSize: 20, color: duration > 0.5 ? "#ea580c" : "#cbd5e1", borderRight: "1px solid #e5e7eb", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center" }}
-                      disabled={duration <= 0.5}
-                    >−</button>
-
-                    <div style={{ flex: 1, textAlign: "center", fontSize: 14, fontWeight: 700, color: "#1e293b", userSelect: "none" }}>
-                      {duration} giờ {duration === 0.5 ? <span style={{fontSize: 11, fontWeight: 600, color: "#94a3b8"}}>(30p)</span> : ""}
-                    </div>
-
-                    <button 
-                      type="button" 
-                      onClick={() => setDuration(d => Math.min(maxAvailDuration, d + 0.5))} 
-                      style={{ width: 44, height: 42, background: "#fff", border: "none", cursor: "pointer", fontSize: 20, color: (duration + 0.5) <= maxAvailDuration ? "#ea580c" : "#cbd5e1", borderLeft: "1px solid #e5e7eb", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center" }}
-                      disabled={(duration + 0.5) > maxAvailDuration}
-                    >+</button>
+              {/* Loyalty Points */}
+              {loyaltyInfo && loyaltyInfo.currentPoints > 0 && selectedSlot && calculateTotalAmount() > 0 && (
+                <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 24 }}>
+                  <label style={labelStyle}>🏆 Dùng điểm tích lũy ({loyaltyInfo.currentPoints.toLocaleString("vi-VN")} điểm khả dụng)</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <input type="range" min={0} max={maxPoints} step={100} value={pointsToUse}
+                      onChange={e => setPointsToUse(Number(e.target.value))}
+                      style={{ flex: 1, accentColor: "#7c3aed" }} />
+                    <input type="number" min={0} max={maxPoints} value={pointsToUse}
+                      onChange={e => { const v = Math.min(Math.max(0, Number(e.target.value) || 0), maxPoints); setPointsToUse(v); }}
+                      style={{ width: 90, padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 14, textAlign: "right", outline: "none" }} />
                   </div>
-                </div>
-              </div>
-
-              {/* Warnings */}
-              {duration >= maxAvailDuration && maxAvailDuration < 24 && (
-                <div style={{ marginTop: 8, fontSize: 12, color: "#d97706", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-                  <span>⏳</span> Bạn đã đạt mốc thời lượng sạc giới hạn (do trạm đóng cửa hoặc có lịch đặt tiếp theo).
+                  {pointsToUse > 0 && <div style={{ fontSize: 12, color: "#7c3aed", marginTop: 4, fontWeight: 600 }}>Giảm {pointsToUse.toLocaleString("vi-VN")}đ từ điểm tích lũy</div>}
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Tối đa dùng {((loyaltyInfo.maxRedeemRate || 0) * 100).toFixed(0)}% giá trị booking bằng điểm</div>
                 </div>
               )}
 
-              {/* Conflict warning */}
-              {startHHMM && hasConflict && (
-                <div style={{ marginTop: 12, fontSize: 13, color: "#ef4444", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-                  <span>🔒</span> Giờ bắt đầu hoặc thời lượng sạc trùng vào lịch đã đặt. Vui lòng giảm thời lượng hoặc chọn lúc khác!
-                </div>
-              )}
-            </div>
-
-            {timeError && (
-              <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px 14px", borderRadius: 10, fontSize: 13, marginBottom: 16, border: "1px solid #fecaca" }}>
-                {timeError}
-              </div>
-            )}
-
-            {/* Note */}
-            <label style={labelStyle}>Ghi chú (tùy chọn)</label>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="Ghi chú cho chủ trạm..."
-              rows={3} style={{ ...inputStyle, resize: "vertical" }} />
-
-            {/* Extra Services */}
-            {station.extraServices && station.extraServices.filter(es => es.isActive).length > 0 && (
-              <div style={{ marginBottom: 20 }}>
-                <label style={labelStyle}>Dịch vụ bổ sung (tùy chọn)</label>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {station.extraServices.filter(es => es.isActive).map(es => {
-                    const qty = selectedExtras[es.id] || 0;
-                    const maxQty = es.totalStock != null ? Math.min(10, es.totalStock) : 10;
-                    return (
-                      <div key={es.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 12, border: qty > 0 ? "2px solid #a855f7" : "1.5px solid #e5e7eb", background: qty > 0 ? "#faf5ff" : "#fff" }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{es.serviceName}</div>
-                          {es.description && <div style={{ fontSize: 11, color: "#6b7280" }}>{es.description}</div>}
-                          <div style={{ fontSize: 12, fontWeight: 700, color: "#7c3aed", marginTop: 2 }}>
-                            {es.price.toLocaleString("vi-VN")}đ
-                            {es.totalStock != null && <span style={{ fontWeight: 400, color: "#9ca3af", marginLeft: 6 }}>Còn {es.totalStock}</span>}
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <button type="button" onClick={() => updateExtraQty(es.id, -1)} disabled={qty <= 0}
-                            style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #d1d5db", background: qty > 0 ? "#fff" : "#f3f4f6", cursor: qty > 0 ? "pointer" : "not-allowed", fontSize: 16, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", minWidth: 20, textAlign: "center" }}>{qty}</span>
-                          <button type="button" onClick={() => updateExtraQty(es.id, 1)} disabled={qty >= maxQty}
-                            style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #d1d5db", background: qty < maxQty ? "#fff" : "#f3f4f6", cursor: qty < maxQty ? "pointer" : "not-allowed", fontSize: 16, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                        </div>
+              {/* Summary + Submit — sticky */}
+              <div style={{ position: "sticky", top: 24 }}>
+                {selectedSlot && (
+                  <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.08)", padding: 24, marginBottom: 16 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 12 }}>🧾 Tóm tắt đặt lịch</div>
+                    <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span>Trạm sạc</span>
+                      <span style={{ fontWeight: 600, color: "#1e293b", maxWidth: 160, textAlign: "right" }}>{station.name}</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span>Trụ sạc</span>
+                      <span style={{ fontWeight: 600, color: "#1e293b" }}>{slots.find(s => s.id === selectedSlot)?.slotName}</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span>Ngày</span>
+                      <span style={{ fontWeight: 600, color: "#1e293b" }}>{selectedDate ? selectedDate.split("-").reverse().join("/") : "—"}</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span>Giờ bắt đầu</span>
+                      <span style={{ fontWeight: 600, color: "#1e293b" }}>{startHHMM || "—"}</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span>Thời lượng</span>
+                      <span style={{ fontWeight: 600, color: "#1e293b" }}>{Math.round(duration * 60)} phút</span>
+                    </div>
+                    <div style={{ borderTop: "1px dashed #e5e7eb", margin: "10px 0" }} />
+                    <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span>Phí sạc</span>
+                      <span style={{ fontWeight: 600, color: "#1e293b" }}>{calculateChargingAmount().toLocaleString("vi-VN")}đ</span>
+                    </div>
+                    {calculateServiceAmount() > 0 && (
+                      <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span>Dịch vụ bổ sung</span>
+                        <span style={{ fontWeight: 600, color: "#7c3aed" }}>{calculateServiceAmount().toLocaleString("vi-VN")}đ</span>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Loyalty Points */}
-            {loyaltyInfo && loyaltyInfo.currentPoints > 0 && selectedSlot && calculateTotalAmount() > 0 && (
-              <div style={{ marginBottom: 20 }}>
-                <label style={labelStyle}>🏆 Dùng điểm tích lũy ({loyaltyInfo.currentPoints.toLocaleString("vi-VN")} điểm khả dụng)</label>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <input type="range" min={0} max={maxPoints} step={100} value={pointsToUse}
-                    onChange={e => setPointsToUse(Number(e.target.value))}
-                    style={{ flex: 1, accentColor: "#7c3aed" }} />
-                  <input type="number" min={0} max={maxPoints} value={pointsToUse}
-                    onChange={e => { const v = Math.min(Math.max(0, Number(e.target.value) || 0), maxPoints); setPointsToUse(v); }}
-                    style={{ width: 100, padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 14, textAlign: "right", outline: "none" }} />
-                </div>
-                {pointsToUse > 0 && <div style={{ fontSize: 12, color: "#7c3aed", marginTop: 4, fontWeight: 600 }}>Giảm {pointsToUse.toLocaleString("vi-VN")}đ từ điểm tích lũy</div>}
-                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Tối đa dùng {((loyaltyInfo.maxRedeemRate || 0) * 100).toFixed(0)}% giá trị booking bằng điểm</div>
-              </div>
-            )}
-
-            {/* Summary */}
-            {selectedSlot && (
-              <div style={{ background: "#f8fafc", borderRadius: 12, padding: 16, marginBottom: 20 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 8 }}>Tóm tắt</div>
-                <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span>Trụ sạc</span>
-                  <span style={{ fontWeight: 600, color: "#1e293b" }}>{slots.find(s => s.id === selectedSlot)?.slotName}</span>
-                </div>
-                <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span>Thời lượng</span>
-                  <span style={{ fontWeight: 600, color: "#1e293b" }}>{Math.round(duration * 60)} phút</span>
-                </div>
-                <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span>Phí sạc</span>
-                  <span style={{ fontWeight: 600, color: "#1e293b" }}>{calculateChargingAmount().toLocaleString("vi-VN")}đ</span>
-                </div>
-                {calculateServiceAmount() > 0 && (
-                  <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span>Dịch vụ bổ sung</span>
-                    <span style={{ fontWeight: 600, color: "#7c3aed" }}>{calculateServiceAmount().toLocaleString("vi-VN")}đ</span>
+                    )}
+                    {pointsToUse > 0 && (
+                      <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span>🏆 Giảm từ điểm</span>
+                        <span style={{ fontWeight: 600, color: "#7c3aed" }}>−{pointsToUse.toLocaleString("vi-VN")}đ</span>
+                      </div>
+                    )}
+                    <div style={{ borderTop: "2px solid #e5e7eb", marginTop: 8, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontWeight: 700, fontSize: 14, color: "#374151" }}>Tổng cộng</span>
+                      <span style={{ fontWeight: 800, color: "#f97316", fontSize: 22 }}>{finalAmount.toLocaleString("vi-VN")}đ</span>
+                    </div>
                   </div>
                 )}
-                {pointsToUse > 0 && (
-                  <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span>🏆 Giảm từ điểm</span>
-                    <span style={{ fontWeight: 600, color: "#7c3aed" }}>−{pointsToUse.toLocaleString("vi-VN")}đ</span>
+
+                {hasNoPriceForTime && (
+                  <div style={{ background: "#fffbeb", color: "#92400e", padding: "12px 16px", borderRadius: 14, fontSize: 13, marginBottom: 12, border: "1px solid #fde68a", display: "flex", alignItems: "flex-start", gap: 8 }}>
+                    <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+                    <div>
+                      <div style={{ fontWeight: 700, marginBottom: 2 }}>Khung giờ này chưa được thiết lập giá</div>
+                      <div style={{ fontSize: 12, color: "#a16207" }}>Vui lòng chọn khung giờ khác hoặc quay lại sau khi chủ trạm cập nhật giá.</div>
+                    </div>
                   </div>
                 )}
-                <div style={{ borderTop: "1px solid #e5e7eb", marginTop: 6, paddingTop: 6, fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontWeight: 700 }}>Tổng cộng</span>
-                  <span style={{ fontWeight: 700, color: "#f97316", fontSize: 15 }}>{finalAmount.toLocaleString("vi-VN")}đ</span>
-                </div>
-              </div>
-            )}
 
-            {hasNoPriceForTime && (
-              <div style={{ background: "#fffbeb", color: "#92400e", padding: "12px 16px", borderRadius: 10, fontSize: 13, marginBottom: 16, border: "1px solid #fde68a", display: "flex", alignItems: "flex-start", gap: 8 }}>
-                <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 2 }}>Khung giờ này chưa được thiết lập giá</div>
-                  <div style={{ fontSize: 12, color: "#a16207" }}>Vui lòng chọn khung giờ khác hoặc quay lại sau khi chủ trạm cập nhật giá.</div>
-                </div>
-              </div>
-            )}
+                {apiError && (
+                  <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px 14px", borderRadius: 14, fontSize: 13, marginBottom: 12, border: "1px solid #fecaca" }}>
+                    ⚠️ {apiError}
+                  </div>
+                )}
 
-            {apiError && (
-              <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px 14px", borderRadius: 10, fontSize: 13, marginBottom: 16 }}>
-                ⚠️ {apiError}
+                <button type="submit"
+                  disabled={submitting || !selectedSlot || !!timeError || !startHHMM || hasConflict || hasNoPriceForTime}
+                  style={{
+                    width: "100%", padding: "16px 0", borderRadius: 16, border: "none",
+                    background: submitting || !selectedSlot || timeError || !startHHMM || hasConflict || hasNoPriceForTime
+                      ? "#d1d5db"
+                      : "linear-gradient(135deg, #f97316, #ea580c)",
+                    color: "#fff", fontWeight: 700, fontSize: 16,
+                    cursor: submitting || !selectedSlot || timeError || !startHHMM || hasConflict || hasNoPriceForTime ? "not-allowed" : "pointer",
+                    boxShadow: submitting || !selectedSlot || timeError || !startHHMM || hasConflict || hasNoPriceForTime
+                      ? "none" : "0 4px 16px rgba(249,115,22,0.4)",
+                    transition: "all 0.2s",
+                  }}>
+                  {submitting ? "Đang xử lý..." : "⚡ Đặt lịch sạc"}
+                </button>
               </div>
-            )}
 
-            <button type="submit"
-              disabled={submitting || !selectedSlot || !!timeError || !startHHMM || hasConflict || hasNoPriceForTime}
-              style={{
-                width: "100%", padding: "14px 0", borderRadius: 14, border: "none",
-                background: submitting || !selectedSlot || timeError || !startHHMM || hasConflict || hasNoPriceForTime
-                  ? "#d1d5db"
-                  : "linear-gradient(135deg, #f97316, #ea580c)",
-                color: "#fff", fontWeight: 700, fontSize: 15,
-                cursor: submitting || !selectedSlot || timeError || !startHHMM || hasConflict || hasNoPriceForTime ? "not-allowed" : "pointer",
-              }}>
-              {submitting ? "Đang xử lý..." : "Đặt lịch sạc"}
-            </button>
-          </form>
-        </div>
+            </div>
+            {/* ========== KẾT THÚC CỘT PHẢI ========== */}
+
+          </div>
+        </form>
       </div>
     </div>
   );

@@ -747,17 +747,24 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
       )}
 
       {showAddPricing && (
-        <div className="mt-2 bg-white rounded-lg p-3 border border-orange-200 space-y-2">
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="block text-[10px] text-slate-400 mb-0.5">Bắt đầu</label>
+        <div className="mt-3 bg-white rounded-xl p-4 border border-orange-200 space-y-3">
+          <p className="text-xs font-bold text-slate-700 mb-1">➕ Thêm khung giờ giá</p>
+
+          {/* Bắt đầu */}
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">🕐 Giờ bắt đầu</label>
+            <div className="flex justify-start">
               <TimePicker24h
                 value={newTier.startTime}
                 onChange={(v) => { setNewTier(p => ({ ...p, startTime: v })); setPricingError(""); }}
               />
             </div>
-            <div className="flex-1">
-              <label className="block text-[10px] text-slate-400 mb-0.5">Kết thúc</label>
+          </div>
+
+          {/* Kết thúc */}
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">🕑 Giờ kết thúc</label>
+            <div className="flex justify-start">
               <TimePicker24h
                 value={newTier.endTime}
                 minAfter={newTier.startTime}
@@ -765,22 +772,35 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
               />
             </div>
           </div>
+
+          {/* Giá */}
           <div>
-            <label className="block text-[10px] text-slate-400 mb-0.5">Giá/h (VND)</label>
-            <input type="number" value={newTier.pricePerHour} onChange={(e) => { setNewTier(p => ({ ...p, pricePerHour: e.target.value })); setPricingError(""); }}
-              placeholder="15000"
-              className="h-7 w-full rounded border border-slate-200 px-2 text-xs outline-none" />
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">💰 Giá/giờ (VND)</label>
+            <input
+              type="number"
+              value={newTier.pricePerHour}
+              onChange={(e) => { setNewTier(p => ({ ...p, pricePerHour: e.target.value })); setPricingError(""); }}
+              placeholder="VD: 15000"
+              className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
+            />
           </div>
+
           {pricingError && (
-            <p className="text-[10px] text-red-500 font-medium">{pricingError}</p>
+            <p className="text-xs text-red-500 font-medium bg-red-50 rounded-lg px-3 py-2">{pricingError}</p>
           )}
-          <div className="flex gap-1.5">
-            <button onClick={handleAddPricing} disabled={pricingLoading}
-              className="flex-1 h-7 rounded bg-orange-500 text-white text-[10px] font-semibold hover:bg-orange-600 disabled:opacity-50 cursor-pointer">
-              {pricingLoading ? "..." : "Thêm"}
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={handleAddPricing}
+              disabled={pricingLoading}
+              className="flex-1 h-9 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 cursor-pointer transition"
+            >
+              {pricingLoading ? "Đang lưu..." : "✓ Thêm"}
             </button>
-            <button onClick={() => { setShowAddPricing(false); setPricingError(""); }}
-              className="flex-1 h-7 rounded border border-slate-200 text-[10px] text-slate-500 hover:bg-slate-50 cursor-pointer">
+            <button
+              onClick={() => { setShowAddPricing(false); setPricingError(""); }}
+              className="flex-1 h-9 rounded-lg border border-slate-200 text-sm text-slate-500 hover:bg-slate-50 cursor-pointer transition"
+            >
               Hủy
             </button>
           </div>
