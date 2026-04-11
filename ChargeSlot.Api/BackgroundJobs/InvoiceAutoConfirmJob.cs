@@ -52,6 +52,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                         var ledgerRepo = innerScope.ServiceProvider.GetRequiredService<ILedgerTransactionRepository>();
                         var loyaltyTxRepo = innerScope.ServiceProvider.GetRequiredService<ILoyaltyTransactionRepository>();
                         var notificationService = innerScope.ServiceProvider.GetRequiredService<INotificationService>();
+                        var bookingRepo = innerScope.ServiceProvider.GetRequiredService<IBookingRepository>();
+                        var driverRepo = innerScope.ServiceProvider.GetRequiredService<IDriverRepository>();
 
                         using var transaction = await unitOfWork.BeginTransactionAsync();
                         try
@@ -66,10 +68,12 @@ namespace ChargeSlot.Api.BackgroundJobs
                             // Auto-confirm invoice
                             invoice.Status = InvoiceStatus.Confirmed;
                             invoice.UpdatedAt = DateTimeHelper.VietnamNow();
+                            invoiceRepo.Update(invoice);
 
                             // Complete booking
                             booking.Status = BookingStatus.Completed;
                             booking.UpdatedAt = DateTimeHelper.VietnamNow();
+                            bookingRepo.Update(booking);
 
                             await unitOfWork.CompleteAsync();
 
@@ -81,7 +85,9 @@ namespace ChargeSlot.Api.BackgroundJobs
                             if (pointsEarned > 0 && booking.Driver != null)
                             {
                                 booking.Driver.LoyaltyPoints += pointsEarned;
+                                driverRepo.Update(booking.Driver);
                                 booking.PointsEarned = pointsEarned;
+                                bookingRepo.Update(booking);
                                 loyaltyTxRepo.Add(new LoyaltyTransaction
                                 {
                                     DriverUserId = booking.DriverUserId,

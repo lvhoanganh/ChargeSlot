@@ -9,7 +9,7 @@ namespace ChargeSlot.Api.BackgroundJobs
     /// <summary>
     /// Xử lý 3 trường hợp overdue:
     /// 1. WaitingOwner > 30 phút → auto-expire (Owner không phản hồi)
-    /// 2. Paid quá EndTime + 30 phút → CompletedPendingInvoice (cho Driver 24h dispute, no-show)
+    /// 2. Paid quá EndTime → CompletedPendingInvoice (cho Driver 24h dispute, no-show)
     /// 3. CheckedIn quá EndTime → auto-stop + CompletedPendingInvoice (giải phóng slot ngay)
     /// Chạy mỗi 60 giây.
     /// </summary>
@@ -67,12 +67,15 @@ namespace ChargeSlot.Api.BackgroundJobs
                 booking.Status = BookingStatus.Expired;
                 booking.CancelReason = "Không có phản hồi từ chủ trạm trong 30 phút.";
                 booking.UpdatedAt = now;
+                bookingRepo.Update(booking);
 
                 // Release slot nếu đang bị giữ
                 if (booking.ChargingSlot != null && booking.ChargingSlot.Status == SlotStatus.Booked)
                 {
                     booking.ChargingSlot.Status = SlotStatus.Active;
                     booking.ChargingSlot.UpdatedAt = now;
+                    var slotRepo = scope.ServiceProvider.GetRequiredService<IChargingSlotRepository>();
+                    slotRepo.Update(booking.ChargingSlot);
                 }
 
                 await unitOfWork.CompleteAsync();
@@ -98,7 +101,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         }
 
         // ═══════════════════════════════════════════════════════
-        // 2. Paid quá EndTime + 30 phút → CompletedPendingInvoice (No-Show)
+        // 2. Paid quá EndTime → CompletedPendingInvoice (No-Show)
         //    Driver có 24h để review/dispute trước khi auto-confirm
         // ═══════════════════════════════════════════════════════
         private async Task ProcessPaidNoShowAsync()
@@ -109,13 +112,11 @@ namespace ChargeSlot.Api.BackgroundJobs
             var invoiceRepo = scope.ServiceProvider.GetRequiredService<IInvoiceRepository>();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
-            var configService = scope.ServiceProvider.GetRequiredService<ISystemConfigService>();
 
-            var configs = await configService.GetCurrentConfigsAsync();
-            var graceTime = configs.NoShow_Grace_Minutes;
-
+            // Driver có thể check-in cho đến lúc EndTime.
+            // Do đó, ngay khi vừa qua EndTime mà vẫn chưa check-in -> Đóng check-in, thành No-Show & giải phóng slot ngay.
             var now = DateTimeHelper.VietnamNow();
-            var cutoff = now.AddMinutes(-graceTime);
+            var cutoff = now;
 
             var overdueBookings = await bookingRepo.GetPaidNoShowAsync(cutoff);
 
@@ -251,12 +252,15 @@ namespace ChargeSlot.Api.BackgroundJobs
                     // 3. Set CompletedPendingInvoice (cho Driver 24h review/dispute)
                     booking.Status = BookingStatus.CompletedPendingInvoice;
                     booking.UpdatedAt = now;
+                    bookingRepo.Update(booking);
 
                     // 4. Release slot
                     if (booking.ChargingSlot != null && booking.ChargingSlot.Status == SlotStatus.Booked)
                     {
                         booking.ChargingSlot.Status = SlotStatus.Active;
                         booking.ChargingSlot.UpdatedAt = now;
+                        var slotRepo = scope.ServiceProvider.GetRequiredService<IChargingSlotRepository>();
+                        slotRepo.Update(booking.ChargingSlot);
                     }
 
                     await unitOfWork.CompleteAsync();

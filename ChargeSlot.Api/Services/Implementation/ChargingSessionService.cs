@@ -76,11 +76,11 @@ namespace ChargeSlot.Api.Services.Implementation
             var checkInWindowMinutes = configs.CheckIn_Window_Minutes;
 
             var earliestCheckin = booking.StartTime.AddMinutes(-checkInWindowMinutes);
-            var latestCheckin = booking.CheckinDeadlineAt ?? booking.StartTime.AddMinutes(checkInWindowMinutes);
+            var latestCheckin = booking.EndTime; // Cho phép check-in bất cứ lúc nào miễn là chưa hết giờ
             if (now < earliestCheckin)
                 throw new InvalidOperationException($"Chưa đến giờ check-in. Vui lòng quay lại lúc {earliestCheckin:HH:mm dd/MM/yyyy}.");
-            if (now > latestCheckin)
-                throw new InvalidOperationException("Đã quá thời gian check-in cho booking này.");
+            if (now >= latestCheckin)
+                throw new InvalidOperationException("Đã quá thời gian check-in cho booking này (phiên sạc đã kết thúc).");
 
             // 4. Chống double check-in (cùng 1 booking)
             var existingSession = await _sessionRepo.HasSessionByBookingAsync(booking.Id);
@@ -305,9 +305,10 @@ namespace ChargeSlot.Api.Services.Implementation
                     if (driver != null)
                     {
                         driver.LoyaltyPoints += pointsEarned;
+                        _driverRepo.Update(driver);
                         booking.PointsEarned = pointsEarned;
                         _bookingRepo.Update(booking);
-            await _unitOfWork.CompleteAsync();
+                        await _unitOfWork.CompleteAsync();
 
                         _loyaltyRepo.Add(new LoyaltyTransaction
                         {
