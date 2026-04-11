@@ -286,6 +286,48 @@ export const stationApi = {
             method: "PATCH",
             body: JSON.stringify({ operationalStatus }),
         }),
+
+    /** Lấy danh sách ngày không hoạt động */
+    getUnavailableDates: (id) =>
+        apiFetch(`/stations/${id}/unavailable-dates`),
+
+    /** Thêm các ngày không hoạt động: dates = ["2026-04-20", ...] */
+    addUnavailableDates: (id, dates) =>
+        apiFetch(`/stations/${id}/unavailable-dates`, {
+            method: "POST",
+            body: JSON.stringify({ dates }),
+        }),
+
+    /** Xóa các ngày không hoạt động: dates = ["2026-04-20", ...] */
+    removeUnavailableDates: (id, dates) =>
+        apiFetch(`/stations/${id}/unavailable-dates`, {
+            method: "DELETE",
+            body: JSON.stringify({ dates }),
+        }),
+};
+
+// ============================
+// OWNER ANALYTICS
+// ============================
+
+export const ownerAnalyticsApi = {
+    /** GET /api/owner/analytics/metrics?fromDate=&toDate= */
+    getMetrics: (fromDate, toDate) => {
+        const params = new URLSearchParams();
+        if (fromDate) params.set("fromDate", fromDate);
+        if (toDate) params.set("toDate", toDate);
+        const qs = params.toString();
+        return apiFetch(`/owner/analytics/metrics${qs ? "?" + qs : ""}`);
+    },
+
+    /** GET /api/owner/analytics/ai-insights?fromDate=&toDate= */
+    getAiInsights: (fromDate, toDate) => {
+        const params = new URLSearchParams();
+        if (fromDate) params.set("fromDate", fromDate);
+        if (toDate) params.set("toDate", toDate);
+        const qs = params.toString();
+        return apiFetch(`/owner/analytics/ai-insights${qs ? "?" + qs : ""}`);
+    },
 };
 
 // ============================

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { publicStationApi, bookingApi, loyaltyApi } from "@/services/api";
+import { publicStationApi, bookingApi, loyaltyApi, stationApi } from "@/services/api";
 import TimePicker24h from "@/components/TimePicker24h";
 
 export default function BookingForm() {
@@ -20,6 +20,7 @@ export default function BookingForm() {
   const [pointsToUse, setPointsToUse] = useState(0);
   // Time picker — ngày + giờ tự do
   const [selectedDate, setSelectedDate] = useState("");
+  const [unavailableDates, setUnavailableDates] = useState([]); // ["YYYY-MM-DD", ...]
   const [startHHMM, setStartHHMM] = useState(""); // "08:30"
 
   useEffect(() => {
@@ -46,6 +47,15 @@ export default function BookingForm() {
         } catch { /* Giữ extraServices rỗng nếu list fetch lỗi */ }
 
         if (!cancelled) setStation(data);
+
+        // Fetch unavailable dates song song (public endpoint AllowAnonymous)
+        try {
+          const udData = await stationApi.getUnavailableDates(Number(stationId));
+          if (!cancelled && Array.isArray(udData)) {
+            setUnavailableDates(udData.map(item => String(item?.date ?? item).substring(0, 10)));
+          }
+        } catch { /* không block */ }
+
       } catch {
         if (!cancelled) setStation(null);
       } finally {
@@ -308,6 +318,12 @@ export default function BookingForm() {
     }
 
     const dayOfWeek = startObj.getDay();
+
+    // ── Kiểm tra ngày không hoạt động (owner đã block cụ thể) ──
+    if (unavailableDates.includes(selectedDate)) {
+      return setApiError(`🚫 Trạm sạc không hoạt động vào ngày ${selectedDate.split("-").reverse().join("/")}. Vui lòng chọn ngày khác!`);
+    }
+
     const opHours = station.operatingHours?.find(h => h.dayOfWeek === dayOfWeek);
     if (opHours) {
       if (opHours.isClosed) return setApiError("Trạm sạc đóng cửa vào ngày bạn chọn!");
@@ -603,17 +619,25 @@ export default function BookingForm() {
                     const isSel = selectedDate === dateStr;
                     const DAY_NAMES = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
                     const label = i === 0 ? "Hôm nay" : i === 1 ? "Ngày mai" : DAY_NAMES[d.getDay()];
+                    const isBlocked = unavailableDates.includes(dateStr);
                     return (
-                      <button key={dateStr} type="button" onClick={() => setSelectedDate(dateStr)} style={{
-                        flexShrink: 0, minWidth: 68, padding: "8px 10px", borderRadius: 14,
-                        border: isSel ? "2px solid #f97316" : "1.5px solid #e5e7eb",
-                        background: isSel ? "linear-gradient(135deg,#fff7ed,#ffedd5)" : "#fff",
-                        color: isSel ? "#ea580c" : "#374151",
-                        cursor: "pointer", textAlign: "center",
-                        boxShadow: isSel ? "0 2px 8px rgba(249,115,22,0.2)" : "none",
-                        transition: "all 0.15s",
-                      }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: isSel ? "#ea580c" : "#94a3b8" }}>{label}</div>
+                      <button key={dateStr} type="button"
+                        onClick={() => !isBlocked && setSelectedDate(dateStr)}
+                        disabled={isBlocked}
+                        title={isBlocked ? "Trạm không hoạt động ngày này" : undefined}
+                        style={{
+                          flexShrink: 0, minWidth: 68, padding: "8px 10px", borderRadius: 14,
+                          border: isBlocked ? "1.5px solid #fca5a5" : isSel ? "2px solid #f97316" : "1.5px solid #e5e7eb",
+                          background: isBlocked ? "#fef2f2" : isSel ? "linear-gradient(135deg,#fff7ed,#ffedd5)" : "#fff",
+                          color: isBlocked ? "#ef4444" : isSel ? "#ea580c" : "#374151",
+                          cursor: isBlocked ? "not-allowed" : "pointer", textAlign: "center",
+                          opacity: isBlocked ? 0.7 : 1,
+                          boxShadow: isSel ? "0 2px 8px rgba(249,115,22,0.2)" : "none",
+                          transition: "all 0.15s",
+                        }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: isBlocked ? "#ef4444" : isSel ? "#ea580c" : "#94a3b8" }}>
+                          {isBlocked ? "🚫" : label}
+                        </div>
                         <div style={{ fontSize: 15, fontWeight: 800 }}>{dd2}/{mm}</div>
                       </button>
                     );

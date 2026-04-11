@@ -110,6 +110,11 @@ export default function OwnerNav() {
       label: "Phiên sạc",
       icon: <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
     },
+    {
+      to: "/owner/analytics",
+      label: "Thống kê",
+      icon: <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
+    },
   ];
 
   // Secondary items (in "Khác" dropdown)
@@ -412,8 +417,8 @@ export default function OwnerNav() {
         <div className="cs-more-sheet__grid">
           {[
             { emoji: "👤", label: "Hồ sơ", to: "/owner/owner-profile" },
+            { emoji: "📊", label: "Thống kê", to: "/owner/analytics" },
             { emoji: "💳", label: "Ví tiền", to: "/owner/wallet" },
-            { emoji: "📊", label: "Doanh thu", to: "/owner/revenue" },
             { emoji: "💬", label: "Nhắn tin", to: "/owner/chat-list" },
             { emoji: "⭐", label: "Đánh giá", to: "/owner/reviews" },
             { emoji: "⚠️", label: "Khiếu nại", to: "/owner/disputes" },

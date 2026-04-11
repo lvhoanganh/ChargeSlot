@@ -500,6 +500,11 @@ export default function OwnerPage() {
                         <div className="mt-4 pt-4 border-t border-slate-200">
                           <StationPricingPanel stationId={s.id} pricingTiers={s.pricingTiers || []} operatingHours={s.operatingHours || []} onSaved={fetchStations} />
                         </div>
+
+                        {/* Unavailable dates */}
+                        <div className="mt-4 pt-4 border-t border-slate-200">
+                          <UnavailableDatesPanel stationId={s.id} />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -809,3 +814,163 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
     </div>
   );
 }
+
+// ─────────────── UNAVAILABLE DATES PANEL ───────────────
+function UnavailableDatesPanel({ stationId }) {
+  // dates = array of { id, date: "YYYY-MM-DD", reason }
+  const [dates, setDates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [error, setError] = useState("");
+
+  // Load danh sách ngày nghỉ
+  const loadDates = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await stationApi.getUnavailableDates(stationId);
+      setDates(Array.isArray(data) ? data : []);
+    } catch {
+      setDates([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [stationId]);
+
+  useEffect(() => { loadDates(); }, [loadDates]);
+
+  // Ngày tối thiểu = hôm nay
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  // Normalize date field: BE trả về DateOnly => JSON serializer có thể ra string "2026-04-20" hoặc "2026-04-20T00:00:00"
+  function toDateStr(raw) {
+    if (!raw) return "";
+    return String(raw).substring(0, 10); // lấy "YYYY-MM-DD"
+  }
+
+  async function handleAdd() {
+    if (!selectedDate) { setError("Vui lòng chọn ngày!"); return; }
+    const alreadyExists = dates.some(d => toDateStr(d.date) === selectedDate);
+    if (alreadyExists) { setError("Ngày này đã được thêm rồi!"); return; }
+    setError("");
+    setAdding(true);
+    try {
+      await stationApi.addUnavailableDates(stationId, [selectedDate]);
+      setSelectedDate("");
+      await loadDates();
+      showToast.success("Đã thêm ngày nghỉ!");
+    } catch (err) {
+      setError(err.message || "Lỗi khi thêm ngày");
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  async function handleRemove(dateStr) {
+    if (!(await showConfirm(`Xóa ngày nghỉ ${formatDate(dateStr)}?`, "Xác nhận xóa"))) return;
+    try {
+      await stationApi.removeUnavailableDates(stationId, [dateStr]);
+      await loadDates();
+      showToast.success("Đã xóa ngày nghỉ!");
+    } catch (err) {
+      showToast.error(err.message || "Lỗi khi xóa ngày");
+    }
+  }
+
+  function formatDate(dateStr) {
+    // "2026-04-20" → "20/04/2026"
+    if (!dateStr) return "";
+    const s = String(dateStr).substring(0, 10);
+    const [y, m, d] = s.split("-");
+    return `${d}/${m}/${y}`;
+  }
+
+  // Normalize & sort
+  const sortedDates = [...dates].sort((a, b) => toDateStr(a.date).localeCompare(toDateStr(b.date)));
+  const upcoming = sortedDates.filter(d => toDateStr(d.date) >= todayStr);
+  const past = sortedDates.filter(d => toDateStr(d.date) < todayStr);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-sm font-bold text-slate-700">🚫 Ngày không hoạt động</h4>
+        <span className="text-xs text-slate-400">{upcoming.length} ngày sắp tới</span>
+      </div>
+
+      {/* Thêm ngày mới */}
+      <div className="flex items-center gap-2 mb-3">
+        <input
+          type="date"
+          value={selectedDate}
+          min={todayStr}
+          onChange={e => { setSelectedDate(e.target.value); setError(""); }}
+          className="h-9 flex-1 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
+        />
+        <button
+          onClick={handleAdd}
+          disabled={adding || !selectedDate}
+          className="h-9 px-4 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition whitespace-nowrap cursor-pointer"
+        >
+          {adding ? "..." : "+ Thêm"}
+        </button>
+      </div>
+
+      {error && (
+        <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-2">{error}</p>
+      )}
+
+      {loading ? (
+        <p className="text-xs text-slate-400 italic">Đang tải...</p>
+      ) : sortedDates.length === 0 ? (
+        <p className="text-xs text-slate-400 italic">Chưa có ngày nghỉ nào được đặt.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {upcoming.length > 0 && (
+            <>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">Sắp tới</p>
+              {upcoming.map(item => {
+                const ds = toDateStr(item.date);
+                return (
+                  <div key={item.id ?? ds} className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-xs">
+                    <div>
+                      <span className="text-amber-700 font-semibold">📅 {formatDate(ds)}</span>
+                      {item.reason && <span className="ml-2 text-amber-500 italic">{item.reason}</span>}
+                    </div>
+                    <button
+                      onClick={() => handleRemove(ds)}
+                      className="text-red-400 hover:text-red-600 cursor-pointer ml-3"
+                      title="Xóa ngày này"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
+            </>
+          )}
+          {past.length > 0 && (
+            <>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-2">Đã qua</p>
+              {past.map(item => {
+                const ds = toDateStr(item.date);
+                return (
+                  <div key={item.id ?? ds} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs opacity-60">
+                    <span className="text-slate-500">📅 {formatDate(ds)}</span>
+                    <button
+                      onClick={() => handleRemove(ds)}
+                      className="text-red-300 hover:text-red-500 cursor-pointer ml-3"
+                      title="Xóa ngày này"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+

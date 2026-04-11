@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { publicStationApi, reviewApi, favoriteApi, chargingApi } from "@/services/api";
+import { publicStationApi, reviewApi, favoriteApi, chargingApi, stationApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 
 /* ─── Inject pulse animation (same as StationMap) ─── */
@@ -92,6 +92,7 @@ export default function StationDetailDriver() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [occupiedSlots, setOccupiedSlots] = useState(new Set());
+  const [unavailableDates, setUnavailableDates] = useState([]); // ["YYYY-MM-DD"]
 
   function handleBooking() {
     if (!token) {
@@ -127,6 +128,15 @@ export default function StationDetailDriver() {
         } catch { /* Giữ extraServices rỗng nếu list fetch lỗi */ }
 
         setStation(data);
+
+        // Fetch unavailable dates song song
+        try {
+          const udData = await stationApi.getUnavailableDates(Number(id));
+          if (!cancelled && Array.isArray(udData)) {
+            setUnavailableDates(udData.map(item => String(item?.date ?? item).substring(0, 10)));
+          }
+        } catch { /* không block UI */ }
+
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {
@@ -618,6 +628,39 @@ export default function StationDetailDriver() {
           </div>
         </div>
 
+        {/* Unavailable dates */}
+        {unavailableDates.length > 0 && (() => {
+          const todayStr = new Date().toISOString().split("T")[0];
+          const isTodayBlocked = unavailableDates.includes(todayStr);
+          const upcoming = unavailableDates
+            .filter(d => d >= todayStr)
+            .sort()
+            .slice(0, 5);
+          const fmtDate = (s) => { const [y,m,d] = s.split("-"); return `${d}/${m}/${y}`; };
+          return (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-5 mb-4">
+              <h2 className="font-semibold text-red-700 mb-2 flex items-center gap-2">
+                <span>🚫</span> Ngày không hoạt động
+              </h2>
+              {isTodayBlocked && (
+                <div className="bg-red-100 border border-red-300 rounded-xl px-4 py-2.5 mb-3 text-sm font-bold text-red-700">
+                  ⚠️ Hôm nay ({fmtDate(todayStr)}) trạm không hoạt động — không thể đặt lịch!
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {upcoming.map(d => (
+                  <span key={d} className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                    d === todayStr
+                      ? "bg-red-500 text-white"
+                      : "bg-red-100 text-red-700"
+                  }`}>
+                    📅 {fmtDate(d)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
         {/* Station images */}
         {station.images && station.images.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
@@ -715,7 +758,8 @@ export default function StationDetailDriver() {
         {/* Book button */}
         <button
           onClick={handleBooking}
-          className="w-full py-4 text-white font-bold text-base rounded-2xl shadow-lg transition-all hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
+          disabled={unavailableDates.includes(new Date().toISOString().split("T")[0])}
+          className="w-full py-4 text-white font-bold text-base rounded-2xl shadow-lg transition-all hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg"
           style={{
             background: "linear-gradient(135deg, #f97316, #ea580c)",
           }}
