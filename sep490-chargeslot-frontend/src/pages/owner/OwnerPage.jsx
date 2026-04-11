@@ -866,10 +866,10 @@ function UnavailableDatesPanel({ stationId }) {
     }
   }
 
-  async function handleRemove(dateStr) {
+  async function handleRemove(id, dateStr) {
     if (!(await showConfirm(`Xóa ngày nghỉ ${formatDate(dateStr)}?`, "Xác nhận xóa"))) return;
     try {
-      await stationApi.removeUnavailableDates(stationId, [dateStr]);
+      await stationApi.removeUnavailableDates(stationId, [id]);
       await loadDates();
       showToast.success("Đã xóa ngày nghỉ!");
     } catch (err) {
@@ -937,7 +937,7 @@ function UnavailableDatesPanel({ stationId }) {
                       {item.reason && <span className="ml-2 text-amber-500 italic">{item.reason}</span>}
                     </div>
                     <button
-                      onClick={() => handleRemove(ds)}
+                      onClick={() => handleRemove(item.id, ds)}
                       className="text-red-400 hover:text-red-600 cursor-pointer ml-3"
                       title="Xóa ngày này"
                     >
@@ -957,7 +957,7 @@ function UnavailableDatesPanel({ stationId }) {
                   <div key={item.id ?? ds} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs opacity-60">
                     <span className="text-slate-500">📅 {formatDate(ds)}</span>
                     <button
-                      onClick={() => handleRemove(ds)}
+                      onClick={() => handleRemove(item.id, ds)}
                       className="text-red-300 hover:text-red-500 cursor-pointer ml-3"
                       title="Xóa ngày này"
                     >

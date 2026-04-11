@@ -298,11 +298,11 @@ export const stationApi = {
             body: JSON.stringify({ dates }),
         }),
 
-    /** Xóa các ngày không hoạt động: dates = ["2026-04-20", ...] */
-    removeUnavailableDates: (id, dates) =>
+    /** Xóa các ngày không hoạt động: ids = [1, ...] */
+    removeUnavailableDates: (id, ids) =>
         apiFetch(`/stations/${id}/unavailable-dates`, {
             method: "DELETE",
-            body: JSON.stringify({ dates }),
+            body: JSON.stringify({ ids }),
         }),
 };
 
