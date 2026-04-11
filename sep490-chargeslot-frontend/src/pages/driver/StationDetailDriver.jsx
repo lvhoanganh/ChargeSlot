@@ -104,18 +104,36 @@ export default function StationDetailDriver() {
   }
 
   useEffect(() => {
+    if (!id) return;
     let cancelled = false;
     setLoading(true);
-    publicStationApi.getById(Number(id))
-      .then((data) => {
-        if (!cancelled) setStation(data);
-      })
-      .catch((err) => {
+
+    (async () => {
+      try {
+        const data = await publicStationApi.getById(Number(id));
+        if (cancelled) return;
+
+        // BE limitation: /public/stations/{id} không include ExtraServices trong DB query
+        // (ChargingStationRepository.GetByIdAsync thiếu .Include(s=>s.ExtraServices))
+        // → trả về extraServices: [] rỗng.
+        // Workaround: gọi thêm list endpoint (có include ExtraServices) và tìm theo ID.
+        try {
+          const listResult = await publicStationApi.getAll({ keyword: data.name, pageSize: 10 });
+          const items = Array.isArray(listResult) ? listResult : (listResult?.items || []);
+          const found = items.find(s => s.id === Number(id));
+          if (found?.extraServices?.length > 0) {
+            data.extraServices = found.extraServices;
+          }
+        } catch { /* Giữ extraServices rỗng nếu list fetch lỗi */ }
+
+        setStation(data);
+      } catch (err) {
         if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
+
     return () => { cancelled = true; };
   }, [id]);
 

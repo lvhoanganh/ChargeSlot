@@ -23,10 +23,37 @@ export default function BookingForm() {
   const [startHHMM, setStartHHMM] = useState(""); // "08:30"
 
   useEffect(() => {
-    publicStationApi.getById(Number(stationId))
-      .then(setStation)
-      .catch(() => setStation(null))
-      .finally(() => setLoading(false));
+    if (!stationId) return;
+    let cancelled = false;
+    setLoading(true);
+
+    (async () => {
+      try {
+        const data = await publicStationApi.getById(Number(stationId));
+        if (cancelled) return;
+
+        // BE limitation: /public/stations/{id} không include ExtraServices trong DB query
+        // (ChargingStationRepository.GetByIdAsync thiếu .Include(s=>s.ExtraServices))
+        // → trả về extraServices: [] rỗng.
+        // Workaround: gọi thêm list endpoint (có include ExtraServices) và tìm theo ID.
+        try {
+          const listResult = await publicStationApi.getAll({ keyword: data.name, pageSize: 10 });
+          const items = Array.isArray(listResult) ? listResult : (listResult?.items || []);
+          const found = items.find(s => s.id === Number(stationId));
+          if (found?.extraServices?.length > 0) {
+            data.extraServices = found.extraServices;
+          }
+        } catch { /* Giữ extraServices rỗng nếu list fetch lỗi */ }
+
+        if (!cancelled) setStation(data);
+      } catch {
+        if (!cancelled) setStation(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [stationId]);
 
   useEffect(() => {

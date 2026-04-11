@@ -11,6 +11,7 @@ import AuthAdminMiddleware from "./middlewares/AuthAdminMiddleware";
 import AuthOwnerMiddleware from "./middlewares/AuthOwnerMiddleware";
 import AuthDriverMiddleware from "./middlewares/AuthDriverMiddleware";
 import PublicMiddleware from "./middlewares/PublicMiddleware";
+import SessionGuard from "./components/SessionGuard";
 
 // ── Common pages ──────────────────────────────────────────────
 const HomePage = lazy(() => import("./pages/common/HomePage"));
@@ -154,6 +155,8 @@ class AppErrorBoundary extends Component {
 export default function App() {
   return (
     <div>
+      {/* SessionGuard: lắng nghe cs:logout → navigate mượt qua React Router, tránh nháy màn hình */}
+      <SessionGuard />
       <AppErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <Routes>

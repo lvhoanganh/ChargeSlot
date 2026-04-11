@@ -87,6 +87,7 @@ export async function apiFetch(endpoint, options = {}) {
                     const refreshData = await refreshRes.json();
                     localStorage.setItem("accessToken", refreshData.accessToken);
                     if (refreshData.refreshToken) localStorage.setItem("refreshToken", refreshData.refreshToken);
+                    if (refreshData.expiresAtUtc) localStorage.setItem("expiresAtUtc", refreshData.expiresAtUtc);
                     // Retry original request with new token
                     const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
                         ...options,
@@ -97,8 +98,9 @@ export async function apiFetch(endpoint, options = {}) {
                 }
             } catch { /* refresh failed */ }
         }
+        // Không refresh được → emit event để SessionGuard navigate mượt (không hard reload)
         clearAuth();
-        window.location.href = "/login";
+        window.dispatchEvent(new CustomEvent("cs:logout", { detail: { reason: "expired" } }));
         throw new Error("Phiên đăng nhập hết hạn");
     }
 
@@ -107,7 +109,8 @@ export async function apiFetch(endpoint, options = {}) {
         const body = await response.json().catch(() => ({}));
         if (body.message && (body.message.includes("vô hiệu hóa") || body.message.includes("khoá"))) {
             clearAuth();
-            window.location.href = "/login?banned=true";
+            // Emit event để SessionGuard navigate mượt (không hard reload)
+            window.dispatchEvent(new CustomEvent("cs:logout", { detail: { reason: "banned" } }));
             throw new Error("Tài khoản bị khoá do vi phạm tiêu chuẩn hệ thống!");
         }
         throw new Error(body.message || "Bạn không có quyền thực hiện thao tác này");
@@ -152,7 +155,8 @@ async function apiFetchFormData(endpoint, formData, method = "POST") {
 
     if (response.status === 401) {
         clearAuth();
-        window.location.href = "/login";
+        // Emit event để SessionGuard navigate mượt (không hard reload)
+        window.dispatchEvent(new CustomEvent("cs:logout", { detail: { reason: "expired" } }));
         throw new Error("Phiên đăng nhập hết hạn");
     }
 
@@ -160,7 +164,8 @@ async function apiFetchFormData(endpoint, formData, method = "POST") {
         const body = await response.json().catch(() => ({}));
         if (body.message && (body.message.includes("vô hiệu hóa") || body.message.includes("khoá"))) {
             clearAuth();
-            window.location.href = "/login?banned=true";
+            // Emit event để SessionGuard navigate mượt (không hard reload)
+            window.dispatchEvent(new CustomEvent("cs:logout", { detail: { reason: "banned" } }));
             throw new Error("Tài khoản bị khoá do vi phạm tiêu chuẩn hệ thống!");
         }
         throw new Error(body.message || "Bạn không có quyền thực hiện thao tác này");
@@ -398,6 +403,7 @@ export const publicStationApi = {
     /**
      * Tìm trạm có phân trang + GPS
      * Response: { total, page, pageSize, items }
+     * NOTE: Endpoint này include ExtraServices trong response (GetPublicStationsAsync có .Include(s=>s.ExtraServices))
      */
     getAll: ({ keyword, minRating, sortBy, lat, lng, radiusKm, page = 1, pageSize = 20 } = {}) => {
         const params = new URLSearchParams();
@@ -412,6 +418,13 @@ export const publicStationApi = {
         return apiFetch(`/public/stations?${params.toString()}`);
     },
 
+    /**
+     * Chi tiết 1 trạm (chỉ trả về nếu Approved + Active).
+     * ⚠️ BE LIMITATION: Endpoint này KHÔNG include ExtraServices trong DB query
+     * (ChargingStationRepository.GetByIdAsync thiếu .Include(s=>s.ExtraServices))
+     * → Luôn trả về extraServices: [].
+     * Workaround: sau khi gọi getById, gọi thêm getAll({keyword: name}) và merge extraServices.
+     */
     getById: (id) => apiFetch(`/public/stations/${id}`),
 
     /**
@@ -421,6 +434,7 @@ export const publicStationApi = {
     getNearby: (lat, lng, radiusKm = 5, top = 20) =>
         apiFetch(`/public/stations/nearby?lat=${lat}&lng=${lng}&radiusKm=${radiusKm}&top=${top}`),
 };
+
 
 
 // ============================
