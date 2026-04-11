@@ -31,7 +31,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
         public async Task<List<Owner>> GetPendingKycAsync()
         {
             return await _context.Owner
-                .Where(o => o.KycStatus == Enums.KycStatus.Pending)
+                .Where(o => o.KycStatus == Enums.KycStatus.Pending || o.KycStatus == Enums.KycStatus.PendingUpdate)
                 .OrderBy(o => o.KycSubmittedAt)
                 .ToListAsync();
         }

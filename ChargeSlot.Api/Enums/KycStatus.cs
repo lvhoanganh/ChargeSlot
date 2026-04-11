@@ -8,6 +8,7 @@ namespace ChargeSlot.Api.Enums
         Unverified = 0,
         Pending = 1,
         Approved = 2,
-        Rejected = 3
+        Rejected = 3,
+        PendingUpdate = 4
     }
 }

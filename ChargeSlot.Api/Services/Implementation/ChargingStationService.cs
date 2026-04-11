@@ -74,7 +74,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Chưa tìm thấy hồ sơ Chủ trạm. Vui lòng xác thực danh tính (KYC) trước khi tạo trạm sạc.");
             }
 
-            if (ownerExists.KycStatus != KycStatus.Approved)
+            if (ownerExists.KycStatus != KycStatus.Approved && ownerExists.KycStatus != KycStatus.PendingUpdate)
             {
                 throw new InvalidOperationException("Hồ sơ doanh nghiệp chưa được duyệt. Vui lòng xác thực danh tính (KYC) và chờ Admin kiểm duyệt trước khi tạo trạm sạc.");
             }
@@ -166,7 +166,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _unitOfWork.CompleteAsync();
             }
 
-            if (ownerExists.KycStatus != KycStatus.Approved)
+            if (ownerExists.KycStatus != KycStatus.Approved && ownerExists.KycStatus != KycStatus.PendingUpdate)
             {
                 throw new InvalidOperationException("Hồ sơ doanh nghiệp chưa được duyệt. Vui lòng xác thực danh tính (KYC) và chờ Admin kiểm duyệt trước khi tạo trạm sạc.");
             }
