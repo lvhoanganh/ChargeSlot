@@ -8,7 +8,7 @@ namespace ChargeSlot.Api.BackgroundJobs
 {
     /// <summary>
     /// Xử lý 3 trường hợp overdue:
-    /// 1. WaitingOwner > 30 phút → auto-expire (Owner không phản hồi)
+    /// 1. WaitingOwner quá hạn (config NoShow_Grace_Minutes) → auto-expire
     /// 2. Paid quá EndTime → CompletedPendingInvoice (cho Driver 24h dispute, no-show)
     /// 3. CheckedIn quá EndTime → auto-stop + CompletedPendingInvoice (giải phóng slot ngay)
     /// Chạy mỗi 60 giây.
@@ -44,7 +44,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         }
 
         // ═══════════════════════════════════════════════════════
-        // 1. WaitingOwner > 30 phút → Auto-expire
+        // 1. WaitingOwner quá hạn (config) → Auto-expire
         // ═══════════════════════════════════════════════════════
         private async Task ProcessWaitingOwnerTimeoutAsync()
         {
@@ -65,7 +65,7 @@ namespace ChargeSlot.Api.BackgroundJobs
             foreach (var booking in staleBookings)
             {
                 booking.Status = BookingStatus.Expired;
-                booking.CancelReason = "Không có phản hồi từ chủ trạm trong 30 phút.";
+                booking.CancelReason = $"Không có phản hồi từ chủ trạm trong {graceTime} phút.";
                 booking.UpdatedAt = now;
                 bookingRepo.Update(booking);
 
@@ -83,7 +83,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                 await notificationService.SendAsync(
                     booking.DriverUserId,
                     "Yêu cầu đặt chỗ đã hết hạn",
-                    $"Yêu cầu đặt slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã hết hạn do chủ trạm không phản hồi trong 30 phút.",
+                    $"Yêu cầu đặt slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã hết hạn do chủ trạm không phản hồi trong {graceTime} phút.",
                     NotificationType.Booking);
 
                 var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
@@ -92,11 +92,11 @@ namespace ChargeSlot.Api.BackgroundJobs
                     await notificationService.SendAsync(
                         ownerUserId.Value,
                         "Yêu cầu đặt chỗ đã hết hạn",
-                        $"Yêu cầu đặt slot {booking.ChargingSlot?.SlotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) đã tự động hủy do bạn không phản hồi trong 30 phút.",
+                        $"Yêu cầu đặt slot {booking.ChargingSlot?.SlotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) đã tự động hủy do bạn không phản hồi trong {graceTime} phút.",
                         NotificationType.Booking);
                 }
 
-                _logger.LogInformation("Booking {BookingId} auto-expired: WaitingOwner timeout 30 min.", booking.Id);
+                _logger.LogInformation("Booking {BookingId} auto-expired: WaitingOwner timeout {GraceMinutes} min.", booking.Id, graceTime);
             }
         }
 
@@ -195,7 +195,7 @@ namespace ChargeSlot.Api.BackgroundJobs
 
         // ═══════════════════════════════════════════════════════
         // 3. CheckedIn quá EndTime → Auto-stop + invoice (giải phóng slot ngay)
-        //    Không chờ 30 phút — hết giờ là xử lý luôn
+        //    Không chờ grace period — hết EndTime là auto-stop + giải phóng slot ngay
         // ═══════════════════════════════════════════════════════
         private async Task ProcessCheckedInOvertimeAsync()
         {

@@ -26,7 +26,7 @@ namespace ChargeSlot.Api.DTOs.Admin
         public int Payment_Expiry_Minutes { get; set; }
 
         [Required]
-        [Range(0, 60, ErrorMessage = "Thời gian check-in trễ phép (phút) phải từ 0 - 60")]
+        [Range(0, 60, ErrorMessage = "Thời gian cho phép check-in sớm (phút) phải từ 0 - 60")]
         public int CheckIn_Window_Minutes { get; set; }
 
         [Required]

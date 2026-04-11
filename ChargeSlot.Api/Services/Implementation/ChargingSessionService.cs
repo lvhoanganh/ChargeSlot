@@ -51,7 +51,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
         /// <summary>
         /// Driver scans QR code on slot → system finds matching Paid booking → check in.
-        /// Validates: slot exists, booking is Paid, time window ±15 min.
+        /// Validates: slot exists, booking is Paid, time within [StartTime - EarlyWindow, EndTime).
         /// </summary>
         public async Task<ChargingSessionDto> CheckInAsync(int driverUserId, string qrCodeToken)
         {
