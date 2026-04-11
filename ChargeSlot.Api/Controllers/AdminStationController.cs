@@ -31,11 +31,12 @@ namespace ChargeSlot.Api.Controllers
         [HttpGet]
         public async Task<ActionResult<PagedResultDto<ChargingStationDto>>> GetStations(
             [FromQuery] string? status, 
-            [FromQuery] string? search, 
+            [FromQuery] string? search,
+            [FromQuery] string? ownerName,
             [FromQuery] int page = 1, 
             [FromQuery] int pageSize = 10)
         {
-            var result = await _stationService.GetAdminStationsAsync(status, search, page, pageSize);
+            var result = await _stationService.GetAdminStationsAsync(status, search, ownerName, page, pageSize);
             return Ok(result);
         }
 

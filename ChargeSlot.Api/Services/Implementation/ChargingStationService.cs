@@ -798,13 +798,13 @@ namespace ChargeSlot.Api.Services.Implementation
             };
         }
 
-        public async Task<PagedResultDto<ChargingStationDto>> GetAdminStationsAsync(string? status, string? search, int page, int pageSize)
+        public async Task<PagedResultDto<ChargingStationDto>> GetAdminStationsAsync(string? status, string? search, string? ownerName, int page, int pageSize)
         {
             page = page <= 0 ? 1 : page;
             pageSize = pageSize <= 0 ? 10 : pageSize;
             if (pageSize > 100) pageSize = 100;
 
-            var (items, total) = await _stationRepo.GetAdminStationsPagedAsync(status, search, page, pageSize);
+            var (items, total) = await _stationRepo.GetAdminStationsPagedAsync(status, search, ownerName, page, pageSize);
 
             var dtos = items.Select(MapToDto).ToList();
 
