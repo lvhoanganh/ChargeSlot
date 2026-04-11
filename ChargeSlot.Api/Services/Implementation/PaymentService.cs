@@ -59,12 +59,6 @@ namespace ChargeSlot.Api.Services.Implementation
             await _unitOfWork.CompleteAsync();
 
             booking.Status = BookingStatus.Paid;
-            // Snapshot CheckinDeadlineAt: StartTime + config check-in window
-            if (booking.CheckinDeadlineAt == null)
-            {
-                var cfgs = await _configService.GetCurrentConfigsAsync();
-                booking.CheckinDeadlineAt = booking.StartTime.AddMinutes(cfgs.CheckIn_Window_Minutes);
-            }
             _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
 

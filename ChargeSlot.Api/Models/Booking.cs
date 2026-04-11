@@ -21,7 +21,6 @@ namespace ChargeSlot.Api.Models
         public BookingStatus Status { get; set; } = BookingStatus.Draft;
         public DateTime? PaymentExpiresAt { get; set; }
         public DateTime? CheckedInAt { get; set; }
-        public DateTime? CheckinDeadlineAt { get; set; }
         public DateTime? CancelledAt { get; set; }
         public string? CancelReason { get; set; }
         public string? RejectionReason { get; set; }

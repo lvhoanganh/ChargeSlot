@@ -71,7 +71,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var booking = await _bookingRepo.GetPaidBookingForDriverAndSlotAsync(driverUserId, slot.Id)
                 ?? throw new InvalidOperationException("Không tìm thấy booking đã thanh toán trên slot này.");
 
-            // 3. Validate time window: dùng snapshot CheckinDeadlineAt (đã set lúc payment)
+            // 3. Validate time window: cho phép check-in từ StartTime - WindowMinutes đến EndTime
             var configs = await _configService.GetCurrentConfigsAsync();
             var checkInWindowMinutes = configs.CheckIn_Window_Minutes;
 
