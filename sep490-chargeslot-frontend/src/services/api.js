@@ -337,6 +337,21 @@ export const ownerAnalyticsApi = {
 export const adminStationApi = {
     getPending: () => apiFetch("/admin/stations/pending"),
 
+    /**
+     * Lấy tất cả trạm (Admin) — hỗ trợ filter ownerName, status, search, phân trang
+     * Không trả về trạng thái Draft
+     * GET /api/admin/stations?ownerName=&status=&search=&page=&pageSize=
+     */
+    getAll: ({ ownerName, status, search, page = 1, pageSize = 10 } = {}) => {
+        const params = new URLSearchParams();
+        if (ownerName) params.set("ownerName", ownerName);
+        if (status && status !== "ALL") params.set("status", status);
+        if (search) params.set("search", search);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
+        return apiFetch(`/admin/stations?${params.toString()}`);
+    },
+
     getById: (id) => apiFetch(`/admin/stations/${id}`),
 
     review: (id, isApproved, adminNote) =>

@@ -95,8 +95,9 @@ export default function OwnerKycGuard({ children }) {
     );
   }
 
-  // Approved -> Continue to original content
-  if (kycStatus === "Approved") {
+  // ── Approved hoặc PendingUpdate → cho phép dùng hệ thống bình thường ──
+  // PendingUpdate: Owner vẫn dùng được, banner sẽ hiển thị qua OwnerKycPage
+  if (kycStatus === "Approved" || kycStatus === "PendingUpdate") {
     return children;
   }
 

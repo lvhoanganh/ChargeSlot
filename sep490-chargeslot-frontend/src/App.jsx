@@ -81,6 +81,7 @@ const OwnerWallet = lazy(() => import("./pages/owner/OwnerWallet"));
 const OwnerReviews = lazy(() => import("./pages/owner/OwnerReviews"));
 const OwnerExtraServices = lazy(() => import("./pages/owner/OwnerExtraServices"));
 const OwnerDashboard = lazy(() => import("./pages/owner/OwnerDashboard"));
+const OwnerKycPage = lazy(() => import("./pages/owner/OwnerKycPage"));
 
 // Loading fallback
 const PageLoader = () => (
@@ -247,6 +248,7 @@ export default function App() {
                 <Route path="change-password" element={<ChangePassword />} />
                 <Route path="dashboard" element={<OwnerDashboard />} />
                 <Route path="analytics" element={<Navigate to="/owner/dashboard" replace />} />
+                <Route path="kyc" element={<OwnerKycPage />} />
               </Route>
             </Route>
 

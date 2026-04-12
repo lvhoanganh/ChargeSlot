@@ -185,21 +185,8 @@ export default function StationMap() {
     );
   }, []);
 
-  useEffect(() => {
-    const now = new Date();
-    now.setSeconds(0, 0);
-    now.setMinutes(now.getMinutes() < 30 ? 30 : 0);
-    if (now.getMinutes() === 0) now.setHours(now.getHours() + 1);
 
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    setSelectedDate(`${yyyy}-${mm}-${dd}`);
-    
-    const hh = String(now.getHours()).padStart(2, "0");
-    const min = String(now.getMinutes()).padStart(2, "0");
-    setStartHHMM(`${hh}:${min}`);
-  }, []);
+
 
   function fetchStations(rating, sort, pos) {
     setLoading(true);

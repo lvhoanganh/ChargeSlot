@@ -45,6 +45,22 @@ function getNotificationRoute(notification, role) {
     if (r === "admin") return id ? `/admin/disputes/${id}` : "/admin/disputes";
   }
 
+  // Hồ sơ / KYC
+  if (
+    text.includes("kyc") ||
+    text.includes("xác thực danh tính") ||
+    text.includes("xác minh danh tính") ||
+    text.includes("phê duyệt hồ sơ") ||
+    text.includes("cập nhật hồ sơ") ||
+    text.includes("từ chối hồ sơ") ||
+    text.includes("hồ sơ xác thực") ||
+    text.includes("nộp hồ sơ") ||
+    text.includes("hồ sơ chủ trạm")
+  ) {
+    if (r === "owner") return "/owner/kyc";
+    if (r === "admin") return "/admin/manage-kyc";
+  }
+
   // Trạm sạc chờ duyệt / từ chối / duyệt thành công
   if (
     text.includes("trạm sạc bị từ chối") ||
@@ -173,6 +189,11 @@ function getNotificationRoute(notification, role) {
     if (r === "driver") return "/driver/reviews";
   }
 
+  if (type === "kyc" || type === "kycapproval" || type === "kycupdate") {
+    if (r === "owner") return "/owner/kyc";
+    if (r === "admin") return "/admin/manage-kyc";
+  }
+
   if (type === "wallet") {
     if (r === "driver") return "/driver/wallet";
     if (r === "owner") return "/owner/wallet";
@@ -229,6 +250,22 @@ function NotifIcon({ type }) {
       svg: (
         <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    kyc: {
+      bg: "linear-gradient(135deg,#0ea5e9,#0284c7)",
+      svg: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      ),
+    },
+    kycapproval: {
+      bg: "linear-gradient(135deg,#0ea5e9,#0284c7)",
+      svg: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
         </svg>
       ),
     },

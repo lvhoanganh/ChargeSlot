@@ -22,7 +22,7 @@ const CONFIG_GROUPS = [
     title: "⏱️ Thời gian & Cửa sổ",
     fields: [
       { key: "payment_Expiry_Minutes", label: "Thanh toán hết hạn (phút)", hint: "Thời gian chờ thanh toán trước khi hủy", type: "int" },
-      { key: "checkIn_Window_Minutes", label: "Cửa sổ check-in (phút)", hint: "Trước/sau giờ đặt bao nhiêu phút được check in", type: "int" },
+      { key: "checkIn_Window_Minutes", label: "Cửa sổ check-in (phút)", hint: "Trước giờ đặt bao nhiêu phút được check in", type: "int" },
       { key: "noShow_Grace_Minutes", label: "Gia hạn no-show (phút)", hint: "Thời gian chờ trước khi bị đánh dấu no-show", type: "int" },
       { key: "slot_Buffer_Minutes", label: "Buffer giữa 2 slot (phút)", hint: "Thời gian cách nhau giữa 2 lịch đặt", type: "int" },
       { key: "oTP_Expiry_Minutes", label: "OTP hết hạn (phút)", hint: "Thời gian hiệu lực của mã OTP", type: "int" },
