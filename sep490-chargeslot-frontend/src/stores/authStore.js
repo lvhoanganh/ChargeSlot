@@ -79,8 +79,8 @@ export const useAuthStore = create(
           }
         } catch { /* silent */ }
 
-        // Clear tất cả auth keys
-        ["accessToken", "refreshToken", "userId", "role", "phoneNumber", "expiresAtUtc", "userInfoByPhone", "auth-store"].forEach(k =>
+        // Clear tất cả auth keys (giữ lại userInfoByPhone để cache avatar cho các lần đăng nhập sau)
+        ["accessToken", "refreshToken", "userId", "role", "phoneNumber", "expiresAtUtc", "auth-store"].forEach(k =>
           localStorage.removeItem(k)
         );
 

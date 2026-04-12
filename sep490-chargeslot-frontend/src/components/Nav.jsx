@@ -58,7 +58,10 @@ export default function Nav() {
   const toastTimer = useRef(null);
 
   const normalizedRole = (role || "").toLowerCase();
-  const avatarSrc = getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR;
+  const storedAvatar = getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR;
+  const avatarSrc = storedAvatar.startsWith("http") || storedAvatar.startsWith("data:")
+    ? storedAvatar
+    : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${storedAvatar.startsWith("/") ? "" : "/"}${storedAvatar}`;
 
   const profilePath =
     normalizedRole === "owner"
@@ -552,7 +555,7 @@ export default function Nav() {
         {token && (
           <div className="cs-mobile-menu__user">
             <img
-              src={getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR}
+              src={avatarSrc}
               alt="Avatar"
               className="cs-mobile-menu__avatar"
             />

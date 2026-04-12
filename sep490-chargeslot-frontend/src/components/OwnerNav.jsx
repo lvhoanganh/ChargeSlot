@@ -51,7 +51,10 @@ export default function OwnerNav() {
   const [walletBalance, setWalletBalance] = useState(null);
 
   const normalizedRole = (role || "").toLowerCase();
-  const avatarSrc = getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR;
+  const storedAvatar = getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR;
+  const avatarSrc = storedAvatar.startsWith("http") || storedAvatar.startsWith("data:")
+    ? storedAvatar
+    : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${storedAvatar.startsWith("/") ? "" : "/"}${storedAvatar}`;
   const profilePath = "/owner/owner-profile";
 
   useEffect(() => {

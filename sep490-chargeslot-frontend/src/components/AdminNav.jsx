@@ -8,6 +8,24 @@ import ChargeSlotLogo from "@/components/ChargeSlotLogo";
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
 
+function getStoredAvatarDataUrl(phoneNumber) {
+  if (!phoneNumber) return "";
+  try {
+    const map = JSON.parse(localStorage.getItem("userInfoByPhone") || "{}");
+    const normalized = normalizePhoneForKey(phoneNumber);
+    return map?.[normalized]?.avatarDataUrl || map?.[phoneNumber]?.avatarDataUrl || "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizePhoneForKey(rawPhone) {
+  const phone = String(rawPhone || "").trim().replaceAll(" ", "");
+  if (!phone) return "";
+  if (phone.startsWith("+84")) return `0${phone.slice(3)}`;
+  return phone;
+}
+
 const maskPhone = (phone) =>
   phone ? `**** **** ${phone.slice(-2)}` : "";
 
@@ -22,6 +40,11 @@ export default function AdminNav() {
   const dropdownRef = useRef(null);
   const moreRef = useRef(null);
   const mobileMenuRef = useRef(null);
+
+  const storedAvatar = getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR;
+  const avatarSrc = storedAvatar.startsWith("http") || storedAvatar.startsWith("data:")
+    ? storedAvatar
+    : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${storedAvatar.startsWith("/") ? "" : "/"}${storedAvatar}`;
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -196,7 +219,7 @@ export default function AdminNav() {
                     aria-label="Menu quản trị"
                   >
                     <img
-                      src={DEFAULT_AVATAR}
+                      src={avatarSrc}
                       alt="Avatar"
                       className={`cs-avatar-btn__img ${dropdownOpen ? "cs-avatar-btn__img--open" : ""}`}
                     />
@@ -213,7 +236,7 @@ export default function AdminNav() {
                       {/* Header */}
                       <div className="cs-profile-dropdown__header cs-profile-dropdown__header--admin">
                         <img
-                          src={DEFAULT_AVATAR}
+                          src={avatarSrc}
                           alt="Avatar"
                           className="w-12 h-12 rounded-full object-cover border-2 border-white/60 shadow-md"
                         />
@@ -325,7 +348,7 @@ export default function AdminNav() {
           onClick={() => setMobileMoreOpen(true)}
         >
           <img
-            src={DEFAULT_AVATAR}
+            src={avatarSrc}
             alt="Avatar"
             style={{
               width: 24, height: 24, borderRadius: "50%", objectFit: "cover",
@@ -345,7 +368,7 @@ export default function AdminNav() {
           <div style={{ width: 40, height: 4, borderRadius: 2, background: "#e2e8f0" }} />
         </div>
         <div className="cs-more-sheet__user">
-          <img src={DEFAULT_AVATAR} alt="Avatar" className="cs-more-sheet__avatar" />
+          <img src={avatarSrc} alt="Avatar" className="cs-more-sheet__avatar" />
           <div>
             <p className="cs-more-sheet__phone">{maskPhone(phoneNumber) || "Quản trị viên"}</p>
             <span className="cs-more-sheet__role">Quản trị viên</span>

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { disputeApi } from "@/services/api";
 
 const STATUS_MAP = {
-  Open: { label: "Mở", color: "#f59e0b", bg: "#fffbeb", icon: "📝" },
   WaitingOwnerEvidence: { label: "Chờ Owner phản hồi", color: "#f97316", bg: "#fff7ed", icon: "⏳" },
   PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "🔍" },
   ResolvedRefund: { label: "Thắng — Hoàn tiền", color: "#16a34a", bg: "#f0fdf4", icon: "✅" },
@@ -49,7 +48,6 @@ export default function DriverDisputeList() {
 
   const TABS = [
     { key: "all", label: "Tất cả", count: counts.all },
-    { key: "Open", label: "Mở", count: counts.Open },
     { key: "WaitingOwnerEvidence", label: "Chờ Owner", count: counts.WaitingOwnerEvidence },
     { key: "PendingReview", label: "Đang xét", count: counts.PendingReview },
   ];
