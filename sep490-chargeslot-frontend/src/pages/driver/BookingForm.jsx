@@ -380,12 +380,12 @@ export default function BookingForm() {
         })
           .then(r => r.ok ? r.json() : null)
           .then(data => {
-             let list = [];
-             if (Array.isArray(data)) list = data;
-             else if (data && Array.isArray(data.bookedRanges)) list = data.bookedRanges;
-             else if (data && Array.isArray(data.items)) list = data.items;
-             setBookedRanges(list);
-           })
+            let list = [];
+            if (Array.isArray(data)) list = data;
+            else if (data && Array.isArray(data.bookedRanges)) list = data.bookedRanges;
+            else if (data && Array.isArray(data.items)) list = data.items;
+            setBookedRanges(list);
+          })
           .catch(() => { });
       }
     } finally {
@@ -419,15 +419,15 @@ export default function BookingForm() {
     if (!startHHMM || !selectedDate) return false;
     const [sh, sm] = startHHMM.split(":").map(Number);
     const sMin = sh * 60 + sm;
-    const eMin = sMin +  duration * 60;
+    const eMin = sMin + duration * 60;
     return bookedRanges.some(r => {
-      const parseT = (t) => { 
+      const parseT = (t) => {
         if (typeof t === "string" && !t.includes("T")) {
-          const [h,m] = t.split(":");
+          const [h, m] = t.split(":");
           return parseInt(h) * 60 + parseInt(m);
         }
-        const d = new Date(String(t).replace("Z", "")); 
-        return d.getHours() * 60 + d.getMinutes(); 
+        const d = new Date(String(t).replace("Z", ""));
+        return d.getHours() * 60 + d.getMinutes();
       };
       const rS = parseT(r.startTime), rE = parseT(r.endTime);
       return sMin < rE && eMin > rS;
@@ -456,7 +456,7 @@ export default function BookingForm() {
       let opEnd = timeToStrMin(opHours.closeTime);
       if (opStart === 0 && opEnd === 0) { opEnd = 24 * 60; }
       else if (opEnd <= opStart) { opEnd += 24 * 60; }
-      
+
       const availMinutes = opEnd - sMin;
       if (availMinutes > 0 && (availMinutes / 60) < max) {
         max = availMinutes / 60;
@@ -464,20 +464,20 @@ export default function BookingForm() {
     }
 
     // 2. Limit by booked ranges
-    const parseT = (t) => { 
+    const parseT = (t) => {
       if (typeof t === "string" && !t.includes("T")) {
-        const [h,m] = t.split(":");
+        const [h, m] = t.split(":");
         return parseInt(h) * 60 + parseInt(m);
       }
-      const d = new Date(String(t).replace("Z", "")); 
-      return d.getHours() * 60 + d.getMinutes(); 
+      const d = new Date(String(t).replace("Z", ""));
+      return d.getHours() * 60 + d.getMinutes();
     };
-    
+
     let firstNextBookingStart = 99999;
     bookedRanges.forEach(r => {
       const rS = parseT(r.startTime);
       if (rS > sMin && rS < firstNextBookingStart) {
-         firstNextBookingStart = rS;
+        firstNextBookingStart = rS;
       }
     });
 
@@ -521,23 +521,68 @@ export default function BookingForm() {
                     const isOccupied = slot.status === "Occupied";
                     const isSelected = selectedSlot === slot.id;
                     const canSelect = isActive || slot.status === "Booked";
-                    const statusLabel = isOccupied ? "Đang dùng" : isActive ? "Sẵn sàng" : slot.status === "Booked" ? "Có lịch đặt" : slot.status === "Inactive" ? "Ngưng" : slot.status === "Maintenance" ? "Bảo trì" : slot.status;
-                    const statusColor = isOccupied ? "#ef4444" : isActive ? "#22c55e" : slot.status === "Booked" ? "#f59e0b" : "#6b7280";
+
+                    // Tính real-time status dựa vào bookedRanges của slot đang được chọn
+                    // Chỉ áp dụng khi slot này đang được chọn và có dữ liệu bookedRanges
+                    let displayStatus = slot.status;
+                    if (slot.status === "Booked" && selectedSlot === slot.id && bookedRanges.length > 0) {
+                      const now = new Date();
+                      const nowMin = now.getHours() * 60 + now.getMinutes();
+                      const parseT = (t) => {
+                        if (typeof t === "string" && !t.includes("T")) {
+                          const [h, m] = t.split(":");
+                          return parseInt(h) * 60 + parseInt(m);
+                        }
+                        const d = new Date(String(t).replace("Z", ""));
+                        return d.getHours() * 60 + d.getMinutes();
+                      };
+                      // Kiểm tra xem booking nào đang trong khung giờ hiện tại (Occupied)
+                      const currentlyOccupied = bookedRanges.some(r => {
+                        const rS = parseT(r.startTime), rE = parseT(r.endTime);
+                        return nowMin >= rS && nowMin < rE && (r.status === "CheckedIn" || r.status === "InProgress" || r.status === "Charging");
+                      });
+                      // Kiểm tra booking Paid (đã thanh toán, đang giữ chỗ chờ check-in)
+                      const hasPaidBooking = bookedRanges.some(r => r.status === "Paid");
+                      if (currentlyOccupied) displayStatus = "Occupied";
+                      else if (hasPaidBooking) displayStatus = "Reserved"; // Giữ chỗ
+                      else displayStatus = "Booked"; // Đã đặt chỗ
+                    } else if (slot.status === "Booked" && selectedSlot !== slot.id) {
+                      // Slot chưa được chọn, không có dữ liệu bookedRanges → hiển thị mặc định
+                      displayStatus = "Booked";
+                    }
+
+                    const statusLabel = (displayStatus === "Occupied" || isOccupied) ? "Đang dùng"
+                      : (displayStatus === "Available" || displayStatus === "Active") ? "Sẵn sàng"
+                        : displayStatus === "Reserved" ? "Giữ chỗ"
+                          : displayStatus === "Booked" ? "Đã đặt chỗ"
+                            : slot.status === "Inactive" ? "Ngưng"
+                              : slot.status === "Maintenance" ? "Bảo trì"
+                                : slot.status;
+                    const statusColor = (displayStatus === "Occupied" || isOccupied) ? "#ef4444"
+                      : isActive ? "#22c55e"
+                        : displayStatus === "Reserved" ? "#3b82f6"
+                          : displayStatus === "Booked" ? "#f59e0b"
+                            : "#6b7280";
+                    const isEffectivelyOccupied = isOccupied || displayStatus === "Occupied";
+                    const isReserved = displayStatus === "Reserved";
                     return (
                       <button type="button" key={slot.id} disabled={!canSelect} onClick={() => setSelectedSlot(slot.id)}
                         style={{
                           padding: "12px 10px", borderRadius: 12,
-                          border: isSelected ? "2px solid #f97316" : isOccupied ? "2px solid #fca5a5" : "2px solid #e5e7eb",
-                          background: isSelected ? "#fff7ed" : isOccupied ? "#fef2f2" : !canSelect ? "#f3f4f6" : "#fff",
+                          border: isSelected ? "2px solid #f97316" : isEffectivelyOccupied ? "2px solid #fca5a5" : isReserved ? "2px solid #93c5fd" : "2px solid #e5e7eb",
+                          background: isSelected ? "#fff7ed" : isEffectivelyOccupied ? "#fef2f2" : isReserved ? "#eff6ff" : !canSelect ? "#f3f4f6" : "#fff",
                           cursor: canSelect ? "pointer" : "not-allowed", opacity: canSelect ? 1 : 0.75, textAlign: "center",
                           position: "relative",
                         }}>
-                        {isOccupied && (
+                        {isEffectivelyOccupied && (
                           <span style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block", animation: "ping 1s cubic-bezier(0,0,0.2,1) infinite" }} />
+                        )}
+                        {isReserved && (
+                          <span style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", display: "block" }} />
                         )}
                         <div style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{slot.slotName}</div>
                         <div style={{ fontSize: 11, color: statusColor, marginTop: 2, fontWeight: 600 }}>
-                          {isOccupied ? "⚡ " : ""}{statusLabel}
+                          {isEffectivelyOccupied ? "⚡ " : isReserved ? "🔒 " : ""}{statusLabel}
                         </div>
                       </button>
                     );
@@ -575,7 +620,7 @@ export default function BookingForm() {
                       {bookedRanges.map((r, idx) => {
                         const parseVN = (t) => {
                           if (typeof t === "string" && !t.includes("T")) {
-                            const [h,m] = t.split(":");
+                            const [h, m] = t.split(":");
                             const d = new Date(); d.setHours(h, m, 0, 0); return d;
                           }
                           return new Date(String(t).replace("Z", ""));
@@ -584,9 +629,9 @@ export default function BookingForm() {
                         const end = parseVN(r.endTime);
                         const fmtT = (d) => d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
                         const statusLabel =
-                          r.status === "Paid" ? "Đã thanh toán" :
+                          r.status === "Paid" ? "Giữ chỗ" :
                             r.status === "Confirmed" ? "Đã xác nhận" :
-                              r.status === "PendingPayment" ? "Chờ thanh toán" :
+                              r.status === "PendingPayment" ? "Đã đặt chỗ" :
                                 r.status === "WaitingOwner" ? "Chờ duyệt" :
                                   r.status === "CheckedIn" ? "Đã check-in" :
                                     r.status === "InProgress" || r.status === "Charging" ? "Đang sạc" :
@@ -674,7 +719,7 @@ export default function BookingForm() {
                           type="date"
                           min={new Date().toISOString().split("T")[0]}
                           value={isCustomActive && customSelDate ? selectedDate : ""}
-                          onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                          onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
                           onChange={(e) => { if (e.target.value) setSelectedDate(e.target.value); }}
                           style={{
                             position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
@@ -691,10 +736,10 @@ export default function BookingForm() {
                         ) : (
                           <>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" style={{ marginBottom: 2 }}>
-                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                              <line x1="16" y1="2" x2="16" y2="6"/>
-                              <line x1="8" y1="2" x2="8" y2="6"/>
-                              <line x1="3" y1="10" x2="21" y2="10"/>
+                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                              <line x1="16" y1="2" x2="16" y2="6" />
+                              <line x1="8" y1="2" x2="8" y2="6" />
+                              <line x1="3" y1="10" x2="21" y2="10" />
                             </svg>
                             <div style={{ fontSize: 10, fontWeight: 600, color: "#64748b" }}>Ngày khác</div>
                           </>
@@ -719,7 +764,7 @@ export default function BookingForm() {
                     {bookedRanges.map((r, i) => {
                       const parseT = (t) => {
                         if (typeof t === "string" && !t.includes("T")) {
-                          const [h,m] = t.split(":");
+                          const [h, m] = t.split(":");
                           return parseInt(h) * 60 + parseInt(m);
                         }
                         const d = new Date(String(t).replace("Z", ""));
@@ -766,7 +811,7 @@ export default function BookingForm() {
                         style={{ width: 44, height: 42, background: "#fff", border: "none", cursor: "pointer", fontSize: 20, color: duration > 0.5 ? "#ea580c" : "#cbd5e1", borderRight: "1px solid #e5e7eb", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center" }}
                         disabled={duration <= 0.5}>−</button>
                       <div style={{ flex: 1, textAlign: "center", fontSize: 14, fontWeight: 700, color: "#1e293b", userSelect: "none" }}>
-                        {duration} giờ {duration === 0.5 ? <span style={{fontSize: 11, fontWeight: 600, color: "#94a3b8"}}>(30p)</span> : ""}
+                        {duration} giờ {duration === 0.5 ? <span style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8" }}>(30p)</span> : ""}
                       </div>
                       <button type="button" onClick={() => setDuration(d => Math.min(maxAvailDuration, d + 0.5))}
                         style={{ width: 44, height: 42, background: "#fff", border: "none", cursor: "pointer", fontSize: 20, color: (duration + 0.5) <= maxAvailDuration ? "#ea580c" : "#cbd5e1", borderLeft: "1px solid #e5e7eb", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -782,7 +827,7 @@ export default function BookingForm() {
                 )}
                 {startHHMM && hasConflict && (
                   <div style={{ marginTop: 12, fontSize: 13, color: "#ef4444", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-                    <span>🔒</span> Giờ bắt đầu hoặc thời lượng sạc trùng vào lịch đã đặt. Vui lòng giảm thời lượng hoặc chọn lúc khác!
+                    <span>🔒</span> Giờ bắt đầu hoặc thời lượng sạc trùng vào lịch đã đặt. Vui lòng tăng thời lượng hoặc chọn lúc khác!
                   </div>
                 )}
               </div>

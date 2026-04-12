@@ -68,11 +68,14 @@ const statusConfig = {
 };
 
 const slotStatusConfig = {
-  Available: { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
-  Active: { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
-  Occupied: { label: "Đang dùng", color: "#ef4444", bg: "#fef2f2" },
-  Maintenance: { label: "Bảo trì", color: "#f97316", bg: "#fff7ed" },
-  Inactive: { label: "Ngưng", color: "#6b7280", bg: "#f3f4f6" },
+  Available:  { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
+  Active:     { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
+  Occupied:   { label: "Đang sạc", color: "#ef4444", bg: "#fef2f2" },
+  CheckedIn:  { label: "Đã check-in", color: "#06b6d4", bg: "#ecfeff" },
+  Booked:     { label: "Đã đặt chỗ", color: "#f59e0b", bg: "#fffbeb" },
+  Reserved:   { label: "Giữ chỗ", color: "#3b82f6", bg: "#eff6ff" },
+  Maintenance:{ label: "Bảo trì", color: "#f97316", bg: "#fff7ed" },
+  Inactive:   { label: "Ngưng", color: "#6b7280", bg: "#f3f4f6" },
 };
 
 export default function StationDetailDriver() {
@@ -91,7 +94,8 @@ export default function StationDetailDriver() {
   const [hasMoreReviews, setHasMoreReviews] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
-  const [occupiedSlots, setOccupiedSlots] = useState(new Set());
+  const [occupiedSlots, setOccupiedSlots] = useState(new Set());   // Đang sạc (InProgress/Charging)
+  const [checkedInSlots, setCheckedInSlots] = useState(new Set()); // Đã check-in, chưa sạc
   const [unavailableDates, setUnavailableDates] = useState([]); // ["YYYY-MM-DD"]
 
   function handleBooking() {
@@ -147,35 +151,41 @@ export default function StationDetailDriver() {
     return () => { cancelled = true; };
   }, [id]);
 
-  // Fetch active sessions to mark occupied slots
+  // Fetch active sessions — phân biệt đang sạc (InProgress) và đã check-in (chưa sạc)
   useEffect(() => {
     if (!id) return;
+    function parseSessions(response) {
+      const occupied = new Set();
+      const checkedIn = new Set();
+      const sessions = Array.isArray(response) ? response : (response?.items || []);
+      sessions
+        .filter(s => !s.actualEndTime && s.bookingStatus !== "Completed")
+        .forEach(session => {
+          if (!session.slotId) return;
+          const st = session.bookingStatus || session.status || "";
+          if (st === "InProgress" || st === "Charging") {
+            occupied.add(session.slotId); // Đang sạc thực sự
+          } else if (st === "CheckedIn") {
+            checkedIn.add(session.slotId); // Đã check-in, chưa bắt đầu sạc
+          }
+        });
+      return { occupied, checkedIn };
+    }
+
     chargingApi.getByStationId(Number(id))
       .then((response) => {
-        const occupied = new Set();
-        // response có thể là array hoặc object có items property
-        const sessions = Array.isArray(response) ? response : (response?.items || []);
-        // Filter để lấy chỉ sessions đang active (chưa kết thúc)
-        sessions
-          .filter(s => !s.actualEndTime && s.bookingStatus !== "Completed")
-          .forEach(session => {
-            if (session.slotId) occupied.add(session.slotId);
-          });
+        const { occupied, checkedIn } = parseSessions(response);
         setOccupiedSlots(occupied);
+        setCheckedInSlots(checkedIn);
       })
-      .catch(() => setOccupiedSlots(new Set()));
-    
+      .catch(() => { setOccupiedSlots(new Set()); setCheckedInSlots(new Set()); });
+
     const interval = setInterval(() => {
       chargingApi.getByStationId(Number(id))
         .then((response) => {
-          const occupied = new Set();
-          const sessions = Array.isArray(response) ? response : (response?.items || []);
-          sessions
-            .filter(s => !s.actualEndTime && s.bookingStatus !== "Completed")
-            .forEach(session => {
-              if (session.slotId) occupied.add(session.slotId);
-            });
+          const { occupied, checkedIn } = parseSessions(response);
           setOccupiedSlots(occupied);
+          setCheckedInSlots(checkedIn);
         })
         .catch(() => {});
     }, 10000);
@@ -266,8 +276,9 @@ export default function StationDetailDriver() {
   }
 
   const st = statusConfig[station.operationalStatus] || statusConfig.Open;
+  // Tính số slot có thể đặt được: loại trừ Occupied (active session), Maintenance, Inactive, Booked
   const availableSlots = (station.chargingSlots || []).filter(
-    (s) => s.status === "Available" || s.status === "Active"
+    (s) => (s.status === "Available" || s.status === "Active") && !occupiedSlots.has(s.id)
   ).length;
 
   return (
@@ -499,10 +510,11 @@ export default function StationDetailDriver() {
 
           <div className="space-y-3">
             {station.chargingSlots.map((slot) => {
-              const isOccupied = occupiedSlots.has(slot.id);
-              const displayStatus = isOccupied ? "Occupied" : slot.status;
-              const ss =
-                slotStatusConfig[displayStatus] || slotStatusConfig[slot.status] || slotStatusConfig.Available;
+              // Ưu tiên: Đang sạc > Đã check-in > trạng thái gốc từ BE
+              const isOccupied  = occupiedSlots.has(slot.id);
+              const isCheckedIn = checkedInSlots.has(slot.id);
+              const displayStatus = isOccupied ? "Occupied" : isCheckedIn ? "CheckedIn" : slot.status;
+              const ss = slotStatusConfig[displayStatus] || slotStatusConfig[slot.status] || slotStatusConfig.Available;
               return (
                 <div
                   key={slot.id}

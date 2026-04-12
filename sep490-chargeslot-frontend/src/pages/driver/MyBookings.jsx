@@ -8,7 +8,7 @@ import Pagination from "@/components/Pagination";
 const statusStyles = {
   WaitingOwner: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "⏳", group: "active" },
   PendingPayment: { label: "Chờ thanh toán", color: "#3b82f6", bg: "#eff6ff", icon: "💳", group: "active" },
-  Paid: { label: "Đã thanh toán", color: "#22c55e", bg: "#f0fdf4", icon: "✅", group: "active" },
+  Paid: { label: "Giữ chỗ", color: "#22c55e", bg: "#f0fdf4", icon: "🔒", group: "active" },
   CheckedIn: { label: "Đã check-in", color: "#06b6d4", bg: "#ecfeff", icon: "⚡", group: "active" },
   InProgress: { label: "Đang sạc", color: "#06b6d4", bg: "#ecfeff", icon: "🔋", group: "active" },
   CompletedPendingInvoice: { label: "Chờ xác nhận", color: "#f97316", bg: "#fff7ed", icon: "🧾", group: "active" },

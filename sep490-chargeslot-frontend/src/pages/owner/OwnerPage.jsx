@@ -16,11 +16,14 @@ const statusConfig = {
 };
 
 const slotColors = {
-  Active: { bg: "#22c55e", text: "#fff", border: "#16a34a", label: "Hoạt động" },
-  Inactive: { bg: "#94a3b8", text: "#fff", border: "#64748b", label: "Ngưng" },
-  Maintenance: { bg: "#f97316", text: "#fff", border: "#ea580c", label: "Bảo trì" },
+  Active:    { bg: "#22c55e", text: "#fff", border: "#16a34a", label: "Hoạt động" },
+  Inactive:  { bg: "#94a3b8", text: "#fff", border: "#64748b", label: "Ngưng" },
+  Maintenance:{ bg: "#f97316", text: "#fff", border: "#ea580c", label: "Bảo trì" },
   Available: { bg: "#22c55e", text: "#fff", border: "#16a34a", label: "Trống" },
-  Occupied: { bg: "#ef4444", text: "#fff", border: "#dc2626", label: "Đang dùng" },
+  Occupied:  { bg: "#ef4444", text: "#fff", border: "#dc2626", label: "Đang sạc" },
+  CheckedIn: { bg: "#06b6d4", text: "#fff", border: "#0891b2", label: "Đã check-in" },
+  Booked:    { bg: "#f59e0b", text: "#fff", border: "#d97706", label: "Đã đặt chỗ" },
+  Reserved:  { bg: "#3b82f6", text: "#fff", border: "#2563eb", label: "Giữ chỗ" },
 };
 
 export default function OwnerPage() {
@@ -31,7 +34,8 @@ export default function OwnerPage() {
   const [actionLoading, setActionLoading] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [filter, setFilter] = useState("all");
-  const [occupiedSlots, setOccupiedSlots] = useState(new Set());
+  const [occupiedSlots, setOccupiedSlots] = useState(new Set());    // Đang sạc (InProgress/Charging)
+  const [checkedInSlots, setCheckedInSlots] = useState(new Set());  // Đã check-in, chưa sạc
 
   function fetchStations() {
     setLoading(true);
@@ -43,29 +47,37 @@ export default function OwnerPage() {
 
   useEffect(() => { fetchStations(); }, []);
 
-  // Fetch active sessions to mark occupied slots
+  // Fetch active sessions — phân biệt đang sạc (InProgress) và đã check-in (chưa sạc)
   useEffect(() => {
+    function parseSessions(sessions) {
+      const occupied = new Set();
+      const checkedIn = new Set();
+      if (Array.isArray(sessions)) {
+        sessions.forEach(session => {
+          if (!session.slotId) return;
+          const st = session.bookingStatus || session.status || "";
+          if (st === "InProgress" || st === "Charging") {
+            occupied.add(session.slotId);
+          } else if (st === "CheckedIn") {
+            checkedIn.add(session.slotId);
+          }
+        });
+      }
+      return { occupied, checkedIn };
+    }
     chargingApi.getActiveSessions()
       .then((sessions) => {
-        const occupied = new Set();
-        if (Array.isArray(sessions)) {
-          sessions.forEach(session => {
-            if (session.slotId) occupied.add(session.slotId);
-          });
-        }
+        const { occupied, checkedIn } = parseSessions(sessions);
         setOccupiedSlots(occupied);
+        setCheckedInSlots(checkedIn);
       })
-      .catch(() => setOccupiedSlots(new Set()));
+      .catch(() => { setOccupiedSlots(new Set()); setCheckedInSlots(new Set()); });
     const interval = setInterval(() => {
       chargingApi.getActiveSessions()
         .then((sessions) => {
-          const occupied = new Set();
-          if (Array.isArray(sessions)) {
-            sessions.forEach(session => {
-              if (session.slotId) occupied.add(session.slotId);
-            });
-          }
+          const { occupied, checkedIn } = parseSessions(sessions);
           setOccupiedSlots(occupied);
+          setCheckedInSlots(checkedIn);
         })
         .catch(() => {});
     }, 10000);
@@ -321,8 +333,9 @@ export default function OwnerPage() {
                                   );
 
                                   if (slot) {
-                                    const isOccupied = occupiedSlots.has(slot.id);
-                                    const displayStatus = isOccupied ? "Occupied" : slot.status;
+                                    const isOccupied  = occupiedSlots.has(slot.id);
+                                    const isCheckedIn = checkedInSlots.has(slot.id);
+                                    const displayStatus = isOccupied ? "Occupied" : isCheckedIn ? "CheckedIn" : slot.status;
                                     const sc = slotColors[displayStatus] || slotColors[slot.status] || slotColors.Inactive;
                                     const isSelected = selectedSlot === slot.id;
                                     return (
@@ -398,7 +411,7 @@ export default function OwnerPage() {
 
                             {/* Legend */}
                             <div className="flex gap-3 mt-3 flex-wrap">
-                              {Object.entries(slotColors).filter(([k]) => ["Active", "Occupied", "Maintenance", "Inactive"].includes(k)).map(([key, val]) => (
+                              {Object.entries(slotColors).filter(([k]) => ["Active", "Occupied", "CheckedIn", "Booked", "Reserved", "Maintenance", "Inactive"].includes(k)).map(([key, val]) => (
                                 <div key={key} className="flex items-center gap-1.5 text-xs text-slate-600">
                                   <div style={{ width: 10, height: 10, borderRadius: 3, background: val.bg }} />
                                   {val.label}
@@ -418,7 +431,13 @@ export default function OwnerPage() {
                               (() => {
                                 const slot = slots.find((sl) => sl.id === selectedSlot);
                                 if (!slot) return <p className="text-sm text-slate-400 italic">Không tìm thấy.</p>;
-                                const sc = slotColors[slot.status] || slotColors.Inactive;
+                                // Tính displayStatus: ưu tiên occupiedSlots (active session real-time)
+                                const isCurrentlyOccupied = occupiedSlots.has(slot.id);
+                                const isCurrentlyCheckedIn = checkedInSlots.has(slot.id);
+                                const displayStatus = isCurrentlyOccupied ? "Occupied" : isCurrentlyCheckedIn ? "CheckedIn" : slot.status;
+                                const sc = slotColors[displayStatus] || slotColors[slot.status] || slotColors.Inactive;
+                                // Chỉ cho phép đổi trạng thái khi slot không bận
+                                const isSlotBusy = displayStatus === "Occupied" || displayStatus === "CheckedIn" || slot.status === "Booked";
                                 return (
                                   <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
                                     <div className="flex items-center gap-2">
@@ -427,7 +446,7 @@ export default function OwnerPage() {
                                       </div>
                                       <div>
                                         <div className="font-bold text-slate-900">{slot.slotName}</div>
-                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: sc.text, background: sc.bg }}>
+                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: sc.border, background: `${sc.bg}44`, border: `1px solid ${sc.border}55` }}>
                                           {sc.label}
                                         </span>
                                       </div>
@@ -446,42 +465,52 @@ export default function OwnerPage() {
                                     {s.approvalStatus === "Approved" && (
                                       <div className="pt-2 border-t border-slate-200">
                                         <p className="text-xs font-medium text-slate-600 mb-2">Đổi trạng thái</p>
-                                        <div className="flex gap-1.5 flex-wrap">
-                                          {["Active", "Inactive", "Maintenance"].map((key) => {
-                                            const isCurrentStatus = slot.status === key;
-                                            const labels = { Active: "Hoạt động", Inactive: "Ngưng", Maintenance: "Bảo trì" };
-                                            const colors = { Active: "#22c55e", Inactive: "#94a3b8", Maintenance: "#f97316" };
+                                        {isSlotBusy ? (
+                                          <div style={{ fontSize: 11, color: "#64748b", background: "#f1f5f9", borderRadius: 8, padding: "7px 10px", fontStyle: "italic" }}>
+                                            {displayStatus === "Occupied"
+                                              ? "⚡ Đang sạc — không thể đổi trạng thái"
+                                              : displayStatus === "CheckedIn"
+                                              ? "📍 Đã check-in, chưa sạc — không thể đổi trạng thái"
+                                              : "📅 Đang có lịch đặt — không thể đổi trạng thái"}
+                                          </div>
+                                        ) : (
+                                          <div className="flex gap-1.5 flex-wrap">
+                                            {["Active", "Inactive", "Maintenance"].map((key) => {
+                                              const isCurrentStatus = slot.status === key;
+                                              const labels = { Active: "Hoạt động", Inactive: "Ngưng", Maintenance: "Bảo trì" };
+                                              const colors = { Active: "#22c55e", Inactive: "#94a3b8", Maintenance: "#f97316" };
 
-                                            // BE Enum mapping
-                                            const statusValues = { Active: 0, Inactive: 1, Maintenance: 2 };
+                                              // BE Enum mapping
+                                              const statusValues = { Active: 0, Inactive: 1, Maintenance: 2 };
 
-                                            return (
-                                              <button
-                                                key={key}
-                                                disabled={isCurrentStatus || actionLoading === slot.id}
-                                                onClick={async () => {
-                                                  setActionLoading(slot.id);
-                                                  try {
-                                                    await slotApi.updateStatus(s.id, slot.id, { status: statusValues[key] });
-                                                    fetchStations();
-                                                  } catch (err) {
-                                                    showToast.error("Lỗi: " + (err.message || "Không rõ"));
-                                                  } finally {
-                                                    setActionLoading(null);
-                                                  }
-                                                }}
-                                                className="px-2.5 py-1 text-[10px] font-semibold rounded-lg border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition"
-                                                style={{
-                                                  color: isCurrentStatus ? "#fff" : colors[key],
-                                                  background: isCurrentStatus ? colors[key] : "transparent",
-                                                  borderColor: colors[key],
-                                                }}
-                                              >
-                                                {labels[key]}
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
+                                              return (
+                                                <button
+                                                  key={key}
+                                                  disabled={isCurrentStatus || actionLoading === slot.id}
+                                                  onClick={async () => {
+                                                    setActionLoading(slot.id);
+                                                    try {
+                                                      await slotApi.updateStatus(s.id, slot.id, { status: statusValues[key] });
+                                                      fetchStations();
+                                                    } catch (err) {
+                                                      showToast.error("Lỗi: " + (err.message || "Không rõ"));
+                                                    } finally {
+                                                      setActionLoading(null);
+                                                    }
+                                                  }}
+                                                  className="px-2.5 py-1 text-[10px] font-semibold rounded-lg border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                                  style={{
+                                                    color: isCurrentStatus ? "#fff" : colors[key],
+                                                    background: isCurrentStatus ? colors[key] : "transparent",
+                                                    borderColor: colors[key],
+                                                  }}
+                                                >
+                                                  {labels[key]}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>

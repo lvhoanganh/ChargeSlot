@@ -7,7 +7,7 @@ import QRCodeModal from "@/components/QRCodeModal";
 const statusStyles = {
   WaitingOwner: { label: "Chờ chủ trạm duyệt", color: "#f59e0b", bg: "#fffbeb", bgGrad: "linear-gradient(135deg, #fef3c7, #fde68a)", icon: "⏳" },
   PendingPayment: { label: "Chờ thanh toán", color: "#3b82f6", bg: "#eff6ff", bgGrad: "linear-gradient(135deg, #dbeafe, #bfdbfe)", icon: "💳" },
-  Paid: { label: "Đã thanh toán", color: "#22c55e", bg: "#f0fdf4", bgGrad: "linear-gradient(135deg, #dcfce7, #bbf7d0)", icon: "✅" },
+  Paid: { label: "Giữ chỗ", color: "#22c55e", bg: "#f0fdf4", bgGrad: "linear-gradient(135deg, #dcfce7, #bbf7d0)", icon: "🔒" },
   Expired: { label: "Hết hạn", color: "#9ca3af", bg: "#f3f4f6", bgGrad: "linear-gradient(135deg, #f3f4f6, #e5e7eb)", icon: "⏰" },
   Rejected: { label: "Bị từ chối", color: "#ef4444", bg: "#fef2f2", bgGrad: "linear-gradient(135deg, #fecaca, #fca5a5)", icon: "❌" },
   Cancelled: { label: "Đã hủy", color: "#6b7280", bg: "#f3f4f6", bgGrad: "linear-gradient(135deg, #f3f4f6, #e5e7eb)", icon: "🚫" },

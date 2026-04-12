@@ -12,16 +12,16 @@ function extractTime(raw) {
 }
 
 const BOOKING_STATUS_MAP = {
-  Pending:                  { label: "Chờ xác nhận",        color: "#ca8a04", bg: "#fefce8" },
-  Confirmed:                { label: "Đã xác nhận",         color: "#2563eb", bg: "#eff6ff" },
-  CheckedIn:                { label: "Đã check-in",         color: "#7c3aed", bg: "#f5f3ff" },
-  Charging:                 { label: "Đang sạc",            color: "#0891b2", bg: "#ecfeff" },
-  Completed:                { label: "Hoàn thành",          color: "#16a34a", bg: "#f0fdf4" },
-  CompletedPendingInvoice:  { label: "Chờ thanh toán",      color: "#d97706", bg: "#fffbeb" },
-  CancelledByDriver:        { label: "Driver hủy",          color: "#dc2626", bg: "#fef2f2" },
-  CancelledByOwner:         { label: "Chủ trạm hủy",       color: "#dc2626", bg: "#fef2f2" },
-  CancelledByAdmin:         { label: "Admin hủy",           color: "#dc2626", bg: "#fef2f2" },
-  NoShow:                   { label: "Không đến",           color: "#9ca3af", bg: "#f3f4f6" },
+  Pending: { label: "Chờ xác nhận", color: "#ca8a04", bg: "#fefce8" },
+  Confirmed: { label: "Đã xác nhận", color: "#2563eb", bg: "#eff6ff" },
+  CheckedIn: { label: "Đã check-in", color: "#7c3aed", bg: "#f5f3ff" },
+  Charging: { label: "Đang sạc", color: "#0891b2", bg: "#ecfeff" },
+  Completed: { label: "Hoàn thành", color: "#16a34a", bg: "#f0fdf4" },
+  CompletedPendingInvoice: { label: "Chờ thanh toán", color: "#d97706", bg: "#fffbeb" },
+  CancelledByDriver: { label: "Tài xế hủy", color: "#dc2626", bg: "#fef2f2" },
+  CancelledByOwner: { label: "Chủ trạm hủy", color: "#dc2626", bg: "#fef2f2" },
+  CancelledByAdmin: { label: "Admin hủy", color: "#dc2626", bg: "#fef2f2" },
+  NoShow: { label: "Không đến", color: "#9ca3af", bg: "#f3f4f6" },
 };
 
 export default function DriverLoyalty() {
@@ -136,8 +136,8 @@ export default function DriverLoyalty() {
                   alignItems: "center", gap: 12, cursor: "pointer",
                   transition: "transform 0.1s, box-shadow 0.1s"
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"; }}
                 >
                   <div style={{
                     width: 42, height: 42, borderRadius: 12,
@@ -174,14 +174,14 @@ export default function DriverLoyalty() {
 
       {/* Detail Modal */}
       {selectedTx && (
-        <div 
+        <div
           onClick={() => setSelectedTx(null)}
           style={{
             position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)",
             display: "flex", alignItems: "center", justifyContent: "center", padding: 20
           }}
         >
-          <div 
+          <div
             onClick={e => e.stopPropagation()}
             style={{
               background: "#fff", borderRadius: 24, width: "100%", maxWidth: 400, overflow: "hidden",
@@ -191,14 +191,14 @@ export default function DriverLoyalty() {
             {/* Header */}
             <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: 0 }}>Chi tiết điểm thưởng</h3>
-              <button 
-                onClick={() => setSelectedTx(null)} 
+              <button
+                onClick={() => setSelectedTx(null)}
                 style={{ background: "none", border: "none", fontSize: 24, color: "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8 }}
                 onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
               >&times;</button>
             </div>
-            
+
             {/* Content */}
             <div style={{ padding: 24 }}>
               <div style={{ textAlign: "center", marginBottom: 24 }}>
@@ -212,7 +212,7 @@ export default function DriverLoyalty() {
                   {selectedTx.type === "Earn" ? "Tích điểm" : "Dùng điểm"}
                 </div>
               </div>
-              
+
               <div style={{ background: "#f8fafc", borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ color: "#64748b", fontSize: 13 }}>Mã giao dịch</span>
@@ -261,7 +261,7 @@ export default function DriverLoyalty() {
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
                             <span style={{ color: "#64748b", fontSize: 12 }}>📅 Ngày</span>
                             <span style={{ color: "#1e293b", fontSize: 12, fontWeight: 600 }}>
-                              {new Date(String(bookingDetail.bookingDate || bookingDetail.date).replace("Z","")).toLocaleDateString("vi-VN")}
+                              {new Date(String(bookingDetail.bookingDate || bookingDetail.date).replace("Z", "")).toLocaleDateString("vi-VN")}
                             </span>
                           </div>
                         )}
