@@ -40,6 +40,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [sessionDetail, setSessionDetail] = useState(null);
   const [sepayOpen, setSepayOpen] = useState(false);
   const [sepayUrl, setSepayUrl] = useState("");
   const [walletReceivedAlert, setWalletReceivedAlert] = useState(false);
@@ -49,7 +50,19 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
 
   function fetchBooking() {
     bookingApi.getById(Number(id))
-      .then(setBooking)
+      .then(async (data) => {
+        setBooking(data);
+        if (data) {
+          if (data.chargingSessionDetail) {
+            setSessionDetail(data.chargingSessionDetail);
+          } else if (["CheckedIn", "InProgress", "Charging", "CompletedPendingInvoice", "Completed"].includes(data.status)) {
+            try {
+              const session = await chargingApi.getByBookingId(Number(id));
+              setSessionDetail(session);
+            } catch { /* ignore */ }
+          }
+        }
+      })
       .catch(() => setBooking(null))
       .finally(() => setLoading(false));
   }
@@ -401,20 +414,31 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
               </div>
             )}
 
-            {booking.chargingSessionDetail && (
+            {sessionDetail && (
               <div style={{ marginTop: 12, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
                 <h4 style={{ fontSize: 13, color: "#475569", marginBottom: 8, fontWeight: 700 }}>Chi tiết phiên sạc thực tế</h4>
-                {booking.chargingSessionDetail.actualStartTime && <InfoRow icon="⚡" label="Bắt đầu sạc" value={toLocal(booking.chargingSessionDetail.actualStartTime)} />}
-                {booking.chargingSessionDetail.actualEndTime && <InfoRow icon="🏁" label="Kết thúc sạc" value={toLocal(booking.chargingSessionDetail.actualEndTime)} />}
                 {(() => {
-                  const start = booking.chargingSessionDetail.actualStartTime ? new Date(String(booking.chargingSessionDetail.actualStartTime).replace("Z", "")).getTime() : 0;
-                  const end = booking.chargingSessionDetail.actualEndTime ? new Date(String(booking.chargingSessionDetail.actualEndTime).replace("Z", "")).getTime() : 0;
-                  const durationMs = start && end && end > start ? end - start : (booking.chargingSessionDetail.actualDurationHours ? booking.chargingSessionDetail.actualDurationHours * 3600000 : 0);
-                  if (!durationMs) return null;
-                  const hours = Math.floor(durationMs / 3600000);
-                  const minutes = Math.floor((durationMs % 3600000) / 60000);
-                  const formattedDuration = hours > 0 ? `${hours} giờ ${minutes} phút` : `${minutes} phút`;
-                  return <InfoRow icon="⏱" label="Thời lượng sạc" value={formattedDuration} />;
+                  const actualStart = sessionDetail.actualStartTime ? new Date(String(sessionDetail.actualStartTime).replace("Z", "")).getTime() : 0;
+                  const bookingStart = booking.startTime ? new Date(String(booking.startTime).replace("Z", "")).getTime() : (sessionDetail.bookingStartTime ? new Date(String(sessionDetail.bookingStartTime).replace("Z", "")).getTime() : 0);
+                  const effectiveStartMs = Math.max(actualStart > 0 ? actualStart : 0, bookingStart > 0 ? bookingStart : 0);
+                  const end = sessionDetail.actualEndTime ? new Date(String(sessionDetail.actualEndTime).replace("Z", "")).getTime() : 0;
+                  
+                  const durationMs = effectiveStartMs > 0 && end > 0 && end > effectiveStartMs ? end - effectiveStartMs : (sessionDetail.actualDurationHours ? sessionDetail.actualDurationHours * 3600000 : 0);
+
+                  const renderDate = (ms) => new Date(ms).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric", hour12: false });
+                  
+                  return (
+                    <>
+                      {effectiveStartMs > 0 && <InfoRow icon="⚡" label="Bắt đầu sạc" value={renderDate(effectiveStartMs)} />}
+                      {end > 0 && <InfoRow icon="🏁" label="Kết thúc sạc" value={renderDate(end)} />}
+                      {durationMs > 0 && (() => {
+                        const hours = Math.floor(durationMs / 3600000);
+                        const minutes = Math.floor((durationMs % 3600000) / 60000);
+                        const formattedDuration = hours > 0 ? `${hours} giờ ${minutes} phút` : `${minutes} phút`;
+                        return <InfoRow icon="⏱" label="Thời lượng sạc" value={formattedDuration} />;
+                      })()}
+                    </>
+                  );
                 })()}
               </div>
             )}
@@ -663,7 +687,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
                   Phiên sạc đã kết thúc — Chờ xác nhận hóa đơn
                 </div>
                 <div style={{ fontSize: 13, color: "#c2410c", lineHeight: 1.6 }}>
-                  Owner đã dừng phiên sạc. Vui lòng xác nhận hóa đơn để hoàn tất.
+                  Vui lòng xác nhận hóa đơn để hoàn tất.
                   <br /><strong>Nếu có vấn đề → dùng nút Khiếu nại bên dưới.</strong>
                 </div>
               </div>

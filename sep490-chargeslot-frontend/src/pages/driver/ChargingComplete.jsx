@@ -105,13 +105,13 @@ export default function ChargingComplete() {
   // Tính thời gian sạc đúng:
   // effectiveStart = max(actualStartTime, bookingStartTime)
   // → loại trừ thời gian chờ trước giờ đặt lịch
-  const actualStartDate   = toLocalDate(session.actualStartTime);
-  const bookingStartDate  = toLocalDate(session.bookingStartTime);
-  const actualEndDate     = toLocalDate(session.actualEndTime);
+  const actualStartDate = toLocalDate(session.actualStartTime);
+  const bookingStartDate = toLocalDate(session.bookingStartTime);
+  const actualEndDate = toLocalDate(session.actualEndTime);
 
   // Giờ bắt đầu tính cước = max(actualStart, bookingStart)
   const effectiveStartMs = Math.max(
-    actualStartDate  && !isNaN(actualStartDate)  ? actualStartDate.getTime()  : 0,
+    actualStartDate && !isNaN(actualStartDate) ? actualStartDate.getTime() : 0,
     bookingStartDate && !isNaN(bookingStartDate) ? bookingStartDate.getTime() : 0,
   );
   const effectiveEndMs = actualEndDate && !isNaN(actualEndDate) ? actualEndDate.getTime() : 0;
@@ -161,9 +161,21 @@ export default function ChargingComplete() {
             />
             <InfoRow label="Kết thúc" value={toLocal(session.actualEndTime || session.bookingEndTime)} />
             <div className="border-t border-gray-100 pt-3">
-              <div className="flex items-center justify-between">
+              {(invoice?.chargingAmount !== undefined || session?.chargingAmount !== undefined) && (
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-500">Tiền sạc</span>
+                  <span className="text-sm font-semibold text-gray-700">{formatCurrency(invoice?.chargingAmount ?? session?.chargingAmount ?? 0)}</span>
+                </div>
+              )}
+              {((invoice?.vatAmount !== undefined && invoice?.vatAmount > 0) || (session?.vatAmount !== undefined && session?.vatAmount > 0)) && (
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-gray-500">Thuế VAT</span>
+                  <span className="text-sm font-semibold text-gray-700">{formatCurrency(invoice?.vatAmount ?? session?.vatAmount ?? 0)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
                 <span className="text-sm font-bold text-gray-800">Tổng tiền</span>
-                <span className="text-lg font-bold text-orange-600">{formatCurrency(invoice?.totalAmount || session.totalAmount)}</span>
+                <span className="text-lg font-bold text-orange-600">{formatCurrency(invoice?.totalAmount ?? session?.totalAmount ?? 0)}</span>
               </div>
               <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">

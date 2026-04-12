@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { bookingApi, disputeApi } from "@/services/api";
+import { bookingApi, disputeApi, chargingApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 
 const statusStyles = {
@@ -28,6 +28,7 @@ export default function BookingRequestDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [booking, setBooking] = useState(null);
+  const [sessionDetail, setSessionDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -35,7 +36,19 @@ export default function BookingRequestDetail() {
 
   useEffect(() => {
     bookingApi.getById(Number(id))
-      .then(setBooking)
+      .then(async (data) => {
+        setBooking(data);
+        if (data) {
+          if (data.chargingSessionDetail) {
+            setSessionDetail(data.chargingSessionDetail);
+          } else {
+            try {
+              const session = await chargingApi.getByBookingId(Number(id));
+              setSessionDetail(session);
+            } catch { /* ignore */ }
+          }
+        }
+      })
       .catch(() => setBooking(null))
       .finally(() => setLoading(false));
   }, [id]);
@@ -135,14 +148,7 @@ export default function BookingRequestDetail() {
               </div>
             )}
 
-            {booking.chargingSessionDetail && (
-              <div style={{ marginTop: 8, borderTop: "1px dashed #e2e8f0", paddingTop: 8 }}>
-                <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}>⚡ Phiên sạc</div>
-                {booking.chargingSessionDetail.actualStartTime && <InfoRow label="Bắt đầu" value={toLocal(booking.chargingSessionDetail.actualStartTime)} />}
-                {booking.chargingSessionDetail.actualEndTime && <InfoRow label="Kết thúc" value={toLocal(booking.chargingSessionDetail.actualEndTime)} />}
-                <InfoRow label="Điện tiêu thụ" value={`${booking.chargingSessionDetail.sessionMeterValue?.toFixed(2) || 0} kWh`} purple />
-              </div>
-            )}
+
 
             {booking.invoiceDetail && (
               <div style={{ marginTop: 8, borderTop: "1px dashed #e2e8f0", paddingTop: 8 }}>
@@ -153,20 +159,31 @@ export default function BookingRequestDetail() {
               </div>
             )}
 
-            {booking.chargingSessionDetail && (
+            {sessionDetail && (
               <div style={{ marginTop: 8, borderTop: "1px dashed #e2e8f0", paddingTop: 8 }}>
                 <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}>Chi tiết phiên sạc thực tế</div>
-                {booking.chargingSessionDetail.actualStartTime && <InfoRow label="Bắt đầu sạc" value={toLocal(booking.chargingSessionDetail.actualStartTime)} />}
-                {booking.chargingSessionDetail.actualEndTime && <InfoRow label="Kết thúc sạc" value={toLocal(booking.chargingSessionDetail.actualEndTime)} />}
                 {(() => {
-                  const start = booking.chargingSessionDetail.actualStartTime ? new Date(String(booking.chargingSessionDetail.actualStartTime).replace("Z", "")).getTime() : 0;
-                  const end = booking.chargingSessionDetail.actualEndTime ? new Date(String(booking.chargingSessionDetail.actualEndTime).replace("Z", "")).getTime() : 0;
-                  const durationMs = start && end && end > start ? end - start : (booking.chargingSessionDetail.actualDurationHours ? booking.chargingSessionDetail.actualDurationHours * 3600000 : 0);
-                  if (!durationMs) return null;
-                  const hours = Math.floor(durationMs / 3600000);
-                  const minutes = Math.floor((durationMs % 3600000) / 60000);
-                  const formattedDuration = hours > 0 ? `${hours} giờ ${minutes} phút` : `${minutes} phút`;
-                  return <InfoRow label="Thời lượng sạc" value={formattedDuration} />;
+                  const actualStart = sessionDetail.actualStartTime ? new Date(String(sessionDetail.actualStartTime).replace("Z", "")).getTime() : 0;
+                  const bookingStart = booking.startTime ? new Date(String(booking.startTime).replace("Z", "")).getTime() : (sessionDetail.bookingStartTime ? new Date(String(sessionDetail.bookingStartTime).replace("Z", "")).getTime() : 0);
+                  const effectiveStartMs = Math.max(actualStart > 0 ? actualStart : 0, bookingStart > 0 ? bookingStart : 0);
+                  const end = sessionDetail.actualEndTime ? new Date(String(sessionDetail.actualEndTime).replace("Z", "")).getTime() : 0;
+                  
+                  const durationMs = effectiveStartMs > 0 && end > 0 && end > effectiveStartMs ? end - effectiveStartMs : (sessionDetail.actualDurationHours ? sessionDetail.actualDurationHours * 3600000 : 0);
+
+                  const renderDate = (ms) => new Date(ms).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric", hour12: false });
+                  
+                  return (
+                    <>
+                      {effectiveStartMs > 0 && <InfoRow label="Bắt đầu sạc" value={renderDate(effectiveStartMs)} />}
+                      {end > 0 && <InfoRow label="Kết thúc sạc" value={renderDate(end)} />}
+                      {durationMs > 0 && (() => {
+                        const hours = Math.floor(durationMs / 3600000);
+                        const minutes = Math.floor((durationMs % 3600000) / 60000);
+                        const formattedDuration = hours > 0 ? `${hours} giờ ${minutes} phút` : `${minutes} phút`;
+                        return <InfoRow label="Thời lượng sạc" value={formattedDuration} />;
+                      })()}
+                    </>
+                  );
                 })()}
               </div>
             )}
