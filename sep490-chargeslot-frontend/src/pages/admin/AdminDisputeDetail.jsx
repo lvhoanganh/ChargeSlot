@@ -71,6 +71,14 @@ export default function AdminDisputeDetail() {
     queryFn: () => disputeApiAdmin.getById(Number(disputeId)),
   });
 
+  const allEvidences = dispute?.evidences ?? [];
+  const driverEvidences = allEvidences.filter(
+    (ev) => ev.uploadedByUserId === dispute?.createdByUserId
+  );
+  const ownerEvidences = allEvidences.filter(
+    (ev) => ev.uploadedByUserId !== dispute?.createdByUserId
+  );
+
   const { data: booking, isLoading: isBookingLoading } = useQuery({
     queryKey: ["admin-booking-detail", dispute?.bookingId],
     queryFn: () => bookingApi.getById(dispute.bookingId),
@@ -213,11 +221,11 @@ export default function AdminDisputeDetail() {
             <div className="cs-dispute-detail__field-box">{dispute.description}</div>
           </div>
 
-          {dispute.evidences?.length > 0 && (
+          {driverEvidences.length > 0 ? (
             <div className="cs-dispute-detail__field">
-              <span className="cs-dispute-detail__field-label">Bằng chứng ({dispute.evidences.length})</span>
+              <span className="cs-dispute-detail__field-label">Bằng chứng Driver ({driverEvidences.length})</span>
               <div className="cs-dispute-detail__evidences">
-                {dispute.evidences.map((ev) => {
+                {driverEvidences.map((ev) => {
                   const url = ev.fileUrl?.startsWith("http") ? ev.fileUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${ev.fileUrl}`;
                   return (
                     <a key={ev.id} href={url} target="_blank" rel="noopener noreferrer" className="cs-dispute-detail__evidence">
@@ -231,6 +239,8 @@ export default function AdminDisputeDetail() {
                 })}
               </div>
             </div>
+          ) : (
+            <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>Không có bằng chứng</p>
           )}
         </div>
 
@@ -241,16 +251,45 @@ export default function AdminDisputeDetail() {
             <h2 className="cs-dispute-detail__card-title">Phản hồi từ Owner</h2>
           </div>
 
-          {dispute.ownerResponse ? (
-            <div className="cs-dispute-detail__field">
-              <span className="cs-dispute-detail__field-label">Nội dung phản hồi</span>
-              <div className="cs-dispute-detail__field-box">{dispute.ownerResponse}</div>
-            </div>
-          ) : (
+          {!dispute.ownerResponse && ownerEvidences.length === 0 ? (
             <div className="cs-dispute-detail__empty-response">
               <span>⏳</span>
               <p>Chưa có phản hồi từ Owner</p>
             </div>
+          ) : (
+            <>
+              {dispute.ownerResponse ? (
+                <div className="cs-dispute-detail__field">
+                  <span className="cs-dispute-detail__field-label">Nội dung phản hồi</span>
+                  <div className="cs-dispute-detail__field-box">{dispute.ownerResponse}</div>
+                </div>
+              ) : (
+                <div className="cs-dispute-detail__field">
+                  <span className="cs-dispute-detail__field-label">Nội dung phản hồi</span>
+                  <p style={{ fontSize: 14, color: "#64748b", fontStyle: "italic" }}>Không có nội dung chữ, chỉ gửi bằng chứng.</p>
+                </div>
+              )}
+
+              {ownerEvidences.length > 0 && (
+                <div className="cs-dispute-detail__field">
+                  <span className="cs-dispute-detail__field-label">Bằng chứng Owner ({ownerEvidences.length})</span>
+                  <div className="cs-dispute-detail__evidences">
+                    {ownerEvidences.map((ev) => {
+                      const url = ev.fileUrl?.startsWith("http") ? ev.fileUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${ev.fileUrl}`;
+                      return (
+                        <a key={ev.id} href={url} target="_blank" rel="noopener noreferrer" className="cs-dispute-detail__evidence">
+                          {ev.fileType === "image" ? (
+                            <img src={url} alt="evidence" />
+                          ) : (
+                            <span>{ev.fileType === "video" ? "🎬" : "📄"}</span>
+                          )}
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

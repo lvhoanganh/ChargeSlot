@@ -52,11 +52,16 @@ export default function DisputeDetail() {
   const st = STATUS_MAP[dispute.status] || STATUS_MAP.Open;
   const isResolved = dispute.status === "ResolvedRefund" || dispute.status === "ResolvedPayout";
 
+  const allEvidences = dispute.evidences ?? [];
+  const driverEvidences = allEvidences.filter((ev) => ev.uploadedByUserId === dispute.createdByUserId);
+  const ownerEvidences = allEvidences.filter((ev) => ev.uploadedByUserId !== dispute.createdByUserId);
+  const hasOwnerResponded = !!dispute.ownerResponse || ownerEvidences.length > 0;
+
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90 }}>
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px 40px" }}>
         <button
-          onClick={() => navigate(`/driver/dispute-list`)}
+          onClick={() => navigate(`/driver/disputes`)}
           style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 14, marginBottom: 12, display: "flex", alignItems: "center", gap: 4 }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
@@ -88,20 +93,33 @@ export default function DisputeDetail() {
           </TimelineStep>
 
           {/* Driver evidence */}
-          {dispute.evidences?.length > 0 && (
+          {driverEvidences.length > 0 && (
             <TimelineStep icon="📎" title="Bằng chứng từ Driver" isActive={true} isLast={false}>
-              <EvidenceGallery evidences={dispute.evidences} />
+              <EvidenceGallery evidences={driverEvidences} />
             </TimelineStep>
           )}
 
           {/* Step 2: Owner response */}
           <TimelineStep
             icon="🏢" title="Phản hồi từ Owner"
-            isActive={!!dispute.ownerResponse}
+            isActive={hasOwnerResponded}
             isLast={!isResolved}
           >
-            {dispute.ownerResponse ? (
-              <p style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.6 }}>{dispute.ownerResponse}</p>
+            {hasOwnerResponded ? (
+              <div style={{ background: "#f8fafc", padding: 12, borderRadius: 10 }}>
+                {dispute.ownerResponse ? (
+                  <p style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.6 }}>{dispute.ownerResponse}</p>
+                ) : (
+                  <p style={{ fontSize: 13, color: "#9ca3af", fontStyle: "italic" }}>Owner chỉ cung cấp bằng chứng, không có nội dung chữ.</p>
+                )}
+                
+                {ownerEvidences.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <span style={{ fontSize: 13, color: "#64748b", marginBottom: 8, display: "block" }}>Bằng chứng Owner gửi ({ownerEvidences.length}):</span>
+                    <EvidenceGallery evidences={ownerEvidences} />
+                  </div>
+                )}
+              </div>
             ) : (
               <p style={{ fontSize: 13, color: "#9ca3af", fontStyle: "italic" }}>Đang chờ phản hồi...</p>
             )}
