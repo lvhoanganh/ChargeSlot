@@ -241,7 +241,6 @@ export default function EditChargingStation() {
   );
   const [stationName, setStationName] = useState("");
   const [description, setDescription] = useState("");
-  const [layoutImageFile, setLayoutImageFile] = useState(null);
   
   // Image handling
   const [existingImages, setExistingImages] = useState([]);
@@ -266,11 +265,12 @@ export default function EditChargingStation() {
           lng: data.longitude || 106.7218,
           address: data.address || "",
         });
+
         setExistingImages(data.images?.map(i => {
-            if (!i.imgUrl) return "";
-            return i.imgUrl.startsWith("http") 
-              ? i.imgUrl 
-              : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${i.imgUrl.startsWith("/") ? "" : "/"}${i.imgUrl}`;
+            if (!i.imageUrl) return "";
+            return i.imageUrl.startsWith("http") 
+              ? i.imageUrl 
+              : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${i.imageUrl.startsWith("/") ? "" : "/"}${i.imageUrl}`;
         }).filter(Boolean) || []);
         // Merge operating hours — fill with defaults for any missing days
         const oh = dayOptions.map((d) => {
@@ -322,16 +322,22 @@ export default function EditChargingStation() {
     if (mapData.lat) fd.append("latitude", String(mapData.lat));
     if (mapData.lng) fd.append("longitude", String(mapData.lng));
     
-    if (layoutImageFile) fd.append("LayoutImage", layoutImageFile);
-    
     // Append new images
     newImageFiles.forEach(file => {
       fd.append("Images", file);
     });
 
     // Append existing images that are kept
+    const baseUrlToStrip = import.meta.env.VITE_BASE_URL 
+      ? import.meta.env.VITE_BASE_URL.replace(/\/api$/, "").replace(/\/$/, "") 
+      : "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net";
+
     existingImages.forEach(url => {
-        fd.append("ExistingImageUrls", url);
+        let original = url;
+        if (url.startsWith(baseUrlToStrip)) {
+           original = url.replace(baseUrlToStrip, "");
+        }
+        fd.append("ExistingImageUrls", original);
     });
 
     // Operating hours — dùng index-based key giống CreateChargingStation
@@ -412,16 +418,6 @@ export default function EditChargingStation() {
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Ảnh Layout (Sơ đồ trạm)</label>
-                  <label className="flex flex-col items-center justify-center h-32 w-full rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 cursor-pointer hover:bg-slate-100 transition">
-                    <span className="text-2xl mb-1">🗺️</span>
-                    <span className="text-xs text-slate-500 font-medium px-4 text-center line-clamp-2">
-                      {layoutImageFile ? layoutImageFile.name : "Bấm để chọn 1 ảnh layout..."}
-                    </span>
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => setLayoutImageFile(e.target.files[0])} />
-                  </label>
-                </div>
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">Ảnh trạm sạc thực tế</label>
                   

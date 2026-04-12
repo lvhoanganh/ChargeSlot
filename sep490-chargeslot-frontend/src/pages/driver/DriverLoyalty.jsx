@@ -1,12 +1,36 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { loyaltyApi } from "@/services/api";
+import { loyaltyApi, bookingApi } from "@/services/api";
+
+// Trích HH:MM từ chuỗi thời gian dạng "HH:mm:ss" hoặc "2026-04-10T10:32:27..."
+function extractTime(raw) {
+  if (!raw) return "";
+  const s = String(raw);
+  const tIdx = s.indexOf("T");
+  if (tIdx !== -1) return s.substring(tIdx + 1, tIdx + 6); // lấy HH:MM sau "T"
+  return s.substring(0, 5); // dạng "HH:mm:ss" → lấy HH:MM
+}
+
+const BOOKING_STATUS_MAP = {
+  Pending:                  { label: "Chờ xác nhận",        color: "#ca8a04", bg: "#fefce8" },
+  Confirmed:                { label: "Đã xác nhận",         color: "#2563eb", bg: "#eff6ff" },
+  CheckedIn:                { label: "Đã check-in",         color: "#7c3aed", bg: "#f5f3ff" },
+  Charging:                 { label: "Đang sạc",            color: "#0891b2", bg: "#ecfeff" },
+  Completed:                { label: "Hoàn thành",          color: "#16a34a", bg: "#f0fdf4" },
+  CompletedPendingInvoice:  { label: "Chờ thanh toán",      color: "#d97706", bg: "#fffbeb" },
+  CancelledByDriver:        { label: "Driver hủy",          color: "#dc2626", bg: "#fef2f2" },
+  CancelledByOwner:         { label: "Chủ trạm hủy",       color: "#dc2626", bg: "#fef2f2" },
+  CancelledByAdmin:         { label: "Admin hủy",           color: "#dc2626", bg: "#fef2f2" },
+  NoShow:                   { label: "Không đến",           color: "#9ca3af", bg: "#f3f4f6" },
+};
 
 export default function DriverLoyalty() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedTx, setSelectedTx] = useState(null);
+  const [bookingDetail, setBookingDetail] = useState(null);
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   useEffect(() => {
     loyaltyApi.getInfo()
@@ -14,6 +38,20 @@ export default function DriverLoyalty() {
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
+
+  // Fetch booking detail when a transaction with bookingId is selected
+  useEffect(() => {
+    if (!selectedTx?.bookingId) {
+      setBookingDetail(null);
+      return;
+    }
+    setBookingLoading(true);
+    setBookingDetail(null);
+    bookingApi.getById(selectedTx.bookingId)
+      .then(setBookingDetail)
+      .catch(() => setBookingDetail(null))
+      .finally(() => setBookingLoading(false));
+  }, [selectedTx]);
 
   if (loading) {
     return (
@@ -196,6 +234,70 @@ export default function DriverLoyalty() {
                     <div style={{ color: "#1e293b", fontSize: 14, fontWeight: 500, lineHeight: 1.5 }}>
                       {selectedTx.description}
                     </div>
+                  </div>
+                )}
+
+                {/* Booking detail section */}
+                {selectedTx.bookingId && (
+                  <div style={{ borderTop: "1px dashed #cbd5e1", paddingTop: 12, marginTop: 4 }}>
+                    <div style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>📋 Thông tin booking</div>
+                    {bookingLoading ? (
+                      <div style={{ textAlign: "center", padding: "12px 0", color: "#94a3b8", fontSize: 13 }}>Đang tải...</div>
+                    ) : bookingDetail ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {bookingDetail.stationName && (
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                            <span style={{ color: "#64748b", fontSize: 12, flexShrink: 0 }}>🏪 Trạm sạc</span>
+                            <span style={{ color: "#1e293b", fontSize: 12, fontWeight: 600, textAlign: "right" }}>{bookingDetail.stationName}</span>
+                          </div>
+                        )}
+                        {bookingDetail.slotName && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: "#64748b", fontSize: 12 }}>⚡ Trụ sạc</span>
+                            <span style={{ color: "#1e293b", fontSize: 12, fontWeight: 600 }}>{bookingDetail.slotName}</span>
+                          </div>
+                        )}
+                        {(bookingDetail.bookingDate || bookingDetail.date) && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: "#64748b", fontSize: 12 }}>📅 Ngày</span>
+                            <span style={{ color: "#1e293b", fontSize: 12, fontWeight: 600 }}>
+                              {new Date(String(bookingDetail.bookingDate || bookingDetail.date).replace("Z","")).toLocaleDateString("vi-VN")}
+                            </span>
+                          </div>
+                        )}
+                        {(bookingDetail.startTime || bookingDetail.checkInTime) && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: "#64748b", fontSize: 12 }}>🕐 Giờ</span>
+                            <span style={{ color: "#1e293b", fontSize: 12, fontWeight: 600 }}>
+                              {extractTime(bookingDetail.startTime || bookingDetail.checkInTime)}
+                              {bookingDetail.endTime ? ` – ${extractTime(bookingDetail.endTime)}` : ""}
+                            </span>
+                          </div>
+                        )}
+                        {(bookingDetail.totalAmount != null || bookingDetail.totalCost != null) && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: "#64748b", fontSize: 12 }}>💰 Tổng tiền</span>
+                            <span style={{ color: "#f97316", fontSize: 12, fontWeight: 700 }}>
+                              {(bookingDetail.totalAmount ?? bookingDetail.totalCost ?? 0).toLocaleString("vi-VN")}đ
+                            </span>
+                          </div>
+                        )}
+                        {bookingDetail.status && (
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ color: "#64748b", fontSize: 12 }}>Trạng thái</span>
+                            <span style={{
+                              fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+                              background: BOOKING_STATUS_MAP[bookingDetail.status]?.bg ?? "#fefce8",
+                              color: BOOKING_STATUS_MAP[bookingDetail.status]?.color ?? "#ca8a04",
+                            }}>
+                              {BOOKING_STATUS_MAP[bookingDetail.status]?.label ?? bookingDetail.status}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: "center", padding: "8px 0", color: "#cbd5e1", fontSize: 12 }}>Không thể tải thông tin booking</div>
+                    )}
                   </div>
                 )}
               </div>

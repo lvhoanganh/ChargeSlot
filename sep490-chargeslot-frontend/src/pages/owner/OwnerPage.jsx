@@ -789,7 +789,6 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
               className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
             />
           </div>
-
           {pricingError && (
             <p className="text-xs text-red-500 font-medium bg-red-50 rounded-lg px-3 py-2">{pricingError}</p>
           )}
@@ -820,9 +819,6 @@ function UnavailableDatesPanel({ stationId }) {
   // dates = array of { id, date: "YYYY-MM-DD", reason }
   const [dates, setDates] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
-  const [selectedDate, setSelectedDate] = useState("");
-  const [error, setError] = useState("");
 
   // Load danh sách ngày nghỉ
   const loadDates = useCallback(async () => {
@@ -842,43 +838,13 @@ function UnavailableDatesPanel({ stationId }) {
   // Ngày tối thiểu = hôm nay
   const todayStr = new Date().toISOString().split("T")[0];
 
-  // Normalize date field: BE trả về DateOnly => JSON serializer có thể ra string "2026-04-20" hoặc "2026-04-20T00:00:00"
+  // Normalize date field
   function toDateStr(raw) {
     if (!raw) return "";
-    return String(raw).substring(0, 10); // lấy "YYYY-MM-DD"
-  }
-
-  async function handleAdd() {
-    if (!selectedDate) { setError("Vui lòng chọn ngày!"); return; }
-    const alreadyExists = dates.some(d => toDateStr(d.date) === selectedDate);
-    if (alreadyExists) { setError("Ngày này đã được thêm rồi!"); return; }
-    setError("");
-    setAdding(true);
-    try {
-      await stationApi.addUnavailableDates(stationId, [selectedDate]);
-      setSelectedDate("");
-      await loadDates();
-      showToast.success("Đã thêm ngày nghỉ!");
-    } catch (err) {
-      setError(err.message || "Lỗi khi thêm ngày");
-    } finally {
-      setAdding(false);
-    }
-  }
-
-  async function handleRemove(id, dateStr) {
-    if (!(await showConfirm(`Xóa ngày nghỉ ${formatDate(dateStr)}?`, "Xác nhận xóa"))) return;
-    try {
-      await stationApi.removeUnavailableDates(stationId, [id]);
-      await loadDates();
-      showToast.success("Đã xóa ngày nghỉ!");
-    } catch (err) {
-      showToast.error(err.message || "Lỗi khi xóa ngày");
-    }
+    return String(raw).substring(0, 10);
   }
 
   function formatDate(dateStr) {
-    // "2026-04-20" → "20/04/2026"
     if (!dateStr) return "";
     const s = String(dateStr).substring(0, 10);
     const [y, m, d] = s.split("-");
@@ -892,32 +858,20 @@ function UnavailableDatesPanel({ stationId }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-bold text-slate-700">🚫 Ngày không hoạt động</h4>
         <span className="text-xs text-slate-400">{upcoming.length} ngày sắp tới</span>
       </div>
 
-      {/* Thêm ngày mới */}
-      <div className="flex items-center gap-2 mb-3">
-        <input
-          type="date"
-          value={selectedDate}
-          min={todayStr}
-          onChange={e => { setSelectedDate(e.target.value); setError(""); }}
-          className="h-9 flex-1 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
-        />
-        <button
-          onClick={handleAdd}
-          disabled={adding || !selectedDate}
-          className="h-9 px-4 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition whitespace-nowrap cursor-pointer"
-        >
-          {adding ? "..." : "+ Thêm"}
-        </button>
-      </div>
-
-      {error && (
-        <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-2">{error}</p>
-      )}
+      {/* Calendar Tick */}
+      <UnavailableDateCalendar
+        stationId={stationId}
+        unavailableDates={dates}
+        todayStr={todayStr}
+        toDateStr={toDateStr}
+        onAdded={loadDates}
+        onRemoved={loadDates}
+      />
 
       {loading ? (
         <p className="text-xs text-slate-400 italic">Đang tải...</p>
@@ -937,12 +891,17 @@ function UnavailableDatesPanel({ stationId }) {
                       {item.reason && <span className="ml-2 text-amber-500 italic">{item.reason}</span>}
                     </div>
                     <button
-                      onClick={() => handleRemove(item.id, ds)}
+                      onClick={async () => {
+                        if (!(await showConfirm(`Xóa ngày nghỉ ${formatDate(ds)}?`, "Xác nhận xóa"))) return;
+                        try {
+                          await stationApi.removeUnavailableDates(stationId, [item.id]);
+                          await loadDates();
+                          showToast.success("Đã xóa ngày nghỉ!");
+                        } catch (err) { showToast.error(err.message || "Lỗi khi xóa ngày"); }
+                      }}
                       className="text-red-400 hover:text-red-600 cursor-pointer ml-3"
                       title="Xóa ngày này"
-                    >
-                      ✕
-                    </button>
+                    >✕</button>
                   </div>
                 );
               })}
@@ -956,13 +915,6 @@ function UnavailableDatesPanel({ stationId }) {
                 return (
                   <div key={item.id ?? ds} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs opacity-60">
                     <span className="text-slate-500">📅 {formatDate(ds)}</span>
-                    <button
-                      onClick={() => handleRemove(item.id, ds)}
-                      className="text-red-300 hover:text-red-500 cursor-pointer ml-3"
-                      title="Xóa ngày này"
-                    >
-                      ✕
-                    </button>
                   </div>
                 );
               })}
@@ -974,3 +926,193 @@ function UnavailableDatesPanel({ stationId }) {
   );
 }
 
+// ─────────────── UNAVAILABLE DATE CALENDAR ───────────────
+function UnavailableDateCalendar({ stationId, unavailableDates, todayStr, toDateStr, onAdded, onRemoved }) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-based
+  const [pendingDates, setPendingDates] = useState(new Set()); // dates ticked nhưng chưa lưu
+  const [saving, setSaving] = useState(false);
+
+  const unavailableSet = new Set(unavailableDates.map(d => toDateStr(d.date)));
+  const unavailableIdMap = {};
+  unavailableDates.forEach(d => { unavailableIdMap[toDateStr(d.date)] = d.id; });
+
+  const DAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+  const MONTHS = ["Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6","Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"];
+
+  function getDaysInMonth(year, month) {
+    return new Date(year, month + 1, 0).getDate();
+  }
+
+  function getFirstDayOfWeek(year, month) {
+    return new Date(year, month, 1).getDay(); // 0=Sun
+  }
+
+  function toPadded(year, month, day) {
+    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  function prevMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
+    else setViewMonth(m => m - 1);
+  }
+
+  function nextMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
+    else setViewMonth(m => m + 1);
+  }
+
+  function toggleDay(dateStr) {
+    if (dateStr < todayStr) return; // không cho chọn ngày đã qua
+    if (unavailableSet.has(dateStr)) {
+      // Ngày đã lưu → click để xóa ngay
+      const id = unavailableIdMap[dateStr];
+      if (!id) return;
+      showConfirm(`Xóa ngày nghỉ ${dateStr.split("-").reverse().join("/")}?`, "Xác nhận xóa").then(ok => {
+        if (!ok) return;
+        stationApi.removeUnavailableDates(stationId, [id])
+          .then(() => { onRemoved(); showToast.success("Đã xóa ngày nghỉ!"); })
+          .catch(err => showToast.error(err.message || "Lỗi xóa ngày"));
+      });
+      return;
+    }
+    setPendingDates(prev => {
+      const next = new Set(prev);
+      if (next.has(dateStr)) next.delete(dateStr);
+      else next.add(dateStr);
+      return next;
+    });
+  }
+
+  async function savePending() {
+    if (pendingDates.size === 0) return;
+    const countToSave = pendingDates.size;
+    setSaving(true);
+    try {
+      await stationApi.addUnavailableDates(stationId, [...pendingDates]);
+      setPendingDates(new Set());
+      await onAdded();
+      showToast.success(`Đã thêm ${countToSave} ngày nghỉ!`);
+    } catch (err) {
+      showToast.error(err.message || "Lỗi khi thêm ngày");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
+  const firstDow = getFirstDayOfWeek(viewYear, viewMonth);
+
+  return (
+    <div style={{ background: "#f8fafc", borderRadius: 14, padding: 14, border: "1px solid #e2e8f0", marginBottom: 12 }}>
+      {/* Tiêu đề + navigation */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <button
+          onClick={prevMonth}
+          style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 18, padding: "2px 8px", borderRadius: 6, lineHeight: 1 }}
+        >‹</button>
+        <span style={{ fontWeight: 700, fontSize: 13, color: "#1e293b" }}>
+          {MONTHS[viewMonth]} {viewYear}
+        </span>
+        <button
+          onClick={nextMonth}
+          style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 18, padding: "2px 8px", borderRadius: 6, lineHeight: 1 }}
+        >›</button>
+      </div>
+
+      {/* Header ngày trong tuần */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+        {DAYS.map((d, i) => (
+          <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: i === 0 ? "#f87171" : "#94a3b8", padding: "2px 0" }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Grid ngày */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+        {/* Ô trống đầu */}
+        {Array.from({ length: firstDow }).map((_, i) => (
+          <div key={`empty-${i}`} />
+        ))}
+
+        {/* Các ngày trong tháng */}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const day = i + 1;
+          const dateStr = toPadded(viewYear, viewMonth, day);
+          const isPast = dateStr < todayStr;
+          const isToday = dateStr === todayStr;
+          const isUnavailable = unavailableSet.has(dateStr);
+          const isPending = pendingDates.has(dateStr);
+          const isSunday = new Date(viewYear, viewMonth, day).getDay() === 0;
+
+          let bg = "transparent";
+          let color = isSunday && !isPast ? "#f87171" : "#1e293b";
+          let border = "1px solid transparent";
+
+          if (isPast) { color = "#cbd5e1"; }
+          else if (isUnavailable) { bg = "#ef4444"; color = "#fff"; border = "1px solid #dc2626"; }
+          else if (isPending) { bg = "#f97316"; color = "#fff"; border = "1px solid #ea580c"; }
+          else if (isToday) { border = "1.5px solid #f97316"; color = color === "#f87171" ? "#f87171" : "#f97316"; }
+
+          return (
+            <button
+              key={dateStr}
+              onClick={() => toggleDay(dateStr)}
+              disabled={isPast}
+              title={
+                isPast ? ""
+                  : isUnavailable ? `Đã đặt nghỉ – Click để xóa`
+                    : isPending ? `Đang chọn – Click để bỏ chọn`
+                      : `Click để chọn ngày nghỉ`
+              }
+              style={{
+                background: bg, color, border,
+                cursor: isPast ? "default" : "pointer",
+                borderRadius: 7, fontSize: 11, fontWeight: isToday ? 800 : 600,
+                padding: "5px 2px", textAlign: "center",
+                transition: "all 0.1s",
+                opacity: isPast ? 0.3 : 1,
+                position: "relative",
+              }}
+            >
+              {day}
+              {isUnavailable && (
+                <span style={{ position: "absolute", top: 0, right: 1, fontSize: 6, lineHeight: 1, opacity: 0.85 }}>✕</span>
+              )}
+              {isPending && (
+                <span style={{ position: "absolute", top: 0, right: 1, fontSize: 6, lineHeight: 1, opacity: 0.85 }}>✓</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Legend + Lưu */}
+      <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#64748b" }}>
+            <div style={{ width: 10, height: 10, borderRadius: 3, background: "#ef4444" }} />
+            <span>Ngày nghỉ (click xóa)</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#64748b" }}>
+            <div style={{ width: 10, height: 10, borderRadius: 3, background: "#f97316" }} />
+            <span>Đang chọn ({pendingDates.size})</span>
+          </div>
+        </div>
+        {pendingDates.size > 0 && (
+          <button
+            onClick={savePending}
+            disabled={saving}
+            style={{
+              background: "#f97316", color: "#fff", border: "none", borderRadius: 8,
+              padding: "5px 14px", fontSize: 11, fontWeight: 700, cursor: "pointer",
+              opacity: saving ? 0.6 : 1,
+            }}
+          >
+            {saving ? "Đang lưu..." : `✓ Lưu ${pendingDates.size} ngày`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
