@@ -41,11 +41,10 @@ export default function DriverProfile() {
         if (!cancelled) {
           setProfile(data);
           if (meData?.email) setEmail(meData.email);
-          // Ưu tiên avatar từ server (đồng bộ qua mọi thiết bị)
           if (data?.avatarUrl) {
-            const url = data.avatarUrl.startsWith("/")
-              ? `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${data.avatarUrl}`
-              : data.avatarUrl;
+            const url = data.avatarUrl.startsWith("http")
+              ? data.avatarUrl
+              : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${data.avatarUrl.startsWith("/") ? "" : "/"}${data.avatarUrl}`;
             setAvatarSrc(url);
           } else {
             const local = getStoredAvatarDataUrl(phoneNumber);

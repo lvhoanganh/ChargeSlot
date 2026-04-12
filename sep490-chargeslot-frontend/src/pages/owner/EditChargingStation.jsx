@@ -266,7 +266,12 @@ export default function EditChargingStation() {
           lng: data.longitude || 106.7218,
           address: data.address || "",
         });
-        setExistingImages(data.images?.map(i => i.imgUrl) || []);
+        setExistingImages(data.images?.map(i => {
+            if (!i.imgUrl) return "";
+            return i.imgUrl.startsWith("http") 
+              ? i.imgUrl 
+              : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${i.imgUrl.startsWith("/") ? "" : "/"}${i.imgUrl}`;
+        }).filter(Boolean) || []);
         // Merge operating hours — fill with defaults for any missing days
         const oh = dayOptions.map((d) => {
           const found = (data.operatingHours || []).find((h) => h.dayOfWeek === d.value);

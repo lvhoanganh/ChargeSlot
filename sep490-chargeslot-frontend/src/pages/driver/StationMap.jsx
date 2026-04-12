@@ -402,7 +402,7 @@ export default function StationMap() {
     if (imgErrors[s.id]) return null;
     const url = s.images?.[0]?.imageUrl || s.images?.[0] || null;
     if (!url) return null;
-    return url.startsWith("http") ? url : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${url}`;
+    return url.startsWith("http") ? url : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${url.startsWith("/") ? "" : "/"}${url}`;
   }
 
   const hasActiveFilters = minRating || sortBy || nearbyMode || isTimeFilterActive;

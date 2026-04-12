@@ -71,7 +71,7 @@ export default function EditDriverProfile() {
         });
         // Load server avatar if available
         if (p?.avatarUrl) {
-          const url = p.avatarUrl.startsWith("/") ? `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${p.avatarUrl}` : p.avatarUrl;
+          const url = p.avatarUrl.startsWith("http") ? p.avatarUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${p.avatarUrl.startsWith("/") ? "" : "/"}${p.avatarUrl}`;
           setAvatar(url);
         }
       } catch (e) {
@@ -99,7 +99,7 @@ export default function EditDriverProfile() {
       // Upload to server
       const result = await driverProfileApi.uploadAvatar(file);
       if (result?.avatarUrl) {
-        const fullUrl = result.avatarUrl.startsWith("/") ? `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${result.avatarUrl}` : result.avatarUrl;
+        const fullUrl = result.avatarUrl.startsWith("http") ? result.avatarUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${result.avatarUrl.startsWith("/") ? "" : "/"}${result.avatarUrl}`;
         setAvatar(fullUrl);
       }
     } catch {
