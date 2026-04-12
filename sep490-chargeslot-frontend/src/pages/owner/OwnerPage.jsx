@@ -20,7 +20,7 @@ const slotColors = {
   Inactive:  { bg: "#94a3b8", text: "#fff", border: "#64748b", label: "Ngưng" },
   Maintenance:{ bg: "#f97316", text: "#fff", border: "#ea580c", label: "Bảo trì" },
   Available: { bg: "#22c55e", text: "#fff", border: "#16a34a", label: "Trống" },
-  Occupied:  { bg: "#ef4444", text: "#fff", border: "#dc2626", label: "Đang sạc" },
+  Occupied:  { bg: "#ef4444", text: "#fff", border: "#dc2626", label: "Đang dùng" },
   CheckedIn: { bg: "#06b6d4", text: "#fff", border: "#0891b2", label: "Đã check-in" },
   Booked:    { bg: "#f59e0b", text: "#fff", border: "#d97706", label: "Đã đặt chỗ" },
   Reserved:  { bg: "#3b82f6", text: "#fff", border: "#2563eb", label: "Giữ chỗ" },
@@ -55,11 +55,25 @@ export default function OwnerPage() {
       if (Array.isArray(sessions)) {
         sessions.forEach(session => {
           if (!session.slotId) return;
-          const st = session.bookingStatus || session.status || "";
-          if (st === "InProgress" || st === "Charging") {
-            occupied.add(session.slotId);
-          } else if (st === "CheckedIn") {
-            checkedIn.add(session.slotId);
+          const now = Date.now();
+          let isTimeStarted = false;
+          if (session.bookingStartTime || session.actualStartTime) {
+            const timeStr = String(session.bookingStartTime || session.actualStartTime);
+            const ms = new Date(timeStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(timeStr) ? timeStr : timeStr + "+07:00").getTime();
+            if (!isNaN(ms) && now >= ms) isTimeStarted = true;
+          }
+
+          const st = session.status || session.bookingStatus || "";
+          const isInProgressRaw = st === "InProgress" || st === "Charging" || session.bookingStatus === "InProgress" || session.bookingStatus === "Charging";
+          const isCheckedInRaw = st === "CheckedIn" || session.bookingStatus === "CheckedIn";
+
+          const isOccupied = isInProgressRaw || (isCheckedInRaw && isTimeStarted);
+          const isCheckedIn = isCheckedInRaw && !isTimeStarted;
+          
+          if (isOccupied) {
+            occupied.add(Number(session.slotId));
+          } else if (isCheckedIn) {
+            checkedIn.add(Number(session.slotId));
           }
         });
       }

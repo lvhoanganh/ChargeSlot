@@ -150,13 +150,13 @@ export default function ChargingActive() {
           return;
         }
 
-        // Khi hết giờ: nếu BE đã chuyển sang CompletedPendingInvoice → chuyển qua BookingStatus để confirm thủ công
+        // Khi hết giờ / kết thúc sớm: nếu BE đã chuyển sang CompletedPendingInvoice → chuyển qua ChargingComplete để hiện Hóa đơn xác nhận
         if (updated.bookingStatus === "CompletedPendingInvoice" && !autoConfirmTriggeredRef.current) {
           autoConfirmTriggeredRef.current = true;
           setAutoCompleting(true);
           setTimeout(() => {
              localStorage.removeItem(lsKey);
-             navigate(`/driver/booking/${updated.bookingId}`);
+             navigate(`/driver/charging-complete`, { state: { session: updated } });
           }, 1500);
         }
       } catch { /* ignore poll errors */ }

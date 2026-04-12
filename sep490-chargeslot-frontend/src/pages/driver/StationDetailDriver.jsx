@@ -70,7 +70,7 @@ const statusConfig = {
 const slotStatusConfig = {
   Available:  { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
   Active:     { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
-  Occupied:   { label: "Đang sạc", color: "#ef4444", bg: "#fef2f2" },
+  Occupied:   { label: "Đang dùng", color: "#ef4444", bg: "#fef2f2" },
   CheckedIn:  { label: "Đã check-in", color: "#06b6d4", bg: "#ecfeff" },
   Booked:     { label: "Đã đặt chỗ", color: "#f59e0b", bg: "#fffbeb" },
   Reserved:   { label: "Giữ chỗ", color: "#3b82f6", bg: "#eff6ff" },
@@ -162,11 +162,25 @@ export default function StationDetailDriver() {
         .filter(s => !s.actualEndTime && s.bookingStatus !== "Completed")
         .forEach(session => {
           if (!session.slotId) return;
-          const st = session.bookingStatus || session.status || "";
-          if (st === "InProgress" || st === "Charging") {
-            occupied.add(session.slotId); // Đang sạc thực sự
-          } else if (st === "CheckedIn") {
-            checkedIn.add(session.slotId); // Đã check-in, chưa bắt đầu sạc
+          const now = Date.now();
+          let isTimeStarted = false;
+          if (session.bookingStartTime || session.actualStartTime) {
+            const timeStr = String(session.bookingStartTime || session.actualStartTime);
+            const ms = new Date(timeStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(timeStr) ? timeStr : timeStr + "+07:00").getTime();
+            if (!isNaN(ms) && now >= ms) isTimeStarted = true;
+          }
+
+          const st = session.status || session.bookingStatus || "";
+          const isInProgressRaw = st === "InProgress" || st === "Charging" || session.bookingStatus === "InProgress" || session.bookingStatus === "Charging";
+          const isCheckedInRaw = st === "CheckedIn" || session.bookingStatus === "CheckedIn";
+
+          const isOccupied = isInProgressRaw || (isCheckedInRaw && isTimeStarted);
+          const isCheckedIn = isCheckedInRaw && !isTimeStarted;
+          
+          if (isOccupied) {
+            occupied.add(Number(session.slotId)); // Đang sạc thực sự
+          } else if (isCheckedIn) {
+            checkedIn.add(Number(session.slotId)); // Đã check-in, chưa bắt đầu sạc
           }
         });
       return { occupied, checkedIn };

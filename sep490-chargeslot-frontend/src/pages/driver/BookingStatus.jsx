@@ -269,10 +269,10 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             {/* Actions */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <button
-                onClick={() => { 
-                  setShowPaymentSuccess(false); 
+                onClick={() => {
+                  setShowPaymentSuccess(false);
                   if (isEmbedded && onClose) onClose();
-                  else navigate("/driver/my-bookings"); 
+                  else navigate("/driver/my-bookings");
                 }}
                 style={{
                   width: "100%", padding: "14px 0", borderRadius: 14, border: "none",
@@ -392,21 +392,30 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
               </div>
             )}
 
-            {booking.chargingSessionDetail && (
-              <div style={{ marginTop: 12, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
-                <h4 style={{ fontSize: 13, color: "#475569", marginBottom: 8, fontWeight: 700 }}>Chi tiết phiên sạc</h4>
-                {booking.chargingSessionDetail.actualStartTime && <InfoRow icon="⚡" label="Bắt đầu sạc" value={toLocal(booking.chargingSessionDetail.actualStartTime)} />}
-                {booking.chargingSessionDetail.actualEndTime && <InfoRow icon="🏁" label="Kết thúc sạc" value={toLocal(booking.chargingSessionDetail.actualEndTime)} />}
-                <InfoRow icon="🔋" label="Điện tiêu thụ" value={`${booking.chargingSessionDetail.sessionMeterValue?.toFixed(2) || 0} kWh`} purple />
-              </div>
-            )}
-
             {booking.invoiceDetail && (
               <div style={{ marginTop: 12, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
                 <h4 style={{ fontSize: 13, color: "#475569", marginBottom: 8, fontWeight: 700 }}>Chi tiết hóa đơn</h4>
                 <InfoRow icon="🧾" label="Tiền sạc" value={`${(booking.invoiceDetail.chargingAmount || 0).toLocaleString("vi-VN")}đ`} />
                 {booking.invoiceDetail.vatAmount > 0 && <InfoRow icon="🏦" label="Thuế VAT" value={`${booking.invoiceDetail.vatAmount.toLocaleString("vi-VN")}đ`} />}
                 <InfoRow icon="💵" label="Tổng thanh toán" value={`${(booking.invoiceDetail.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
+              </div>
+            )}
+
+            {booking.chargingSessionDetail && (
+              <div style={{ marginTop: 12, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
+                <h4 style={{ fontSize: 13, color: "#475569", marginBottom: 8, fontWeight: 700 }}>Chi tiết phiên sạc thực tế</h4>
+                {booking.chargingSessionDetail.actualStartTime && <InfoRow icon="⚡" label="Bắt đầu sạc" value={toLocal(booking.chargingSessionDetail.actualStartTime)} />}
+                {booking.chargingSessionDetail.actualEndTime && <InfoRow icon="🏁" label="Kết thúc sạc" value={toLocal(booking.chargingSessionDetail.actualEndTime)} />}
+                {(() => {
+                  const start = booking.chargingSessionDetail.actualStartTime ? new Date(String(booking.chargingSessionDetail.actualStartTime).replace("Z", "")).getTime() : 0;
+                  const end = booking.chargingSessionDetail.actualEndTime ? new Date(String(booking.chargingSessionDetail.actualEndTime).replace("Z", "")).getTime() : 0;
+                  const durationMs = start && end && end > start ? end - start : (booking.chargingSessionDetail.actualDurationHours ? booking.chargingSessionDetail.actualDurationHours * 3600000 : 0);
+                  if (!durationMs) return null;
+                  const hours = Math.floor(durationMs / 3600000);
+                  const minutes = Math.floor((durationMs % 3600000) / 60000);
+                  const formattedDuration = hours > 0 ? `${hours} giờ ${minutes} phút` : `${minutes} phút`;
+                  return <InfoRow icon="⏱" label="Thời lượng sạc" value={formattedDuration} />;
+                })()}
               </div>
             )}
 

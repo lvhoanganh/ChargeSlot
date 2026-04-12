@@ -153,6 +153,24 @@ export default function BookingRequestDetail() {
               </div>
             )}
 
+            {booking.chargingSessionDetail && (
+              <div style={{ marginTop: 8, borderTop: "1px dashed #e2e8f0", paddingTop: 8 }}>
+                <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}>Chi tiết phiên sạc thực tế</div>
+                {booking.chargingSessionDetail.actualStartTime && <InfoRow label="Bắt đầu sạc" value={toLocal(booking.chargingSessionDetail.actualStartTime)} />}
+                {booking.chargingSessionDetail.actualEndTime && <InfoRow label="Kết thúc sạc" value={toLocal(booking.chargingSessionDetail.actualEndTime)} />}
+                {(() => {
+                  const start = booking.chargingSessionDetail.actualStartTime ? new Date(String(booking.chargingSessionDetail.actualStartTime).replace("Z", "")).getTime() : 0;
+                  const end = booking.chargingSessionDetail.actualEndTime ? new Date(String(booking.chargingSessionDetail.actualEndTime).replace("Z", "")).getTime() : 0;
+                  const durationMs = start && end && end > start ? end - start : (booking.chargingSessionDetail.actualDurationHours ? booking.chargingSessionDetail.actualDurationHours * 3600000 : 0);
+                  if (!durationMs) return null;
+                  const hours = Math.floor(durationMs / 3600000);
+                  const minutes = Math.floor((durationMs % 3600000) / 60000);
+                  const formattedDuration = hours > 0 ? `${hours} giờ ${minutes} phút` : `${minutes} phút`;
+                  return <InfoRow label="Thời lượng sạc" value={formattedDuration} />;
+                })()}
+              </div>
+            )}
+
             {booking.disputeDetail && (
               <div style={{ marginTop: 8, borderTop: "1px dashed #e2e8f0", paddingTop: 8 }}>
                 <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}>⚠️ Tranh chấp ({booking.disputeDetail.status})</div>
