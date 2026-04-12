@@ -100,7 +100,8 @@ export const useAuthStore = create(
 
         set({ token: null, refreshToken: null, userId: null, role: null, phoneNumber: null });
         // Broadcast logout event → các store khác (admin, owner, ...) listen và reset
-        window.dispatchEvent(new Event("cs:logout"));
+        // reason: "manual" → SessionGuard sẽ không hiện toast "hết hạn"
+        window.dispatchEvent(new CustomEvent("cs:logout", { detail: { reason: "manual" } }));
       },
 
       /** Refresh access token silently dùng refreshToken */

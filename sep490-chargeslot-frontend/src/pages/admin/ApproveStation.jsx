@@ -55,6 +55,9 @@ export default function ApproveStation() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [ownerFilter, setOwnerFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [confirmAction, setConfirmAction] = useState(null);
   const [adminNote, setAdminNote] = useState("");
 
@@ -77,6 +80,19 @@ export default function ApproveStation() {
     },
   });
 
+  const ownerOptions = useMemo(() => {
+    const seen = new Set();
+    const list = [];
+    stations.forEach((s) => {
+      const name = s.ownerName || s.owner?.fullName || s.owner?.phoneNumber || "";
+      if (name && !seen.has(name)) {
+        seen.add(name);
+        list.push(name);
+      }
+    });
+    return list.sort((a, b) => a.localeCompare(b, "vi"));
+  }, [stations]);
+
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return stations.filter((s) => {
@@ -86,9 +102,14 @@ export default function ApproveStation() {
         s.address?.toLowerCase().includes(keyword);
       const matchStatus =
         statusFilter === "ALL" || s.approvalStatus === statusFilter;
-      return matchSearch && matchStatus;
+      const ownerName = s.ownerName || s.owner?.fullName || s.owner?.phoneNumber || "";
+      const matchOwner = !ownerFilter || ownerName === ownerFilter;
+      const createdDate = s.createdAt ? s.createdAt.slice(0, 10) : "";
+      const matchFrom = !dateFrom || createdDate >= dateFrom;
+      const matchTo = !dateTo || createdDate <= dateTo;
+      return matchSearch && matchStatus && matchOwner && matchFrom && matchTo;
     });
-  }, [stations, search, statusFilter]);
+  }, [stations, search, statusFilter, ownerFilter, dateFrom, dateTo]);
 
   const summary = useMemo(() => {
     return stations.reduce(
@@ -120,6 +141,9 @@ export default function ApproveStation() {
   function resetFilter() {
     setSearch("");
     setStatusFilter("ALL");
+    setOwnerFilter("");
+    setDateFrom("");
+    setDateTo("");
   }
 
   if (isLoading) {
@@ -212,7 +236,7 @@ export default function ApproveStation() {
       </div>
 
       {/* Filter Bar */}
-      <div className="cs-admin-filter">
+      <div className="cs-admin-filter" style={{ flexWrap: "wrap", gap: 10 }}>
         <div className="cs-admin-filter__search">
           <svg className="cs-admin-filter__search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -225,16 +249,39 @@ export default function ApproveStation() {
             className="cs-admin-filter__input"
           />
         </div>
+        {/* Owner combobox */}
+        <select
+          value={ownerFilter}
+          onChange={(e) => setOwnerFilter(e.target.value)}
+          className="cs-admin-filter__select"
+          style={{ minWidth: 180 }}
+        >
+          <option value="">👤 Tất cả chủ trạm</option>
+          {ownerOptions.map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả</option>
-          <option value="PendingApproval">Chờ duyệt</option>
-          <option value="Approved">Đã duyệt</option>
-          <option value="Rejected">Từ chối</option>
+          <option value="PendingApproval">⏳ Chờ duyệt</option>
+          <option value="Approved">✅ Đã duyệt</option>
+          <option value="Rejected">❌ Từ chối</option>
         </select>
+        {/* Date range */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <svg width="15" height="15" fill="none" stroke="#64748b" strokeWidth={2} viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+            className="cs-admin-filter__select" style={{ width: 140, cursor: "pointer" }} title="Từ ngày" />
+          <span style={{ color: "#94a3b8", fontSize: 12 }}>—</span>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+            className="cs-admin-filter__select" style={{ width: 140, cursor: "pointer" }} title="Đến ngày" />
+        </div>
         <button onClick={resetFilter} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -248,8 +295,9 @@ export default function ApproveStation() {
         <table className="cs-admin-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>STT</th>
               <th>Tên trạm</th>
+              <th>Chủ trạm</th>
               <th>Địa chỉ</th>
               <th>Số ổ sạc</th>
               <th>Vi phạm (AI)</th>
@@ -261,19 +309,20 @@ export default function ApproveStation() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="cs-admin-table__empty">
+                <td colSpan={9} className="cs-admin-table__empty">
                   <p>Không tìm thấy yêu cầu nào</p>
                 </td>
               </tr>
             ) : (
-              filtered.map((s) => {
+              filtered.map((s, idx) => {
                 const isPending = s.approvalStatus === "PendingApproval";
                 // BE set bannedUntil = +100 năm khi khoá, null khi mở
                 const isBanned = !!s.bannedUntil;
                 return (
                   <tr key={s.id}>
-                    <td className="cs-admin-table__id">{s.id}</td>
+                    <td className="cs-admin-table__id" style={{ fontWeight: 700, color: "#64748b" }}>{idx + 1}</td>
                     <td className="cs-admin-table__name">{s.name}</td>
+                    <td style={{ fontSize: 13, color: "#374151" }}>{s.ownerName || s.owner?.fullName || s.owner?.phoneNumber || "—"}</td>
                     <td>{s.address}</td>
                     <td>{s.chargingSlots?.length || 0}</td>
                     <td>

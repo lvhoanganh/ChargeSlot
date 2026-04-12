@@ -51,6 +51,8 @@ export default function MyBookings() {
   const [selectedCancelId, setSelectedCancelId] = useState(null);
   const [selectedCancelBooking, setSelectedCancelBooking] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const fetchBookings = () => {
     setLoading(true);
@@ -206,8 +208,33 @@ export default function MyBookings() {
           </select>
         </div>
 
+        {/* Date range filter */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+          <svg width="15" height="15" fill="none" stroke="#64748b" strokeWidth={2} viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+            style={{ height: 36, padding: "0 10px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 13, outline: "none", cursor: "pointer", color: "#475569" }}
+            title="Từ ngày" />
+          <span style={{ color: "#94a3b8", fontSize: 12 }}>—</span>
+          <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+            style={{ height: 36, padding: "0 10px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 13, outline: "none", cursor: "pointer", color: "#475569" }}
+            title="Đến ngày" />
+          {(dateFrom || dateTo) && (
+            <button onClick={() => { setDateFrom(""); setDateTo(""); setPage(1); }}
+              style={{ height: 34, padding: "0 12px", borderRadius: 10, border: "1px solid #fca5a5", background: "#fff", color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              × Xóa
+            </button>
+          )}
+        </div>
+
         {/* Booking list */}
-        {bookings.length === 0 ? (
+        {(() => {
+          const displayList = bookings.filter(b => {
+            const d = (b.startTime || b.bookingDate || "").slice(0, 10);
+            return (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo);
+          });
+          return displayList.length === 0 ? (
           <div style={{
             textAlign: "center", padding: "52px 20px",
             background: "#fff", borderRadius: 20,
@@ -236,7 +263,7 @@ export default function MyBookings() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {bookings.map((b) => {
+            {displayList.map((b) => {
               const st = statusStyles[b.status] || statusStyles.WaitingOwner;
               const isActive = st.group === "active";
               return (
@@ -360,12 +387,13 @@ export default function MyBookings() {
             })}
             <Pagination 
               page={page} 
-              totalCount={totalCount} 
+              totalCount={(dateFrom || dateTo) ? displayList.length : totalCount} 
               pageSize={20} 
               onPageChange={(p) => setPage(p)} 
             />
           </div>
-        )}
+        );
+        })()}
         </div>
         
         {/* Right Column: Detail Pane */}

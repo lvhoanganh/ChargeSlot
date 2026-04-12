@@ -32,6 +32,9 @@ export default function SessionGuard() {
       if (reason === "banned") {
         showToast.error("Tài khoản bị khoá do vi phạm tiêu chuẩn hệ thống!", 5000);
         navigate("/login?banned=true", { replace: true });
+      } else if (reason === "manual") {
+        // Logout thủ công — chuyển về /login, không hiện toast "hết hạn"
+        navigate("/login", { replace: true });
       } else {
         // expired hoặc mặc định
         showToast.warning("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", 4000);

@@ -32,6 +32,8 @@ export default function BookingRequests() {
   const [tabType, setTabType] = useState("ongoing"); // "ongoing" | "history"
   // Specific status filter (for history)
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
 
   const fetchBookings = () => {
@@ -53,12 +55,15 @@ export default function BookingRequests() {
 
   const filteredBookings = allBookings.filter(b => {
     if (tabType === "ongoing") {
-      return ongoingStatuses.includes(b.status);
+      if (!ongoingStatuses.includes(b.status)) return false;
     } else {
       if (ongoingStatuses.includes(b.status)) return false;
       if (statusFilter !== "all" && b.status !== statusFilter) return false;
-      return true;
     }
+    const d = (b.startTime || b.bookingDate || "").slice(0, 10);
+    if (dateFrom && d < dateFrom) return false;
+    if (dateTo && d > dateTo) return false;
+    return true;
   });
 
   const totalCount = filteredBookings.length;
@@ -136,6 +141,27 @@ export default function BookingRequests() {
             ))}
           </div>
         )}
+
+        {/* Date range filter */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          <svg width="15" height="15" fill="none" stroke="#64748b" strokeWidth={2} viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <span style={{ fontSize: 13, color: "#64748b", fontWeight: 600 }}>Ngày sạc:</span>
+          <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+            style={{ height: 36, padding: "0 10px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 13, outline: "none", cursor: "pointer", color: "#475569" }}
+            title="Từ ngày" />
+          <span style={{ color: "#94a3b8", fontSize: 12 }}>—</span>
+          <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+            style={{ height: 36, padding: "0 10px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 13, outline: "none", cursor: "pointer", color: "#475569" }}
+            title="Đến ngày" />
+          {(dateFrom || dateTo) && (
+            <button onClick={() => { setDateFrom(""); setDateTo(""); setPage(1); }}
+              style={{ height: 34, padding: "0 12px", borderRadius: 10, border: "1px solid #fca5a5", background: "#fff", color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              × Xóa
+            </button>
+          )}
+        </div>
 
         {/* Local filter only for ongoing to switch between WaitingOwner, PendingPayment... if needed.
             But the user said "Frontend tuyệt đối không gọi full list rồi tự cắt bằng JS nữa".

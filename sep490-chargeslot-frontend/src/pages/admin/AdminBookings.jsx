@@ -41,6 +41,8 @@ function getStatusType(status) {
 export default function AdminBookings() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
@@ -64,14 +66,17 @@ export default function AdminBookings() {
     };
     const keyword = normalize(search.trim());
     return bookings.filter((b) => {
-      if (!keyword) return true;
-      return (
+      const matchSearch = !keyword || (
         normalize(b.driverName).includes(keyword) ||
         normalize(b.stationName).includes(keyword) ||
         String(b.id).includes(keyword)
       );
+      const bookingDate = (b.bookingDate || b.startTime || "").slice(0, 10);
+      const matchFrom = !dateFrom || bookingDate >= dateFrom;
+      const matchTo = !dateTo || bookingDate <= dateTo;
+      return matchSearch && matchFrom && matchTo;
     });
-  }, [bookings, search]);
+  }, [bookings, search, dateFrom, dateTo]);
 
   if (isLoading) {
     return (
@@ -105,7 +110,7 @@ export default function AdminBookings() {
         </div>
       </div>
 
-      <div className="cs-admin-filter">
+      <div className="cs-admin-filter" style={{ flexWrap: "wrap", gap: 10 }}>
         <div className="cs-admin-filter__search">
           <svg className="cs-admin-filter__search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -123,7 +128,7 @@ export default function AdminBookings() {
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả trạng thái</option>
@@ -136,11 +141,22 @@ export default function AdminBookings() {
           <option value="Rejected">Từ chối</option>
           <option value="Expired">Quá hạn</option>
         </select>
-        <button onClick={() => { setSearch(""); setStatusFilter("ALL"); setPage(1); }} className="cs-admin-filter__reset">
+        {/* Date range — lọc theo ngày đặt/ngày sạc */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <svg width="15" height="15" fill="none" stroke="#64748b" strokeWidth={2} viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+            className="cs-admin-filter__select" style={{ width: 140, cursor: "pointer" }} title="Từ ngày đặt" />
+          <span style={{ color: "#94a3b8", fontSize: 12 }}>—</span>
+          <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+            className="cs-admin-filter__select" style={{ width: 140, cursor: "pointer" }} title="Đến ngày đặt" />
+        </div>
+        <button onClick={() => { setSearch(""); setStatusFilter("ALL"); setDateFrom(""); setDateTo(""); setPage(1); }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Chờ lại
+          Xóa bộ lọc
         </button>
       </div>
 
@@ -148,7 +164,7 @@ export default function AdminBookings() {
         <table className="cs-admin-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>STT</th>
               <th>Khách Hàng (Driver)</th>
               <th>Trạm Sạc</th>
               <th>Ngày Sạc</th>
@@ -165,11 +181,11 @@ export default function AdminBookings() {
                 </td>
               </tr>
             ) : (
-              filtered.map((b) => {
+              filtered.map((b, idx) => {
                 const statusType = getStatusType(b.status);
                 return (
                   <tr key={b.id}>
-                    <td className="cs-admin-table__id">#{b.id}</td>
+                    <td className="cs-admin-table__id" style={{ fontWeight: 700, color: "#64748b" }}>{(page - 1) * pageSize + idx + 1}</td>
                     <td className="cs-admin-table__name">{b.driverName || "N/A"}</td>
                     <td>{b.stationName || "N/A"}</td>
                     <td>{formatDate(b.bookingDate || b.startTime)}</td>
@@ -191,7 +207,7 @@ export default function AdminBookings() {
         <div style={{ marginTop: 20 }}>
           <Pagination
             page={page}
-            totalCount={search ? filtered.length : totalCount}
+            totalCount={(search || dateFrom || dateTo) ? filtered.length : totalCount}
             pageSize={pageSize}
             onPageChange={(p) => setPage(p)}
           />

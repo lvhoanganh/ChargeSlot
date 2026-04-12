@@ -56,11 +56,11 @@ export default function DisputeDetail() {
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90 }}>
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px 40px" }}>
         <button
-          onClick={() => navigate(`/driver/booking/${dispute.bookingId}`)}
+          onClick={() => navigate(`/driver/dispute-list`)}
           style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 14, marginBottom: 12, display: "flex", alignItems: "center", gap: 4 }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          Quay lại booking
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+          Quay lại danh sách khiếu nại
         </button>
 
         {/* Status Header */}

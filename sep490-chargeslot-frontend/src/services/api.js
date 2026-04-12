@@ -98,10 +98,13 @@ export async function apiFetch(endpoint, options = {}) {
                 }
             } catch { /* refresh failed */ }
         }
-        // Không refresh được → emit event để SessionGuard navigate mượt (không hard reload)
-        clearAuth();
-        window.dispatchEvent(new CustomEvent("cs:logout", { detail: { reason: "expired" } }));
-        throw new Error("Phiên đăng nhập hết hạn");
+        // Chỉ emit logout nếu user đang đăng nhập (có token) — guest nhận 401 thì throw lỗi bình thường
+        if (token) {
+            clearAuth();
+            window.dispatchEvent(new CustomEvent("cs:logout", { detail: { reason: "expired" } }));
+            throw new Error("Phiên đăng nhập hết hạn");
+        }
+        throw new Error("Bạn không có quyền truy cập tài nguyên này");
     }
 
     // 403 → tài khoản bị vô hiệu hóa → force logout
@@ -154,10 +157,13 @@ async function apiFetchFormData(endpoint, formData, method = "POST") {
     });
 
     if (response.status === 401) {
-        clearAuth();
-        // Emit event để SessionGuard navigate mượt (không hard reload)
-        window.dispatchEvent(new CustomEvent("cs:logout", { detail: { reason: "expired" } }));
-        throw new Error("Phiên đăng nhập hết hạn");
+        // Chỉ emit logout nếu user đang đăng nhập (có token)
+        if (token) {
+            clearAuth();
+            window.dispatchEvent(new CustomEvent("cs:logout", { detail: { reason: "expired" } }));
+            throw new Error("Phiên đăng nhập hết hạn");
+        }
+        throw new Error("Bạn không có quyền truy cập tài nguyên này");
     }
 
     if (response.status === 403) {
