@@ -506,8 +506,8 @@ export default function BookingForm() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* ===== 2-COLUMN LAYOUT ===== */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 24, alignItems: "start" }}>
+          {/* ===== RESPONSIVE LAYOUT ===== */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
 
             {/* ========== CỘT TRÁI ========== */}
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>

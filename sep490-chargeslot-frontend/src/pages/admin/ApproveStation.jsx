@@ -1,9 +1,53 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { instance } from "@/lib/httpRequest";
 import { showToast } from "@/components/Toast";
 import { formatDateVN } from "@/utils/dateVN";
 import { BanStatusBadge } from "@/components/BanStatusBadge";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+/* ─── Leaflet Setup ─── */
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+});
+
+function makeIcon(gradient, pulseColor) {
+  return new L.DivIcon({
+    html: `
+      <div style="position:relative;width:52px;height:64px;">
+        <div style="position:absolute;top:6px;left:6px;width:40px;height:40px;border-radius:50%;background:${pulseColor};animation:stationPulse 2s ease-out infinite;"></div>
+        <div style="position:absolute;top:0;left:2px;width:48px;height:48px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${gradient};border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35);"></div>
+        <div style="position:absolute;top:6px;left:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+      </div>`,
+    className: "",
+    iconSize: [52, 64],
+    iconAnchor: [26, 64],
+    popupAnchor: [0, -56],
+  });
+}
+
+const mapIcons = {
+  Approved: makeIcon("linear-gradient(135deg,#22c55e,#0f9d43)", "rgba(34,197,94,.35)"),
+  Draft: makeIcon("linear-gradient(135deg,#94a3b8,#64748b)", "rgba(148,163,184,.35)"),
+  PendingApproval: makeIcon("linear-gradient(135deg,#f59e0b,#d97706)", "rgba(245,158,11,.35)"),
+  Rejected: makeIcon("linear-gradient(135deg,#ef4444,#dc2626)", "rgba(239,68,68,.35)"),
+};
+
+function FlyTo({ center, zoom }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) map.flyTo(center, zoom || 15, { duration: 1.2 });
+  }, [center, zoom, map]);
+  return null;
+}
+
 
 /* ─── API helpers ─── */
 const adminStationApi = {
@@ -60,6 +104,17 @@ export default function ApproveStation() {
   const [dateTo, setDateTo] = useState("");
   const [confirmAction, setConfirmAction] = useState(null);
   const [adminNote, setAdminNote] = useState("");
+  const [viewMode, setViewMode] = useState("list");
+  const [userPos, setUserPos] = useState(null);
+  const [flyTarget, setFlyTarget] = useState([21.0285, 105.8542]);
+  
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => setUserPos([pos.coords.latitude, pos.coords.longitude]),
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }, []);
 
   const { data: stations = [], isLoading, error } = useQuery({
     queryKey: ["admin-stations-all"],
@@ -288,9 +343,24 @@ export default function ApproveStation() {
           </svg>
           Xóa bộ lọc
         </button>
+        <div style={{ display: "flex", background: "#f1f5f9", borderRadius: 12, padding: 4 }}>
+          <button
+            onClick={() => setViewMode("list")}
+            style={{ padding: "6px 12px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, background: viewMode === "list" ? "white" : "transparent", color: viewMode === "list" ? "#1e293b" : "#64748b", boxShadow: viewMode === "list" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", cursor: "pointer", transition: "all .2s" }}
+          >
+            Danh sách
+          </button>
+          <button
+            onClick={() => setViewMode("map")}
+            style={{ padding: "6px 12px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, background: viewMode === "map" ? "white" : "transparent", color: viewMode === "map" ? "#1e293b" : "#64748b", boxShadow: viewMode === "map" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", cursor: "pointer", transition: "all .2s" }}
+          >
+            Bản đồ
+          </button>
+        </div>
       </div>
 
-      {/* Table */}
+      {/* Table or Map */}
+      {viewMode === "list" ? (
       <div className="cs-admin-table-wrap">
         <table className="cs-admin-table">
           <thead>
@@ -409,6 +479,97 @@ export default function ApproveStation() {
           </tbody>
         </table>
       </div>
+      ) : (
+        <div className="map-view-container" style={{ height: 600, borderRadius: 16, border: "1px solid #e2e8f0", overflow: "hidden", position: "relative", zIndex: 1, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              if (userPos) setFlyTarget(userPos);
+              else
+                navigator.geolocation?.getCurrentPosition(
+                  (pos) => {
+                    const p = [pos.coords.latitude, pos.coords.longitude];
+                    setUserPos(p);
+                    setFlyTarget(p);
+                  },
+                  () => showToast.error("Không thể lấy vị trí của bạn"),
+                  { enableHighAccuracy: true, timeout: 8000 }
+                );
+            }}
+            style={{
+              position: "absolute", bottom: 20, right: 20, zIndex: 1000, 
+              background: "white", width: 44, height: 44, borderRadius: "50%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.1)", border: "none", cursor: "pointer", color: "#3b82f6"
+            }}
+            title="Vị trí của tôi"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+            </svg>
+          </button>
+          <MapContainer center={userPos || [21.0285, 105.8542]} zoom={14} style={{ width: "100%", height: "100%" }} zoomControl={false}>
+            <TileLayer
+              attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+              url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+            />
+            {flyTarget && <FlyTo center={flyTarget} zoom={15} />}
+            {userPos && <Marker position={userPos} icon={new L.DivIcon({
+              html: `<div style="width:20px;height:20px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 0 6px rgba(59,130,246,.25),0 2px 8px rgba(0,0,0,.3);"></div>`,
+              className: "", iconSize: [20, 20], iconAnchor: [10, 10]
+            })} />}
+            {filtered.filter(s => s.latitude && s.longitude).map(s => {
+              const icon = mapIcons[s.approvalStatus] || mapIcons.Draft;
+              return (
+                <Marker key={s.id} position={[s.latitude, s.longitude]} icon={icon}>
+                  <Popup className="custom-popup" maxWidth={280}>
+                    <div style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+                      <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid #f1f5f9" }}>
+                        <h3 style={{ margin: "0 0 4px 0", fontSize: 16, color: "#1e293b", fontWeight: 700 }}>{s.name}</h3>
+                        <div style={{ fontSize: 12, color: "#64748b" }}>{s.ownerName || s.owner?.fullName || s.owner?.phoneNumber || "—"}</div>
+                      </div>
+                      <div style={{ padding: "12px 16px" }}>
+                        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>📍 {s.address}</div>
+                        <div style={{ marginBottom: 12 }}>
+                          <span className={`cs-admin-status-badge cs-admin-status-badge--${s.approvalStatus === "PendingApproval" ? "pending" : s.approvalStatus === "Approved" ? "active" : s.approvalStatus === "Rejected" ? "banned" : "draft"}`}>
+                            <span className="cs-admin-status-badge__dot" />
+                            {getStatusLabel(s.approvalStatus)}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSearch(s.name);
+                            setViewMode("list");
+                          }}
+                          style={{ width: "100%", padding: "8px", background: "#f1f5f9", color: "#334155", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+                        >
+                          Xem trong danh sách
+                        </button>
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              )
+            })}
+          </MapContainer>
+          <style>{`
+            .custom-popup .leaflet-popup-content-wrapper {
+              border-radius: 16px;
+              padding: 0;
+              overflow: hidden;
+              box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            }
+            .custom-popup .leaflet-popup-content { margin: 0; width: 280px !important; }
+            .custom-popup .leaflet-popup-close-button { top: 12px; right: 12px; color: #64748b; }
+            @keyframes stationPulse {
+              0% { transform: scale(0.95); opacity: 0.8; }
+              70% { transform: scale(1.3); opacity: 0; }
+              100% { transform: scale(0.95); opacity: 0; }
+            }
+          `}</style>
+        </div>
+      )}
 
       {/* Confirm Modal */}
       {confirmAction && (

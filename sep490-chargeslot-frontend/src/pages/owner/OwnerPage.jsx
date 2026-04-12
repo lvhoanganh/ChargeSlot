@@ -5,6 +5,51 @@ import { stationApi, slotApi, stationPricingApi, chargingApi } from "@/services/
 import { QRCodeSVG } from "qrcode.react";
 import { showToast } from "@/components/Toast";
 import TimePicker24h from "@/components/TimePicker24h";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+/* ─── Leaflet Setup ─── */
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+});
+
+function makeIcon(gradient, pulseColor) {
+  return new L.DivIcon({
+    html: `
+      <div style="position:relative;width:52px;height:64px;">
+        <div style="position:absolute;top:6px;left:6px;width:40px;height:40px;border-radius:50%;background:${pulseColor};animation:stationPulse 2s ease-out infinite;"></div>
+        <div style="position:absolute;top:0;left:2px;width:48px;height:48px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${gradient};border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35);"></div>
+        <div style="position:absolute;top:6px;left:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+      </div>`,
+    className: "",
+    iconSize: [52, 64],
+    iconAnchor: [26, 64],
+    popupAnchor: [0, -56],
+  });
+}
+
+const mapIcons = {
+  Active: makeIcon("linear-gradient(135deg,#22c55e,#0f9d43)", "rgba(34,197,94,.35)"),
+  Inactive: makeIcon("linear-gradient(135deg,#6b7280,#4b5563)", "rgba(107,114,128,.35)"),
+  Draft: makeIcon("linear-gradient(135deg,#94a3b8,#64748b)", "rgba(148,163,184,.35)"),
+  PendingApproval: makeIcon("linear-gradient(135deg,#f59e0b,#d97706)", "rgba(245,158,11,.35)"),
+  Rejected: makeIcon("linear-gradient(135deg,#ef4444,#dc2626)", "rgba(239,68,68,.35)"),
+};
+
+function FlyTo({ center, zoom }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) map.flyTo(center, zoom || 15, { duration: 1.2 });
+  }, [center, zoom, map]);
+  return null;
+}
+
 
 const statusConfig = {
   Draft: { label: "Nháp", color: "#6b7280", bg: "#f3f4f6", icon: "📝" },
@@ -34,8 +79,21 @@ export default function OwnerPage() {
   const [actionLoading, setActionLoading] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState("list"); // "list" or "map"
+  const [flyTarget, setFlyTarget] = useState([21.0285, 105.8542]);
+  const [userPos, setUserPos] = useState(null);
+  
   const [occupiedSlots, setOccupiedSlots] = useState(new Set());    // Đang sạc (InProgress/Charging)
   const [checkedInSlots, setCheckedInSlots] = useState(new Set());  // Đã check-in, chưa sạc
+
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => setUserPos([pos.coords.latitude, pos.coords.longitude]),
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }, []);
 
   function fetchStations() {
     setLoading(true);
@@ -145,6 +203,40 @@ export default function OwnerPage() {
           </Link>
         </div>
 
+        <style>{`
+          .map-view-container {
+            height: 600px;
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            position: relative;
+            z-index: 1;
+            border: 1px solid #e2e8f0;
+          }
+          .custom-popup .leaflet-popup-content-wrapper {
+            border-radius: 16px;
+            padding: 0;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+          }
+          .custom-popup .leaflet-popup-content {
+            margin: 0;
+            width: 280px !important;
+          }
+          .custom-popup .leaflet-popup-close-button {
+            top: 12px;
+            right: 12px;
+            color: #64748b;
+          }
+          @keyframes stationPulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            70% { transform: scale(1.3); opacity: 0; }
+            100% { transform: scale(0.95); opacity: 0; }
+          }
+        `}</style>
+
+
         {/* Station list */}
         {stations.length === 0 ? (
           <div className="rounded-2xl bg-white p-12 text-center shadow-sm ring-1 ring-slate-200">
@@ -160,31 +252,71 @@ export default function OwnerPage() {
           </div>
         ) : (
           <div>
-            <div className="mb-4 flex flex-wrap gap-2">
-              {[
-                { key: "all", label: "Tất cả" },
-                { key: "Draft", label: "Nháp" },
-                { key: "PendingApproval", label: "Chờ duyệt" },
-                { key: "Active", label: "Hoạt động" },
-                { key: "Inactive", label: "Đang ngưng" },
-                { key: "Rejected", label: "Từ chối" },
-              ].map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => setFilter(t.key)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${filter === t.key ? "bg-orange-500 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-50 ring-1 ring-slate-200"}`}
-                >
-                  {t.label}
-                </button>
-              ))}
+            <div className="mb-4 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: "all", label: "Tất cả" },
+                  { key: "Draft", label: "Nháp" },
+                  { key: "PendingApproval", label: "Chờ duyệt" },
+                  { key: "Active", label: "Hoạt động" },
+                  { key: "Inactive", label: "Đang ngưng" },
+                  { key: "Rejected", label: "Từ chối" },
+                ].map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setFilter(t.key)}
+                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${filter === t.key ? "bg-orange-500 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-50 ring-1 ring-slate-200"}`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="flex gap-2 w-full md:w-auto">
+                <div className="relative flex-1 md:w-64">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="18" height="18" fill="none" stroke="#9ca3af" strokeWidth="2" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Tìm trạm..."
+                    className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-orange-500 text-sm"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+                <div className="flex bg-slate-200 rounded-xl p-1">
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1 border-none ${viewMode === "list" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500"}`}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                    Danh sách
+                  </button>
+                  <button
+                    onClick={() => setViewMode("map")}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1 border-none ${viewMode === "map" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500"}`}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    Bản đồ
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              {stations.filter(s => {
-                if (filter === "all") return true;
-                const dKey = s.approvalStatus === "Approved" ? (s.operationalStatus || "Approved") : s.approvalStatus;
-                return dKey === filter || s.approvalStatus === filter;
-              }).map((s) => {
+            {viewMode === "list" ? (
+              <div className="space-y-4">
+                {stations.filter(s => {
+                  if (filter !== "all") {
+                    const dKey = s.approvalStatus === "Approved" ? (s.operationalStatus || "Approved") : s.approvalStatus;
+                    if (dKey !== filter && s.approvalStatus !== filter) return false;
+                  }
+                  if (search.trim()) {
+                    const q = search.toLowerCase();
+                    return (s.name?.toLowerCase().includes(q) || s.address?.toLowerCase().includes(q));
+                  }
+                  return true;
+                }).map((s) => {
                 const st = s.approvalStatus === "Approved"
                   ? (statusConfig[s.operationalStatus] || statusConfig.Approved)
                   : (statusConfig[s.approvalStatus] || statusConfig.Draft);
@@ -554,9 +686,137 @@ export default function OwnerPage() {
                 );
               })}
             </div>
+          ) : (
+            <div className="map-view-container">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (userPos) setFlyTarget(userPos);
+                  else
+                    navigator.geolocation?.getCurrentPosition(
+                      (pos) => {
+                        const p = [pos.coords.latitude, pos.coords.longitude];
+                        setUserPos(p);
+                        setFlyTarget(p);
+                      },
+                      () => showToast.error("Không thể lấy vị trí của bạn"),
+                      { enableHighAccuracy: true, timeout: 8000 }
+                    );
+                }}
+                style={{
+                  position: "absolute", bottom: 20, right: 20, zIndex: 1000, 
+                  background: "white", width: 44, height: 44, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.1)", border: "none", cursor: "pointer", color: "#3b82f6"
+                }}
+                title="Vị trí của tôi"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                </svg>
+              </button>
+              <MapContainer
+                center={userPos || [21.0285, 105.8542]}
+                zoom={14}
+                style={{ width: "100%", height: "100%" }}
+                zoomControl={false}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+                  url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+                />
+                {flyTarget && <FlyTo center={flyTarget} zoom={15} />}
+                {userPos && <Marker position={userPos} icon={new L.DivIcon({
+                  html: `<div style="width:20px;height:20px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 0 6px rgba(59,130,246,.25),0 2px 8px rgba(0,0,0,.3);"></div>`,
+                  className: "", iconSize: [20, 20], iconAnchor: [10, 10]
+                })} />}
+
+                {stations.filter(s => {
+                  if (filter !== "all") {
+                    const dKey = s.approvalStatus === "Approved" ? (s.operationalStatus || "Approved") : s.approvalStatus;
+                    if (dKey !== filter && s.approvalStatus !== filter) return false;
+                  }
+                  if (search.trim()) {
+                    const q = search.toLowerCase();
+                    return (s.name?.toLowerCase().includes(q) || s.address?.toLowerCase().includes(q));
+                  }
+                  if (!s.latitude || !s.longitude) return false;
+                  return true;
+                }).map((s) => {
+                  const dKey = s.approvalStatus === "Approved" ? (s.operationalStatus || "Approved") : s.approvalStatus;
+                  const st = statusConfig[dKey] || statusConfig.Draft;
+                  const icon = mapIcons[dKey] || mapIcons.Draft;
+                  
+                  return (
+                    <Marker
+                      key={s.id}
+                      position={[s.latitude, s.longitude]}
+                      icon={icon}
+                    >
+                      <Popup className="custom-popup" maxWidth={280}>
+                        <div style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+                          <div style={{ padding: "16px 16px 12px", background: `linear-gradient(to right, ${st.bg}, white)` }}>
+                            <div style={{ display: "flex", gap: "10px" }}>
+                              <div style={{ flexShrink: 0, width: "36px", height: "36px", borderRadius: "10px", background: st.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <svg width="20" height="20" fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 24 24">
+                                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                                </svg>
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1e293b", lineHeight: 1.2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                                  {s.name}
+                                </h3>
+                                <span style={{ display: "inline-block", marginTop: "4px", fontSize: "11px", fontWeight: 600, color: st.color, padding: "2px 8px", borderRadius: "99px", background: `${st.color}20` }}>
+                                  {st.label}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div style={{ padding: "12px 16px" }}>
+                            <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "12px", display: "flex", alignItems: "flex-start", gap: "4px" }}>
+                              <span style={{ fontSize: "14px" }}>📍</span>
+                              <span style={{ flex: 1 }}>{s.address}</span>
+                            </div>
+                            
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "16px" }}>
+                              <div style={{ background: "#f8fafc", padding: "8px", borderRadius: "8px", textAlign: "center", border: "1px solid #f1f5f9" }}>
+                                <div style={{ fontSize: "16px", fontWeight: 700, color: "#3b82f6" }}>{s.chargingSlots?.length || 0}</div>
+                                <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Trụ sạc</div>
+                              </div>
+                              <div style={{ background: "#f8fafc", padding: "8px", borderRadius: "8px", textAlign: "center", border: "1px solid #f1f5f9" }}>
+                                <div style={{ fontSize: "16px", fontWeight: 700, color: "#64748b" }}>{s.layoutWidth}×{s.layoutHeight}</div>
+                                <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Kích thước</div>
+                              </div>
+                            </div>
+                            
+                            <button
+                              onClick={() => {
+                                setViewMode("list");
+                                setExpandedStation(s.id);
+                                setTimeout(() => {
+                                  window.scrollTo({ top: 300, behavior: 'smooth' });
+                                }, 300);
+                              }}
+                              style={{ width: "100%", padding: "10px 0", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "white", border: "none", borderRadius: "10px", fontWeight: 600, fontSize: "13px", cursor: "pointer", display: "flex", gap: "6px", justifyContent: "center", alignItems: "center" }}
+                            >
+                              Xem chi tiết / Chỉnh sửa
+                              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                            </button>
+                          </div>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+              </MapContainer>
+            </div>
+          )}
           </div>
         )}
       </div>
+
     </div>
   );
 }
