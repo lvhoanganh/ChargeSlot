@@ -504,6 +504,9 @@ export default function BookingForm() {
     const sMin = sh * 60 + sm;
     const eMin = sMin + duration * 60;
     return bookedRanges.some(r => {
+      // Ignored non-blocking statuses, especially WaitingOwner which means not-yet-confirmed.
+      if (["WaitingOwner", "Rejected", "CancelledByDriver", "CancelledByOwner", "CancelledByAdmin", "Expired", "NoShow"].includes(r.status)) return false;
+
       const parseT = (t) => {
         if (typeof t === "string" && !t.includes("T")) {
           const [h, m] = t.split(":");
@@ -558,6 +561,7 @@ export default function BookingForm() {
 
     let firstNextBookingStart = 99999;
     bookedRanges.forEach(r => {
+      if (["WaitingOwner", "Rejected", "CancelledByDriver", "CancelledByOwner", "CancelledByAdmin", "Expired", "NoShow"].includes(r.status)) return;
       const rS = parseT(r.startTime);
       if (rS > sMin && rS < firstNextBookingStart) {
         firstNextBookingStart = rS;
