@@ -438,6 +438,13 @@ export const slotApi = {
 
     getAvailability: (stationId, slotId, date) =>
         apiFetch(`/stations/${stationId}/slots/${slotId}/availability${date ? `?date=${date}` : ""}`),
+
+    /** Tạo lại mã QR cho slot (khi bị lộ token)
+     *  POST /api/stations/{stationId}/slots/{slotId}/qr/regenerate
+     *  Response: { message, qrCodeToken }
+     */
+    regenerateQr: (stationId, slotId) =>
+        apiFetch(`/stations/${stationId}/slots/${slotId}/qr/regenerate`, { method: "POST" }),
 };
 
 // ============================

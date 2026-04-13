@@ -625,12 +625,57 @@ export default function OwnerPage() {
                                     <InfoRow label="Vị trí" value={`${String.fromCharCode(64 + Number(slot.positionY))}${slot.positionX}`} />
                                     {slot.qrCodeToken && (
                                       <div className="pt-1">
-                                        <p className="text-xs text-slate-500 mb-2">Mã QR</p>
+                                        <p className="text-xs text-slate-500 mb-2">Mã QR check-in</p>
                                         <div className="bg-white rounded-lg p-3 border border-slate-200 flex items-center justify-center">
                                           <QRCodeSVG value={slot.qrCodeToken} size={140} />
                                         </div>
+                                        <button
+                                          onClick={async () => {
+                                            if (!(await showConfirm(
+                                              "Tạo lại mã QR sẽ làm mã cũ hết hiệu lực. Driver cần quét mã mới để check-in. Tiếp tục?",
+                                              "Tạo lại mã QR"
+                                            ))) return;
+                                            setActionLoading(`qr-${slot.id}`);
+                                            try {
+                                              const res = await slotApi.regenerateQr(s.id, slot.id);
+                                              // Cập nhật qrCodeToken trong local state mà không reload toàn bộ
+                                              setStations(prev => prev.map(st => {
+                                                if (st.id !== s.id) return st;
+                                                return {
+                                                  ...st,
+                                                  chargingSlots: (st.chargingSlots || []).map(sl =>
+                                                    sl.id === slot.id ? { ...sl, qrCodeToken: res.qrCodeToken } : sl
+                                                  )
+                                                };
+                                              }));
+                                              showToast.success("Mã QR mới đã được tạo thành công!");
+                                            } catch (err) {
+                                              showToast.error(err.message || "Lỗi tạo lại mã QR");
+                                            } finally {
+                                              setActionLoading(null);
+                                            }
+                                          }}
+                                          disabled={actionLoading === `qr-${slot.id}`}
+                                          style={{
+                                            marginTop: 8, width: "100%",
+                                            padding: "7px 0", borderRadius: 8,
+                                            border: "1.5px solid #f59e0b",
+                                            background: actionLoading === `qr-${slot.id}` ? "#fef9c3" : "#fffbeb",
+                                            color: "#b45309", fontWeight: 600, fontSize: 12,
+                                            cursor: actionLoading === `qr-${slot.id}` ? "not-allowed" : "pointer",
+                                            display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                                            transition: "all 0.15s",
+                                          }}
+                                        >
+                                          {actionLoading === `qr-${slot.id}` ? (
+                                            <>⏳ Đang tạo lại...</>
+                                          ) : (
+                                            <>🔄 Tạo lại mã QR</>
+                                          )}
+                                        </button>
                                       </div>
                                     )}
+
 
                                     {/* Slot status controls */}
                                     {s.approvalStatus === "Approved" && (
