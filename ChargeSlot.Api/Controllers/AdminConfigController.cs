@@ -71,5 +71,17 @@ namespace ChargeSlot.Api.Controllers
                 return StatusCode(500, new { message = "Lỗi máy chủ.", details = ex.Message });
             }
         }
+
+        /// <summary>
+        /// API công khai — trả config booking cho frontend/app (không cần đăng nhập).
+        /// Chỉ chứa các thông tin không nhạy cảm: thời gian đặt trước, chính sách hoàn tiền, v.v.
+        /// </summary>
+        [HttpGet("public")]
+        [AllowAnonymous]
+        public async Task<ActionResult<PublicSystemConfigDto>> GetPublicConfigs()
+        {
+            var configs = await _configService.GetPublicConfigsAsync();
+            return Ok(configs);
+        }
     }
 }

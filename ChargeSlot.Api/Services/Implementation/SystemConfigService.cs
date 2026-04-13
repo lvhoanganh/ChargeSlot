@@ -100,6 +100,22 @@ namespace ChargeSlot.Api.Services.Implementation
             };
         }
 
+        /// <summary>
+        /// Trả config công khai cho frontend/app — KHÔNG chứa thông tin nhạy cảm.
+        /// </summary>
+        public async Task<PublicSystemConfigDto> GetPublicConfigsAsync()
+        {
+            return new PublicSystemConfigDto
+            {
+                Min_Booking_Lead_Minutes = await GetIntAsync(SystemConfigKeys.Min_Booking_Lead_Minutes, 30),
+                Slot_Buffer_Minutes = await GetIntAsync(SystemConfigKeys.Slot_Buffer_Minutes, 15),
+                Payment_Expiry_Minutes = await GetIntAsync(SystemConfigKeys.Payment_Expiry_Minutes, 30),
+                CheckIn_Window_Minutes = await GetIntAsync(SystemConfigKeys.CheckIn_Window_Minutes, 15),
+                RefundPolicy100_Hrs = await GetIntAsync(SystemConfigKeys.RefundPolicy100_Hrs, 2),
+                RefundPolicy50_Hrs = await GetIntAsync(SystemConfigKeys.RefundPolicy50_Hrs, 1),
+            };
+        }
+
         public async Task UpdateConfigsAsync(UpdateSystemConfigsDto dto, int adminUserId)
         {
             var adminUser = await _userManager.FindByIdAsync(adminUserId.ToString())
