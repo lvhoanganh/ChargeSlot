@@ -24,6 +24,8 @@ export default function OwnerDisputeList() {
   
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -38,6 +40,13 @@ export default function OwnerDisputeList() {
       .catch((e) => setError(e?.message || "Không thể tải danh sách khiếu nại."))
       .finally(() => setLoading(false));
   }, [page]);
+
+  const filteredDisputes = disputes.filter((d) => {
+    const day = (d.createdAt || "").slice(0, 10);
+    if (dateFrom && day < dateFrom) return false;
+    if (dateTo && day > dateTo) return false;
+    return true;
+  });
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90, paddingBottom: 40 }}>
@@ -65,6 +74,26 @@ export default function OwnerDisputeList() {
           </div>
         </div>
 
+        {/* Date range filter */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+          <svg width="15" height="15" fill="none" stroke="#64748b" strokeWidth={2} viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+            style={{ height: 36, padding: "0 10px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 13, outline: "none", color: "#475569" }}
+            title="Từ ngày" />
+          <span style={{ color: "#94a3b8", fontSize: 12 }}>—</span>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+            style={{ height: 36, padding: "0 10px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 13, outline: "none", color: "#475569" }}
+            title="Đến ngày" />
+          {(dateFrom || dateTo) && (
+            <button onClick={() => { setDateFrom(""); setDateTo(""); }}
+              style={{ height: 34, padding: "0 12px", borderRadius: 10, border: "1px solid #fca5a5", background: "#fff", color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              × Xóa
+            </button>
+          )}
+        </div>
+
         {/* Content */}
         {loading ? (
           <div style={{ textAlign: "center", padding: "60px 0" }}>
@@ -85,7 +114,7 @@ export default function OwnerDisputeList() {
               Thử lại
             </button>
           </div>
-        ) : disputes.length === 0 ? (
+        ) : filteredDisputes.length === 0 ? (
           <div style={{ background: "#fff", borderRadius: 16, padding: "50px 24px", textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
             <div style={{ fontSize: 56, marginBottom: 12 }}>📋</div>
             <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: "0 0 8px" }}>
@@ -97,7 +126,7 @@ export default function OwnerDisputeList() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {disputes.map((dispute) => {
+            {filteredDisputes.map((dispute) => {
               const st = STATUS_MAP[dispute.status] || STATUS_MAP.Open;
               const needsAction = dispute.status === "WaitingOwnerEvidence";
               return (

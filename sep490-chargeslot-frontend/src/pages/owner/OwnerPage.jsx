@@ -86,6 +86,7 @@ export default function OwnerPage() {
   
   const [occupiedSlots, setOccupiedSlots] = useState(new Set());    // Đang sạc (InProgress/Charging)
   const [checkedInSlots, setCheckedInSlots] = useState(new Set());  // Đã check-in, chưa sạc
+  const [emergencyModal, setEmergencyModal] = useState(null);        // station object | null
 
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
@@ -164,6 +165,37 @@ export default function OwnerPage() {
       fetchStations();
     } catch (err) {
       showToast.error(err.message || "Lỗi khi gửi duyệt");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleForceInactive(station) {
+    // Kiểm tra đây có phải lần 2 trong tháng không (trước khi call API)
+    const usedThisMonth = (() => {
+      if (!station.lastEmergencyCancelAt) return false;
+      const last = new Date(station.lastEmergencyCancelAt);
+      const now = new Date();
+      return last.getFullYear() === now.getFullYear() && last.getMonth() === now.getMonth();
+    })();
+
+    setEmergencyModal(null);
+    setActionLoading(station.id);
+    try {
+      await stationApi.updateStatus(station.id, "Inactive");
+      fetchStations();
+      if (usedThisMonth) {
+        showToast.error("🔒 Trạm đã bị KHÓA 30 ngày do tắt khẩn cấp lần 2 trong tháng! Booking đã được hủy & hoàn tiền tự động.");
+      } else {
+        showToast.success("⚠️ Đã tắt trạm khẩn cấp. Booking tương lai sẽ được hủy và hoàn tiền tự động.");
+      }
+    } catch (err) {
+      const msg = err.message || "";
+      if (msg.toLowerCase().includes("session") || msg.toLowerCase().includes("progress") || msg.toLowerCase().includes("charging")) {
+        showToast.error("🔌 Không thể tắt! Hiện đang có khách sạc. Vui lòng đợi sạc xong.");
+      } else {
+        showToast.error(msg || "Lỗi khi tắt trạm khẩn cấp");
+      }
     } finally {
       setActionLoading(null);
     }
@@ -413,25 +445,18 @@ export default function OwnerPage() {
                             <button
                               onClick={async () => {
                                 const newStatus = s.operationalStatus === "Active" ? "Inactive" : "Active";
-                                const actionLabel = newStatus === "Inactive" ? "Tắt" : "Bật";
-                                if (!(await showConfirm(
-                                  newStatus === "Inactive"
-                                    ? `Tắt trạm sạc "${s.name}"?\n\n⚠️ Nếu còn booking chưa phục vụ, hệ thống sẽ báo lỗi.`
-                                    : `Bật lại trạm sạc "${s.name}"?`,
-                                  `Xác nhận ${actionLabel} trạm`
-                                ))) return;
+                                if (newStatus === "Inactive") {
+                                  setEmergencyModal(s);
+                                  return;
+                                }
+                                if (!(await showConfirm(`Bật lại trạm sạc "${s.name}"?`, "Xác nhận Bật trạm"))) return;
                                 setActionLoading(s.id);
                                 try {
-                                  await stationApi.updateStatus(s.id, newStatus);
+                                  await stationApi.updateStatus(s.id, "Active");
                                   fetchStations();
-                                  showToast.success(`${actionLabel} trạm thành công!`);
+                                  showToast.success("Bật trạm thành công!");
                                 } catch (err) {
-                                  const msg = err.message || "Lỗi đổi trạng thái";
-                                  if (msg.toLowerCase().includes("booking") || msg.includes("400")) {
-                                    showToast.error("⚠️ Không thể tắt trạm! Vẫn còn booking chưa hoàn thành tại trạm này. Vui lòng chờ hết booking rồi thử lại.");
-                                  } else {
-                                    showToast.error(msg);
-                                  }
+                                  showToast.error(err.message || "Lỗi bật trạm");
                                 } finally {
                                   setActionLoading(null);
                                 }
@@ -440,7 +465,7 @@ export default function OwnerPage() {
                               className={`px-4 py-2 text-sm font-semibold rounded-lg transition disabled:opacity-50 cursor-pointer ${s.operationalStatus === "Active"
                                 ? "bg-amber-50 text-amber-600 hover:bg-amber-100"
                                 : "bg-green-50 text-green-600 hover:bg-green-100"
-                                }`}
+                              }`}
                             >
                               {s.operationalStatus === "Active" ? "⏸️ Tắt trạm" : "▶️ Bật trạm"}
                             </button>
@@ -817,6 +842,13 @@ export default function OwnerPage() {
         )}
       </div>
 
+      {emergencyModal && (
+        <EmergencyCancelModal
+          station={emergencyModal}
+          onConfirm={() => handleForceInactive(emergencyModal)}
+          onCancel={() => setEmergencyModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1419,3 +1451,70 @@ function UnavailableDateCalendar({ stationId, unavailableDates, todayStr, toDate
     </div>
   );
 }
+
+// ─────────────── EMERGENCY CANCEL MODAL ───────────────
+function EmergencyCancelModal({ station, onConfirm, onCancel }) {
+  const usedThisMonth = (() => {
+    if (!station.lastEmergencyCancelAt) return false;
+    const last = new Date(station.lastEmergencyCancelAt);
+    const now = new Date();
+    return last.getFullYear() === now.getFullYear() && last.getMonth() === now.getMonth();
+  })();
+
+  const lastUsedStr = station.lastEmergencyCancelAt
+    ? new Date(station.lastEmergencyCancelAt).toLocaleDateString("vi-VN", {
+        day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+      })
+    : null;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+    }}>
+      <div style={{
+        background: "#fff", borderRadius: 20, maxWidth: 480, width: "100%",
+        boxShadow: "0 20px 60px rgba(239,68,68,0.3)",
+        border: "2px solid #fca5a5", overflow: "hidden",
+      }}>
+        <div style={{ background: "linear-gradient(135deg, #dc2626, #b91c1c)", padding: "20px 24px", color: "#fff" }}>
+          <div style={{ fontSize: 28, marginBottom: 6 }}>🚨</div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>CẢNH BÁO — TẮT TRẠM KHẨN CẤP</div>
+          <div style={{ fontSize: 13, opacity: 0.9, marginTop: 4 }}>Trạm: {station.name}</div>
+        </div>
+        <div style={{ padding: "20px 24px" }}>
+          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+            <p style={{ fontSize: 14, color: "#991b1b", fontWeight: 600, margin: 0 }}>Nếu tắt ngay bây giờ:</p>
+            <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 13, color: "#7f1d1d", lineHeight: 1.8 }}>
+              <li>Toàn bộ booking tương lai sẽ bị <strong>HỦY</strong></li>
+              <li>Khách hàng được <strong>HOÀN TIỀN 100%</strong> tự động</li>
+              <li>Điểm uy tín trạm của bạn có thể bị ảnh hưởng</li>
+            </ul>
+          </div>
+          {usedThisMonth && (
+            <div style={{ background: "#fff7ed", border: "2px solid #fed7aa", borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
+              <p style={{ fontSize: 13, color: "#9a3412", fontWeight: 700, margin: 0 }}>⚠️ BẠN ĐÃ DÙNG TÍNH NĂNG NÀY THÁNG NÀY!</p>
+              <p style={{ fontSize: 12, color: "#c2410c", margin: "6px 0 0", lineHeight: 1.6 }}>
+                Lần cuối: {lastUsedStr}<br />
+                Tắt trạm lần 2 → Trạm bị <strong>KHÓA 30 NGÀY</strong> tự động!
+              </p>
+            </div>
+          )}
+          {!usedThisMonth && lastUsedStr && (
+            <p style={{ fontSize: 12, color: "#6b7280", marginBottom: 16 }}>📅 Lần dùng gần nhất: {lastUsedStr}</p>
+          )}
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={onCancel} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "#f9fafb", color: "#374151", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+              ⬛ Hủy bỏ
+            </button>
+            <button onClick={onConfirm} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: usedThisMonth ? "linear-gradient(135deg,#7f1d1d,#991b1b)" : "linear-gradient(135deg,#dc2626,#b91c1c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: "0 4px 14px rgba(220,38,38,0.4)" }}>
+              🔴 {usedThisMonth ? "Tắt (RỦI RO BỊ KHÓA!)" : "Tắt khẩn cấp & Hủy booking"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

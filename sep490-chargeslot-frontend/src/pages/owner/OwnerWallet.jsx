@@ -48,6 +48,8 @@ export default function OwnerWallet() {
   const [txTotal, setTxTotal] = useState(0);
   const [wrPage, setWrPage] = useState(1);
   const [wrTotal, setWrTotal] = useState(0);
+  const [txDateFrom, setTxDateFrom] = useState("");
+  const [txDateTo, setTxDateTo] = useState("");
 
   const [selectedTx, setSelectedTx] = useState(null);
 
@@ -385,13 +387,36 @@ export default function OwnerWallet() {
         {/* Transaction history */}
         {activeTab === "transactions" && (
           <>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", marginBottom: 16 }}>Lịch sử giao dịch</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", margin: 0 }}>Lịch sử giao dịch</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <svg width="14" height="14" fill="none" stroke="#64748b" strokeWidth={2} viewBox="0 0 24 24">
+                  <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <input type="date" value={txDateFrom} onChange={(e) => setTxDateFrom(e.target.value)}
+                  style={{ height: 34, padding: "0 10px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 12, outline: "none", color: "#475569" }}
+                  title="Từ ngày" />
+                <span style={{ color: "#94a3b8", fontSize: 11 }}>—</span>
+                <input type="date" value={txDateTo} onChange={(e) => setTxDateTo(e.target.value)}
+                  style={{ height: 34, padding: "0 10px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 12, outline: "none", color: "#475569" }}
+                  title="Đến ngày" />
+                {(txDateFrom || txDateTo) && (
+                  <button onClick={() => { setTxDateFrom(""); setTxDateTo(""); }}
+                    style={{ height: 32, padding: "0 10px", borderRadius: 8, border: "1px solid #fca5a5", background: "#fff", color: "#dc2626", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                    × Xóa
+                  </button>
+                )}
+              </div>
+            </div>
             {transactions.length === 0 ? (
               <EmptyState icon="📋" text="Chưa có giao dịch nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {transactions.filter(tx => {
                   const txType = tx.type || tx.transactionType || "";
+                  const day = (tx.createdAt || "").slice(0, 10);
+                  if (txDateFrom && day < txDateFrom) return false;
+                  if (txDateTo && day > txDateTo) return false;
                   if (txType === "WithdrawRequest") {
                     // Chỉ hiển thị giao dịch rút tiền nếu lệnh rút đã Hoàn tất (Completed)
                     const txTime = new Date(String(tx.createdAt).replace("Z", "")).getTime();
