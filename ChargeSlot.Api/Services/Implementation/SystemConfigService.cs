@@ -87,15 +87,14 @@ namespace ChargeSlot.Api.Services.Implementation
                 Dispute_OwnerEvidence_Hours = await GetIntAsync(SystemConfigKeys.Dispute_OwnerEvidence_Hours, 24),
                 Dispute_AdminReview_Hours = await GetIntAsync(SystemConfigKeys.Dispute_AdminReview_Hours, 48),
                 
-                Ban_Duration_Days_Permanent = await GetIntAsync(SystemConfigKeys.Ban_Duration_Days_Permanent, 36500),
-                Ban_Duration_Days_FirstOffense = await GetIntAsync(SystemConfigKeys.Ban_Duration_Days_FirstOffense, 30),
-                
                 OTP_Expiry_Minutes = await GetIntAsync(SystemConfigKeys.OTP_Expiry_Minutes, 5),
                 OTP_Cooldown_Seconds = await GetIntAsync(SystemConfigKeys.OTP_Cooldown_Seconds, 30),
                 
                 Withdraw_AutoConfirm_Hours = await GetIntAsync(SystemConfigKeys.Withdraw_AutoConfirm_Hours, 24),
                 Invoice_AutoConfirm_Hours = await GetIntAsync(SystemConfigKeys.Invoice_AutoConfirm_Hours, 24),
                 Reminder_Window_Hours = await GetIntAsync(SystemConfigKeys.Reminder_Window_Hours, 1),
+                
+                Min_Booking_Lead_Minutes = await GetIntAsync(SystemConfigKeys.Min_Booking_Lead_Minutes, 30),
                 
                 SecondaryPassword = "" // Khong bao gio tra ve password ra ngoai!
             };
@@ -132,15 +131,14 @@ namespace ChargeSlot.Api.Services.Implementation
             await UpdateSingleConfigAsync(SystemConfigKeys.Dispute_OwnerEvidence_Hours, dto.Dispute_OwnerEvidence_Hours.ToString());
             await UpdateSingleConfigAsync(SystemConfigKeys.Dispute_AdminReview_Hours, dto.Dispute_AdminReview_Hours.ToString());
 
-            await UpdateSingleConfigAsync(SystemConfigKeys.Ban_Duration_Days_Permanent, dto.Ban_Duration_Days_Permanent.ToString());
-            await UpdateSingleConfigAsync(SystemConfigKeys.Ban_Duration_Days_FirstOffense, dto.Ban_Duration_Days_FirstOffense.ToString());
-
             await UpdateSingleConfigAsync(SystemConfigKeys.OTP_Expiry_Minutes, dto.OTP_Expiry_Minutes.ToString());
             await UpdateSingleConfigAsync(SystemConfigKeys.OTP_Cooldown_Seconds, dto.OTP_Cooldown_Seconds.ToString());
 
             await UpdateSingleConfigAsync(SystemConfigKeys.Withdraw_AutoConfirm_Hours, dto.Withdraw_AutoConfirm_Hours.ToString());
             await UpdateSingleConfigAsync(SystemConfigKeys.Invoice_AutoConfirm_Hours, dto.Invoice_AutoConfirm_Hours.ToString());
             await UpdateSingleConfigAsync(SystemConfigKeys.Reminder_Window_Hours, dto.Reminder_Window_Hours.ToString());
+
+            await UpdateSingleConfigAsync(SystemConfigKeys.Min_Booking_Lead_Minutes, dto.Min_Booking_Lead_Minutes.ToString());
 
             // 3. Save to DB
             await _unitOfWork.CompleteAsync();
@@ -187,10 +185,10 @@ namespace ChargeSlot.Api.Services.Implementation
                 SystemConfigKeys.VAT_Rate, SystemConfigKeys.Platform_Fee_Rate, SystemConfigKeys.Loyalty_Earn_Rate,
                 SystemConfigKeys.Dispute_Limit_Per_Month, SystemConfigKeys.Dispute_OwnerEvidence_Hours,
                 SystemConfigKeys.Dispute_AdminReview_Hours,
-                SystemConfigKeys.Ban_Duration_Days_Permanent,
-                SystemConfigKeys.Ban_Duration_Days_FirstOffense, SystemConfigKeys.OTP_Expiry_Minutes,
+                SystemConfigKeys.OTP_Expiry_Minutes,
                 SystemConfigKeys.OTP_Cooldown_Seconds, SystemConfigKeys.Withdraw_AutoConfirm_Hours,
-                SystemConfigKeys.Invoice_AutoConfirm_Hours, SystemConfigKeys.Reminder_Window_Hours
+                SystemConfigKeys.Invoice_AutoConfirm_Hours, SystemConfigKeys.Reminder_Window_Hours,
+                SystemConfigKeys.Min_Booking_Lead_Minutes
             };
 
             var existingDbKeys = await _configRepo.GetAllKeysAsync();
@@ -215,15 +213,14 @@ namespace ChargeSlot.Api.Services.Implementation
             if(missingKeys.Contains(SystemConfigKeys.Dispute_OwnerEvidence_Hours)) await SeedKeyAsync(SystemConfigKeys.Dispute_OwnerEvidence_Hours, "24");
             if(missingKeys.Contains(SystemConfigKeys.Dispute_AdminReview_Hours)) await SeedKeyAsync(SystemConfigKeys.Dispute_AdminReview_Hours, "48");
             
-            if(missingKeys.Contains(SystemConfigKeys.Ban_Duration_Days_Permanent)) await SeedKeyAsync(SystemConfigKeys.Ban_Duration_Days_Permanent, "36500");
-            if(missingKeys.Contains(SystemConfigKeys.Ban_Duration_Days_FirstOffense)) await SeedKeyAsync(SystemConfigKeys.Ban_Duration_Days_FirstOffense, "30");
-            
             if(missingKeys.Contains(SystemConfigKeys.OTP_Expiry_Minutes)) await SeedKeyAsync(SystemConfigKeys.OTP_Expiry_Minutes, "5");
             if(missingKeys.Contains(SystemConfigKeys.OTP_Cooldown_Seconds)) await SeedKeyAsync(SystemConfigKeys.OTP_Cooldown_Seconds, "30");
             
             if(missingKeys.Contains(SystemConfigKeys.Withdraw_AutoConfirm_Hours)) await SeedKeyAsync(SystemConfigKeys.Withdraw_AutoConfirm_Hours, "24");
             if(missingKeys.Contains(SystemConfigKeys.Invoice_AutoConfirm_Hours)) await SeedKeyAsync(SystemConfigKeys.Invoice_AutoConfirm_Hours, "24");
             if(missingKeys.Contains(SystemConfigKeys.Reminder_Window_Hours)) await SeedKeyAsync(SystemConfigKeys.Reminder_Window_Hours, "1");
+            
+            if(missingKeys.Contains(SystemConfigKeys.Min_Booking_Lead_Minutes)) await SeedKeyAsync(SystemConfigKeys.Min_Booking_Lead_Minutes, "30");
 
             await _unitOfWork.CompleteAsync();
         }

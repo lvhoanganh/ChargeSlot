@@ -301,13 +301,13 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 if (pointsEarned > 0)
                 {
-                    var driver = await _driverRepo.GetByUserIdAsync(booking.DriverUserId);
+                    // Dùng booking.Driver đã được tracked từ Include() — không query lại để tránh tracking conflict
+                    var driver = booking.Driver;
                     if (driver != null)
                     {
                         driver.LoyaltyPoints += pointsEarned;
-                        _driverRepo.Update(driver);
+                        // Không cần _driverRepo.Update() vì entity đã tracked, EF tự detect changes
                         booking.PointsEarned = pointsEarned;
-                        _bookingRepo.Update(booking);
                         await _unitOfWork.CompleteAsync();
 
                         _loyaltyRepo.Add(new LoyaltyTransaction
@@ -666,7 +666,8 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 if (pointsEarned > 0)
                 {
-                    var driver = await _driverRepo.GetByUserIdAsync(booking.DriverUserId);
+                    // Dùng booking.Driver đã được tracked từ Include() — không query lại để tránh tracking conflict
+                    var driver = booking.Driver;
                     if (driver != null)
                     {
                         driver.LoyaltyPoints += pointsEarned;

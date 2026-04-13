@@ -4,6 +4,7 @@ using ChargeSlot.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChargeSlot.Api.Migrations
 {
     [DbContext(typeof(ChargeSlotDbContext))]
-    partial class ChargeSlotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260413051205_AddPendingEmailToAppUser")]
+    partial class AddPendingEmailToAppUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -321,9 +324,6 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTime?>("LastEmergencyCancelAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<decimal?>("Latitude")
                         .HasPrecision(9, 6)

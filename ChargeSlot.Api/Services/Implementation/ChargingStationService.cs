@@ -24,6 +24,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IBookingRepository _bookingRepo;
         private readonly INotificationRepository _notificationRepo;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IServiceProvider _serviceProvider;
 
         public ChargingStationService(
             IChargingStationRepository stationRepo,
@@ -35,7 +36,8 @@ namespace ChargeSlot.Api.Services.Implementation
             IStationUnavailableDateRepository unavailableDateRepo,
             IBookingRepository bookingRepo,
             INotificationRepository notificationRepo,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IServiceProvider serviceProvider)
         {
             _stationRepo = stationRepo;
             _ownerRepo = ownerRepo;
@@ -47,6 +49,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _bookingRepo = bookingRepo;
             _notificationRepo = notificationRepo;
             _unitOfWork = unitOfWork;
+            _serviceProvider = serviceProvider;
         }
 
         // ─────────────── CRUD ───────────────
@@ -578,23 +581,82 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (newStatus == OperationalStatus.Inactive)
             {
+                var now = DateTimeHelper.VietnamNow();
                 var activeStatuses = new[]
                 {
                     BookingStatus.WaitingOwner, BookingStatus.PendingPayment,
                     BookingStatus.Paid, BookingStatus.CheckedIn, BookingStatus.InProgress
                 };
-                var now = DateTimeHelper.VietnamNow();
-
-                var slotIds = station.ChargingSlots.Select(s => s.Id).ToList();
                 var activeBookingsRaw = await _bookingRepo.GetActiveBookingsByStationIdsAsync(
                     new List<int> { id }, activeStatuses);
-                var hasActiveBookings = activeBookingsRaw.Any(b => b.EndTime > now);
+                
+                var futureBookings = activeBookingsRaw.Where(b => b.EndTime > now).ToList();
 
-                if (hasActiveBookings)
-                    throw new InvalidOperationException("Không thể tắt trạm (Inactive) vì đang có booking sắp tới hoặc đang sạc. Vui lòng hủy các booking này trước.");
+                if (futureBookings.Any())
+                {
+                    // Kiểm tra xem có xe đang sạc dở không
+                    var activeSessions = futureBookings.Where(b => b.Status == BookingStatus.CheckedIn || b.Status == BookingStatus.InProgress).ToList();
+                    if (activeSessions.Any())
+                        throw new InvalidOperationException("Trạm đang có xe cắm sạc (CheckedIn/InProgress). Không thể tắt trạm khẩn cấp. Vui lòng đợi xe sạc xong hoặc dừng phiên sạc thủ công.");
+
+                    // Emergency Mass Cancel logic
+                    var startOfMonth = new DateTime(now.Year, now.Month, 1);
+                    bool hasUsedThisMonth = station.LastEmergencyCancelAt >= startOfMonth;
+
+                    station.LastEmergencyCancelAt = now;
+
+                    using var scope = _serviceProvider.CreateScope();
+                    var bookingService = scope.ServiceProvider.GetRequiredService<IBookingService>();
+
+                    // Thực hiện hủy tất cả bookings
+                    foreach (var booking in futureBookings)
+                    {
+                        var reason = hasUsedThisMonth 
+                            ? "Trạm sạc bị hệ thống khóa do lạm dụng Hủy khẩn cấp."
+                            : "Trạm sạc đóng cửa khẩn cấp.";
+                        await bookingService.CancelSystemBookingAsync(booking.Id, reason);
+                    }
+
+                    if (hasUsedThisMonth)
+                    {
+                        // Phạt lần 2 trong tháng: Ban 30 ngày
+                        station.BannedUntil = now.AddDays(30);
+                        station.OperationalStatus = OperationalStatus.Inactive;
+                        
+                        _notificationRepo.Add(new Notification
+                        {
+                            UserId = ownerUserId,
+                            Title = "Trạm sạc bị đình chỉ",
+                            Content = "Trạm của bạn đã bị đình chỉ 30 ngày do lạm dụng Hủy Khẩn Cấp quá 1 lần/tháng. Các đặt chỗ hiện tại đã bị hủy.",
+                            Type = NotificationType.System,
+                            CreatedAt = now
+                        });
+                    }
+                    else
+                    {
+                        // Cảnh báo lần 1
+                        station.OperationalStatus = newStatus;
+                        
+                        _notificationRepo.Add(new Notification
+                        {
+                            UserId = ownerUserId,
+                            Title = "Kích hoạt Hủy Khẩn Cấp",
+                            Content = "Trạm của bạn đã kích hoạt Hủy Khẩn Cấp. Bạn đã dùng hết hạn mức 1 lần/tháng. Nếu tái phạm trong tháng này, trạm sẽ bị đình chỉ hoạt động 30 ngày.",
+                            Type = NotificationType.System,
+                            CreatedAt = now
+                        });
+                    }
+                }
+                else
+                {
+                    station.OperationalStatus = newStatus;
+                }
+            }
+            else
+            {
+                station.OperationalStatus = newStatus;
             }
 
-            station.OperationalStatus = newStatus;
             station.UpdatedAt = DateTimeHelper.VietnamNow();
             await _unitOfWork.CompleteAsync();
 

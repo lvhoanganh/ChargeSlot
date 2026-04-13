@@ -12,13 +12,16 @@ namespace ChargeSlot.Api.Services.Implementation
     {
         private readonly IChargingStationRepository _stationRepo;
         private readonly IBookingRepository _bookingRepo;
+        private readonly ISystemConfigService _configService;
 
         public PublicStationService(
             IChargingStationRepository stationRepo,
-            IBookingRepository bookingRepo)
+            IBookingRepository bookingRepo,
+            ISystemConfigService configService)
         {
             _stationRepo = stationRepo;
             _bookingRepo = bookingRepo;
+            _configService = configService;
         }
 
         public async Task<object> GetAllAsync(
@@ -44,8 +47,10 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var stationIds = rawStations.Select(s => s.Id).ToList();
             
+            var stationConfigs = await _configService.GetCurrentConfigsAsync();
+
             var overlappingBookings = await _bookingRepo.GetOverlappingActiveBookingsForStationsAsync(
-                stationIds, filterStart, filterEnd);
+                stationIds, filterStart, filterEnd, stationConfigs.Slot_Buffer_Minutes);
 
             var availableStations = new List<(ChargingStation station, int availableSlots)>();
 

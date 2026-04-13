@@ -67,16 +67,6 @@ namespace ChargeSlot.Api.DTOs.Admin
         [Range(1, 720, ErrorMessage = "Thời gian Admin review (Giờ) phải từ 1 - 720")]
         public int Dispute_AdminReview_Hours { get; set; }
 
-        // --------------------------------------------------------
-        // PUNISHMENT / BAN RULES
-        // --------------------------------------------------------
-        [Required]
-        [Range(1, 10000, ErrorMessage = "Số ngày khóa tài khoản vĩnh viễn (Ngày) không hợp lệ")]
-        public int Ban_Duration_Days_Permanent { get; set; }
-
-        [Required]
-        [Range(1, 10000, ErrorMessage = "Số ngày khóa tài khoản lần đầu (Ngày) không hợp lệ")]
-        public int Ban_Duration_Days_FirstOffense { get; set; }
 
         // --------------------------------------------------------
         // OTP & COMMUNICATION
@@ -103,5 +93,12 @@ namespace ChargeSlot.Api.DTOs.Admin
         [Required]
         [Range(1, 24, ErrorMessage = "Cửa sổ nhắc nhở sắp hết hạn (Giờ) phải từ 1 - 24")]
         public int Reminder_Window_Hours { get; set; }
+
+        // --------------------------------------------------------
+        // BOOKING LEAD TIME
+        // --------------------------------------------------------
+        [Required]
+        [Range(5, 1440, ErrorMessage = "Thời gian tối thiểu trước khi đặt booking (phút) phải từ 5 - 1440")]
+        public int Min_Booking_Lead_Minutes { get; set; }
     }
 }

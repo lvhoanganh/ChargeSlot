@@ -387,8 +387,26 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Decode token (frontend gửi URL-encoded)
             var decodedToken = Uri.UnescapeDataString(token);
+            IdentityResult result;
 
-            var result = await _userManager.ConfirmEmailAsync(user, decodedToken);
+            if (!string.IsNullOrEmpty(user.PendingEmail))
+            {
+                result = await _userManager.ChangeEmailAsync(user, user.PendingEmail, decodedToken);
+                if (result.Succeeded)
+                {
+                    user.EmailConfirmed = true;
+                    user.PendingEmail = null; // Clear pending email after success
+                    await _userManager.UpdateAsync(user);
+                }
+            }
+            else
+            {
+                if (user.EmailConfirmed)
+                    throw new InvalidOperationException("Email đã được xác thực trước đó.");
+                
+                result = await _userManager.ConfirmEmailAsync(user, decodedToken);
+            }
+
             if (!result.Succeeded)
                 throw new InvalidOperationException("Link xác thực không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu gửi lại.");
 
@@ -412,15 +430,14 @@ namespace ChargeSlot.Api.Services.Implementation
             if (existingByEmail != null && existingByEmail.Id != userId)
                 throw new InvalidOperationException("Email đã được sử dụng bởi tài khoản khác.");
 
-            // Cập nhật email
-            user.Email = email;
-            user.EmailConfirmed = false;
+            // Cập nhật PendingEmail thay vì Email trực tiếp, đảm bảo không mất Email đang dùng
+            user.PendingEmail = email;
             var updateResult = await _userManager.UpdateAsync(user);
             if (!updateResult.Succeeded)
                 throw new InvalidOperationException("Không thể cập nhật email: " + string.Join(", ", updateResult.Errors.Select(e => e.Description)));
 
-            // Gửi verification link
-            await SendVerificationEmailAsync(user);
+            // Gửi verification link cho email chờ xác nhận
+            await SendVerificationEmailAsync(user, email);
 
             _logger.LogInformation("[Auth] Verification email sent to User {UserId}: {Email}", user.Id, email);
         }
@@ -430,21 +447,35 @@ namespace ChargeSlot.Api.Services.Implementation
             var user = await _userManager.FindByIdAsync(userId.ToString())
                 ?? throw new InvalidOperationException("Tài khoản không tồn tại.");
 
-            if (string.IsNullOrEmpty(user.Email))
+            string? targetEmail = user.PendingEmail ?? user.Email;
+
+            if (string.IsNullOrEmpty(targetEmail))
                 throw new InvalidOperationException("Tài khoản chưa có email. Vui lòng thêm email trước.");
 
-            if (user.EmailConfirmed)
+            if (user.EmailConfirmed && string.IsNullOrEmpty(user.PendingEmail))
                 throw new InvalidOperationException("Email đã được xác thực.");
 
             // Reset confirmation token (generate new)
-            await SendVerificationEmailAsync(user);
+            await SendVerificationEmailAsync(user, user.PendingEmail);
 
-            _logger.LogInformation("[Auth] Resent verification email to User {UserId}: {Email}", user.Id, user.Email);
+            _logger.LogInformation("[Auth] Resent verification email to User {UserId}: {Email}", user.Id, targetEmail);
         }
 
-        private async Task SendVerificationEmailAsync(ApplicationUser user)
+        private async Task SendVerificationEmailAsync(ApplicationUser user, string? pendingEmail = null)
         {
-            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            string token;
+            string targetEmail;
+            if (!string.IsNullOrEmpty(pendingEmail))
+            {
+                token = await _userManager.GenerateChangeEmailTokenAsync(user, pendingEmail);
+                targetEmail = pendingEmail;
+            }
+            else
+            {
+                token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                targetEmail = user.Email!;
+            }
+            
             var encodedToken = Uri.EscapeDataString(token);
 
             var verifyUrl = $"{VerifyEmailFrontendUrl}?token={encodedToken}&userId={user.Id}";
@@ -470,7 +501,7 @@ namespace ChargeSlot.Api.Services.Implementation
             try
             {
                 await _emailService.SendEmailAsync(
-                    to: user.Email!,
+                    to: targetEmail,
                     subject: "[ChargeSlot] Xác Thực Email Đăng Ký",
                     body: emailBody
                 );

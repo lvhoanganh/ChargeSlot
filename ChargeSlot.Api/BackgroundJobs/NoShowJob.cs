@@ -60,43 +60,20 @@ namespace ChargeSlot.Api.BackgroundJobs
             var now = DateTimeHelper.VietnamNow();
             var cutoff = now.AddMinutes(-graceTime);
 
+            var bookingService = scope.ServiceProvider.GetRequiredService<IBookingService>();
             var staleBookings = await bookingRepo.GetStaleWaitingOwnerAsync(cutoff);
 
             foreach (var booking in staleBookings)
             {
-                booking.Status = BookingStatus.Expired;
-                booking.CancelReason = $"Không có phản hồi từ chủ trạm trong {graceTime} phút.";
-                booking.UpdatedAt = now;
-                bookingRepo.Update(booking);
-
-                // Release slot nếu đang bị giữ
-                if (booking.ChargingSlot != null && booking.ChargingSlot.Status == SlotStatus.Booked)
+                try
                 {
-                    booking.ChargingSlot.Status = SlotStatus.Active;
-                    booking.ChargingSlot.UpdatedAt = now;
-                    var slotRepo = scope.ServiceProvider.GetRequiredService<IChargingSlotRepository>();
-                    slotRepo.Update(booking.ChargingSlot);
+                    await bookingService.ExpireSystemBookingAsync(booking.Id, $"Không có phản hồi từ chủ trạm trong {graceTime} phút.");
+                    _logger.LogInformation("Booking {BookingId} auto-expired: WaitingOwner timeout {GraceMinutes} min.", booking.Id, graceTime);
                 }
-
-                await unitOfWork.CompleteAsync();
-
-                await notificationService.SendAsync(
-                    booking.DriverUserId,
-                    "Yêu cầu đặt chỗ đã hết hạn",
-                    $"Yêu cầu đặt slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã hết hạn do chủ trạm không phản hồi trong {graceTime} phút.",
-                    NotificationType.Booking);
-
-                var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
-                if (ownerUserId.HasValue)
+                catch (Exception ex)
                 {
-                    await notificationService.SendAsync(
-                        ownerUserId.Value,
-                        "Yêu cầu đặt chỗ đã hết hạn",
-                        $"Yêu cầu đặt slot {booking.ChargingSlot?.SlotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) đã tự động hủy do bạn không phản hồi trong {graceTime} phút.",
-                        NotificationType.Booking);
+                    _logger.LogError(ex, "Error auto-expiring WaitingOwner booking {BookingId}", booking.Id);
                 }
-
-                _logger.LogInformation("Booking {BookingId} auto-expired: WaitingOwner timeout {GraceMinutes} min.", booking.Id, graceTime);
             }
         }
 

@@ -45,9 +45,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                         var unitOfWork = innerScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                         var bookingRepo = innerScope.ServiceProvider.GetRequiredService<IBookingRepository>();
                         var slotRepo = innerScope.ServiceProvider.GetRequiredService<IChargingSlotRepository>();
-                        var notificationService = innerScope.ServiceProvider.GetRequiredService<INotificationService>();
-
-                        using var transaction = await unitOfWork.BeginTransactionAsync();
+                        
                         try
                         {
                             var booking = await bookingRepo.GetByIdAsync(bookingId);
@@ -65,48 +63,17 @@ namespace ChargeSlot.Api.BackgroundJobs
                                 bookingRepo.Update(booking);
                                 await unitOfWork.CompleteAsync();
                                 await LockSlotIfNeeded(unitOfWork, slotRepo, booking);
-                                await transaction.CommitAsync(stoppingToken);
                                 continue;
                             }
 
                             // ── EXPIRE: Chắc chắn chưa thanh toán (tại thời điểm này) → hủy ──
-                            booking.Status = BookingStatus.Expired;
-                            bookingRepo.Update(booking);
-                                await unitOfWork.CompleteAsync();
-
-                            // Release slot
-                            if (booking.ChargingSlot != null && booking.ChargingSlot.Status == SlotStatus.Booked)
-                            {
-                                booking.ChargingSlot.Status = SlotStatus.Active;
-                                slotRepo.Update(booking.ChargingSlot);
-                                await unitOfWork.CompleteAsync();
-                            }
-
-                            await transaction.CommitAsync(stoppingToken);
-
-                            // Notifications (ngoài transaction)
-                            await notificationService.SendAsync(
-                                booking.DriverUserId,
-                                "Đặt chỗ đã hết hạn",
-                                $"Yêu cầu đặt chỗ tại slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} đã bị hủy do không thanh toán kịp thời hạn.",
-                                NotificationType.Booking);
-
-                            // Notify Owner
-                            var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
-                            if (ownerUserId.HasValue)
-                            {
-                                await notificationService.SendAsync(
-                                    ownerUserId.Value,
-                                    "Đặt chỗ bị hủy",
-                                    $"Slot {booking.ChargingSlot?.SlotName} — trạm {booking.ChargingSlot?.ChargingStation?.Name} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}): Khách không thanh toán kịp, slot đã được mở lại.",
-                                    NotificationType.Booking);
-                            }
+                            await innerScope.ServiceProvider.GetRequiredService<IBookingService>()
+                                .ExpireSystemBookingAsync(bookingId, "Khách không thanh toán kịp thời hạn.");
 
                             _logger.LogInformation("Booking {BookingId} expired due to payment timeout.", booking.Id);
                         }
                         catch (Exception ex)
                         {
-                            await transaction.RollbackAsync(stoppingToken);
                             _logger.LogError(ex, "Error processing expired booking {BookingId}", bookingId);
                         }
                     }

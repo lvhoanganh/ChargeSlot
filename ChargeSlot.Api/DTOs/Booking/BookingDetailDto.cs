@@ -27,6 +27,9 @@ namespace ChargeSlot.Api.DTOs.Booking
         public DateTime? ActualStartTime { get; set; }
         public DateTime? ActualEndTime { get; set; }
         public decimal? ActualDurationHours { get; set; }
+
+        /// <summary>Thời gian sạc thực tế (phút) — tính từ ActualStartTime đến ActualEndTime.</summary>
+        public int? ActualDurationMinutes { get; set; }
     }
 
     public class BookingDisputeDetailDto

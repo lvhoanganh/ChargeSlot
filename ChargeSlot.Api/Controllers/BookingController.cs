@@ -45,12 +45,18 @@ namespace ChargeSlot.Api.Controllers
         [Authorize(Roles = "Owner")]
         public async Task<IActionResult> GetOwnerBookings(
             [FromQuery] string? status = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
             var result = await _bookingService.GetByOwnerAsync(GetUserId());
             if (!string.IsNullOrEmpty(status))
                 result = result.Where(b => b.Status.Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (fromDate.HasValue)
+                result = result.Where(b => b.CreatedAt >= fromDate.Value.Date).ToList();
+            if (toDate.HasValue)
+                result = result.Where(b => b.CreatedAt < toDate.Value.Date.AddDays(1)).ToList();
 
             var total = result.Count;
             var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
@@ -109,12 +115,18 @@ namespace ChargeSlot.Api.Controllers
         [Authorize(Roles = "Driver")]
         public async Task<IActionResult> GetDriverBookings(
             [FromQuery] string? status = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
             var result = await _bookingService.GetByDriverAsync(GetUserId());
             if (!string.IsNullOrEmpty(status))
                 result = result.Where(b => b.Status.Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (fromDate.HasValue)
+                result = result.Where(b => b.CreatedAt >= fromDate.Value.Date).ToList();
+            if (toDate.HasValue)
+                result = result.Where(b => b.CreatedAt < toDate.Value.Date.AddDays(1)).ToList();
 
             var total = result.Count;
             var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
@@ -128,6 +140,8 @@ namespace ChargeSlot.Api.Controllers
         [HttpGet("driver/history")]
         [Authorize(Roles = "Driver")]
         public async Task<IActionResult> GetDriverBookingHistory(
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
@@ -139,6 +153,11 @@ namespace ChargeSlot.Api.Controllers
                 b.Status.Equals("Expired", StringComparison.OrdinalIgnoreCase) ||
                 b.Status.Equals("NoShow", StringComparison.OrdinalIgnoreCase)
             ).ToList();
+
+            if (fromDate.HasValue)
+                history = history.Where(b => b.CreatedAt >= fromDate.Value.Date).ToList();
+            if (toDate.HasValue)
+                history = history.Where(b => b.CreatedAt < toDate.Value.Date.AddDays(1)).ToList();
 
             var total = history.Count;
             var items = history.Skip((page - 1) * pageSize).Take(pageSize).ToList();

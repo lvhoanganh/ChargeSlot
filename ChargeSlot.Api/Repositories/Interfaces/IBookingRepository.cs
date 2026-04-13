@@ -9,14 +9,14 @@ namespace ChargeSlot.Api.Repositories.Interfaces
         Task<Booking?> GetByIdWithDetailsAsync(int id);
         Task<List<Booking>> GetByDriverAsync(int driverUserId);
         Task<List<Booking>> GetByOwnerAsync(int ownerUserId);
-        Task<bool> HasOverlappingBookingAsync(int slotId, DateTime startTime, DateTime endTime, int? excludeBookingId = null);
+        Task<bool> HasOverlappingBookingAsync(int slotId, DateTime startTime, DateTime endTime, int bufferMinutes, int? excludeBookingId = null);
         Task<bool> HasDriverOverlappingBookingAsync(int driverUserId, DateTime startTime, DateTime endTime, int? excludeBookingId = null);
         Task<int> GetPendingCountByDriverAsync(int driverUserId);
         void Add(Booking booking);
         void Update(Booking booking);
         Task<List<Booking>> GetExpiredPendingPaymentsAsync();
-        Task<List<Booking>> GetOverlappingWaitingBookingsAsync(int slotId, DateTime startTime, DateTime endTime, int excludeBookingId);
-        Task<List<Booking>> GetOverlappingActiveBookingsForStationsAsync(List<int> stationIds, DateTime startTime, DateTime endTime);
+        Task<List<Booking>> GetOverlappingWaitingBookingsAsync(int slotId, DateTime startTime, DateTime endTime, int bufferMinutes, int excludeBookingId);
+        Task<List<Booking>> GetOverlappingActiveBookingsForStationsAsync(List<int> stationIds, DateTime startTime, DateTime endTime, int bufferMinutes);
         Task<bool> HasAnyBookingsAsync(int slotId);
         Task<bool> HasActiveBookingsAsync(int slotId);
         Task<List<Booking>> GetActiveBookingsByDriverAsync(int driverUserId, BookingStatus[] statuses);

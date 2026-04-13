@@ -404,8 +404,9 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
                 else if (booking.Status == BookingStatus.Expired)
                 {
+                    var paymentConfigs = await _configService.GetCurrentConfigsAsync();
                     var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
-                        booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
+                        booking.SlotId, booking.StartTime, booking.EndTime, paymentConfigs.Slot_Buffer_Minutes, booking.Id);
 
                     if (!hasConflict)
                     {
