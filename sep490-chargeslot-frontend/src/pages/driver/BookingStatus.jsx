@@ -137,6 +137,11 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
 
   async function handlePayWallet() {
     if (payLoading) return; // Prevent double-click spam
+    
+    // Add confirmation before executing payment
+    const confirmMessage = `Xác nhận thanh toán ${(booking?.totalAmount || 0).toLocaleString("vi-VN")}đ bằng Ví ChargeSlot?`;
+    if (!window.confirm(confirmMessage)) return;
+
     setPayLoading(true);
     try {
       await walletApi.payBooking(Number(id));

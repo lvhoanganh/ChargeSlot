@@ -345,14 +345,6 @@ export default function ApproveStation() {
             className="cs-admin-filter__input"
           />
         </div>
-        {/* Owner combobox */}
-        <select
-          value={ownerFilter}
-          onChange={(e) => setOwnerFilter(e.target.value)}
-          className="cs-admin-filter__select"
-          style={{ minWidth: 180 }}
-        >
-        </select>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -430,7 +422,7 @@ export default function ApproveStation() {
                       <td className="cs-admin-table__id" style={{ fontWeight: 700, color: "#64748b" }}>{idx + 1}</td>
                       <td className="cs-admin-table__name">
                         {s.latitude && s.longitude ? (
-                          <div 
+                          <div
                             onClick={() => {
                               setFlyTarget([s.latitude, s.longitude]);
                               setActiveStationId(s.id);

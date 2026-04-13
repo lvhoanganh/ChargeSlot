@@ -128,7 +128,10 @@ export default function DriverLoyalty() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {history.map(h => {
-              const isEarn = h.type === "Earn";
+              const isEarn = h.type === "Earn" || h.type === "Refund";
+              const typeLabel = h.type === "Refund" ? "Hoàn điểm" : (isEarn ? "Tích điểm" : "Dùng điểm");
+              const iconLabel = h.type === "Refund" ? "⏪" : (isEarn ? "📈" : "🎁");
+              
               return (
                 <div key={h.id} onClick={() => setSelectedTx(h)} style={{
                   background: "#fff", borderRadius: 16, padding: "16px 20px",
@@ -146,11 +149,11 @@ export default function DriverLoyalty() {
                     fontSize: 20, flexShrink: 0,
                     backgroundColor: isEarn ? "#f0fdf4" : "#fef2f2",
                   }}>
-                    {isEarn ? "📈" : "🎁"}
+                    {iconLabel}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>
-                      {isEarn ? "Tích điểm" : "Dùng điểm"}
+                      {typeLabel}
                     </div>
                     <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
                       {h.description || `Booking #${h.bookingId}`}
@@ -203,13 +206,13 @@ export default function DriverLoyalty() {
             <div style={{ padding: 24 }}>
               <div style={{ textAlign: "center", marginBottom: 24 }}>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>
-                  {selectedTx.type === "Earn" ? "📈" : "🎁"}
+                  {selectedTx.type === "Refund" ? "⏪" : ((selectedTx.type === "Earn") ? "📈" : "🎁")}
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: selectedTx.type === "Earn" ? "#22c55e" : "#ef4444" }}>
-                  {selectedTx.type === "Earn" ? "+" : "−"}{Math.abs(selectedTx.points || 0).toLocaleString("vi-VN")} điểm
+                <div style={{ fontSize: 24, fontWeight: 800, color: (selectedTx.type === "Earn" || selectedTx.type === "Refund") ? "#22c55e" : "#ef4444" }}>
+                  {(selectedTx.type === "Earn" || selectedTx.type === "Refund") ? "+" : "−"}{Math.abs(selectedTx.points || 0).toLocaleString("vi-VN")} điểm
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: "#475569", marginTop: 4 }}>
-                  {selectedTx.type === "Earn" ? "Tích điểm" : "Dùng điểm"}
+                  {selectedTx.type === "Refund" ? "Hoàn điểm" : ((selectedTx.type === "Earn") ? "Tích điểm" : "Dùng điểm")}
                 </div>
               </div>
 
