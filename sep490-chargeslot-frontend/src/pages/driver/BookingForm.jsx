@@ -226,29 +226,63 @@ export default function BookingForm() {
   const timeError = (() => {
     if (!station || !startTime) return "";
     const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
-    if (tiers.length === 0) return "";
 
     const toMin = (str) => {
       if (!str) return 0;
       const [h, m] = String(str).split(':');
       return parseInt(h) * 60 + parseInt(m);
     };
-    const tierStarts = tiers.map(t => toMin(t.startTime));
-    const tierEnds = tiers.map(t => toMin(t.endTime));
-    const minTier = Math.min(...tierStarts);
-    const maxTier = Math.max(...tierEnds);
     const fmtMin = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-
-
 
     const startObj = new Date(startTime);
     const endObj = new Date(startObj.getTime() + duration * 3600000);
     const bookStartMin = startObj.getHours() * 60 + startObj.getMinutes();
     const bookEndMin = endObj.getHours() * 60 + endObj.getMinutes() + (endObj.getDate() !== startObj.getDate() ? 24 * 60 : 0);
 
-    if (bookStartMin < minTier || bookStartMin >= maxTier) {
-      return `⚠️ Giờ bắt đầu phải trong khung ${fmtMin(minTier)} – ${fmtMin(maxTier)}`;
+    // Kiểm tra operating hours của ngày được chọn
+    const dayOfWeek = startObj.getDay();
+    const opHours = station.operatingHours?.find(h => h.dayOfWeek === dayOfWeek);
+    if (opHours && !opHours.isClosed) {
+      const opStart = toMin(opHours.openTime);
+      let opEnd = toMin(opHours.closeTime);
+      if (opStart === 0 && opEnd === 0) { opEnd = 24 * 60; }
+      else if (opEnd <= opStart) { opEnd += 24 * 60; }
+      if (bookStartMin < opStart || bookStartMin >= opEnd) {
+        return `⚠️ Giờ bắt đầu phải trong khung hoạt động ${fmtMin(opStart)} – ${fmtMin(opEnd > 24 * 60 ? opEnd - 24 * 60 : opEnd)} của trạm`;
+      }
     }
+
+    // Nếu chưa có tier nào → không check giá (hasNoPriceForTime sẽ hiển thị warning riêng)
+    if (tiers.length === 0) return "";
+
+    const tierStarts = tiers.map(t => toMin(t.startTime));
+    const tierEnds = tiers.map(t => toMin(t.endTime));
+    const minTier = Math.min(...tierStarts);
+    const maxTier = Math.max(...tierEnds);
+
+    // Kiểm tra giờ bắt đầu có nằm trong bất kỳ tier nào không
+    const matchedStartTier = tiers.find(t => {
+      const tS = toMin(t.startTime), tE = toMin(t.endTime);
+      return bookStartMin >= tS && bookStartMin < tE;
+    });
+
+    if (!matchedStartTier) {
+      // Xác định xem có nằm trong giờ hoạt động không
+      // Nếu nằm trong operating hours nhưng ngoài pricing tier → chưa thiết lập giá
+      const inOpHours = (() => {
+        if (!opHours || opHours.isClosed) return false;
+        const opStart = toMin(opHours.openTime);
+        let opEnd = toMin(opHours.closeTime);
+        if (opStart === 0 && opEnd === 0) opEnd = 24 * 60;
+        else if (opEnd <= opStart) opEnd += 24 * 60;
+        return bookStartMin >= opStart && bookStartMin < opEnd;
+      })();
+
+      if (inOpHours || !opHours) {
+        return `⚠️ Trạm chưa thiết lập giá cho khung giờ này (giá chỉ có từ ${fmtMin(minTier)} – ${fmtMin(maxTier)})`;
+      }
+    }
+
     if (bookEndMin > maxTier && maxTier !== 0) {
       return `⚠️ Giờ kết thúc (${fmtMin(bookEndMin > 24 * 60 ? bookEndMin - 24 * 60 : bookEndMin)}) vượt quá khung giá (${fmtMin(maxTier)}). Giảm thời lượng!`;
     }
@@ -311,8 +345,27 @@ export default function BookingForm() {
       const bookStartMin = startObj.getHours() * 60 + startObj.getMinutes();
       const bookEndMin = endObj.getHours() * 60 + endObj.getMinutes() + (endObj.getDate() !== startObj.getDate() ? 24 * 60 : 0);
 
-      if (bookStartMin < minTier || bookStartMin >= maxTier) {
-        return setApiError(`Giờ bắt đầu phải nằm trong khung ${fmtMin(minTier)} – ${fmtMin(maxTier)}!`);
+      // Kiểm tra giờ bắt đầu có nằm trong bất kỳ pricing tier nào không
+      const matchedStartTier = tiers.find(t => {
+        const tS = toMin(t.startTime), tE = toMin(t.endTime);
+        return bookStartMin >= tS && bookStartMin < tE;
+      });
+      if (!matchedStartTier) {
+        // Phân biệt: ngoài operating hours vs trong operating hours nhưng chưa có giá
+        const dayOfWeek2 = startObj.getDay();
+        const opH = station.operatingHours?.find(h => h.dayOfWeek === dayOfWeek2);
+        const inOpHours2 = (() => {
+          if (!opH || opH.isClosed) return false;
+          const opStart2 = toMin(opH.openTime);
+          let opEnd2 = toMin(opH.closeTime);
+          if (opStart2 === 0 && opEnd2 === 0) opEnd2 = 24 * 60;
+          else if (opEnd2 <= opStart2) opEnd2 += 24 * 60;
+          return bookStartMin >= opStart2 && bookStartMin < opEnd2;
+        })();
+        if (inOpHours2 || !opH) {
+          return setApiError(`Trạm chưa thiết lập giá cho khung giờ ${fmtMin(bookStartMin)} này. Giá hiện chỉ từ ${fmtMin(minTier)} – ${fmtMin(maxTier)}.`);
+        }
+        // Nếu ngoài operating hours → để validation bên dưới bắt
       }
       if (bookEndMin > maxTier && maxTier !== 0) {
         return setApiError(`Giờ kết thúc vượt quá khung giá (${fmtMin(maxTier)}). Vui lòng điều chỉnh giờ kết thúc!`);

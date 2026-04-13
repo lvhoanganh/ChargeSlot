@@ -19,10 +19,14 @@ const statusStyles = {
   CompletedPendingInvoice: { label: "Chờ xác nhận hóa đơn", color: "#f97316", bg: "#fff7ed", bgGrad: "linear-gradient(135deg, #fed7aa, #fdba74)", icon: "🧾" },
 };
 
+// BE trả về giờ VN (không phải UTC).
+// Strip "Z" nếu có, thêm "+07:00" để JS parse đúng timezone VN dù browser ở bất kỳ timezone nào.
 const toLocal = (dt) => {
   if (!dt) return "";
-  const s = String(dt);
-  return new Date(String(s).replace("Z", "")).toLocaleString("vi-VN", {
+  const s = String(dt).trim().replace("Z", "");
+  const d = new Date(s.includes("+") || s.includes("-", 10) ? s : s + "+07:00");
+  if (isNaN(d)) return "";
+  return d.toLocaleString("vi-VN", {
     hour: "2-digit", minute: "2-digit",
     day: "2-digit", month: "2-digit", year: "numeric",
     hour12: false,
@@ -48,20 +52,26 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
   const [confirmingInvoice, setConfirmingInvoice] = useState(false); // Xác nhận hóa đơn
   const initialWalletBalanceRef = useRef(0);
 
+  // Các status có phiên sạc thực tế
+  const SESSION_STATUSES = ["CheckedIn", "InProgress", "Charging", "CompletedPendingInvoice", "Completed"];
+
   function fetchBooking() {
+    setSessionDetail(null); // Reset để tránh hiện dữ liệu cũ khi switch booking
     bookingApi.getById(Number(id))
       .then(async (data) => {
         setBooking(data);
-        if (data) {
+        if (data && SESSION_STATUSES.includes(data.status)) {
+          // Chỉ fetch/set sessionDetail khi booking có phiên sạc thực tế
           if (data.chargingSessionDetail) {
             setSessionDetail(data.chargingSessionDetail);
-          } else if (["CheckedIn", "InProgress", "Charging", "CompletedPendingInvoice", "Completed"].includes(data.status)) {
+          } else {
             try {
               const session = await chargingApi.getByBookingId(Number(id));
               setSessionDetail(session);
             } catch { /* ignore */ }
           }
         }
+        // Booking Rejected/Cancelled/WaitingOwner... → không có sessionDetail
       })
       .catch(() => setBooking(null))
       .finally(() => setLoading(false));
@@ -414,28 +424,53 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
               </div>
             )}
 
-            {sessionDetail && (
+            {sessionDetail && SESSION_STATUSES.includes(booking.status) && (
               <div style={{ marginTop: 12, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
                 <h4 style={{ fontSize: 13, color: "#475569", marginBottom: 8, fontWeight: 700 }}>Chi tiết phiên sạc thực tế</h4>
                 {(() => {
-                  const actualStart = sessionDetail.actualStartTime ? new Date(String(sessionDetail.actualStartTime).replace("Z", "")).getTime() : 0;
-                  const bookingStart = booking.startTime ? new Date(String(booking.startTime).replace("Z", "")).getTime() : (sessionDetail.bookingStartTime ? new Date(String(sessionDetail.bookingStartTime).replace("Z", "")).getTime() : 0);
-                  const effectiveStartMs = Math.max(actualStart > 0 ? actualStart : 0, bookingStart > 0 ? bookingStart : 0);
-                  const end = sessionDetail.actualEndTime ? new Date(String(sessionDetail.actualEndTime).replace("Z", "")).getTime() : 0;
-                  
-                  const durationMs = effectiveStartMs > 0 && end > 0 && end > effectiveStartMs ? end - effectiveStartMs : (sessionDetail.actualDurationHours ? sessionDetail.actualDurationHours * 3600000 : 0);
+                  // BE trả về giờ VN (không phải UTC).
+                  // Strip "Z" + thêm "+07:00" để JS parse đúng bất kể browser ở timezone nào.
+                  const parseVN = (dt) => {
+                    if (!dt) return 0;
+                    const s = String(dt).trim().replace("Z", "");
+                    const d = new Date(s.includes("+") || s.includes("-", 10) ? s : s + "+07:00");
+                    return isNaN(d) ? 0 : d.getTime();
+                  };
 
-                  const renderDate = (ms) => new Date(ms).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric", hour12: false });
-                  
+                  const renderDate = (ms) => new Date(ms).toLocaleString("vi-VN", {
+                    hour: "2-digit", minute: "2-digit",
+                    day: "2-digit", month: "2-digit", year: "numeric",
+                    hour12: false,
+                  });
+
+                  // actualStartTime = lúc driver CHECK-IN (có thể trước giờ sạc)
+                  // bookingStartTime = giờ phiên sạc bắt đầu theo lịch
+                  // "Bắt đầu sạc" = max(checkIn, bookingStart) — sạc chỉ bắt đầu khi đến giờ lịch
+                  const checkInMs = parseVN(sessionDetail.actualStartTime);
+                  const bookingStartMs = parseVN(sessionDetail.bookingStartTime) || parseVN(booking.startTime);
+                  const chargingStartMs = (checkInMs > 0 && bookingStartMs > 0)
+                    ? Math.max(checkInMs, bookingStartMs)
+                    : (bookingStartMs > 0 ? bookingStartMs : checkInMs);
+
+                  const endMs = parseVN(sessionDetail.actualEndTime);
+
+                  // Thời lượng: LUÔN tính từ chargingStartMs đến endMs để nhất quán với giờ hiển thị.
+                  // KHÔNG dùng actualDurationHours từ BE vì BE tính từ checkIn time (khác chargingStart).
+                  const durationMs = (chargingStartMs > 0 && endMs > 0 && endMs > chargingStartMs)
+                    ? endMs - chargingStartMs
+                    : 0;
+
+                  // Không hiển thị nếu không có dữ liệu có ý nghĩa
+                  if (chargingStartMs === 0 && endMs === 0) return null;
+
                   return (
                     <>
-                      {effectiveStartMs > 0 && <InfoRow icon="⚡" label="Bắt đầu sạc" value={renderDate(effectiveStartMs)} />}
-                      {end > 0 && <InfoRow icon="🏁" label="Kết thúc sạc" value={renderDate(end)} />}
+                      {chargingStartMs > 0 && <InfoRow icon="⚡" label="Bắt đầu sạc" value={renderDate(chargingStartMs)} />}
+                      {endMs > 0 && <InfoRow icon="🏁" label="Kết thúc sạc" value={renderDate(endMs)} />}
                       {durationMs > 0 && (() => {
                         const hours = Math.floor(durationMs / 3600000);
                         const minutes = Math.floor((durationMs % 3600000) / 60000);
-                        const formattedDuration = hours > 0 ? `${hours} giờ ${minutes} phút` : `${minutes} phút`;
-                        return <InfoRow icon="⏱" label="Thời lượng sạc" value={formattedDuration} />;
+                        return <InfoRow icon="⏱" label="Thời lượng sạc" value={hours > 0 ? `${hours} giờ ${minutes} phút` : `${minutes} phút`} />;
                       })()}
                     </>
                   );
