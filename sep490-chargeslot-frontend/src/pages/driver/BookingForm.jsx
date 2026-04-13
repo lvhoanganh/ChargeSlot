@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { publicStationApi, bookingApi, loyaltyApi, stationApi } from "@/services/api";
+import { publicStationApi, bookingApi, loyaltyApi, stationApi, adminConfigApi } from "@/services/api";
 import TimePicker24h from "@/components/TimePicker24h";
 
 export default function BookingForm() {
@@ -22,6 +22,7 @@ export default function BookingForm() {
   const [selectedDate, setSelectedDate] = useState("");
   const [unavailableDates, setUnavailableDates] = useState([]); // ["YYYY-MM-DD", ...]
   const [startHHMM, setStartHHMM] = useState(""); // "08:30"
+  const [leadMinutes, setLeadMinutes] = useState(30); // đọc từ system config
 
   useEffect(() => {
     if (!stationId) return;
@@ -70,6 +71,20 @@ export default function BookingForm() {
     loyaltyApi.getInfo()
       .then(setLoyaltyInfo)
       .catch(() => setLoyaltyInfo(null));
+  }, []);
+
+  // Fetch min_booking_lead_minutes từ system config
+  useEffect(() => {
+    adminConfigApi.getAll()
+      .then((cfg) => {
+        // BE key có thể là camelCase hoặc snake_case — tìm không phân biệt hoa/thường
+        const key = Object.keys(cfg || {}).find(
+          k => k.toLowerCase() === "min_booking_lead_minutes" || k.toLowerCase() === "minbookingleadminutes"
+        );
+        const val = key ? Number(cfg[key]) : NaN;
+        if (!isNaN(val) && val > 0) setLeadMinutes(val);
+      })
+      .catch(() => { /* giữ default 30 */ });
   }, []);
 
   // Fetch lịch đã đặt của slot — gọi đúng endpoint BE
@@ -222,6 +237,24 @@ export default function BookingForm() {
     });
   };
 
+  // Realtime validation — bao gồm cả kiểm tra min booking lead time
+  const leadTimeError = (() => {
+    if (!selectedDate || !startHHMM) return "";
+    const startVN = new Date(`${selectedDate}T${startHHMM}:00+07:00`);
+    const diffMinutes = (startVN - new Date()) / 60000;
+    if (diffMinutes < leadMinutes) {
+      // Tính giờ sớm nhất hợp lệ rồi làm tròn lên bội số 30 phút
+      // (vì TimePicker chỉ có bước nhảy 30 phút: :00 và :30)
+      const earliestMs = Date.now() + leadMinutes * 60000;
+      const earliestRounded = new Date(Math.ceil(earliestMs / (30 * 60000)) * 30 * 60000);
+      const hh = String(earliestRounded.getHours()).padStart(2, "0");
+      const mm = earliestRounded.getMinutes() === 0 ? "00" : "30";
+      return `⏰ Phải đặt trước ít nhất ${leadMinutes} phút. Sớm nhất có thể chọn: ${hh}:${mm}`;
+    }
+    return "";
+  })();
+
+
   // Realtime validation
   const timeError = (() => {
     if (!station || !startTime) return "";
@@ -321,12 +354,11 @@ export default function BookingForm() {
     if (duration < 0.5) return setApiError("⚠️ Thời lượng tối thiểu là 30 phút");
     if (duration > 24) return setApiError("⚠️ Tối đa 24 giờ mỗi lần đặt (backend giới hạn)");
 
-    // BE rule: StartTime phải cách hiện tại ≥ 30 phút (so sánh theo giờ VN)
-    // Dùng string "YYYY-MM-DDTHH:MM:00+07:00" để parse đúng giờ VN
+    // BE rule: StartTime phải cách hiện tại ≥ leadMinutes (đọc từ system config)
     const startVN = new Date(`${selectedDate}T${startHHMM}:00+07:00`);
-    const nowVN = new Date(); // browser Date.now() là UTC, nhưng JavaScript Date tự xử lý đúng
+    const nowVN = new Date();
     const diffMinutes = (startVN - nowVN) / 60000;
-    if (diffMinutes < 30) return setApiError("⚠️ Giờ bắt đầu phải cách hiện tại ít nhất 30 phút");
+    if (diffMinutes < leadMinutes) return setApiError(`⚠️ Giờ bắt đầu phải cách hiện tại ít nhất ${leadMinutes} phút`);
 
 
     const startObj = new Date(startTime);
@@ -890,6 +922,13 @@ export default function BookingForm() {
                 )}
               </div>
 
+              {/* Cảnh báo đặt lịch quá gần (min lead time) */}
+              {leadTimeError && (
+                <div style={{ background: "#fffbeb", color: "#b45309", padding: "10px 14px", borderRadius: 10, fontSize: 13, border: "1px solid #fde68a", display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}>
+                  {leadTimeError}
+                </div>
+              )}
+
               {timeError && (
                 <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px 14px", borderRadius: 10, fontSize: 13, border: "1px solid #fecaca" }}>
                   {timeError}
@@ -1033,15 +1072,15 @@ export default function BookingForm() {
                 )}
 
                 <button type="submit"
-                  disabled={submitting || !selectedSlot || !!timeError || !startHHMM || hasConflict || hasNoPriceForTime}
+                  disabled={submitting || !selectedSlot || !!timeError || !!leadTimeError || !startHHMM || hasConflict || hasNoPriceForTime}
                   style={{
                     width: "100%", padding: "16px 0", borderRadius: 16, border: "none",
-                    background: submitting || !selectedSlot || timeError || !startHHMM || hasConflict || hasNoPriceForTime
+                    background: submitting || !selectedSlot || timeError || leadTimeError || !startHHMM || hasConflict || hasNoPriceForTime
                       ? "#d1d5db"
                       : "linear-gradient(135deg, #f97316, #ea580c)",
                     color: "#fff", fontWeight: 700, fontSize: 16,
-                    cursor: submitting || !selectedSlot || timeError || !startHHMM || hasConflict || hasNoPriceForTime ? "not-allowed" : "pointer",
-                    boxShadow: submitting || !selectedSlot || timeError || !startHHMM || hasConflict || hasNoPriceForTime
+                    cursor: submitting || !selectedSlot || timeError || leadTimeError || !startHHMM || hasConflict || hasNoPriceForTime ? "not-allowed" : "pointer",
+                    boxShadow: submitting || !selectedSlot || timeError || leadTimeError || !startHHMM || hasConflict || hasNoPriceForTime
                       ? "none" : "0 4px 16px rgba(249,115,22,0.4)",
                     transition: "all 0.2s",
                   }}>

@@ -26,6 +26,8 @@ const CONFIG_GROUPS = [
       { key: "noShow_Grace_Minutes", label: "Gia hạn no-show (phút)", hint: "Thời gian chờ trước khi bị đánh dấu no-show", type: "int" },
       { key: "slot_Buffer_Minutes", label: "Buffer giữa 2 slot (phút)", hint: "Thời gian cách nhau giữa 2 lịch đặt", type: "int" },
       { key: "oTP_Expiry_Minutes", label: "OTP hết hạn (phút)", hint: "Thời gian hiệu lực của mã OTP", type: "int" },
+      { key: "oTP_Cooldown_Seconds", label: "Cooldown OTP xác thực Email (giây)", hint: "Thời gian chờ tối thiểu giữa 2 lần gửi OTP email (dùng cho luồng đổi email, KHÔNG liên quan đến OTP SMS Firebase)", type: "int" },
+      { key: "min_Booking_Lead_Minutes", label: "Đặt trước tối thiểu (phút)", hint: "Số phút tối thiểu phải đặt trước giờ sạc", type: "int" },
     ],
   },
   {
@@ -42,13 +44,6 @@ const CONFIG_GROUPS = [
       { key: "dispute_Limit_Per_Month", label: "Giới hạn tranh chấp/tháng", hint: "Số lần tạo dispute tối đa mỗi tháng", type: "int" },
       { key: "dispute_OwnerEvidence_Hours", label: "Chủ trạm nộp bằng chứng (giờ)", hint: "Thời hạn owner phản hồi dispute", type: "int" },
       { key: "dispute_AdminReview_Hours", label: "Admin xét xử (giờ)", hint: "Thời hạn admin giải quyết dispute", type: "int" },
-    ],
-  },
-  {
-    title: "🚫 Cấm tài khoản",
-    fields: [
-      { key: "ban_Duration_Days_FirstOffense", label: "Vi phạm lần đầu (ngày)", hint: "Số ngày cấm lần đầu vi phạm", type: "int" },
-      { key: "ban_Duration_Days_Permanent", label: "Cấm vĩnh viễn (ngày)", hint: "Ngày tương đương vĩnh viễn (36500 = 100 năm)", type: "int" },
     ],
   },
 ];
