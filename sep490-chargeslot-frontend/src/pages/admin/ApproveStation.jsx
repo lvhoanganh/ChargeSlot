@@ -417,6 +417,10 @@ export default function ApproveStation() {
                   const isPending = s.approvalStatus === "PendingApproval";
                   // BE set bannedUntil = +100 năm khi khoá, null khi mở
                   const isBanned = !!s.bannedUntil;
+                  const isApproved = s.approvalStatus === "Approved";
+                  const isToggleOn = isApproved && !isBanned;
+                  const isToggleDisabled = !isApproved;
+                  
                   return (
                     <tr key={s.id}>
                       <td className="cs-admin-table__id" style={{ fontWeight: 700, color: "#64748b" }}>{idx + 1}</td>
@@ -473,11 +477,13 @@ export default function ApproveStation() {
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, marginTop: 4 }}>
                           <label
                             className="cs-toggle-switch"
-                            title={isBanned ? "Trạm đang bị khoá — nhấn để mở khoá" : "Trạm hoạt động bình thường — nhấn để khoá"}
+                            title={isToggleDisabled ? "Trạm chưa được duyệt" : (isBanned ? "Trạm đang bị khoá — nhấn để mở khoá" : "Trạm hoạt động bình thường — nhấn để khoá")}
+                            style={isToggleDisabled ? { opacity: 0.5, cursor: "not-allowed" } : {}}
                           >
                             <input
                               type="checkbox"
-                              checked={!isBanned}
+                              checked={isToggleOn}
+                              disabled={isToggleDisabled}
                               onChange={async () => {
                                 const previousStations = queryClient.getQueryData(["admin-stations-all"]);
                                 const newIsBanned = !isBanned;
@@ -514,7 +520,7 @@ export default function ApproveStation() {
                               <span className="cs-toggle-switch__thumb" />
                             </span>
                             <span className="cs-toggle-switch__label">
-                              {isBanned ? "Bị khoá" : "Hoạt động"}
+                              {isToggleDisabled ? "Ngừng hoạt động" : (isBanned ? "Bị khoá" : "Hoạt động")}
                             </span>
                           </label>
                         </div>
