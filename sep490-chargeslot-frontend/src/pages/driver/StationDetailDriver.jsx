@@ -688,35 +688,55 @@ export default function StationDetailDriver() {
           );
         })()}
         {/* Station images */}
-        {station.images && station.images.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
-            <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
-              Hình ảnh
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {station.images.map((img) => (
-                <img
-                  key={img.id}
-                  src={img.imageUrl?.startsWith("http") ? img.imageUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${img.imageUrl?.startsWith("/") ? "" : "/"}${img.imageUrl}`}
-                  alt="Station"
-                  className="w-full h-40 object-cover rounded-xl"
-                />
-              ))}
+        {(() => {
+          const BASE_URL = "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net";
+          // Hỗ trợ nhiều property name: images, stationImages
+          const rawImages = station.images || station.stationImages || [];
+          if (!rawImages || rawImages.length === 0) return null;
+
+          const buildUrl = (raw) => {
+            if (!raw) return null;
+            // Nếu đã là URL đầy đủ
+            if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+            // Tương đối → ghép base
+            return `${BASE_URL}${raw.startsWith("/") ? "" : "/"}${raw}`;
+          };
+
+          const images = rawImages.map((img, idx) => {
+            // item có thể là object { id, imageUrl, url } hoặc string
+            if (typeof img === "string") {
+              return { key: idx, src: buildUrl(img) };
+            }
+            const rawUrl = img.imageUrl || img.url || img.imagePath || img.path || "";
+            return { key: img.id ?? idx, src: buildUrl(rawUrl) };
+          }).filter(i => i.src);
+
+          if (images.length === 0) return null;
+
+          return (
+            <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
+              <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+                Hình ảnh
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                {images.map((img) => (
+                  <img
+                    key={img.key}
+                    src={img.src}
+                    alt="Hình ảnh trạm sạc"
+                    className="w-full h-40 object-cover rounded-xl"
+                    onError={(e) => { e.target.style.display = "none"; }}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Reviews section */}
         <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
