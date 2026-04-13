@@ -4,6 +4,7 @@ import { authApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { showToast } from "@/components/Toast";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
@@ -27,9 +28,20 @@ export default function OwnerProfile() {
     () => getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR
   );
 
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
   const businessName = normalizeOptionalText(profile?.businessName);
   const taxCode = normalizeOptionalText(profile?.taxCode);
   const hasBusinessInfo = !!businessName && !!taxCode;
+
+  useEffect(() => {
+    let timer;
+    if (showOtpModal && cooldown > 0) {
+      timer = setInterval(() => setCooldown(c => c - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showOtpModal, cooldown]);
 
   useEffect(() => {
     let cancelled = false;
@@ -176,6 +188,12 @@ export default function OwnerProfile() {
                   <p className="text-sm text-yellow-700 font-medium tracking-tight">Email đang chờ xác minh</p>
                   <p className="text-[13px] text-yellow-600 font-semibold">{profile.pendingEmail}</p>
                 </div>
+                <button
+                  onClick={() => setShowOtpModal(true)}
+                  className="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold rounded-lg shadow-sm transition-colors whitespace-nowrap"
+                >
+                  Gửi lại Link
+                </button>
               </div>
             )}
 
@@ -220,6 +238,40 @@ export default function OwnerProfile() {
           </div>
         </div>
       </div>
+
+      {/* OTP Modal */}
+      {showOtpModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 400, overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                📧 Xác thực email mới
+              </h3>
+            </div>
+            <div style={{ padding: 24 }}>
+              <p style={{ color: "#475569", fontSize: 14, marginBottom: 16, lineHeight: 1.5 }}>
+                Một link xác thực đã được gửi đến:<br />
+                <strong style={{ color: "#1e293b" }}>{profile?.pendingEmail}</strong>
+              </p>
+              <p style={{ color: "#64748b", fontSize: 13, marginBottom: 16 }}>
+                Vui lòng kiểm tra hộp thư đến (và thư mục rác) để xác thực email. Link sẽ hết hạn sau 24 giờ.
+              </p>
+              <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "#64748b" }}>
+                {cooldown > 0 ? (
+                  <span>Gửi lại sau: {String(Math.floor(cooldown / 60)).padStart(2, '0')}:{String(cooldown % 60).padStart(2, '0')} ⏱️</span>
+                ) : (
+                  <button onClick={() => { authApi.addEmail(profile.pendingEmail); setCooldown(45); }} style={{ background: "none", border: "none", color: "#f97316", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Gửi lại Link xác nhận</button>
+                )}
+              </div>
+            </div>
+            <div style={{ padding: "16px 24px", background: "#f8fafc", display: "flex", gap: 10 }}>
+              <button onClick={() => setShowOtpModal(false)} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                ✅ Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

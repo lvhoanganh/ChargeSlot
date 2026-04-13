@@ -47,8 +47,6 @@ export default function EditOwnerProfile() {
 
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpLoading, setOtpLoading] = useState(false);
   const [cooldown, setCooldown] = useState(45);
 
   useEffect(() => {
@@ -152,21 +150,6 @@ export default function EditOwnerProfile() {
     }
     return () => clearInterval(timer);
   }, [showOtpModal, cooldown]);
-
-  const handleVerifyOtp = async () => {
-    if (!otp.trim() || otp.length < 6) return showToast.error("Vui lòng nhập đủ mã OTP 6 số");
-    setOtpLoading(true);
-    try {
-      await authApi.verifyEmailOtp(otp);
-      showToast.success("✅ Email đã được xác thực thành công");
-      setShowOtpModal(false);
-      navigate("/owner/owner-profile");
-    } catch (e) {
-      showToast.error(getApiErrorMessage(e, "OTP không hợp lệ"));
-    } finally {
-      setOtpLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
@@ -317,7 +300,6 @@ export default function EditOwnerProfile() {
         </div>
       </div>
 
-      {/* OTP Modal */}
       {showOtpModal && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 400, overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column" }}>
@@ -327,37 +309,24 @@ export default function EditOwnerProfile() {
               </h3>
             </div>
             <div style={{ padding: 24 }}>
-              <p style={{ color: "#475569", fontSize: 14, marginBottom: 16 }}>
-                Mã OTP đã gửi đến:<br />
+              <p style={{ color: "#475569", fontSize: 14, marginBottom: 16, lineHeight: 1.5 }}>
+                Một link xác thực đã được gửi đến:<br />
                 <strong style={{ color: "#1e293b" }}>{pendingEmail}</strong>
               </p>
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Nhập mã 6 số:</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={otp}
-                  onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="X X X X X X"
-                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "2px solid #e5e7eb", fontSize: 20, textAlign: "center", letterSpacing: 8, outline: "none", boxSizing: "border-box" }}
-                  onFocus={e => e.target.style.borderColor = "#f97316"}
-                  onBlur={e => e.target.style.borderColor = "#e5e7eb"}
-                />
-              </div>
+              <p style={{ color: "#64748b", fontSize: 13, marginBottom: 16 }}>
+                Vui lòng kiểm tra hộp thư đến (và thư mục rác) để xác thực email. Link sẽ hết hạn sau 24 giờ.
+              </p>
               <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "#64748b" }}>
                 {cooldown > 0 ? (
                   <span>Gửi lại sau: {String(Math.floor(cooldown / 60)).padStart(2, '0')}:{String(cooldown % 60).padStart(2, '0')} ⏱️</span>
                 ) : (
-                  <button onClick={() => { authApi.addEmail(pendingEmail); setCooldown(45); }} style={{ background: "none", border: "none", color: "#f97316", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Gửi lại mã OTP</button>
+                  <button onClick={() => { authApi.addEmail(pendingEmail); setCooldown(45); }} style={{ background: "none", border: "none", color: "#f97316", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Gửi lại Link xác nhận</button>
                 )}
               </div>
             </div>
             <div style={{ padding: "16px 24px", background: "#f8fafc", display: "flex", gap: 10 }}>
-              <button onClick={() => { setShowOtpModal(false); navigate("/owner/owner-profile"); }} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "1.5px solid #d1d5db", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
-                ❌ Hủy
-              </button>
-              <button disabled={otpLoading || otp.length < 6} onClick={handleVerifyOtp} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: otpLoading || otp.length < 6 ? "#fdba74" : "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: otpLoading || otp.length < 6 ? "not-allowed" : "pointer" }}>
-                {otpLoading ? "Đang xử lý..." : "✅ Xác nhận"}
+              <button onClick={() => { setShowOtpModal(false); navigate("/owner/owner-profile"); }} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                ✅ Đã hiểu
               </button>
             </div>
           </div>
