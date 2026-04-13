@@ -37,7 +37,7 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task DeleteExtraServiceAsync(int stationId, int serviceId, int ownerUserId);
 
         // Admin
-        Task<PagedResultDto<ChargingStationDto>> GetAdminStationsAsync(string? status, string? search, int page, int pageSize);
+        Task<PagedResultDto<ChargingStationDto>> GetAdminStationsAsync(string? status, string? search, string? ownerName, int page, int pageSize);
         Task<List<ChargingStationDto>> GetPendingStationsAsync();
         Task<ChargingStationDto?> GetStationDetailForAdminAsync(int id);
         Task ReviewStationAsync(int id, int adminUserId, ReviewStationDto dto);

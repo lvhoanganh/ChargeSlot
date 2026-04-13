@@ -18,7 +18,7 @@ namespace ChargeSlot.Api.Repositories.Interfaces
         void RemoveSlots(IEnumerable<ChargingSlot> slots);
         Task<List<ChargingStation>> GetTopRatedStationsAsync(int limit);
         Task<List<ChargingStation>> GetAllByOwnerTrackingAsync(int ownerUserId);
-        Task<(List<ChargingStation> Items, int Total)> GetAdminStationsPagedAsync(string? status, string? search, int page, int pageSize);
+        Task<(List<ChargingStation> Items, int Total)> GetAdminStationsPagedAsync(string? status, string? search, string? ownerName, int page, int pageSize);
         Task<List<ChargingStation>> GetBannedExpiredAsync(DateTime now);
     }
 }

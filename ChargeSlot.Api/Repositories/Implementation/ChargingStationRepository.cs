@@ -149,15 +149,19 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
-        public async Task<(List<ChargingStation> Items, int Total)> GetAdminStationsPagedAsync(string? status, string? search, int page, int pageSize)
+        public async Task<(List<ChargingStation> Items, int Total)> GetAdminStationsPagedAsync(string? status, string? search, string? ownerName, int page, int pageSize)
         {
             var query = _context.ChargingStations
+                .Include(s => s.Owner).ThenInclude(o => o.User)
                 .Include(s => s.Images)
                 .Include(s => s.OperatingHours)
                 .Include(s => s.ChargingSlots)
                 .Include(s => s.StationPricings)
                 .AsNoTracking()
                 .AsQueryable();
+
+            // Loại bỏ Draft — Admin không cần thấy bản nháp của Owner
+            query = query.Where(s => s.ApprovalStatus != ApprovalStatus.Draft);
 
             if (!string.IsNullOrWhiteSpace(status))
             {
@@ -176,6 +180,13 @@ namespace ChargeSlot.Api.Repositories.Implementation
             {
                 var searchLower = search.Trim().ToLower();
                 query = query.Where(s => s.Name.ToLower().Contains(searchLower) || s.Address.ToLower().Contains(searchLower));
+            }
+
+            // Lọc theo tên Owner
+            if (!string.IsNullOrWhiteSpace(ownerName))
+            {
+                var ownerLower = ownerName.Trim().ToLower();
+                query = query.Where(s => s.Owner.User.FullName.ToLower().Contains(ownerLower));
             }
 
             var total = await query.CountAsync();

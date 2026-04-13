@@ -22,6 +22,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly ILedgerTransactionRepository _ledgerRepo;
         private readonly ILogger<BookingService> _logger;
         private readonly ISystemConfigService _configService;
+        private static readonly SemaphoreSlim _stockLock = new SemaphoreSlim(1, 1);
 
         public BookingService(
             IBookingRepository bookingRepo,
@@ -79,12 +80,15 @@ namespace ChargeSlot.Api.Services.Implementation
                 // Cấp khóa lock đồng bộ (Prevent Simultaneous Double Booking)
                 await _bookingRepo.AcquireSlotLockAsync(dto.SlotId);
 
-                // Validate: StartTime phải trong tương lai và cách hiện tại ít nhất 30 phút
+                // Validate: StartTime phải trong tương lai và cách hiện tại ít nhất N phút (admin config)
+                var configs = await _configService.GetCurrentConfigsAsync();
+                var minLeadMinutes = configs.Min_Booking_Lead_Minutes;
+
                 var minutesUntilStart = (dto.StartTime - DateTimeHelper.VietnamNow()).TotalMinutes;
                 if (minutesUntilStart <= 0)
                     throw new InvalidOperationException("Thời gian bắt đầu phải trong tương lai.");
-                if (minutesUntilStart < 30)
-                    throw new InvalidOperationException("Phải đặt trước ít nhất 30 phút trước giờ sạc.");
+                if (minutesUntilStart < minLeadMinutes)
+                    throw new InvalidOperationException($"Phải đặt trước ít nhất {minLeadMinutes} phút trước giờ sạc.");
 
                 // Validate: Driver chỉ được có tối đa 3 booking đang chờ xử lý
                 var pendingCount = await _bookingRepo.GetPendingCountByDriverAsync(driverUserId);
@@ -124,7 +128,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 // Step 6: Validate slot availability (check overlap)
                 var hasOverlap = await _bookingRepo.HasOverlappingBookingAsync(
-                    dto.SlotId, dto.StartTime, endTime);
+                    dto.SlotId, dto.StartTime, endTime, configs.Slot_Buffer_Minutes);
 
                 // Step 7: Available?
                 if (hasOverlap)
@@ -151,34 +155,50 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (dto.ExtraServices != null && dto.ExtraServices.Count > 0)
             {
-                var serviceIds = dto.ExtraServices.Select(e => e.ServiceId).ToList();
-                var services = await _extraServiceRepo.GetByIdsAsync(serviceIds);
-
-                foreach (var item in dto.ExtraServices)
+                await _stockLock.WaitAsync();
+                try
                 {
-                    var svc = services.FirstOrDefault(s => s.Id == item.ServiceId)
-                        ?? throw new InvalidOperationException($"Dịch vụ #{item.ServiceId} không tồn tại.");
+                    var serviceIds = dto.ExtraServices.Select(e => e.ServiceId).ToList();
+                    var services = await _extraServiceRepo.GetByIdsAsync(serviceIds);
 
-                    if (svc.StationId != slot.StationId)
-                        throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' không thuộc trạm này.");
-
-                    if (!svc.IsActive)
-                        throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' hiện không khả dụng.");
-
-                    if (svc.TotalStock.HasValue && svc.TotalStock.Value < item.Quantity)
-                        throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' chỉ còn {svc.TotalStock} — không đủ {item.Quantity}.");
-
-                    var unitPrice = svc.Price;
-                    var totalPrice = unitPrice * item.Quantity;
-                    serviceAmount += totalPrice;
-
-                    extraServiceRecords.Add(new BookingExtraService
+                    foreach (var item in dto.ExtraServices)
                     {
-                        ServiceId = item.ServiceId,
-                        Quantity = item.Quantity,
-                        UnitPrice = unitPrice,
-                        TotalPrice = totalPrice
-                    });
+                        var svc = services.FirstOrDefault(s => s.Id == item.ServiceId)
+                            ?? throw new InvalidOperationException($"Dịch vụ #{item.ServiceId} không tồn tại.");
+
+                        if (svc.StationId != slot.StationId)
+                            throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' không thuộc trạm này.");
+
+                        if (!svc.IsActive)
+                            throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' hiện không khả dụng.");
+
+                        if (svc.TotalStock.HasValue && svc.TotalStock.Value < item.Quantity)
+                            throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' chỉ còn {svc.TotalStock} — không đủ {item.Quantity}.");
+
+                        // Trừ tồn kho tạm thời (Reservation) để chống overselling
+                        if (svc.TotalStock.HasValue)
+                        {
+                            svc.TotalStock -= item.Quantity;
+                            _extraServiceRepo.Update(svc);
+                        }
+
+                        var unitPrice = svc.Price;
+                        var totalPrice = unitPrice * item.Quantity;
+                        serviceAmount += totalPrice;
+
+                        extraServiceRecords.Add(new BookingExtraService
+                        {
+                            ServiceId = item.ServiceId,
+                            Quantity = item.Quantity,
+                            UnitPrice = unitPrice,
+                            TotalPrice = totalPrice
+                        });
+                    }
+                }
+                finally
+                {
+                    await _unitOfWork.CompleteAsync(); // Đẩy SQL UPDATE xuốg CSDL trong khi vẫn giữ khóa để CSDL lấy Row Lock độc quyền
+                    _stockLock.Release();
                 }
             }
 
@@ -197,13 +217,9 @@ namespace ChargeSlot.Api.Services.Implementation
                     throw new InvalidOperationException(
                         $"Bạn chỉ có {driver.LoyaltyPoints:N0} điểm, không đủ {dto.PointsToUse:N0} điểm.");
 
-                // Load max redeem rate from config
-                var maxRedeemRate = await _configService.GetDecimalAsync("LoyaltyMaxRedeemRate", 0.5m);
-                var maxPointsAllowed = Math.Floor(totalAmount * maxRedeemRate);
-
-                if (dto.PointsToUse > maxPointsAllowed)
+                if (dto.PointsToUse > totalAmount)
                     throw new InvalidOperationException(
-                        $"Tối đa được dùng {maxPointsAllowed:N0} điểm ({maxRedeemRate * 100:N0}% của {totalAmount:N0}đ).");
+                        $"Số điểm sử dụng ({dto.PointsToUse:N0}) không được vượt quá giá trị đơn hàng ({totalAmount:N0}đ).");
 
                 pointsUsed = dto.PointsToUse;
                 pointsDiscountAmount = pointsUsed; // 1 điểm = 1 VND
@@ -223,7 +239,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 });
             }
 
-            var configs = await _configService.GetCurrentConfigsAsync();
+            configs = await _configService.GetCurrentConfigsAsync();
 
             var booking = new Booking
             {
@@ -296,9 +312,12 @@ namespace ChargeSlot.Api.Services.Implementation
                 if (booking.Status != BookingStatus.WaitingOwner)
                     throw new InvalidOperationException("Booking không ở trạng thái chờ duyệt.");
 
+                // Load system configs
+                var configs = await _configService.GetCurrentConfigsAsync();
+
                 // Check: đã có booking khác được accept trùng giờ trên slot này chưa?
                 var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
-                    booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
+                    booking.SlotId, booking.StartTime, booking.EndTime, configs.Slot_Buffer_Minutes, booking.Id);
                 if (hasConflict)
                     throw new InvalidOperationException("Slot đã có booking khác được chấp nhận trong khung giờ này.");
 
@@ -306,7 +325,6 @@ namespace ChargeSlot.Api.Services.Implementation
                 booking.Status = BookingStatus.PendingPayment;
 
             // Step 18: Compute payment deadline
-            var configs = await _configService.GetCurrentConfigsAsync();
             var paymentExpiryMinutes = configs.Payment_Expiry_Minutes;
 
             var timeToCharging = booking.StartTime - DateTimeHelper.VietnamNow();
@@ -324,14 +342,18 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Auto-reject tất cả booking WaitingOwner trùng giờ trên cùng slot
             var overlapping = await _bookingRepo.GetOverlappingWaitingBookingsAsync(
-                booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
+                booking.SlotId, booking.StartTime, booking.EndTime, configs.Slot_Buffer_Minutes, booking.Id);
 
             foreach (var b in overlapping)
             {
                 b.Status = BookingStatus.Rejected;
                 b.RejectionReason = "Slot đã được chấp nhận cho yêu cầu khác có giờ trùng.";
                 _bookingRepo.Update(b);
-            await _unitOfWork.CompleteAsync();
+                await _unitOfWork.CompleteAsync();
+
+                // Hoàn điểm loyalty + Trả tồn kho cho Driver bị auto-reject
+                await RestoreExtraServiceStockAsync(b);
+                await RefundLoyaltyPointsAsync(b);
 
                 await _notificationService.SendAsync(
                     b.DriverUserId,
@@ -376,6 +398,10 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.RejectionReason = dto.RejectionReason;
             _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
+
+            // Hoàn điểm loyalty + Trả tồn kho (nếu đã dùng khi đặt)
+            await RestoreExtraServiceStockAsync(booking);
+            await RefundLoyaltyPointsAsync(booking);
 
             // Send notify for Driver → END
             await _notificationService.SendAsync(
@@ -454,10 +480,11 @@ namespace ChargeSlot.Api.Services.Implementation
                     }
 
                     await ProcessRefundAsync(booking, refundPercent, $"Driver hủy booking — {refundNote}");
-                    await RestoreExtraServiceStockAsync(booking);
-                    await RefundLoyaltyPointsAsync(booking);
                     refundAmount = booking.TotalAmount * refundPercent;
                 }
+
+                await RestoreExtraServiceStockAsync(booking);
+                await RefundLoyaltyPointsAsync(booking);
 
                 // Release slot
                 await ReleaseSlotIfBooked(booking.SlotId);
@@ -529,21 +556,27 @@ namespace ChargeSlot.Api.Services.Implementation
                 if (booking.ChargingSlot.ChargingStation.OwnerUserId != ownerUserId)
                     throw new UnauthorizedAccessException("Bạn không có quyền thao tác trên booking này.");
 
-                if (booking.Status != BookingStatus.Paid)
-                    throw new InvalidOperationException("Chỉ có thể hủy booking đã thanh toán. Dùng Reject cho booking chờ duyệt.");
+                if (booking.Status != BookingStatus.Paid && booking.Status != BookingStatus.PendingPayment)
+                    throw new InvalidOperationException("Có thể hủy booking đã thanh toán hoặc đang chờ thanh toán. Dùng Reject cho booking chờ duyệt.");
 
                 var slotName = booking.ChargingSlot?.SlotName ?? "";
                 var stationName = booking.ChargingSlot?.ChargingStation?.Name ?? "";
+
+                var wasPaid = booking.Status == BookingStatus.Paid;
 
                 // Set cancelled TRƯỚC refund
                 booking.Status = BookingStatus.Cancelled;
                 booking.CancelledAt = DateTimeHelper.VietnamNow();
                 booking.CancelReason = cancelReason ?? "Owner hủy";
                 _bookingRepo.Update(booking);
-            await _unitOfWork.CompleteAsync();
+                await _unitOfWork.CompleteAsync();
 
-                // Owner hủy → hoàn 100% cho Driver
-                await ProcessRefundAsync(booking, 1.0m, $"Owner hủy booking — hoàn 100% cho Driver");
+                if (wasPaid)
+                {
+                    // Owner hủy → hoàn 100% cho Driver
+                    await ProcessRefundAsync(booking, 1.0m, $"Owner hủy booking — hoàn 100% cho Driver");
+                }
+
                 await RestoreExtraServiceStockAsync(booking);
                 await RefundLoyaltyPointsAsync(booking);
 
@@ -552,17 +585,34 @@ namespace ChargeSlot.Api.Services.Implementation
                 await transaction.CommitAsync();
 
                 // Notifications (ngoài transaction)
-                await _notificationService.SendAsync(
-                    booking.DriverUserId,
-                    "Chủ trạm đã hủy đặt chỗ",
-                    $"Chủ trạm {stationName} đã hủy đặt chỗ tại slot {slotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}).{(cancelReason != null ? $" Lý do: {cancelReason}" : "")} {booking.TotalAmount:N0}đ đã hoàn vào ví của bạn.",
-                    NotificationType.Booking);
+                if (wasPaid)
+                {
+                    await _notificationService.SendAsync(
+                        booking.DriverUserId,
+                        "Chủ trạm đã hủy đặt chỗ",
+                        $"Chủ trạm {stationName} đã hủy đặt chỗ tại slot {slotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}).{(cancelReason != null ? $" Lý do: {cancelReason}" : "")} {booking.TotalAmount:N0}đ đã hoàn vào ví của bạn.",
+                        NotificationType.Booking);
 
-                await _notificationService.SendAsync(
-                    ownerUserId,
-                    "Bạn đã hủy đặt chỗ",
-                    $"Đã hủy booking slot {slotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}). Hoàn {booking.TotalAmount:N0}đ cho khách.",
-                    NotificationType.Booking);
+                    await _notificationService.SendAsync(
+                        ownerUserId,
+                        "Bạn đã hủy đặt chỗ",
+                        $"Đã hủy booking slot {slotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}). Hoàn {booking.TotalAmount:N0}đ cho khách.",
+                        NotificationType.Booking);
+                }
+                else
+                {
+                    await _notificationService.SendAsync(
+                        booking.DriverUserId,
+                        "Chủ trạm đã hủy đặt chỗ",
+                        $"Chủ trạm {stationName} đã hủy đặt chỗ chưa thanh toán tại slot {slotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}).{(cancelReason != null ? $" Lý do: {cancelReason}" : "")}",
+                        NotificationType.Booking);
+
+                    await _notificationService.SendAsync(
+                        ownerUserId,
+                        "Bạn đã hủy đặt chỗ",
+                        $"Đã hủy booking đang chờ thanh toán tại slot {slotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}).",
+                        NotificationType.Booking);
+                }
 
                 return MapToDto(booking);
             }
@@ -601,9 +651,10 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     // Hoàn tiền 100% cho Driver
                     await ProcessRefundAsync(booking, 1.0m, booking.CancelReason);
-                    await RestoreExtraServiceStockAsync(booking);
-                    await RefundLoyaltyPointsAsync(booking);
                 }
+
+                await RestoreExtraServiceStockAsync(booking);
+                await RefundLoyaltyPointsAsync(booking);
 
                 await ReleaseSlotIfBooked(booking.SlotId);
 
@@ -613,6 +664,67 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 await transaction.RollbackAsync();
                 _logger.LogError(ex, "Lỗi khi CancelSystemBookingAsync cho booking {BookingId}", bookingId);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Dùng cho hệ thống xử lý khi Booking hết hạn (quá hạn duyệt hoặc quá hạn thanh toán).
+        /// Luôn hoàn Tồn kho và Điểm Loyalty.
+        /// </summary>
+        public async Task ExpireSystemBookingAsync(int bookingId, string reason)
+        {
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                var booking = await _bookingRepo.GetByIdWithDetailsAsync(bookingId)
+                    ?? throw new InvalidOperationException("Booking không tồn tại.");
+
+                // Chỉ cho phép expire khi đang chờ duyệt hoặc chờ thanh toán
+                var allowedStatuses = new[] { BookingStatus.WaitingOwner, BookingStatus.PendingPayment };
+                if (!allowedStatuses.Contains(booking.Status))
+                    throw new InvalidOperationException("Không thể expire booking ở trạng thái hiện tại.");
+
+                var slotName = booking.ChargingSlot?.SlotName ?? "";
+                var stationName = booking.ChargingSlot?.ChargingStation?.Name ?? "";
+                var ownerUserId = booking.ChargingSlot?.ChargingStation?.OwnerUserId;
+
+                booking.Status = BookingStatus.Expired;
+                booking.UpdatedAt = DateTimeHelper.VietnamNow();
+                booking.CancelReason = reason;
+
+                _bookingRepo.Update(booking);
+                await _unitOfWork.CompleteAsync();
+
+                // Hoàn lại tài nguyên đã giữ chỗ
+                await RestoreExtraServiceStockAsync(booking);
+                await RefundLoyaltyPointsAsync(booking);
+
+                // Nhả cổng sạc
+                await ReleaseSlotIfBooked(booking.SlotId);
+
+                await transaction.CommitAsync();
+
+                // Gửi Notifications
+                await _notificationService.SendAsync(
+                    booking.DriverUserId,
+                    "Yêu cầu đặt chỗ đã hết hạn",
+                    $"Yêu cầu đặt chỗ tại slot {slotName} — trạm {stationName} đã hết hạn. Lý do: {reason}",
+                    NotificationType.Booking);
+
+                if (ownerUserId.HasValue)
+                {
+                    await _notificationService.SendAsync(
+                        ownerUserId.Value,
+                        "Yêu cầu đặt chỗ đã hết hạn",
+                        $"Yêu cầu đặt chỗ tại slot {slotName} ({booking.StartTime:HH:mm} - {booking.EndTime:HH:mm dd/MM}) đã hết hạn. Lý do: {reason}",
+                        NotificationType.Booking);
+                }
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Lỗi khi ExpireSystemBookingAsync cho booking {BookingId}", bookingId);
                 throw;
             }
         }
@@ -934,7 +1046,10 @@ namespace ChargeSlot.Api.Services.Implementation
                     CheckinTime = b.ChargingSession.CheckinTime,
                     ActualStartTime = b.ChargingSession.ActualStartTime,
                     ActualEndTime = b.ChargingSession.ActualEndTime,
-                    ActualDurationHours = b.ChargingSession.ActualDurationHours
+                    ActualDurationHours = b.ChargingSession.ActualDurationHours,
+                    ActualDurationMinutes = b.ChargingSession.ActualStartTime.HasValue && b.ChargingSession.ActualEndTime.HasValue
+                        ? (int)Math.Round((b.ChargingSession.ActualEndTime.Value - b.ChargingSession.ActualStartTime.Value).TotalMinutes)
+                        : null
                 };
             }
 

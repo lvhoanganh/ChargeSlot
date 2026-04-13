@@ -36,6 +36,9 @@ namespace ChargeSlot.Api.Models
         public int BanCount { get; set; } = 0;
         public DateTime? BannedUntil { get; set; }
 
+        /// <summary>Thời điểm thực hiện hủy hàng loạt khẩn cấp lần cuối (giới hạn 1 lần/tháng).</summary>
+        public DateTime? LastEmergencyCancelAt { get; set; }
+
         /// <summary>Đánh giá trung bình (denormalized for performance).</summary>
         public decimal AverageRating { get; set; } = 0;
         /// <summary>Tổng số đánh giá.</summary>

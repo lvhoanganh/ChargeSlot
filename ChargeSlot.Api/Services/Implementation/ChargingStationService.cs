@@ -22,8 +22,9 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IExtraServiceRepository _extraServiceRepo;
         private readonly IStationUnavailableDateRepository _unavailableDateRepo;
         private readonly IBookingRepository _bookingRepo;
-        private readonly INotificationRepository _notificationRepo;
+        private readonly INotificationService _notificationService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IServiceProvider _serviceProvider;
 
         public ChargingStationService(
             IChargingStationRepository stationRepo,
@@ -34,8 +35,9 @@ namespace ChargeSlot.Api.Services.Implementation
             IExtraServiceRepository extraServiceRepo,
             IStationUnavailableDateRepository unavailableDateRepo,
             IBookingRepository bookingRepo,
-            INotificationRepository notificationRepo,
-            IUnitOfWork unitOfWork)
+            INotificationService notificationService,
+            IUnitOfWork unitOfWork,
+            IServiceProvider serviceProvider)
         {
             _stationRepo = stationRepo;
             _ownerRepo = ownerRepo;
@@ -45,8 +47,9 @@ namespace ChargeSlot.Api.Services.Implementation
             _extraServiceRepo = extraServiceRepo;
             _unavailableDateRepo = unavailableDateRepo;
             _bookingRepo = bookingRepo;
-            _notificationRepo = notificationRepo;
+            _notificationService = notificationService;
             _unitOfWork = unitOfWork;
+            _serviceProvider = serviceProvider;
         }
 
         // ─────────────── CRUD ───────────────
@@ -74,7 +77,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Chưa tìm thấy hồ sơ Chủ trạm. Vui lòng xác thực danh tính (KYC) trước khi tạo trạm sạc.");
             }
 
-            if (ownerExists.KycStatus != KycStatus.Approved)
+            if (ownerExists.KycStatus != KycStatus.Approved && ownerExists.KycStatus != KycStatus.PendingUpdate)
             {
                 throw new InvalidOperationException("Hồ sơ doanh nghiệp chưa được duyệt. Vui lòng xác thực danh tính (KYC) và chờ Admin kiểm duyệt trước khi tạo trạm sạc.");
             }
@@ -155,14 +158,20 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 var user = await _userManager.FindByIdAsync(ownerUserId.ToString())
                     ?? throw new InvalidOperationException("User not found.");
-                await _ownerRepo.AddAsync(new Owner
+                ownerExists = new Owner
                 {
                     UserId = ownerUserId,
                     BusinessName = user.FullName,
                     TaxCode = "N/A",
                     CreatedAt = DateTimeHelper.VietnamNow()
-                });
+                };
+                await _ownerRepo.AddAsync(ownerExists);
                 await _unitOfWork.CompleteAsync();
+            }
+
+            if (ownerExists.KycStatus != KycStatus.Approved && ownerExists.KycStatus != KycStatus.PendingUpdate)
+            {
+                throw new InvalidOperationException("Hồ sơ doanh nghiệp chưa được duyệt. Vui lòng xác thực danh tính (KYC) và chờ Admin kiểm duyệt trước khi tạo trạm sạc.");
             }
 
             var station = new ChargingStation
@@ -422,17 +431,11 @@ namespace ChargeSlot.Api.Services.Implementation
             // Notify all Admin users
             var adminUsers = await _userManager.GetUsersInRoleAsync(RoleConstants.Admin);
             foreach (var admin in adminUsers)
-            {
-                _notificationRepo.Add(new Notification
-                {
-                    UserId = admin.Id,
-                    Title = "Trạm sạc mới chờ duyệt",
-                    Content = $"Trạm sạc \"{station.Name}\" đã được gửi yêu cầu phê duyệt.",
-                    Type = NotificationType.StationApproval,
-                    IsRead = false,
-                    CreatedAt = DateTimeHelper.VietnamNow()
-                });
-            }
+                await _notificationService.SendAsync(
+                    admin.Id,
+                    "Trạm sạc mới chờ duyệt",
+                    $"Trạm sạc \"{station.Name}\" đã được gửi yêu cầu phê duyệt.",
+                    NotificationType.StationApproval);
 
             await _unitOfWork.CompleteAsync();
         }
@@ -572,23 +575,76 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (newStatus == OperationalStatus.Inactive)
             {
+                var now = DateTimeHelper.VietnamNow();
                 var activeStatuses = new[]
                 {
                     BookingStatus.WaitingOwner, BookingStatus.PendingPayment,
                     BookingStatus.Paid, BookingStatus.CheckedIn, BookingStatus.InProgress
                 };
-                var now = DateTimeHelper.VietnamNow();
-
-                var slotIds = station.ChargingSlots.Select(s => s.Id).ToList();
                 var activeBookingsRaw = await _bookingRepo.GetActiveBookingsByStationIdsAsync(
                     new List<int> { id }, activeStatuses);
-                var hasActiveBookings = activeBookingsRaw.Any(b => b.EndTime > now);
+                
+                var futureBookings = activeBookingsRaw.Where(b => b.EndTime > now).ToList();
 
-                if (hasActiveBookings)
-                    throw new InvalidOperationException("Không thể tắt trạm (Inactive) vì đang có booking sắp tới hoặc đang sạc. Vui lòng hủy các booking này trước.");
+                if (futureBookings.Any())
+                {
+                    // Kiểm tra xem có xe đang sạc dở không
+                    var activeSessions = futureBookings.Where(b => b.Status == BookingStatus.CheckedIn || b.Status == BookingStatus.InProgress).ToList();
+                    if (activeSessions.Any())
+                        throw new InvalidOperationException("Trạm đang có xe cắm sạc (CheckedIn/InProgress). Không thể tắt trạm khẩn cấp. Vui lòng đợi xe sạc xong hoặc dừng phiên sạc thủ công.");
+
+                    // Emergency Mass Cancel logic
+                    var startOfMonth = new DateTime(now.Year, now.Month, 1);
+                    bool hasUsedThisMonth = station.LastEmergencyCancelAt >= startOfMonth;
+
+                    station.LastEmergencyCancelAt = now;
+
+                    using var scope = _serviceProvider.CreateScope();
+                    var bookingService = scope.ServiceProvider.GetRequiredService<IBookingService>();
+
+                    // Thực hiện hủy tất cả bookings
+                    foreach (var booking in futureBookings)
+                    {
+                        var reason = hasUsedThisMonth 
+                            ? "Trạm sạc bị hệ thống khóa do lạm dụng Hủy khẩn cấp."
+                            : "Trạm sạc đóng cửa khẩn cấp.";
+                        await bookingService.CancelSystemBookingAsync(booking.Id, reason);
+                    }
+
+                    if (hasUsedThisMonth)
+                    {
+                        // Phạt lần 2 trong tháng: Ban 30 ngày
+                        station.BannedUntil = now.AddDays(30);
+                        station.OperationalStatus = OperationalStatus.Inactive;
+                        
+                        await _notificationService.SendAsync(
+                            ownerUserId,
+                            "Trạm sạc bị đình chỉ",
+                            "Trạm của bạn đã bị đình chỉ 30 ngày do lạm dụng Hủy Khẩn Cấp quá 1 lần/tháng. Các đặt chỗ hiện tại đã bị hủy.",
+                            NotificationType.System);
+                    }
+                    else
+                    {
+                        // Cảnh báo lần 1
+                        station.OperationalStatus = newStatus;
+                        
+                        await _notificationService.SendAsync(
+                            ownerUserId,
+                            "Kích hoạt Hủy Khẩn Cấp",
+                            "Trạm của bạn đã kích hoạt Hủy Khẩn Cấp. Bạn đã dùng hết hạn mức 1 lần/tháng. Nếu tái phạm trong tháng này, trạm sẽ bị đình chỉ hoạt động 30 ngày.",
+                            NotificationType.System);
+                    }
+                }
+                else
+                {
+                    station.OperationalStatus = newStatus;
+                }
+            }
+            else
+            {
+                station.OperationalStatus = newStatus;
             }
 
-            station.OperationalStatus = newStatus;
             station.UpdatedAt = DateTimeHelper.VietnamNow();
             await _unitOfWork.CompleteAsync();
 
@@ -725,6 +781,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 Description = dto.Description?.Trim(),
                 Price = dto.Price,
                 TotalStock = dto.TotalStock,
+                IsRental = dto.IsRental,
                 IsActive = true,
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
@@ -754,6 +811,7 @@ namespace ChargeSlot.Api.Services.Implementation
             service.Description = dto.Description?.Trim();
             service.Price = dto.Price;
             service.TotalStock = dto.TotalStock;
+            service.IsRental = dto.IsRental;
             service.IsActive = dto.IsActive;
 
             _extraServiceRepo.Update(service);
@@ -788,17 +846,18 @@ namespace ChargeSlot.Api.Services.Implementation
                 Description = s.Description,
                 Price = s.Price,
                 TotalStock = s.TotalStock,
+                IsRental = s.IsRental,
                 IsActive = s.IsActive
             };
         }
 
-        public async Task<PagedResultDto<ChargingStationDto>> GetAdminStationsAsync(string? status, string? search, int page, int pageSize)
+        public async Task<PagedResultDto<ChargingStationDto>> GetAdminStationsAsync(string? status, string? search, string? ownerName, int page, int pageSize)
         {
             page = page <= 0 ? 1 : page;
             pageSize = pageSize <= 0 ? 10 : pageSize;
             if (pageSize > 100) pageSize = 100;
 
-            var (items, total) = await _stationRepo.GetAdminStationsPagedAsync(status, search, page, pageSize);
+            var (items, total) = await _stationRepo.GetAdminStationsPagedAsync(status, search, ownerName, page, pageSize);
 
             var dtos = items.Select(MapToDto).ToList();
 
@@ -854,15 +913,11 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
 
                 // Notify Owner
-                _notificationRepo.Add(new Notification
-                {
-                    UserId = station.OwnerUserId,
-                    Title = "Trạm sạc đã được phê duyệt",
-                    Content = $"Trạm sạc \"{station.Name}\" đã được phê duyệt và công bố trên hệ thống.",
-                    Type = NotificationType.StationApproval,
-                    IsRead = false,
-                    CreatedAt = DateTimeHelper.VietnamNow()
-                });
+                await _notificationService.SendAsync(
+                    station.OwnerUserId,
+                    "Trạm sạc đã được phê duyệt",
+                    $"Trạm sạc \"{station.Name}\" đã được phê duyệt và công bố trên hệ thống.",
+                    NotificationType.StationApproval);
             }
             else
             {
@@ -873,15 +928,11 @@ namespace ChargeSlot.Api.Services.Implementation
                 station.ApprovalStatus = ApprovalStatus.Rejected;
 
                 // Notify Owner with rejection reason
-                _notificationRepo.Add(new Notification
-                {
-                    UserId = station.OwnerUserId,
-                    Title = "Trạm sạc bị từ chối",
-                    Content = $"Trạm sạc \"{station.Name}\" đã bị từ chối. Lý do: {dto.AdminNote}",
-                    Type = NotificationType.StationApproval,
-                    IsRead = false,
-                    CreatedAt = DateTimeHelper.VietnamNow()
-                });
+                await _notificationService.SendAsync(
+                    station.OwnerUserId,
+                    "Trạm sạc bị từ chối",
+                    $"Trạm sạc \"{station.Name}\" đã bị từ chối. Lý do: {dto.AdminNote}",
+                    NotificationType.StationApproval);
             }
 
             await _unitOfWork.CompleteAsync();
@@ -937,6 +988,7 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 Id = station.Id,
                 OwnerUserId = station.OwnerUserId,
+                OwnerName = station.Owner?.User?.FullName,
                 Name = station.Name,
                 Address = station.Address,
                 Description = station.Description,

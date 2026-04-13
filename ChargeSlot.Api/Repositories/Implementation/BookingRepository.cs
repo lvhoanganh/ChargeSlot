@@ -56,10 +56,8 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
-        public async Task<bool> HasOverlappingBookingAsync(int slotId, DateTime startTime, DateTime endTime, int? excludeBookingId = null)
+        public async Task<bool> HasOverlappingBookingAsync(int slotId, DateTime startTime, DateTime endTime, int bufferMinutes, int? excludeBookingId = null)
         {
-            // Buffer 15 phút giữa các booking để driver trước lấy xe ra, driver sau đưa xe vào
-            const int bufferMinutes = 15;
 
             // WaitingOwner NOT included: cho phép nhiều driver request cùng giờ
             // Chỉ block khi Owner đã accept (PendingPayment trở đi)
@@ -143,9 +141,8 @@ namespace ChargeSlot.Api.Repositories.Implementation
         /// Tìm các booking WaitingOwner trùng giờ trên cùng slot (để auto-reject khi Owner accept).
         /// </summary>
         public async Task<List<Booking>> GetOverlappingWaitingBookingsAsync(
-            int slotId, DateTime startTime, DateTime endTime, int excludeBookingId)
+            int slotId, DateTime startTime, DateTime endTime, int bufferMinutes, int excludeBookingId)
         {
-            const int bufferMinutes = 15;
 
             return await _db.Bookings
                 .Include(b => b.Driver).ThenInclude(d => d.User)
@@ -188,7 +185,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
-        public async Task<List<Booking>> GetOverlappingActiveBookingsForStationsAsync(List<int> stationIds, DateTime startTime, DateTime endTime)
+        public async Task<List<Booking>> GetOverlappingActiveBookingsForStationsAsync(List<int> stationIds, DateTime startTime, DateTime endTime, int bufferMinutes)
         {
             var activeStatuses = new[]
             {
@@ -200,10 +197,10 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Include(b => b.ChargingSession)
                 .Where(b => stationIds.Contains(b.ChargingSlot.StationId)
                     && activeStatuses.Contains(b.Status)
-                    && b.StartTime < endTime.AddMinutes(15)
+                    && b.StartTime < endTime.AddMinutes(bufferMinutes)
                     && (b.ChargingSession != null && b.ChargingSession.ActualEndTime != null
                             ? b.ChargingSession.ActualEndTime.Value
-                            : b.EndTime).AddMinutes(15) > startTime)
+                            : b.EndTime).AddMinutes(bufferMinutes) > startTime)
                 .ToListAsync();
         }
 
@@ -318,6 +315,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Where(b => b.Status == BookingStatus.Paid && b.EndTime < cutoff && b.ManualCheckinRequestedAt == null)
                 .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
                 .Include(b => b.Driver).ThenInclude(d => d.User)
+                .Include(b => b.BookingExtraServices)
                 .ToListAsync();
         }
 
@@ -328,6 +326,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
                 .Include(b => b.ChargingSession)
                 .Include(b => b.Driver)
+                .Include(b => b.BookingExtraServices)
                 .ToListAsync();
         }
 

@@ -16,7 +16,7 @@ namespace ChargeSlot.Api.BackgroundJobs
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<InvoiceAutoConfirmJob> _logger;
 
-        private static readonly TimeSpan AutoConfirmDeadline = TimeSpan.FromHours(24);
+
 
         public InvoiceAutoConfirmJob(IServiceProvider serviceProvider, ILogger<InvoiceAutoConfirmJob> logger)
         {
@@ -31,11 +31,13 @@ namespace ChargeSlot.Api.BackgroundJobs
                 try
                 {
                     List<int> expiredInvoiceIds;
-                    var deadline = DateTimeHelper.VietnamNow() - AutoConfirmDeadline;
 
-                    // 1. Chỉ lấy danh sách ID (tránh nạp nguyên object khổng lồ vào tracking của outer_scope)
+                    // 1. Chỉ lấy danh sách ID
                     using (var outerScope = _serviceProvider.CreateScope())
                     {
+                        var configService = outerScope.ServiceProvider.GetRequiredService<ISystemConfigService>();
+                        var autoConfirmHours = await configService.GetIntAsync(Constants.SystemConfigKeys.Invoice_AutoConfirm_Hours, 24);
+                        var deadline = DateTimeHelper.VietnamNow() - TimeSpan.FromHours(autoConfirmHours);
                         var invoiceRepo = outerScope.ServiceProvider.GetRequiredService<IInvoiceRepository>();
                         expiredInvoiceIds = await invoiceRepo.GetExpiredPendingConfirmIdsAsync(deadline);
                     }
@@ -50,6 +52,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                         var ledgerRepo = innerScope.ServiceProvider.GetRequiredService<ILedgerTransactionRepository>();
                         var loyaltyTxRepo = innerScope.ServiceProvider.GetRequiredService<ILoyaltyTransactionRepository>();
                         var notificationService = innerScope.ServiceProvider.GetRequiredService<INotificationService>();
+                        var bookingRepo = innerScope.ServiceProvider.GetRequiredService<IBookingRepository>();
+                        var driverRepo = innerScope.ServiceProvider.GetRequiredService<IDriverRepository>();
 
                         using var transaction = await unitOfWork.BeginTransactionAsync();
                         try
@@ -64,20 +68,26 @@ namespace ChargeSlot.Api.BackgroundJobs
                             // Auto-confirm invoice
                             invoice.Status = InvoiceStatus.Confirmed;
                             invoice.UpdatedAt = DateTimeHelper.VietnamNow();
+                            invoiceRepo.Update(invoice);
 
                             // Complete booking
                             booking.Status = BookingStatus.Completed;
                             booking.UpdatedAt = DateTimeHelper.VietnamNow();
+                            bookingRepo.Update(booking);
 
                             await unitOfWork.CompleteAsync();
 
-                            // Loyalty Points (dùng snapshot từ lúc tạo booking)
+                            // Loyalty Points: chỉ tích khi Driver đã check-in (no-show không được điểm)
+                            if (booking.CheckedInAt != null)
+                            {
                             var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
                             var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
                             if (pointsEarned > 0 && booking.Driver != null)
                             {
                                 booking.Driver.LoyaltyPoints += pointsEarned;
+                                driverRepo.Update(booking.Driver);
                                 booking.PointsEarned = pointsEarned;
+                                bookingRepo.Update(booking);
                                 loyaltyTxRepo.Add(new LoyaltyTransaction
                                 {
                                     DriverUserId = booking.DriverUserId,
@@ -89,6 +99,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                                 });
                                 await unitOfWork.CompleteAsync();
                             }
+                            } // end CheckedInAt != null
 
                             // Settle payment: ESCROW → Owner + PLATFORM_REVENUE
                             await SettlePaymentAsync(walletRepo, ledgerRepo, unitOfWork, booking, invoice);
@@ -141,6 +152,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                 ?? throw new InvalidOperationException("ESCROW wallet not found");
             var platformWallet = await walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE")
                 ?? throw new InvalidOperationException("PLATFORM_REVENUE wallet not found");
+            var taxWallet = await walletRepo.GetBySystemCodeAsync("TAX_HOLD")
+                ?? throw new InvalidOperationException("TAX_HOLD wallet not found");
             var ownerWallet = await walletRepo.GetByUserIdAsync(ownerUserId);
 
             if (ownerWallet == null)
@@ -159,6 +172,27 @@ namespace ChargeSlot.Api.BackgroundJobs
 
             var ownerNet = invoice.ChargingAmount;
             var platformFee = invoice.PlatformFee;
+            var vatAmount = invoice.VatAmount;
+
+            // 0. Bù tiền bảo trợ từ ví Nền tảng vào ESCROW để cân đối khoản chiết khấu bằng Điểm thưởng (Atomic)
+            if (booking.PointsDiscountAmount > 0)
+            {
+                platformWallet.AvailableBalance -= booking.PointsDiscountAmount;
+                escrowWallet.AvailableBalance += booking.PointsDiscountAmount;
+
+                ledgerRepo.Add(new LedgerTransaction
+                {
+                    ReferenceType = "PointsSubsidy",
+                    ReferenceId = booking.Id,
+                    Memo = $"Nền tảng bù {booking.PointsDiscountAmount:N0}đ chiết khấu điểm thưởng cho booking #{booking.Id}",
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Debit, Amount = booking.PointsDiscountAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Credit, Amount = booking.PointsDiscountAmount, CreatedAt = now }
+                    }
+                });
+            }
 
             // ESCROW → Owner
             escrowWallet.AvailableBalance -= ownerNet;
@@ -193,6 +227,26 @@ namespace ChargeSlot.Api.BackgroundJobs
                     new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
                 }
             });
+
+            // ESCROW → TAX_HOLD (VAT)
+            if (vatAmount > 0)
+            {
+                escrowWallet.AvailableBalance -= vatAmount;
+                taxWallet.AvailableBalance += vatAmount;
+
+                ledgerRepo.Add(new LedgerTransaction
+                {
+                    ReferenceType = "TaxHold",
+                    ReferenceId = booking.Id,
+                    Memo = $"Thuế GTGT auto-confirm booking #{booking.Id} - {vatAmount:N0}đ",
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = vatAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = taxWallet.Id, Direction = LedgerDirection.Credit, Amount = vatAmount, CreatedAt = now }
+                    }
+                });
+            }
 
             await unitOfWork.CompleteAsync();
         }

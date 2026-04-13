@@ -30,5 +30,11 @@ namespace ChargeSlot.Api.Services.Interfaces
 
         /// <summary>Get all disputes related to the current owner's stations.</summary>
         Task<List<DisputeDto>> GetOwnerDisputesAsync(int ownerUserId);
+
+        /// <summary>Get driver's dispute strike status for current month.</summary>
+        Task<DisputeStrikeStatusDto> GetDriverStrikeStatusAsync(int driverUserId);
+
+        /// <summary>Get station's dispute strike status for current month.</summary>
+        Task<DisputeStrikeStatusDto> GetStationStrikeStatusAsync(int stationId, int ownerUserId);
     }
 }

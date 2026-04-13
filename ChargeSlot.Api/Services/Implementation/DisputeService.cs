@@ -23,6 +23,8 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IFileStorageService _fileStorageService;
         private readonly Lazy<IBookingService> _lazyBookingService;
         private readonly Lazy<ISystemConfigService> _lazyConfigService;
+        private readonly Lazy<IDriverRepository> _lazyDriverRepo;
+        private readonly Lazy<ILoyaltyTransactionRepository> _lazyLoyaltyRepo;
 
         private static readonly string[] AllowedFileExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".mp4", ".avi", ".mov", ".webm", ".pdf" };
         private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
@@ -52,6 +54,8 @@ namespace ChargeSlot.Api.Services.Implementation
             _fileStorageService = fileStorageService;
             _lazyBookingService = new Lazy<IBookingService>(() => serviceProvider.GetRequiredService<IBookingService>());
             _lazyConfigService = new Lazy<ISystemConfigService>(() => serviceProvider.GetRequiredService<ISystemConfigService>());
+            _lazyDriverRepo = new Lazy<IDriverRepository>(() => serviceProvider.GetRequiredService<IDriverRepository>());
+            _lazyLoyaltyRepo = new Lazy<ILoyaltyTransactionRepository>(() => serviceProvider.GetRequiredService<ILoyaltyTransactionRepository>());
         }
 
         /// <summary>
@@ -136,7 +140,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 await _notificationService.SendAsync(
                     ownerUserId,
                     "Khiếu nại mới từ Driver",
-                    $"{booking.Driver?.User?.FullName ?? "Driver"} khiếu nại về phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name}. Lý do: {dto.Reason}. Bạn có 24h để nộp bằng chứng phản hồi.",
+                    $"{booking.Driver?.User?.FullName ?? "Driver"} khiếu nại về phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name}. Lý do: {dto.Reason}. Bạn có {configs.Dispute_OwnerEvidence_Hours}h để nộp bằng chứng phản hồi.",
                     NotificationType.Dispute);
 
                 var adminUsers = await _userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
@@ -267,8 +271,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     }
                 }
 
-                // ── CHECK BANNING RULES (Lũy tiến: lần 1 -> config ngày, lần 2 -> vĩnh viễn) ──
-                var banConfigs = await _lazyConfigService.Value.GetCurrentConfigsAsync();
+                // ── BANNING RULES (Hardcode: lần 1 → 30 ngày, lần 2 → vĩnh viễn) ──
                 var startOfMonth = new DateTime(now.Year, now.Month, 1);
                 
                 if (!dto.IsDriverWin)
@@ -276,8 +279,11 @@ namespace ChargeSlot.Api.Services.Implementation
                     // Driver thua
                     var driverUserIdLocal = dispute.CreatedByUserId;
                     var driverLoseCount = await _disputeRepo.GetDriverLoseCountInMonthAsync(driverUserIdLocal, startOfMonth);
-                                      
-                    if (driverLoseCount >= 3)
+                    
+                    const int driverBanThreshold = 3;
+                    var driverRemaining = driverBanThreshold - driverLoseCount;
+                    
+                    if (driverLoseCount >= driverBanThreshold)
                     {
                         var driverUser = dispute.Booking.Driver!.User;
                         
@@ -289,7 +295,7 @@ namespace ChargeSlot.Api.Services.Implementation
                             if (driverUser.BanCount == 1)
                             {
                                 driverUser.Status = Constants.UserStatusConstants.Suspended;
-                                driverUser.BannedUntil = now.AddDays(banConfigs.Ban_Duration_Days_FirstOffense);
+                                driverUser.BannedUntil = now.AddDays(30);
                                 await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị đình chỉ", "Tài khoản bị đình chỉ 30 ngày do vi phạm chính sách khiếu nại (thua quá 3 lần/tháng).", NotificationType.System);
                             }
                             else
@@ -304,14 +310,26 @@ namespace ChargeSlot.Api.Services.Implementation
                             await CancelDriverBookingsAsync(driverUserIdLocal, "Tài xế bị hệ thống khóa tài khoản.");
                         }
                     }
+                    else if (driverRemaining > 0)
+                    {
+                        // Cảnh cáo: chưa đạt ngưỡng ban nhưng đang tiến gần
+                        await _notificationService.SendAsync(
+                            driverUserIdLocal,
+                            "Cảnh cáo vi phạm khiếu nại",
+                            $"Bạn đã thua {driverLoseCount}/{driverBanThreshold} lượt khiếu nại trong tháng này. Còn {driverRemaining} lượt nữa tài khoản sẽ bị đình chỉ.",
+                            NotificationType.System);
+                    }
                 }
                 else
                 {
                     // Station thua
                     var stationId = dispute.Booking.ChargingSlot?.StationId ?? 0;
                     var stationLoseCount = await _disputeRepo.GetStationLoseCountInMonthAsync(stationId, startOfMonth);
+                    
+                    const int stationBanThreshold = 5;
+                    var stationRemaining = stationBanThreshold - stationLoseCount;
                                       
-                    if (stationLoseCount >= 5)
+                    if (stationLoseCount >= stationBanThreshold)
                     {
                         var station = dispute.Booking.ChargingSlot?.ChargingStation;
                         
@@ -322,7 +340,7 @@ namespace ChargeSlot.Api.Services.Implementation
                             if (station.BanCount == 1)
                             {
                                 station.OperationalStatus = OperationalStatus.Inactive;
-                                station.BannedUntil = now.AddDays(banConfigs.Ban_Duration_Days_FirstOffense);
+                                station.BannedUntil = now.AddDays(30);
                                 await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị đình chỉ", $"Trạm {station.Name} bị đình chỉ 30 ngày do lượng khiếu nại quá cao (>= 5 lần/tháng).", NotificationType.System);
                             }
                             else
@@ -332,10 +350,20 @@ namespace ChargeSlot.Api.Services.Implementation
                                 await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị khóa vĩnh viễn", $"Trạm {station.Name} bị khóa vĩnh viễn do chất lượng dịch vụ không đạt yêu cầu tái phạm.", NotificationType.System);
                             }
                             _stationRepo.Update(station);
-                            await _unitOfWork.CompleteAsync(); // Auto commit
+                            await _unitOfWork.CompleteAsync();
                             
                             await CancelStationBookingsAsync(stationId, "Trạm sạc bị hệ thống đình chỉ do vi phạm chất lượng.");
                         }
+                    }
+                    else if (stationRemaining > 0)
+                    {
+                        var ownerIdForWarning = dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId ?? 0;
+                        var stationNameForWarning = dispute.Booking.ChargingSlot?.ChargingStation?.Name ?? "Trạm";
+                        await _notificationService.SendAsync(
+                            ownerIdForWarning,
+                            "Cảnh cáo chất lượng trạm sạc",
+                            $"Trạm {stationNameForWarning} đã thua {stationLoseCount}/{stationBanThreshold} lượt khiếu nại trong tháng này. Còn {stationRemaining} lượt nữa trạm sẽ bị đình chỉ.",
+                            NotificationType.System);
                     }
                 }
 
@@ -415,6 +443,26 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             };
             _ledgerRepo.Add(ledger);
+
+            // Refund Loyalty Points if applicable
+            if (booking.PointsUsed > 0)
+            {
+                var driver = await _lazyDriverRepo.Value.GetByUserIdAsync(booking.DriverUserId, tracking: true);
+                if (driver != null)
+                {
+                    driver.LoyaltyPoints += booking.PointsUsed;
+                    _lazyLoyaltyRepo.Value.Add(new LoyaltyTransaction
+                    {
+                        DriverUserId = booking.DriverUserId,
+                        BookingId = booking.Id,
+                        Type = "Refund",
+                        Points = booking.PointsUsed,
+                        Description = $"Hoàn {booking.PointsUsed:N0} điểm (thắng khiếu nại #{dispute.Id})",
+                        CreatedAt = now
+                    });
+                }
+            }
+
             await _unitOfWork.CompleteAsync();
         }
 
@@ -687,6 +735,55 @@ namespace ChargeSlot.Api.Services.Implementation
                     FileType = e.FileType,
                     CreatedAt = e.CreatedAt
                 }).ToList()
+            };
+        }
+
+        // ─────────────── STRIKE STATUS ───────────────
+
+        public async Task<DisputeStrikeStatusDto> GetDriverStrikeStatusAsync(int driverUserId)
+        {
+            var now = DateTimeHelper.VietnamNow();
+            var startOfMonth = new DateTime(now.Year, now.Month, 1);
+            const int threshold = 3;
+
+            var loseCount = await _disputeRepo.GetDriverLoseCountInMonthAsync(driverUserId, startOfMonth);
+
+            // Lấy user info cho ban status
+            var user = await _userManager.FindByIdAsync(driverUserId.ToString());
+
+            return new DisputeStrikeStatusDto
+            {
+                LoseCountThisMonth = loseCount,
+                BanThreshold = threshold,
+                RemainingBeforeBan = Math.Max(0, threshold - loseCount),
+                BanCount = user?.BanCount ?? 0,
+                IsBanned = user?.Status == Constants.UserStatusConstants.Banned || user?.Status == Constants.UserStatusConstants.Suspended,
+                BannedUntil = user?.BannedUntil
+            };
+        }
+
+        public async Task<DisputeStrikeStatusDto> GetStationStrikeStatusAsync(int stationId, int ownerUserId)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId, includeDetails: false)
+                ?? throw new KeyNotFoundException($"Station {stationId} not found.");
+
+            if (station.OwnerUserId != ownerUserId)
+                throw new UnauthorizedAccessException("Bạn không có quyền xem thông tin trạm này.");
+
+            var now = DateTimeHelper.VietnamNow();
+            var startOfMonth = new DateTime(now.Year, now.Month, 1);
+            const int threshold = 5;
+
+            var loseCount = await _disputeRepo.GetStationLoseCountInMonthAsync(stationId, startOfMonth);
+
+            return new DisputeStrikeStatusDto
+            {
+                LoseCountThisMonth = loseCount,
+                BanThreshold = threshold,
+                RemainingBeforeBan = Math.Max(0, threshold - loseCount),
+                BanCount = station.BanCount,
+                IsBanned = station.BannedUntil.HasValue || (station.BanCount >= 2 && station.BannedUntil == null),
+                BannedUntil = station.BannedUntil
             };
         }
     }

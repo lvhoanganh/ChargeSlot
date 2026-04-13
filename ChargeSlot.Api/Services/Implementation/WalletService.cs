@@ -186,32 +186,11 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Set booking = Paid
             booking.Status = BookingStatus.Paid;
-            // Snapshot CheckinDeadlineAt: StartTime + config check-in window
-            if (booking.CheckinDeadlineAt == null)
-            {
-                var cfgs = await _configService.GetCurrentConfigsAsync();
-                booking.CheckinDeadlineAt = booking.StartTime.AddMinutes(cfgs.CheckIn_Window_Minutes);
-            }
             _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
 
-            // Trừ stock cho ExtraServices (nếu có)
-            if (booking.BookingExtraServices != null && booking.BookingExtraServices.Count > 0)
-            {
-                foreach (var bes in booking.BookingExtraServices)
-                {
-                    var svc = await _extraServiceRepo.GetByIdAsync(bes.ServiceId);
-                    if (svc != null && svc.TotalStock.HasValue)
-                    {
-                        if (svc.TotalStock.Value < bes.Quantity)
-                            throw new InvalidOperationException(
-                                $"Dịch vụ '{svc.ServiceName}' đã hết hàng.");
-                        svc.TotalStock -= bes.Quantity;
-                        _extraServiceRepo.Update(svc);
-                    }
-                }
-                await _unitOfWork.CompleteAsync();
-            }
+            // Lưu ý: Tồn kho ExtraServices ĐÃ ĐƯỢC TRỪ tại thời điểm CreateBookingAsync (Reservation Pattern).
+            // Do đó không thực hiện trừ stock ở đây nữa để tránh lỗi Double Deduction (Trừ đúp).
 
             // Lock slot
             var slot = await _slotRepo.GetByIdAsync(booking.SlotId, tracking: true);
@@ -670,6 +649,18 @@ namespace ChargeSlot.Api.Services.Implementation
             return new WalletDto
             {
                 Id = w.Id,
+                UserId = w.UserId,
+                OwnerName = w.WalletType == Enums.WalletType.System
+                    ? w.SystemCode switch
+                    {
+                        "ESCROW" => "Hệ thống (Escrow)",
+                        "PLATFORM_REVENUE" => "Hệ thống (Platform Revenue)",
+                        "TAX_HOLD" => "Hệ thống (Tax Hold)",
+                        "CLEARING" => "Hệ thống (Clearing)",
+                        _ => $"Hệ thống ({w.SystemCode})"
+                    }
+                    : (w.User?.FullName ?? "N/A"),
+                SystemCode = w.SystemCode,
                 AvailableBalance = w.AvailableBalance,
                 FrozenBalance = w.FrozenBalance,
                 WalletType = w.WalletType.ToString(),

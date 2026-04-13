@@ -4,6 +4,7 @@ using ChargeSlot.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChargeSlot.Api.Migrations
 {
     [DbContext(typeof(ChargeSlotDbContext))]
-    partial class ChargeSlotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260411140754_DropCheckinDeadlineAt")]
+    partial class DropCheckinDeadlineAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -322,9 +325,6 @@ namespace ChargeSlot.Api.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
-                    b.Property<DateTime?>("LastEmergencyCancelAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<decimal?>("Latitude")
                         .HasPrecision(9, 6)
                         .HasColumnType("decimal(9,6)");
@@ -601,9 +601,6 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsRental")
-                        .HasColumnType("bit");
-
                     b.Property<decimal>("Price")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -710,9 +707,6 @@ namespace ChargeSlot.Api.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("PasswordHash")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PendingEmail")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PhoneNumber")
@@ -1007,33 +1001,6 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<DateTime?>("KycSubmittedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("PrevAddress")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PrevBackIdCardUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PrevBusinessLicenseNumber")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PrevBusinessLicenseUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PrevBusinessName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PrevFrontIdCardUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PrevIdCardDate")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PrevIdCardNumber")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PrevTaxCode")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("TaxCode")
                         .IsRequired()

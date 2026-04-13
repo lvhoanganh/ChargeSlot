@@ -92,28 +92,40 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>
-        /// Xem danh sách yêu cầu rút tiền của mình (phân trang)
+        /// Xem danh sách yêu cầu rút tiền của mình (phân trang, lọc ngày)
         /// </summary>
         [HttpGet("withdraw-requests")]
         public async Task<IActionResult> GetWithdrawRequests(
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
             var result = await _walletService.GetUserWithdrawRequestsAsync(GetUserId());
+            if (fromDate.HasValue)
+                result = result.Where(w => w.RequestedAt >= fromDate.Value.Date).ToList();
+            if (toDate.HasValue)
+                result = result.Where(w => w.RequestedAt < toDate.Value.Date.AddDays(1)).ToList();
             var total = result.Count;
             var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
             return Ok(new { total, page, pageSize, items });
         }
 
         /// <summary>
-        /// Lịch sử giao dịch ví (phân trang)
+        /// Lịch sử giao dịch ví (phân trang, lọc ngày)
         /// </summary>
         [HttpGet("transactions")]
         public async Task<IActionResult> GetTransactions(
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
             var result = await _walletService.GetTransactionHistoryAsync(GetUserId());
+            if (fromDate.HasValue)
+                result = result.Where(t => t.CreatedAt >= fromDate.Value.Date).ToList();
+            if (toDate.HasValue)
+                result = result.Where(t => t.CreatedAt < toDate.Value.Date.AddDays(1)).ToList();
             var total = result.Count;
             var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
             return Ok(new { total, page, pageSize, items });

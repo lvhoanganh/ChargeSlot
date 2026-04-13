@@ -22,6 +22,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly ILoyaltyTransactionRepository _loyaltyRepo;
         private readonly ILedgerTransactionRepository _ledgerRepo;
         private readonly ISystemConfigService _configService;
+        private readonly IExtraServiceRepository _extraServiceRepo;
 
         public ChargingSessionService(
             IChargingSessionRepository sessionRepo,
@@ -34,7 +35,8 @@ namespace ChargeSlot.Api.Services.Implementation
             IDriverRepository driverRepo,
             ILoyaltyTransactionRepository loyaltyRepo,
             ILedgerTransactionRepository ledgerRepo,
-            ISystemConfigService configService)
+            ISystemConfigService configService,
+            IExtraServiceRepository extraServiceRepo)
         {
             _sessionRepo = sessionRepo;
             _invoiceRepo = invoiceRepo;
@@ -47,11 +49,12 @@ namespace ChargeSlot.Api.Services.Implementation
             _loyaltyRepo = loyaltyRepo;
             _ledgerRepo = ledgerRepo;
             _configService = configService;
+            _extraServiceRepo = extraServiceRepo;
         }
 
         /// <summary>
         /// Driver scans QR code on slot → system finds matching Paid booking → check in.
-        /// Validates: slot exists, booking is Paid, time window ±15 min.
+        /// Validates: slot exists, booking is Paid, time within [StartTime - EarlyWindow, EndTime).
         /// </summary>
         public async Task<ChargingSessionDto> CheckInAsync(int driverUserId, string qrCodeToken)
         {
@@ -71,16 +74,16 @@ namespace ChargeSlot.Api.Services.Implementation
             var booking = await _bookingRepo.GetPaidBookingForDriverAndSlotAsync(driverUserId, slot.Id)
                 ?? throw new InvalidOperationException("Không tìm thấy booking đã thanh toán trên slot này.");
 
-            // 3. Validate time window: dùng snapshot CheckinDeadlineAt (đã set lúc payment)
+            // 3. Validate time window: cho phép check-in từ StartTime - WindowMinutes đến EndTime
             var configs = await _configService.GetCurrentConfigsAsync();
             var checkInWindowMinutes = configs.CheckIn_Window_Minutes;
 
             var earliestCheckin = booking.StartTime.AddMinutes(-checkInWindowMinutes);
-            var latestCheckin = booking.CheckinDeadlineAt ?? booking.StartTime.AddMinutes(checkInWindowMinutes);
+            var latestCheckin = booking.EndTime; // Cho phép check-in bất cứ lúc nào miễn là chưa hết giờ
             if (now < earliestCheckin)
                 throw new InvalidOperationException($"Chưa đến giờ check-in. Vui lòng quay lại lúc {earliestCheckin:HH:mm dd/MM/yyyy}.");
-            if (now > latestCheckin)
-                throw new InvalidOperationException("Đã quá thời gian check-in cho booking này.");
+            if (now >= latestCheckin)
+                throw new InvalidOperationException("Đã quá thời gian check-in cho booking này (phiên sạc đã kết thúc).");
 
             // 4. Chống double check-in (cùng 1 booking)
             var existingSession = await _sessionRepo.HasSessionByBookingAsync(booking.Id);
@@ -95,6 +98,7 @@ namespace ChargeSlot.Api.Services.Implementation
             // 5. Update booking status
             booking.Status = BookingStatus.CheckedIn;
             booking.CheckedInAt = now;
+            booking.UpdatedAt = now;
             _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
 
@@ -173,8 +177,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
 
-                // Create invoice - VAT & PlatformFee are DEDUCTED from booking amount
-                var grossAmount = booking.TotalAmount;
+                // Create invoice - VAT & PlatformFee are DEDUCTED from Gross Amount (Cash + Points)
+                var grossAmount = booking.TotalAmount + booking.PointsDiscountAmount;
                 var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
                 var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
 
@@ -202,6 +206,21 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     slot.Status = SlotStatus.Active;
                     slot.UpdatedAt = now;
+                    await _unitOfWork.CompleteAsync();
+                }
+
+                // Rút hàng Thuê (IsRental = true) trả vào Kho
+                if (booking.BookingExtraServices != null && booking.BookingExtraServices.Count > 0)
+                {
+                    foreach (var bes in booking.BookingExtraServices)
+                    {
+                        var svc = await _extraServiceRepo.GetByIdAsync(bes.ServiceId);
+                        if (svc != null && svc.TotalStock.HasValue && svc.IsRental)
+                        {
+                            svc.TotalStock += bes.Quantity;
+                            _extraServiceRepo.Update(svc);
+                        }
+                    }
                     await _unitOfWork.CompleteAsync();
                 }
 
@@ -292,19 +311,22 @@ namespace ChargeSlot.Api.Services.Implementation
                 _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
 
-                // ── LOYALTY POINTS: tích điểm (dùng snapshot từ lúc tạo booking) ──
+                // ── LOYALTY POINTS: chỉ tích điểm khi Driver đã check-in (no-show không được điểm) ──
+                if (booking.CheckedInAt != null)
+                {
                 var earnRate = booking.LoyaltyEarnRateSnapshot == 0 ? 0.05m : booking.LoyaltyEarnRateSnapshot;
                 var pointsEarned = Math.Floor(booking.TotalAmount * earnRate);
 
                 if (pointsEarned > 0)
                 {
-                    var driver = await _driverRepo.GetByUserIdAsync(booking.DriverUserId);
+                    // Dùng booking.Driver đã được tracked từ Include() — không query lại để tránh tracking conflict
+                    var driver = booking.Driver;
                     if (driver != null)
                     {
                         driver.LoyaltyPoints += pointsEarned;
+                        // Không cần _driverRepo.Update() vì entity đã tracked, EF tự detect changes
                         booking.PointsEarned = pointsEarned;
-                        _bookingRepo.Update(booking);
-            await _unitOfWork.CompleteAsync();
+                        await _unitOfWork.CompleteAsync();
 
                         _loyaltyRepo.Add(new LoyaltyTransaction
                         {
@@ -318,6 +340,7 @@ namespace ChargeSlot.Api.Services.Implementation
                         await _unitOfWork.CompleteAsync();
                     }
                 }
+                } // end CheckedInAt != null
 
                 // ── WALLET SETTLEMENT ──
                 if (invoice != null)
@@ -383,6 +406,28 @@ namespace ChargeSlot.Api.Services.Implementation
             var ownerNet = invoice.ChargingAmount;  // Net amount after VAT + platform fee deducted
             var platformFee = invoice.PlatformFee;
             var vatAmount = invoice.VatAmount;
+
+            // 0. Bù tiền bảo trợ từ ví Nền tảng vào ESCROW để cân đối khoản chiết khấu bằng Điểm thưởng
+            if (booking.PointsDiscountAmount > 0)
+            {
+                await _walletRepo.TransferAtomicAsync(platformWallet.Id, escrowWallet.Id, booking.PointsDiscountAmount);
+
+                var subsidyLedger = new LedgerTransaction
+                {
+                    ReferenceType = "PointsSubsidy",
+                    ReferenceId = booking.Id,
+                    Memo = $"Nền tảng bù {booking.PointsDiscountAmount:N0}đ chiết khấu điểm thưởng cho booking #{booking.Id}",
+                    CreatedByUserId = null,
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Debit, Amount = booking.PointsDiscountAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Credit, Amount = booking.PointsDiscountAmount, CreatedAt = now }
+                    }
+                };
+                _walletRepo.AddLedgerTransaction(subsidyLedger);
+                await _unitOfWork.CompleteAsync();
+            }
 
             // 1. ESCROW → Owner: net amount (Atomic via Repository)
             await _walletRepo.TransferAtomicAsync(escrowWallet.Id, ownerWallet.Id, ownerNet);
@@ -534,6 +579,8 @@ namespace ChargeSlot.Api.Services.Implementation
             {
                 Id = invoice.Id,
                 BookingId = invoice.BookingId,
+                DriverName = invoice.Booking?.Driver?.User?.FullName,
+                StationName = invoice.Booking?.ChargingSlot?.ChargingStation?.Name,
                 ChargingAmount = invoice.ChargingAmount,
                 ServiceAmount = invoice.ServiceAmount,
                 VatAmount = invoice.VatAmount,
@@ -621,8 +668,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 _sessionRepo.Add(session);
             await _unitOfWork.CompleteAsync();
 
-                // 2. Tạo invoice
-                var grossAmount = booking.TotalAmount;
+                // 2. Tạo invoice (Dựa trên tổng tiền thực thanh toán + Điểm thưởng)
+                var grossAmount = booking.TotalAmount + booking.PointsDiscountAmount;
                 var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
                 var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
 
@@ -659,7 +706,8 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 if (pointsEarned > 0)
                 {
-                    var driver = await _driverRepo.GetByUserIdAsync(booking.DriverUserId);
+                    // Dùng booking.Driver đã được tracked từ Include() — không query lại để tránh tracking conflict
+                    var driver = booking.Driver;
                     if (driver != null)
                     {
                         driver.LoyaltyPoints += pointsEarned;
@@ -687,6 +735,21 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     slot.Status = SlotStatus.Active;
                     slot.UpdatedAt = now;
+                    await _unitOfWork.CompleteAsync();
+                }
+
+                // 7. Hoàn kho cho các dịch vụ Thuê (IsRental = true)
+                if (booking.BookingExtraServices != null && booking.BookingExtraServices.Count > 0)
+                {
+                    foreach (var bes in booking.BookingExtraServices)
+                    {
+                        var svc = await _extraServiceRepo.GetByIdAsync(bes.ServiceId);
+                        if (svc != null && svc.TotalStock.HasValue && svc.IsRental)
+                        {
+                            svc.TotalStock += bes.Quantity;
+                            _extraServiceRepo.Update(svc);
+                        }
+                    }
                     await _unitOfWork.CompleteAsync();
                 }
 

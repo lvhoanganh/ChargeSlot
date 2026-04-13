@@ -15,8 +15,6 @@ namespace ChargeSlot.Api.BackgroundJobs
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<WithdrawAutoConfirmJob> _logger;
 
-        private static readonly TimeSpan AutoConfirmDeadline = TimeSpan.FromHours(24);
-
         public WithdrawAutoConfirmJob(IServiceProvider serviceProvider, ILogger<WithdrawAutoConfirmJob> logger)
         {
             _serviceProvider = serviceProvider;
@@ -29,12 +27,14 @@ namespace ChargeSlot.Api.BackgroundJobs
             {
                 try
                 {
-                    var deadline = DateTimeHelper.VietnamNow() - AutoConfirmDeadline;
                     List<int> expiredIds;
 
-                    // 1. Lấy danh sách ID đã quá 24h
+                    // 1. Lấy danh sách ID đã quá deadline
                     using (var outerScope = _serviceProvider.CreateScope())
                     {
+                        var configService = outerScope.ServiceProvider.GetRequiredService<ISystemConfigService>();
+                        var autoConfirmHours = await configService.GetIntAsync(Constants.SystemConfigKeys.Withdraw_AutoConfirm_Hours, 24);
+                        var deadline = DateTimeHelper.VietnamNow() - TimeSpan.FromHours(autoConfirmHours);
                         var withdrawRepo = outerScope.ServiceProvider.GetRequiredService<IWithdrawRequestRepository>();
                         expiredIds = await withdrawRepo.GetExpiredTransferCompletedIdsAsync(deadline);
                     }

@@ -26,7 +26,7 @@ namespace ChargeSlot.Api.DTOs.Admin
         public int Payment_Expiry_Minutes { get; set; }
 
         [Required]
-        [Range(0, 60, ErrorMessage = "Thời gian check-in trễ phép (phút) phải từ 0 - 60")]
+        [Range(0, 60, ErrorMessage = "Thời gian cho phép check-in sớm (phút) phải từ 0 - 60")]
         public int CheckIn_Window_Minutes { get; set; }
 
         [Required]
@@ -67,16 +67,6 @@ namespace ChargeSlot.Api.DTOs.Admin
         [Range(1, 720, ErrorMessage = "Thời gian Admin review (Giờ) phải từ 1 - 720")]
         public int Dispute_AdminReview_Hours { get; set; }
 
-        // --------------------------------------------------------
-        // PUNISHMENT / BAN RULES
-        // --------------------------------------------------------
-        [Required]
-        [Range(1, 10000, ErrorMessage = "Số ngày khóa tài khoản vĩnh viễn (Ngày) không hợp lệ")]
-        public int Ban_Duration_Days_Permanent { get; set; }
-
-        [Required]
-        [Range(1, 10000, ErrorMessage = "Số ngày khóa tài khoản lần đầu (Ngày) không hợp lệ")]
-        public int Ban_Duration_Days_FirstOffense { get; set; }
 
         // --------------------------------------------------------
         // OTP & COMMUNICATION
@@ -84,5 +74,31 @@ namespace ChargeSlot.Api.DTOs.Admin
         [Required]
         [Range(1, 60, ErrorMessage = "Thời hạn sống của OTP (Phút) phải từ 1 - 60")]
         public int OTP_Expiry_Minutes { get; set; }
+
+        [Required]
+        [Range(10, 300, ErrorMessage = "Thời gian chờ giữa 2 lần gửi OTP (Giây) phải từ 10 - 300")]
+        public int OTP_Cooldown_Seconds { get; set; }
+
+        // --------------------------------------------------------
+        // AUTO-CONFIRM DEADLINES
+        // --------------------------------------------------------
+        [Required]
+        [Range(1, 168, ErrorMessage = "Giờ auto-confirm rút tiền phải từ 1 - 168")]
+        public int Withdraw_AutoConfirm_Hours { get; set; }
+
+        [Required]
+        [Range(1, 168, ErrorMessage = "Giờ auto-confirm hóa đơn phải từ 1 - 168")]
+        public int Invoice_AutoConfirm_Hours { get; set; }
+
+        [Required]
+        [Range(1, 24, ErrorMessage = "Cửa sổ nhắc nhở sắp hết hạn (Giờ) phải từ 1 - 24")]
+        public int Reminder_Window_Hours { get; set; }
+
+        // --------------------------------------------------------
+        // BOOKING LEAD TIME
+        // --------------------------------------------------------
+        [Required]
+        [Range(5, 1440, ErrorMessage = "Thời gian tối thiểu trước khi đặt booking (phút) phải từ 5 - 1440")]
+        public int Min_Booking_Lead_Minutes { get; set; }
     }
 }

@@ -8,6 +8,7 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<decimal> GetDecimalAsync(string key, decimal defaultValue);
 
         Task<UpdateSystemConfigsDto> GetCurrentConfigsAsync();
+        Task<PublicSystemConfigDto> GetPublicConfigsAsync();
         Task UpdateConfigsAsync(UpdateSystemConfigsDto dto, int adminUserId);
         
         Task SeedDefaultConfigsAsync();

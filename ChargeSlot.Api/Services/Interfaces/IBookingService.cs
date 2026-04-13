@@ -19,6 +19,12 @@ namespace ChargeSlot.Api.Services.Interfaces
         /// Trả Stock, nhả Slot, hoàn tiền 100% nếu đã Paid.
         /// </summary>
         Task CancelSystemBookingAsync(int bookingId, string systemReason);
+        
+        /// <summary>
+        /// Dùng cho Background Jobs khi Booking bị quá hạn (hết giờ Owner duyệt, hết giờ thanh toán).
+        /// Cập nhật trạng thái Expired, hoàn lại Điểm, hoàn Tồn kho, và nhả Slot.
+        /// </summary>
+        Task ExpireSystemBookingAsync(int bookingId, string reason);
 
         Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<BookingDto>> GetAdminAllBookingsAsync(ChargeSlot.Api.DTOs.Admin.Overview.BookingFilterDto filter);
     }

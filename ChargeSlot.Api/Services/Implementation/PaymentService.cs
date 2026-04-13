@@ -59,12 +59,6 @@ namespace ChargeSlot.Api.Services.Implementation
             await _unitOfWork.CompleteAsync();
 
             booking.Status = BookingStatus.Paid;
-            // Snapshot CheckinDeadlineAt: StartTime + config check-in window
-            if (booking.CheckinDeadlineAt == null)
-            {
-                var cfgs = await _configService.GetCurrentConfigsAsync();
-                booking.CheckinDeadlineAt = booking.StartTime.AddMinutes(cfgs.CheckIn_Window_Minutes);
-            }
             _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
 
@@ -92,24 +86,6 @@ namespace ChargeSlot.Api.Services.Implementation
             };
             _walletRepo.AddLedgerTransaction(ledgerTx);
             await _unitOfWork.CompleteAsync();
-
-            // Trừ stock cho ExtraServices (nếu có)
-            if (booking.BookingExtraServices != null && booking.BookingExtraServices.Count > 0)
-            {
-                foreach (var bes in booking.BookingExtraServices)
-                {
-                    var svc = await _extraServiceRepo.GetByIdAsync(bes.ServiceId);
-                    if (svc != null && svc.TotalStock.HasValue)
-                    {
-                        if (svc.TotalStock.Value < bes.Quantity)
-                            throw new InvalidOperationException(
-                                $"Dịch vụ '{svc.ServiceName}' đã hết hàng.");
-                        svc.TotalStock -= bes.Quantity;
-                        _extraServiceRepo.Update(svc);
-                    }
-                }
-                await _unitOfWork.CompleteAsync();
-            }
 
             // Lock charging slot
             var slot = await _slotRepo.GetByIdAsync(booking.SlotId, tracking: true);
@@ -410,8 +386,9 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
                 else if (booking.Status == BookingStatus.Expired)
                 {
+                    var paymentConfigs = await _configService.GetCurrentConfigsAsync();
                     var hasConflict = await _bookingRepo.HasOverlappingBookingAsync(
-                        booking.SlotId, booking.StartTime, booking.EndTime, booking.Id);
+                        booking.SlotId, booking.StartTime, booking.EndTime, paymentConfigs.Slot_Buffer_Minutes, booking.Id);
 
                     if (!hasConflict)
                     {

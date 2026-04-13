@@ -7,6 +7,7 @@ namespace ChargeSlot.Api.DTOs.Station
         public string? Description { get; set; }
         public decimal Price { get; set; }
         public int? TotalStock { get; set; }
+        public bool IsRental { get; set; }
         public bool IsActive { get; set; }
     }
 }

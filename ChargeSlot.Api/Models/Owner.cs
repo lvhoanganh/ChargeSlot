@@ -32,6 +32,17 @@ namespace ChargeSlot.Api.Models
         public int? KycReviewedByUserId { get; set; }
         public ApplicationUser? KycReviewedByUser { get; set; }
 
+        // ─── KYC UPDATE SNAPSHOT (giữ data cũ khi Owner cập nhật, dùng để rollback nếu bị reject) ───
+        public string? PrevIdCardNumber { get; set; }
+        public string? PrevIdCardDate { get; set; }
+        public string? PrevFrontIdCardUrl { get; set; }
+        public string? PrevBackIdCardUrl { get; set; }
+        public string? PrevBusinessName { get; set; }
+        public string? PrevBusinessLicenseNumber { get; set; }
+        public string? PrevBusinessLicenseUrl { get; set; }
+        public string? PrevTaxCode { get; set; }
+        public string? PrevAddress { get; set; }
+
         public ICollection<ChargingStation> ChargingStations { get; set; } = new List<ChargingStation>();
     }
 }

@@ -6,6 +6,7 @@ namespace ChargeSlot.Api.Repositories.Interfaces
     {
         Task<Driver?> GetByUserIdAsync(int userId, bool tracking = false);
         Task AddAsync(Driver driver);
+        void Update(Driver driver);
         void Remove(Driver driver);
     }
 }

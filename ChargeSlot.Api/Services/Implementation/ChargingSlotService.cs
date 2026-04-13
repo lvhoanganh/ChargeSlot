@@ -13,19 +13,20 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IChargingStationRepository _stationRepo;
         private readonly IBookingRepository _bookingRepo;
         private readonly IUnitOfWork _unitOfWork;
-
-        private const int BufferMinutes = 15;
+        private readonly ISystemConfigService _configService;
 
         public ChargingSlotService(
             IChargingSlotRepository slotRepo,
             IChargingStationRepository stationRepo,
             IBookingRepository bookingRepo,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            ISystemConfigService configService)
         {
             _slotRepo = slotRepo;
             _stationRepo = stationRepo;
             _bookingRepo = bookingRepo;
             _unitOfWork = unitOfWork;
+            _configService = configService;
         }
 
         public async Task<ChargingSlotDto?> GetByIdAsync(int stationId, int slotId, int ownerUserId)
@@ -203,12 +204,15 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var bookings = await _bookingRepo.GetActiveBookingsForSlotAsync(slotId, date);
 
+            var slotConfigs = await _configService.GetCurrentConfigsAsync();
+            var bufferMinutes = slotConfigs.Slot_Buffer_Minutes;
+
             var bookedRanges = bookings.Select(b => new BookedTimeRangeDto
             {
                 StartTime = b.StartTime,
                 EndTime = (b.ChargingSession != null && b.ChargingSession.ActualEndTime.HasValue 
                             ? b.ChargingSession.ActualEndTime.Value 
-                            : b.EndTime).AddMinutes(BufferMinutes), // Bao gồm 15 phút buffer
+                            : b.EndTime).AddMinutes(bufferMinutes), // Bao gồm buffer từ config
                 Status = b.Status.ToString()
             }).ToList();
 

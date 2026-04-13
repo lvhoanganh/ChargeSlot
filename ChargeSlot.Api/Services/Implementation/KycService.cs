@@ -58,10 +58,8 @@ namespace ChargeSlot.Api.Services.Implementation
             var owner = await _ownerRepo.GetByUserIdAsync(ownerUserId, tracking: true)
                 ?? throw new InvalidOperationException("Hồ sơ chủ trạm chưa được tạo.");
 
-            if (owner.KycStatus == KycStatus.Pending)
+            if (owner.KycStatus == KycStatus.Pending || owner.KycStatus == KycStatus.PendingUpdate)
                 throw new InvalidOperationException("Hồ sơ đang chờ duyệt, không thể nộp lại.");
-            if (owner.KycStatus == KycStatus.Approved)
-                throw new InvalidOperationException("Hồ sơ đã được duyệt.");
 
             // Validate uploads
             var fileExts = new[] { ".jpg", ".jpeg", ".png", ".webp" };
@@ -71,12 +69,28 @@ namespace ChargeSlot.Api.Services.Implementation
 
             string folder = $"kyc/{ownerUserId}";
 
-            // Upload
+            // Nếu Owner đang Approved → giữ lại data cũ để rollback nếu bị reject
+            bool isUpdate = owner.KycStatus == KycStatus.Approved;
+            if (isUpdate)
+            {
+                // Lưu snapshot data cũ vào các trường Prev_*
+                owner.PrevIdCardNumber = owner.IdCardNumber;
+                owner.PrevIdCardDate = owner.IdCardDate;
+                owner.PrevFrontIdCardUrl = owner.FrontIdCardUrl;
+                owner.PrevBackIdCardUrl = owner.BackIdCardUrl;
+                owner.PrevBusinessName = owner.BusinessName;
+                owner.PrevBusinessLicenseNumber = owner.BusinessLicenseNumber;
+                owner.PrevBusinessLicenseUrl = owner.BusinessLicenseUrl;
+                owner.PrevTaxCode = owner.TaxCode;
+                owner.PrevAddress = owner.Address;
+            }
+
+            // Upload ảnh mới
             owner.FrontIdCardUrl = await _fileService.UploadAsync(dto.FrontIdCardImage, folder);
             owner.BackIdCardUrl = await _fileService.UploadAsync(dto.BackIdCardImage, folder);
             owner.BusinessLicenseUrl = await _fileService.UploadAsync(dto.BusinessLicenseImage, folder);
 
-            // Update info
+            // Cập nhật thông tin mới
             owner.IdCardNumber = dto.IdCardNumber;
             owner.IdCardDate = dto.IdCardDate;
             owner.BusinessName = dto.BusinessName;
@@ -84,16 +98,15 @@ namespace ChargeSlot.Api.Services.Implementation
             owner.TaxCode = dto.TaxCode;
             owner.Address = dto.Address;
 
-            // Reset status
-            owner.KycStatus = KycStatus.Pending;
+            // Set status
+            owner.KycStatus = isUpdate ? KycStatus.PendingUpdate : KycStatus.Pending;
             owner.KycRejectReason = null;
             owner.KycSubmittedAt = DateTimeHelper.VietnamNow();
 
             _ownerRepo.Update(owner);
             await _unitOfWork.CompleteAsync();
 
-            // Gửi thông báo đến toàn hệ thống (Admin check)
-            _logger.LogInformation("Owner {OwnerUserId} đã nộp hồ sơ KYC.", ownerUserId);
+            _logger.LogInformation("Owner {OwnerUserId} đã nộp hồ sơ KYC ({Type}).", ownerUserId, isUpdate ? "cập nhật" : "mới");
 
             return MapToDto(owner);
         }
@@ -117,11 +130,44 @@ namespace ChargeSlot.Api.Services.Implementation
             var owner = await _ownerRepo.GetByUserIdAsync(targetOwnerUserId, tracking: true)
                 ?? throw new InvalidOperationException("Không tìm thấy hồ sơ chủ trạm.");
 
-            if (owner.KycStatus != KycStatus.Pending)
+            if (owner.KycStatus != KycStatus.Pending && owner.KycStatus != KycStatus.PendingUpdate)
                 throw new InvalidOperationException("Hồ sơ này không ở trạng thái chờ duyệt.");
 
-            owner.KycStatus = dto.IsApproved ? KycStatus.Approved : KycStatus.Rejected;
-            owner.KycRejectReason = dto.IsApproved ? null : (dto.RejectReason ?? "Không đủ điều kiện");
+            bool isUpdate = owner.KycStatus == KycStatus.PendingUpdate;
+
+            if (dto.IsApproved)
+            {
+                // Duyệt → giữ data mới, xóa snapshot cũ
+                owner.KycStatus = KycStatus.Approved;
+                owner.KycRejectReason = null;
+                ClearPrevSnapshot(owner);
+            }
+            else
+            {
+                if (isUpdate)
+                {
+                    // Từ chối bản update → khôi phục data cũ, giữ Approved
+                    owner.IdCardNumber = owner.PrevIdCardNumber;
+                    owner.IdCardDate = owner.PrevIdCardDate;
+                    owner.FrontIdCardUrl = owner.PrevFrontIdCardUrl;
+                    owner.BackIdCardUrl = owner.PrevBackIdCardUrl;
+                    owner.BusinessName = owner.PrevBusinessName!;
+                    owner.BusinessLicenseNumber = owner.PrevBusinessLicenseNumber;
+                    owner.BusinessLicenseUrl = owner.PrevBusinessLicenseUrl;
+                    owner.TaxCode = owner.PrevTaxCode!;
+                    owner.Address = owner.PrevAddress;
+                    ClearPrevSnapshot(owner);
+
+                    owner.KycStatus = KycStatus.Approved; // Giữ quyền hoạt động
+                }
+                else
+                {
+                    // Từ chối lần đầu → Rejected bình thường
+                    owner.KycStatus = KycStatus.Rejected;
+                }
+                owner.KycRejectReason = dto.RejectReason ?? "Không đủ điều kiện";
+            }
+
             owner.KycReviewedAt = DateTimeHelper.VietnamNow();
             owner.KycReviewedByUserId = adminUserId;
 
@@ -129,10 +175,21 @@ namespace ChargeSlot.Api.Services.Implementation
             await _unitOfWork.CompleteAsync();
 
             // Gửi thông báo cho Chủ trạm
-            string subject = dto.IsApproved ? "Hồ sơ của bạn đã được duyệt" : "Hồ sơ xác minh danh tính bị từ chối";
-            string content = dto.IsApproved 
-                ? "Chúc mừng, giờ đây bạn có thể đăng ký Trạm Sạc mới!" 
-                : $"Vui lòng nộp lại hồ sơ. Lý do từ chối: {owner.KycRejectReason}";
+            string subject, content;
+            if (dto.IsApproved)
+            {
+                subject = isUpdate ? "Hồ sơ cập nhật đã được duyệt" : "Hồ sơ của bạn đã được duyệt";
+                content = isUpdate
+                    ? "Thông tin KYC cập nhật của bạn đã được Admin phê duyệt."
+                    : "Chúc mừng, giờ đây bạn có thể đăng ký Trạm Sạc mới!";
+            }
+            else
+            {
+                subject = isUpdate ? "Yêu cầu cập nhật KYC bị từ chối" : "Hồ sơ xác minh danh tính bị từ chối";
+                content = isUpdate
+                    ? $"Yêu cầu cập nhật KYC bị từ chối. Thông tin cũ đã được khôi phục. Lý do: {owner.KycRejectReason}"
+                    : $"Vui lòng nộp lại hồ sơ. Lý do từ chối: {owner.KycRejectReason}";
+            }
 
             await _notificationService.SendAsync(
                 targetOwnerUserId,
@@ -142,6 +199,22 @@ namespace ChargeSlot.Api.Services.Implementation
             );
 
             return MapToDto(owner);
+        }
+
+        /// <summary>
+        /// Xóa snapshot data cũ sau khi review xong
+        /// </summary>
+        private void ClearPrevSnapshot(Owner owner)
+        {
+            owner.PrevIdCardNumber = null;
+            owner.PrevIdCardDate = null;
+            owner.PrevFrontIdCardUrl = null;
+            owner.PrevBackIdCardUrl = null;
+            owner.PrevBusinessName = null;
+            owner.PrevBusinessLicenseNumber = null;
+            owner.PrevBusinessLicenseUrl = null;
+            owner.PrevTaxCode = null;
+            owner.PrevAddress = null;
         }
 
         private void ValidateImage(IFormFile file, string[] allowedExtensions)
