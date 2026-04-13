@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { chatApi, bookingApi } from "@/services/api";
 import ChatWindow from "@/components/ChatWindow";
 
-const CLOSED_STATUSES = ["Completed", "Cancelled", "Rejected", "Expired", "NoShow"];
+const CLOSED_STATUSES = ["Completed", "Cancelled", "Rejected", "Expired", "NoShow", "CompletedPendingInvoice", "Disputed"];
 
 export default function ChatPage() {
   const { bookingId } = useParams();
@@ -12,25 +12,35 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [bookingStatus, setBookingStatus] = useState(null);
+  const [bookingNotFound, setBookingNotFound] = useState(false);
+
+  // Validate bookingId: phải là số nguyên dương
+  const parsedId = Number(bookingId);
+  const isValidId = Number.isInteger(parsedId) && parsedId > 0;
 
   useEffect(() => {
-    if (!bookingId) return;
+    // bookingId không hợp lệ → báo lỗi ngay, không fetch
+    if (!isValidId) {
+      setBookingNotFound(true);
+      setLoading(false);
+      return;
+    }
+
     // Fetch cả messages lẫn booking status song song
     Promise.all([
-      chatApi.getMessages(Number(bookingId)).catch(() => null),
-      bookingApi.getById(Number(bookingId)).catch(() => null),
+      chatApi.getMessages(parsedId).catch(() => null),
+      bookingApi.getById(parsedId).catch(() => null),
     ]).then(([chatData, booking]) => {
+      // Booking không tồn tại (API trả lỗi hoặc null)
+      if (!booking) {
+        setBookingNotFound(true);
+        return;
+      }
+
       setConversationId(chatData?.conversationId || null);
-      
-      // Support old format ({messages: []}) and new PagedResultDto ({items: []})
       const fallbackList = Array.isArray(chatData) ? chatData : [];
       const rawMessages = chatData?.items || chatData?.messages || fallbackList;
-      
-      // Backend returns messages oldestFirst
-      // UI renders oldestFirst (oldest at top, newest at bottom)
-      // This matches natural chat scroll: scroll up = see older, scroll down = see newer
       setMessages(Array.isArray(rawMessages) ? rawMessages : []);
-      
       setBookingStatus(booking?.status || null);
     }).finally(() => setLoading(false));
   }, [bookingId]);
@@ -48,10 +58,10 @@ export default function ChatPage() {
   const handleFirstMessage = useCallback(async (msg) => {
     handleNewMessage(msg);
     try {
-      const data = await chatApi.getMessages(Number(bookingId));
+      const data = await chatApi.getMessages(parsedId);
       if (data?.conversationId) setConversationId(data.conversationId);
     } catch { /* ignore */ }
-  }, [bookingId, handleNewMessage]);
+  }, [parsedId, handleNewMessage]);
 
   // Chat chỉ đọc nếu booking đã kết thúc
   const isClosed = bookingStatus && CLOSED_STATUSES.includes(bookingStatus);
@@ -61,6 +71,31 @@ export default function ChatPage() {
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
         <div style={{ fontSize: 40 }}>💬</div>
         <p style={{ color: "#6b7280" }}>Đang tải tin nhắn...</p>
+      </div>
+    );
+  }
+
+  // Booking không tồn tại hoặc bookingId không hợp lệ
+  if (bookingNotFound) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 16px" }}>
+        <div style={{ fontSize: 56, marginBottom: 12 }}>💬</div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b", margin: "0 0 8px", textAlign: "center" }}>
+          Không tìm thấy cuộc trò chuyện
+        </h2>
+        <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24, textAlign: "center" }}>
+          Booking #{bookingId} không tồn tại hoặc bạn không có quyền truy cập.
+        </p>
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            padding: "12px 28px", borderRadius: 12, border: "none",
+            background: "#f97316", color: "#fff", fontWeight: 700,
+            fontSize: 14, cursor: "pointer",
+          }}
+        >
+          ← Quay lại
+        </button>
       </div>
     );
   }
@@ -106,7 +141,7 @@ export default function ChatPage() {
         <div style={{ flex: 1, minHeight: 0 }}>
           <ChatWindow
             conversationId={conversationId}
-            bookingId={Number(bookingId)}
+            bookingId={parsedId}
             messages={messages}
             onNewMessage={conversationId ? handleNewMessage : handleFirstMessage}
             readOnly={isClosed}
