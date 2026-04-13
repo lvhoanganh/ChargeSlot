@@ -189,23 +189,8 @@ namespace ChargeSlot.Api.Services.Implementation
             _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
 
-            // Trừ stock cho ExtraServices (nếu có)
-            if (booking.BookingExtraServices != null && booking.BookingExtraServices.Count > 0)
-            {
-                foreach (var bes in booking.BookingExtraServices)
-                {
-                    var svc = await _extraServiceRepo.GetByIdAsync(bes.ServiceId);
-                    if (svc != null && svc.TotalStock.HasValue)
-                    {
-                        if (svc.TotalStock.Value < bes.Quantity)
-                            throw new InvalidOperationException(
-                                $"Dịch vụ '{svc.ServiceName}' đã hết hàng.");
-                        svc.TotalStock -= bes.Quantity;
-                        _extraServiceRepo.Update(svc);
-                    }
-                }
-                await _unitOfWork.CompleteAsync();
-            }
+            // Lưu ý: Tồn kho ExtraServices ĐÃ ĐƯỢC TRỪ tại thời điểm CreateBookingAsync (Reservation Pattern).
+            // Do đó không thực hiện trừ stock ở đây nữa để tránh lỗi Double Deduction (Trừ đúp).
 
             // Lock slot
             var slot = await _slotRepo.GetByIdAsync(booking.SlotId, tracking: true);

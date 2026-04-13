@@ -22,6 +22,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly ILoyaltyTransactionRepository _loyaltyRepo;
         private readonly ILedgerTransactionRepository _ledgerRepo;
         private readonly ISystemConfigService _configService;
+        private readonly IExtraServiceRepository _extraServiceRepo;
 
         public ChargingSessionService(
             IChargingSessionRepository sessionRepo,
@@ -34,7 +35,8 @@ namespace ChargeSlot.Api.Services.Implementation
             IDriverRepository driverRepo,
             ILoyaltyTransactionRepository loyaltyRepo,
             ILedgerTransactionRepository ledgerRepo,
-            ISystemConfigService configService)
+            ISystemConfigService configService,
+            IExtraServiceRepository extraServiceRepo)
         {
             _sessionRepo = sessionRepo;
             _invoiceRepo = invoiceRepo;
@@ -47,6 +49,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _loyaltyRepo = loyaltyRepo;
             _ledgerRepo = ledgerRepo;
             _configService = configService;
+            _extraServiceRepo = extraServiceRepo;
         }
 
         /// <summary>
@@ -174,8 +177,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
 
-                // Create invoice - VAT & PlatformFee are DEDUCTED from booking amount
-                var grossAmount = booking.TotalAmount;
+                // Create invoice - VAT & PlatformFee are DEDUCTED from Gross Amount (Cash + Points)
+                var grossAmount = booking.TotalAmount + booking.PointsDiscountAmount;
                 var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
                 var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
 
@@ -203,6 +206,21 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     slot.Status = SlotStatus.Active;
                     slot.UpdatedAt = now;
+                    await _unitOfWork.CompleteAsync();
+                }
+
+                // Rút hàng Thuê (IsRental = true) trả vào Kho
+                if (booking.BookingExtraServices != null && booking.BookingExtraServices.Count > 0)
+                {
+                    foreach (var bes in booking.BookingExtraServices)
+                    {
+                        var svc = await _extraServiceRepo.GetByIdAsync(bes.ServiceId);
+                        if (svc != null && svc.TotalStock.HasValue && svc.IsRental)
+                        {
+                            svc.TotalStock += bes.Quantity;
+                            _extraServiceRepo.Update(svc);
+                        }
+                    }
                     await _unitOfWork.CompleteAsync();
                 }
 
@@ -388,6 +406,28 @@ namespace ChargeSlot.Api.Services.Implementation
             var ownerNet = invoice.ChargingAmount;  // Net amount after VAT + platform fee deducted
             var platformFee = invoice.PlatformFee;
             var vatAmount = invoice.VatAmount;
+
+            // 0. Bù tiền bảo trợ từ ví Nền tảng vào ESCROW để cân đối khoản chiết khấu bằng Điểm thưởng
+            if (booking.PointsDiscountAmount > 0)
+            {
+                await _walletRepo.TransferAtomicAsync(platformWallet.Id, escrowWallet.Id, booking.PointsDiscountAmount);
+
+                var subsidyLedger = new LedgerTransaction
+                {
+                    ReferenceType = "PointsSubsidy",
+                    ReferenceId = booking.Id,
+                    Memo = $"Nền tảng bù {booking.PointsDiscountAmount:N0}đ chiết khấu điểm thưởng cho booking #{booking.Id}",
+                    CreatedByUserId = null,
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Debit, Amount = booking.PointsDiscountAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Credit, Amount = booking.PointsDiscountAmount, CreatedAt = now }
+                    }
+                };
+                _walletRepo.AddLedgerTransaction(subsidyLedger);
+                await _unitOfWork.CompleteAsync();
+            }
 
             // 1. ESCROW → Owner: net amount (Atomic via Repository)
             await _walletRepo.TransferAtomicAsync(escrowWallet.Id, ownerWallet.Id, ownerNet);
@@ -628,8 +668,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 _sessionRepo.Add(session);
             await _unitOfWork.CompleteAsync();
 
-                // 2. Tạo invoice
-                var grossAmount = booking.TotalAmount;
+                // 2. Tạo invoice (Dựa trên tổng tiền thực thanh toán + Điểm thưởng)
+                var grossAmount = booking.TotalAmount + booking.PointsDiscountAmount;
                 var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
                 var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
 
@@ -695,6 +735,21 @@ namespace ChargeSlot.Api.Services.Implementation
                 {
                     slot.Status = SlotStatus.Active;
                     slot.UpdatedAt = now;
+                    await _unitOfWork.CompleteAsync();
+                }
+
+                // 7. Hoàn kho cho các dịch vụ Thuê (IsRental = true)
+                if (booking.BookingExtraServices != null && booking.BookingExtraServices.Count > 0)
+                {
+                    foreach (var bes in booking.BookingExtraServices)
+                    {
+                        var svc = await _extraServiceRepo.GetByIdAsync(bes.ServiceId);
+                        if (svc != null && svc.TotalStock.HasValue && svc.IsRental)
+                        {
+                            svc.TotalStock += bes.Quantity;
+                            _extraServiceRepo.Update(svc);
+                        }
+                    }
                     await _unitOfWork.CompleteAsync();
                 }
 

@@ -22,6 +22,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly ILedgerTransactionRepository _ledgerRepo;
         private readonly ILogger<BookingService> _logger;
         private readonly ISystemConfigService _configService;
+        private static readonly SemaphoreSlim _stockLock = new SemaphoreSlim(1, 1);
 
         public BookingService(
             IBookingRepository bookingRepo,
@@ -154,34 +155,50 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (dto.ExtraServices != null && dto.ExtraServices.Count > 0)
             {
-                var serviceIds = dto.ExtraServices.Select(e => e.ServiceId).ToList();
-                var services = await _extraServiceRepo.GetByIdsAsync(serviceIds);
-
-                foreach (var item in dto.ExtraServices)
+                await _stockLock.WaitAsync();
+                try
                 {
-                    var svc = services.FirstOrDefault(s => s.Id == item.ServiceId)
-                        ?? throw new InvalidOperationException($"Dịch vụ #{item.ServiceId} không tồn tại.");
+                    var serviceIds = dto.ExtraServices.Select(e => e.ServiceId).ToList();
+                    var services = await _extraServiceRepo.GetByIdsAsync(serviceIds);
 
-                    if (svc.StationId != slot.StationId)
-                        throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' không thuộc trạm này.");
-
-                    if (!svc.IsActive)
-                        throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' hiện không khả dụng.");
-
-                    if (svc.TotalStock.HasValue && svc.TotalStock.Value < item.Quantity)
-                        throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' chỉ còn {svc.TotalStock} — không đủ {item.Quantity}.");
-
-                    var unitPrice = svc.Price;
-                    var totalPrice = unitPrice * item.Quantity;
-                    serviceAmount += totalPrice;
-
-                    extraServiceRecords.Add(new BookingExtraService
+                    foreach (var item in dto.ExtraServices)
                     {
-                        ServiceId = item.ServiceId,
-                        Quantity = item.Quantity,
-                        UnitPrice = unitPrice,
-                        TotalPrice = totalPrice
-                    });
+                        var svc = services.FirstOrDefault(s => s.Id == item.ServiceId)
+                            ?? throw new InvalidOperationException($"Dịch vụ #{item.ServiceId} không tồn tại.");
+
+                        if (svc.StationId != slot.StationId)
+                            throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' không thuộc trạm này.");
+
+                        if (!svc.IsActive)
+                            throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' hiện không khả dụng.");
+
+                        if (svc.TotalStock.HasValue && svc.TotalStock.Value < item.Quantity)
+                            throw new InvalidOperationException($"Dịch vụ '{svc.ServiceName}' chỉ còn {svc.TotalStock} — không đủ {item.Quantity}.");
+
+                        // Trừ tồn kho tạm thời (Reservation) để chống overselling
+                        if (svc.TotalStock.HasValue)
+                        {
+                            svc.TotalStock -= item.Quantity;
+                            _extraServiceRepo.Update(svc);
+                        }
+
+                        var unitPrice = svc.Price;
+                        var totalPrice = unitPrice * item.Quantity;
+                        serviceAmount += totalPrice;
+
+                        extraServiceRecords.Add(new BookingExtraService
+                        {
+                            ServiceId = item.ServiceId,
+                            Quantity = item.Quantity,
+                            UnitPrice = unitPrice,
+                            TotalPrice = totalPrice
+                        });
+                    }
+                }
+                finally
+                {
+                    await _unitOfWork.CompleteAsync(); // Đẩy SQL UPDATE xuốg CSDL trong khi vẫn giữ khóa để CSDL lấy Row Lock độc quyền
+                    _stockLock.Release();
                 }
             }
 

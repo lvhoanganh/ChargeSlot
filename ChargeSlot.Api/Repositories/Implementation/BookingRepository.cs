@@ -315,6 +315,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Where(b => b.Status == BookingStatus.Paid && b.EndTime < cutoff && b.ManualCheckinRequestedAt == null)
                 .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
                 .Include(b => b.Driver).ThenInclude(d => d.User)
+                .Include(b => b.BookingExtraServices)
                 .ToListAsync();
         }
 
@@ -325,6 +326,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
                 .Include(b => b.ChargingSession)
                 .Include(b => b.Driver)
+                .Include(b => b.BookingExtraServices)
                 .ToListAsync();
         }
 

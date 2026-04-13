@@ -13,6 +13,8 @@ namespace ChargeSlot.Api.Models
         public decimal Price { get; set; }
         /// <summary>NULL = không giới hạn (dịch vụ). Có giá trị = số lượng vật lý cho thuê (ví dụ: 5 củ sạc).</summary>
         public int? TotalStock { get; set; }
+        /// <summary>Đánh dấu đồ có phải hàng trả lại kho (true) hay nước uống (false).</summary>
+        public bool IsRental { get; set; } = false;
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 

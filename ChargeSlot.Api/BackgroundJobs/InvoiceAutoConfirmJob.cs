@@ -174,6 +174,26 @@ namespace ChargeSlot.Api.BackgroundJobs
             var platformFee = invoice.PlatformFee;
             var vatAmount = invoice.VatAmount;
 
+            // 0. Bù tiền bảo trợ từ ví Nền tảng vào ESCROW để cân đối khoản chiết khấu bằng Điểm thưởng (Atomic)
+            if (booking.PointsDiscountAmount > 0)
+            {
+                platformWallet.AvailableBalance -= booking.PointsDiscountAmount;
+                escrowWallet.AvailableBalance += booking.PointsDiscountAmount;
+
+                ledgerRepo.Add(new LedgerTransaction
+                {
+                    ReferenceType = "PointsSubsidy",
+                    ReferenceId = booking.Id,
+                    Memo = $"Nền tảng bù {booking.PointsDiscountAmount:N0}đ chiết khấu điểm thưởng cho booking #{booking.Id}",
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Debit, Amount = booking.PointsDiscountAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Credit, Amount = booking.PointsDiscountAmount, CreatedAt = now }
+                    }
+                });
+            }
+
             // ESCROW → Owner
             escrowWallet.AvailableBalance -= ownerNet;
             ownerWallet.AvailableBalance += ownerNet;

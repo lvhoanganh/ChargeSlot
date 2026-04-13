@@ -27,6 +27,8 @@ namespace ChargeSlot.Api.Repositories.Implementation
                     .ThenInclude(b => b.Driver).ThenInclude(d => d.User)
                 .Include(s => s.Booking)
                     .ThenInclude(b => b.ChargingSlot).ThenInclude(sl => sl.ChargingStation)
+                .Include(s => s.Booking)
+                    .ThenInclude(b => b.BookingExtraServices)
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
 

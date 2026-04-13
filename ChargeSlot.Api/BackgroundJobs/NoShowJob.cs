@@ -117,7 +117,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     }
 
                     // Tạo Invoice với PendingConfirm (chờ Driver review)
-                    var grossAmount = booking.TotalAmount;
+                    var grossAmount = booking.TotalAmount + booking.PointsDiscountAmount;
                     var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
                     var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
                     var vatAmount = Math.Round(grossAmount * vatRate, 0);
@@ -138,6 +138,22 @@ namespace ChargeSlot.Api.BackgroundJobs
                     };
                     invoiceRepo.Add(invoice);
                     await unitOfWork.CompleteAsync();
+
+                    // Hoàn lại Tồn kho cho các dịch vụ ExtraService vì khách đã No-Show
+                    if (booking.BookingExtraServices != null && booking.BookingExtraServices.Count > 0)
+                    {
+                        var extraServiceRepo = scope.ServiceProvider.GetRequiredService<IExtraServiceRepository>();
+                        foreach (var bes in booking.BookingExtraServices)
+                        {
+                            var svc = await extraServiceRepo.GetByIdAsync(bes.ServiceId);
+                            if (svc != null && svc.TotalStock.HasValue)
+                            {
+                                svc.TotalStock += bes.Quantity;
+                                extraServiceRepo.Update(svc);
+                            }
+                        }
+                        await unitOfWork.CompleteAsync();
+                    }
 
                     // Loyalty + Settlement sẽ do ConfirmCompletionAsync hoặc InvoiceAutoConfirmJob xử lý
 
@@ -204,7 +220,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                     }
 
                     // 2. Create invoice with PendingConfirm (chờ Driver review)
-                    var grossAmount = booking.TotalAmount;
+                    var grossAmount = booking.TotalAmount + booking.PointsDiscountAmount;
                     var vatRate = booking.VatRateSnapshot == 0 ? 0.08m : booking.VatRateSnapshot;
                     var platformFeeRate = booking.PlatformFeeRateSnapshot == 0 ? 0.05m : booking.PlatformFeeRateSnapshot;
 
@@ -238,6 +254,21 @@ namespace ChargeSlot.Api.BackgroundJobs
                         booking.ChargingSlot.UpdatedAt = now;
                         var slotRepo = scope.ServiceProvider.GetRequiredService<IChargingSlotRepository>();
                         slotRepo.Update(booking.ChargingSlot);
+                    }
+
+                    // 5. Hoàn trả Tồn kho cho Hàng thuê (IsRental = true)
+                    if (booking.BookingExtraServices != null && booking.BookingExtraServices.Count > 0)
+                    {
+                        var extraServiceRepo = scope.ServiceProvider.GetRequiredService<IExtraServiceRepository>();
+                        foreach (var bes in booking.BookingExtraServices)
+                        {
+                            var svc = await extraServiceRepo.GetByIdAsync(bes.ServiceId);
+                            if (svc != null && svc.TotalStock.HasValue && svc.IsRental)
+                            {
+                                svc.TotalStock += bes.Quantity;
+                                extraServiceRepo.Update(svc);
+                            }
+                        }
                     }
 
                     await unitOfWork.CompleteAsync();

@@ -22,7 +22,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IExtraServiceRepository _extraServiceRepo;
         private readonly IStationUnavailableDateRepository _unavailableDateRepo;
         private readonly IBookingRepository _bookingRepo;
-        private readonly INotificationRepository _notificationRepo;
+        private readonly INotificationService _notificationService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IServiceProvider _serviceProvider;
 
@@ -35,7 +35,7 @@ namespace ChargeSlot.Api.Services.Implementation
             IExtraServiceRepository extraServiceRepo,
             IStationUnavailableDateRepository unavailableDateRepo,
             IBookingRepository bookingRepo,
-            INotificationRepository notificationRepo,
+            INotificationService notificationService,
             IUnitOfWork unitOfWork,
             IServiceProvider serviceProvider)
         {
@@ -47,7 +47,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _extraServiceRepo = extraServiceRepo;
             _unavailableDateRepo = unavailableDateRepo;
             _bookingRepo = bookingRepo;
-            _notificationRepo = notificationRepo;
+            _notificationService = notificationService;
             _unitOfWork = unitOfWork;
             _serviceProvider = serviceProvider;
         }
@@ -431,17 +431,11 @@ namespace ChargeSlot.Api.Services.Implementation
             // Notify all Admin users
             var adminUsers = await _userManager.GetUsersInRoleAsync(RoleConstants.Admin);
             foreach (var admin in adminUsers)
-            {
-                _notificationRepo.Add(new Notification
-                {
-                    UserId = admin.Id,
-                    Title = "Trạm sạc mới chờ duyệt",
-                    Content = $"Trạm sạc \"{station.Name}\" đã được gửi yêu cầu phê duyệt.",
-                    Type = NotificationType.StationApproval,
-                    IsRead = false,
-                    CreatedAt = DateTimeHelper.VietnamNow()
-                });
-            }
+                await _notificationService.SendAsync(
+                    admin.Id,
+                    "Trạm sạc mới chờ duyệt",
+                    $"Trạm sạc \"{station.Name}\" đã được gửi yêu cầu phê duyệt.",
+                    NotificationType.StationApproval);
 
             await _unitOfWork.CompleteAsync();
         }
@@ -623,28 +617,22 @@ namespace ChargeSlot.Api.Services.Implementation
                         station.BannedUntil = now.AddDays(30);
                         station.OperationalStatus = OperationalStatus.Inactive;
                         
-                        _notificationRepo.Add(new Notification
-                        {
-                            UserId = ownerUserId,
-                            Title = "Trạm sạc bị đình chỉ",
-                            Content = "Trạm của bạn đã bị đình chỉ 30 ngày do lạm dụng Hủy Khẩn Cấp quá 1 lần/tháng. Các đặt chỗ hiện tại đã bị hủy.",
-                            Type = NotificationType.System,
-                            CreatedAt = now
-                        });
+                        await _notificationService.SendAsync(
+                            ownerUserId,
+                            "Trạm sạc bị đình chỉ",
+                            "Trạm của bạn đã bị đình chỉ 30 ngày do lạm dụng Hủy Khẩn Cấp quá 1 lần/tháng. Các đặt chỗ hiện tại đã bị hủy.",
+                            NotificationType.System);
                     }
                     else
                     {
                         // Cảnh báo lần 1
                         station.OperationalStatus = newStatus;
                         
-                        _notificationRepo.Add(new Notification
-                        {
-                            UserId = ownerUserId,
-                            Title = "Kích hoạt Hủy Khẩn Cấp",
-                            Content = "Trạm của bạn đã kích hoạt Hủy Khẩn Cấp. Bạn đã dùng hết hạn mức 1 lần/tháng. Nếu tái phạm trong tháng này, trạm sẽ bị đình chỉ hoạt động 30 ngày.",
-                            Type = NotificationType.System,
-                            CreatedAt = now
-                        });
+                        await _notificationService.SendAsync(
+                            ownerUserId,
+                            "Kích hoạt Hủy Khẩn Cấp",
+                            "Trạm của bạn đã kích hoạt Hủy Khẩn Cấp. Bạn đã dùng hết hạn mức 1 lần/tháng. Nếu tái phạm trong tháng này, trạm sẽ bị đình chỉ hoạt động 30 ngày.",
+                            NotificationType.System);
                     }
                 }
                 else
@@ -793,6 +781,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 Description = dto.Description?.Trim(),
                 Price = dto.Price,
                 TotalStock = dto.TotalStock,
+                IsRental = dto.IsRental,
                 IsActive = true,
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
@@ -822,6 +811,7 @@ namespace ChargeSlot.Api.Services.Implementation
             service.Description = dto.Description?.Trim();
             service.Price = dto.Price;
             service.TotalStock = dto.TotalStock;
+            service.IsRental = dto.IsRental;
             service.IsActive = dto.IsActive;
 
             _extraServiceRepo.Update(service);
@@ -856,6 +846,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 Description = s.Description,
                 Price = s.Price,
                 TotalStock = s.TotalStock,
+                IsRental = s.IsRental,
                 IsActive = s.IsActive
             };
         }
@@ -922,15 +913,11 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
 
                 // Notify Owner
-                _notificationRepo.Add(new Notification
-                {
-                    UserId = station.OwnerUserId,
-                    Title = "Trạm sạc đã được phê duyệt",
-                    Content = $"Trạm sạc \"{station.Name}\" đã được phê duyệt và công bố trên hệ thống.",
-                    Type = NotificationType.StationApproval,
-                    IsRead = false,
-                    CreatedAt = DateTimeHelper.VietnamNow()
-                });
+                await _notificationService.SendAsync(
+                    station.OwnerUserId,
+                    "Trạm sạc đã được phê duyệt",
+                    $"Trạm sạc \"{station.Name}\" đã được phê duyệt và công bố trên hệ thống.",
+                    NotificationType.StationApproval);
             }
             else
             {
@@ -941,15 +928,11 @@ namespace ChargeSlot.Api.Services.Implementation
                 station.ApprovalStatus = ApprovalStatus.Rejected;
 
                 // Notify Owner with rejection reason
-                _notificationRepo.Add(new Notification
-                {
-                    UserId = station.OwnerUserId,
-                    Title = "Trạm sạc bị từ chối",
-                    Content = $"Trạm sạc \"{station.Name}\" đã bị từ chối. Lý do: {dto.AdminNote}",
-                    Type = NotificationType.StationApproval,
-                    IsRead = false,
-                    CreatedAt = DateTimeHelper.VietnamNow()
-                });
+                await _notificationService.SendAsync(
+                    station.OwnerUserId,
+                    "Trạm sạc bị từ chối",
+                    $"Trạm sạc \"{station.Name}\" đã bị từ chối. Lý do: {dto.AdminNote}",
+                    NotificationType.StationApproval);
             }
 
             await _unitOfWork.CompleteAsync();
