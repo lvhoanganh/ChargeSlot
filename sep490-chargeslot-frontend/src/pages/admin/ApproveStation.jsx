@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { instance } from "@/lib/httpRequest";
 import { showToast } from "@/components/Toast";
@@ -46,6 +46,46 @@ function FlyTo({ center, zoom }) {
     if (center) map.flyTo(center, zoom || 15, { duration: 1.2 });
   }, [center, zoom, map]);
   return null;
+}
+
+function StationMarker({ s, icon, isActive, getStatusLabel, onViewInList }) {
+  const markerRef = useRef(null);
+
+  useEffect(() => {
+    if (isActive && markerRef.current) {
+      setTimeout(() => {
+        if (markerRef.current) markerRef.current.openPopup();
+      }, 500); // Wait for the fly animation to process
+    }
+  }, [isActive]);
+
+  return (
+    <Marker ref={markerRef} position={[s.latitude, s.longitude]} icon={icon}>
+      <Popup className="custom-popup" maxWidth={280}>
+        <div style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+          <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid #f1f5f9" }}>
+            <h3 style={{ margin: "0 0 4px 0", fontSize: 16, color: "#1e293b", fontWeight: 700 }}>{s.name}</h3>
+            <div style={{ fontSize: 12, color: "#64748b" }}>{s.ownerName || s.owner?.fullName || s.owner?.phoneNumber || "—"}</div>
+          </div>
+          <div style={{ padding: "12px 16px" }}>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>📍 {s.address}</div>
+            <div style={{ marginBottom: 12 }}>
+              <span className={`cs-admin-status-badge cs-admin-status-badge--${s.approvalStatus === "PendingApproval" ? "pending" : s.approvalStatus === "Approved" ? "active" : s.approvalStatus === "Rejected" ? "banned" : "draft"}`}>
+                <span className="cs-admin-status-badge__dot" />
+                {getStatusLabel(s.approvalStatus)}
+              </span>
+            </div>
+            <button
+              onClick={onViewInList}
+              style={{ width: "100%", padding: "8px", background: "#f1f5f9", color: "#334155", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+            >
+              Xem trong danh sách
+            </button>
+          </div>
+        </div>
+      </Popup>
+    </Marker>
+  );
 }
 
 
@@ -107,11 +147,12 @@ export default function ApproveStation() {
   const [viewMode, setViewMode] = useState("list");
   const [userPos, setUserPos] = useState(null);
   const [flyTarget, setFlyTarget] = useState([21.0285, 105.8542]);
-  
+  const [activeStationId, setActiveStationId] = useState(null);
+
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
       (pos) => setUserPos([pos.coords.latitude, pos.coords.longitude]),
-      () => {},
+      () => { },
       { enableHighAccuracy: true, timeout: 8000 }
     );
   }, []);
@@ -311,10 +352,6 @@ export default function ApproveStation() {
           className="cs-admin-filter__select"
           style={{ minWidth: 180 }}
         >
-          <option value="">👤 Tất cả chủ trạm</option>
-          {ownerOptions.map((name) => (
-            <option key={name} value={name}>{name}</option>
-          ))}
         </select>
         <select
           value={statusFilter}
@@ -329,7 +366,7 @@ export default function ApproveStation() {
         {/* Date range */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <svg width="15" height="15" fill="none" stroke="#64748b" strokeWidth={2} viewBox="0 0 24 24">
-            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
           </svg>
           <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
             className="cs-admin-filter__select" style={{ width: 140, cursor: "pointer" }} title="Từ ngày" />
@@ -361,66 +398,84 @@ export default function ApproveStation() {
 
       {/* Table or Map */}
       {viewMode === "list" ? (
-      <div className="cs-admin-table-wrap">
-        <table className="cs-admin-table">
-          <thead>
-            <tr>
-              <th>STT</th>
-              <th>Tên trạm</th>
-              <th>Chủ trạm</th>
-              <th>Địa chỉ</th>
-              <th>Số ổ sạc</th>
-              <th>Vi phạm (AI)</th>
-              <th>Ngày tạo</th>
-              <th>Trạng thái</th>
-              <th style={{ textAlign: "right" }}>Hành động</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
+        <div className="cs-admin-table-wrap">
+          <table className="cs-admin-table">
+            <thead>
               <tr>
-                <td colSpan={9} className="cs-admin-table__empty">
-                  <p>Không tìm thấy yêu cầu nào</p>
-                </td>
+                <th>STT</th>
+                <th>Tên trạm</th>
+                <th>Chủ trạm</th>
+                <th>Địa chỉ</th>
+                <th>Số ổ sạc</th>
+                <th>Vi phạm (AI)</th>
+                <th>Ngày tạo</th>
+                <th>Trạng thái</th>
+                <th style={{ textAlign: "right" }}>Hành động</th>
               </tr>
-            ) : (
-              filtered.map((s, idx) => {
-                const isPending = s.approvalStatus === "PendingApproval";
-                // BE set bannedUntil = +100 năm khi khoá, null khi mở
-                const isBanned = !!s.bannedUntil;
-                return (
-                  <tr key={s.id}>
-                    <td className="cs-admin-table__id" style={{ fontWeight: 700, color: "#64748b" }}>{idx + 1}</td>
-                    <td className="cs-admin-table__name">{s.name}</td>
-                    <td style={{ fontSize: 13, color: "#374151" }}>{s.ownerName || s.owner?.fullName || s.owner?.phoneNumber || "—"}</td>
-                    <td>{s.address}</td>
-                    <td>{s.chargingSlots?.length || 0}</td>
-                    <td>
-                      <BanStatusBadge banCount={s.banCount ?? 0} bannedUntil={s.bannedUntil ?? null} />
-                    </td>
-                    <td>{formatDate(s.createdAt)}</td>
-                    <td>
-                      <span className={`cs-admin-status-badge cs-admin-status-badge--${s.approvalStatus === "PendingApproval" ? "pending" : s.approvalStatus === "Approved" ? "active" : s.approvalStatus === "Rejected" ? "banned" : "draft"}`}>
-                        <span className="cs-admin-status-badge__dot" />
-                        {getStatusLabel(s.approvalStatus)}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, flexWrap: "wrap" }}>
-                        <button
-                          disabled={!isPending}
-                          onClick={() => askReview(s, true)}
-                          className={`cs-admin-action-btn ${isPending ? "cs-admin-action-btn--activate" : "cs-admin-action-btn--disabled"}`}
-                        >
-                          Phê duyệt
-                        </button>
-                        <button
-                          disabled={!isPending}
-                          onClick={() => askReview(s, false)}
-                          className={`cs-admin-action-btn ${isPending ? "cs-admin-action-btn--ban" : "cs-admin-action-btn--disabled"}`}
-                        >
-                          Từ chối
-                        </button>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="cs-admin-table__empty">
+                    <p>Không tìm thấy yêu cầu nào</p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((s, idx) => {
+                  const isPending = s.approvalStatus === "PendingApproval";
+                  // BE set bannedUntil = +100 năm khi khoá, null khi mở
+                  const isBanned = !!s.bannedUntil;
+                  return (
+                    <tr key={s.id}>
+                      <td className="cs-admin-table__id" style={{ fontWeight: 700, color: "#64748b" }}>{idx + 1}</td>
+                      <td className="cs-admin-table__name">
+                        {s.latitude && s.longitude ? (
+                          <div 
+                            onClick={() => {
+                              setFlyTarget([s.latitude, s.longitude]);
+                              setActiveStationId(s.id);
+                              setViewMode("map");
+                            }}
+                            style={{ cursor: "pointer", color: "#0ea5e9", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                            title="Xác định trên bản đồ"
+                            onMouseEnter={(e) => e.currentTarget.style.textDecoration = "underline"}
+                            onMouseLeave={(e) => e.currentTarget.style.textDecoration = "none"}
+                          >
+                            {s.name} <span style={{ fontSize: 12 }}>📍</span>
+                          </div>
+                        ) : (
+                          s.name
+                        )}
+                      </td>
+                      <td style={{ fontSize: 13, color: "#374151" }}>{s.ownerName || s.owner?.fullName || s.owner?.phoneNumber || "—"}</td>
+                      <td>{s.address}</td>
+                      <td>{s.chargingSlots?.length || 0}</td>
+                      <td>
+                        <BanStatusBadge banCount={s.banCount ?? 0} bannedUntil={s.bannedUntil ?? null} />
+                      </td>
+                      <td>{formatDate(s.createdAt)}</td>
+                      <td>
+                        <span className={`cs-admin-status-badge cs-admin-status-badge--${s.approvalStatus === "PendingApproval" ? "pending" : s.approvalStatus === "Approved" ? "active" : s.approvalStatus === "Rejected" ? "banned" : "draft"}`}>
+                          <span className="cs-admin-status-badge__dot" />
+                          {getStatusLabel(s.approvalStatus)}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, flexWrap: "wrap" }}>
+                          <button
+                            disabled={!isPending}
+                            onClick={() => askReview(s, true)}
+                            className={`cs-admin-action-btn ${isPending ? "cs-admin-action-btn--activate" : "cs-admin-action-btn--disabled"}`}
+                          >
+                            Phê duyệt
+                          </button>
+                          <button
+                            disabled={!isPending}
+                            onClick={() => askReview(s, false)}
+                            className={`cs-admin-action-btn ${isPending ? "cs-admin-action-btn--ban" : "cs-admin-action-btn--disabled"}`}
+                          >
+                            Từ chối
+                          </button>
                         </div>
                         {/* Toggle ban trạm */}
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, marginTop: 4 }}>
@@ -441,10 +496,10 @@ export default function ApproveStation() {
                                   return old.map(station =>
                                     station.id === s.id
                                       ? {
-                                          ...station,
-                                          bannedUntil: newIsBanned ? "2199-01-01T00:00:00Z" : null,
-                                          operationalStatus: newIsBanned ? "Inactive" : "Active",
-                                        }
+                                        ...station,
+                                        bannedUntil: newIsBanned ? "2199-01-01T00:00:00Z" : null,
+                                        operationalStatus: newIsBanned ? "Inactive" : "Active",
+                                      }
                                       : station
                                   );
                                 });
@@ -473,12 +528,12 @@ export default function ApproveStation() {
                         </div>
                       </td>
                     </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <div className="map-view-container" style={{ height: 600, borderRadius: 16, border: "1px solid #e2e8f0", overflow: "hidden", position: "relative", zIndex: 1, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}>
           <button
@@ -497,7 +552,7 @@ export default function ApproveStation() {
                 );
             }}
             style={{
-              position: "absolute", bottom: 20, right: 20, zIndex: 1000, 
+              position: "absolute", bottom: 20, right: 20, zIndex: 1000,
               background: "white", width: 44, height: 44, borderRadius: "50%",
               display: "flex", alignItems: "center", justifyContent: "center",
               boxShadow: "0 2px 10px rgba(0,0,0,0.1)", border: "none", cursor: "pointer", color: "#3b82f6"
@@ -522,34 +577,18 @@ export default function ApproveStation() {
             {filtered.filter(s => s.latitude && s.longitude).map(s => {
               const icon = mapIcons[s.approvalStatus] || mapIcons.Draft;
               return (
-                <Marker key={s.id} position={[s.latitude, s.longitude]} icon={icon}>
-                  <Popup className="custom-popup" maxWidth={280}>
-                    <div style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-                      <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid #f1f5f9" }}>
-                        <h3 style={{ margin: "0 0 4px 0", fontSize: 16, color: "#1e293b", fontWeight: 700 }}>{s.name}</h3>
-                        <div style={{ fontSize: 12, color: "#64748b" }}>{s.ownerName || s.owner?.fullName || s.owner?.phoneNumber || "—"}</div>
-                      </div>
-                      <div style={{ padding: "12px 16px" }}>
-                        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>📍 {s.address}</div>
-                        <div style={{ marginBottom: 12 }}>
-                          <span className={`cs-admin-status-badge cs-admin-status-badge--${s.approvalStatus === "PendingApproval" ? "pending" : s.approvalStatus === "Approved" ? "active" : s.approvalStatus === "Rejected" ? "banned" : "draft"}`}>
-                            <span className="cs-admin-status-badge__dot" />
-                            {getStatusLabel(s.approvalStatus)}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setSearch(s.name);
-                            setViewMode("list");
-                          }}
-                          style={{ width: "100%", padding: "8px", background: "#f1f5f9", color: "#334155", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: "pointer" }}
-                        >
-                          Xem trong danh sách
-                        </button>
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
+                <StationMarker
+                  key={s.id}
+                  s={s}
+                  icon={icon}
+                  isActive={activeStationId === s.id}
+                  getStatusLabel={getStatusLabel}
+                  onViewInList={() => {
+                    setSearch(s.name);
+                    setViewMode("list");
+                    setActiveStationId(null);
+                  }}
+                />
               )
             })}
           </MapContainer>
