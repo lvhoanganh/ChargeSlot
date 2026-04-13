@@ -45,6 +45,7 @@ export default function OwnerProfile() {
         if (!cancelled) {
           setProfile(data);
           if (meData?.email) setEmail(meData.email);
+          if (meData?.pendingEmail) setProfile(prev => ({ ...prev, pendingEmail: meData.pendingEmail }));
           // Ưu tiên avatar từ server (đồng bộ qua mọi thiết bị)
           if (data?.avatarUrl) {
             const url = data.avatarUrl.startsWith("http")
@@ -163,6 +164,18 @@ export default function OwnerProfile() {
                 <InfoCard icon="✉️" label="Email" value={email || "—"} />
                 <InfoCard icon="🏢" label="Tên doanh nghiệp" value={hasBusinessInfo ? businessName : "—"} />
                 <InfoCard icon="📋" label="Mã số thuế" value={hasBusinessInfo ? maskTaxCode(taxCode) : "—"} />
+              </div>
+            )}
+
+            {!loading && !error && profile?.pendingEmail && (
+              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3 shadow-sm">
+                <svg className="w-5 h-5 text-yellow-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-[1]">
+                  <p className="text-sm text-yellow-700 font-medium tracking-tight">Email đang chờ xác minh</p>
+                  <p className="text-[13px] text-yellow-600 font-semibold">{profile.pendingEmail}</p>
+                </div>
               </div>
             )}
           </div>

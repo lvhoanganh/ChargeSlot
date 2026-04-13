@@ -259,6 +259,12 @@ export const authApi = {
             method: "POST",
             body: JSON.stringify({ userId, token }),
         }),
+
+    verifyEmailOtp: (otp) =>
+        apiFetch("/auth/verify-email-otp", {
+            method: "POST",
+            body: JSON.stringify({ otp }),
+        }),
 };
 
 // ============================

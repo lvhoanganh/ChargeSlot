@@ -896,7 +896,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
 
   // Tính giờ mở sớm nhất & đóng muộn nhất (để so sánh pricing)
   const openHours = operatingHours.filter(h => !h.isClosed);
-  let earliestOpen = "23:59";
+  let earliestOpen = openHours.length > 0 ? "23:59" : "00:00";
   let latestClose = "00:00";
   openHours.forEach(h => {
     const open = fmtTime(h.openTime);
@@ -997,7 +997,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
         priority: 0,
       });
       setShowAddPricing(false);
-      setNewTier({ startTime: "00:00", endTime: "", pricePerHour: "" });
+      setNewTier({ startTime: earliestOpen, endTime: "", pricePerHour: "" });
       setPricingError("");
       await reloadPricing();
       onSaved?.();

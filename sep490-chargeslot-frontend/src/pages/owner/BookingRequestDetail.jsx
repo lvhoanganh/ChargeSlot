@@ -102,6 +102,60 @@ export default function BookingRequestDetail() {
   // Chỉ hiện cột "Chi tiết nâng cao" khi có ít nhất 1 dữ liệu thực tế
   const hasAdvancedDetail = !!(booking.paymentDetail || booking.invoiceDetail || sessionDetail || booking.disputeDetail);
 
+  const renderActions = () => (
+    <div style={{ marginTop: hasAdvancedDetail ? "auto" : 20, borderTop: "2px solid #e2e8f0", paddingTop: 20 }}>
+      {/* Chat button */}
+      {booking.status !== "Cancelled" && booking.status !== "Rejected" && booking.status !== "Expired" && booking.status !== "NoShow" && (
+        <div style={{ marginBottom: 12 }}>
+          <button
+            onClick={() => navigate(`/owner/chat/${booking.id}`)}
+            style={{ width: "100%", padding: "12px 0", borderRadius: 12, border: "2px solid #3b82f6", background: "#eff6ff", color: "#3b82f6", fontWeight: 700, fontSize: 14, cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#dbeafe"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#eff6ff"; }}
+          >
+            💬 Chat với Driver
+          </button>
+        </div>
+      )}
+
+      {/* Accept/Reject buttons */}
+      {booking.status === "WaitingOwner" && (
+        <div style={{ marginBottom: 12 }}>
+          {showRejectForm ? (
+            <div className="animate-in fade-in zoom-in duration-200">
+              <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Lý do từ chối..." rows={3} style={{ width: "100%", padding: 12, borderRadius: 10, border: "1.5px solid #e5e7eb", fontSize: 14, marginBottom: 12, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={handleReject} disabled={actionLoading} style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+                  {actionLoading ? "Đang xử lý..." : "Xác nhận từ chối"}
+                </button>
+                <button onClick={() => setShowRejectForm(false)} style={{ padding: "12px 20px", borderRadius: 10, border: "1.5px solid #e5e7eb", background: "#fff", color: "#374151", fontWeight: 600, cursor: "pointer" }}>Hủy</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={handleAccept} disabled={actionLoading} style={{ flex: 1, padding: 14, borderRadius: 12, border: "none", background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 12px rgba(34,197,94,0.3)" }}>
+                {actionLoading ? "Đang xử lý..." : "✅ Chấp nhận"}
+              </button>
+              <button onClick={() => setShowRejectForm(true)} style={{ flex: 1, padding: 14, borderRadius: 12, border: "none", background: "linear-gradient(135deg, #ef4444, #dc2626)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 12px rgba(239,68,68,0.3)" }}>
+                ❌ Từ chối
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Owner cancel — cho booking đã Paid hoặc PendingPayment */}
+      {(booking.status === "Paid" || booking.status === "PendingPayment") && (
+        <OwnerCancelSection bookingId={booking.id} onDone={(updated) => setBooking(updated)} />
+      )}
+
+      {/* Dispute link */}
+      {booking.status === "Disputed" && (
+        <OwnerDisputeLink bookingId={booking.id} navigate={navigate} />
+      )}
+    </div>
+  );
+
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90 }}>
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 16px 40px" }}>
@@ -168,6 +222,9 @@ export default function BookingRequestDetail() {
                   ))}
                 </div>
               )}
+
+              {/* Nếu không có advanced details, render actions dưới cột thông tin cơ bản */}
+              {!hasAdvancedDetail && renderActions()}
             </div>
 
             {/* ========== CỘT PHẢI: Chi tiết nâng cao (chỉ hiện khi có dữ liệu) ========== */}
@@ -234,71 +291,7 @@ export default function BookingRequestDetail() {
               </div>
 
               {/* Actions Section */}
-              <div style={{ marginTop: "auto", borderTop: "2px solid #e2e8f0", paddingTop: 20 }}>
-                {/* Chat button */}
-                {booking.status !== "Cancelled" && booking.status !== "Rejected" && booking.status !== "Expired" && booking.status !== "NoShow" && (
-                  <div style={{ marginBottom: 12 }}>
-                    <button
-                      onClick={() => navigate(`/owner/chat/${booking.id}`)}
-                      style={{
-                        width: "100%", padding: "12px 0", borderRadius: 12,
-                        border: "2px solid #3b82f6", background: "#eff6ff",
-                        color: "#3b82f6", fontWeight: 700, fontSize: 14,
-                        cursor: "pointer", transition: "all 0.2s",
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = "#dbeafe"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = "#eff6ff"; }}
-                    >
-                      💬 Chat với Driver
-                    </button>
-                  </div>
-                )}
-
-                {/* Accept/Reject buttons */}
-                {booking.status === "WaitingOwner" && (
-                  <div style={{ marginBottom: 12 }}>
-                    {showRejectForm ? (
-                      <div className="animate-in fade-in zoom-in duration-200">
-                        <textarea
-                          value={rejectReason}
-                          onChange={(e) => setRejectReason(e.target.value)}
-                          placeholder="Lý do từ chối..."
-                          rows={3}
-                          style={{ width: "100%", padding: 12, borderRadius: 10, border: "1.5px solid #e5e7eb", fontSize: 14, marginBottom: 12, resize: "vertical", outline: "none", boxSizing: "border-box" }}
-                        />
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button onClick={handleReject} disabled={actionLoading} style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: "#ef4444", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
-                            {actionLoading ? "Đang xử lý..." : "Xác nhận từ chối"}
-                          </button>
-                          <button onClick={() => setShowRejectForm(false)} style={{ padding: "12px 20px", borderRadius: 10, border: "1.5px solid #e5e7eb", background: "#fff", color: "#374151", fontWeight: 600, cursor: "pointer" }}>
-                            Hủy
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={handleAccept} disabled={actionLoading} style={{ flex: 1, padding: 14, borderRadius: 12, border: "none", background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 12px rgba(34,197,94,0.3)" }}>
-                          {actionLoading ? "Đang xử lý..." : "✅ Chấp nhận"}
-                        </button>
-                        <button onClick={() => setShowRejectForm(true)} style={{ flex: 1, padding: 14, borderRadius: 12, border: "none", background: "linear-gradient(135deg, #ef4444, #dc2626)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 12px rgba(239,68,68,0.3)" }}>
-                          ❌ Từ chối
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Owner cancel — cho booking đã Paid */}
-                {booking.status === "Paid" && (
-                  <OwnerCancelSection bookingId={booking.id} onDone={(updated) => setBooking(updated)} />
-                )}
-
-                {/* Dispute link */}
-                {booking.status === "Disputed" && (
-                  <OwnerDisputeLink bookingId={booking.id} navigate={navigate} />
-                )}
-              </div>
+              {renderActions()}
             </div>
             )}
           </div>

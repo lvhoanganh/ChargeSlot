@@ -311,6 +311,14 @@ export default function CreateChargingStation() {
     return closeTimes.length > 0 ? closeTimes.reduce((min, t) => t < min ? t : min) : null;
   })();
 
+  const earliestOpenTime = (() => {
+    if (!operatingHours || operatingHours.length === 0) return "00:00";
+    const openTimes = operatingHours
+      .filter((h) => !h.isClosed && h.openTime)
+      .map((h) => String(h.openTime).substring(0, 5));
+    return openTimes.length > 0 ? openTimes.reduce((min, t) => t < min ? t : min) : "00:00";
+  })();
+
   const [stationImages, setStationImages] = useState([]);
 
   const createStationMutation = useMutation({
@@ -367,7 +375,7 @@ export default function CreateChargingStation() {
         setError("root.serverError", { type: "manual", message: `Khung giờ ${i + 1}: Thời gian "${rule.endTime}" không hợp lệ! Giờ từ 00–23, phút từ 00–59.` });
         return;
       }
-      const autoStart = i === 0 ? "00:00" : pricing[i - 1].endTime;
+      const autoStart = i === 0 ? earliestOpenTime : pricing[i - 1].endTime;
       if (rule.endTime <= autoStart) {
         setError("root.serverError", { type: "manual", message: `Khung giờ ${i + 1}: Giờ kết thúc phải sau ${autoStart}.` });
         return;
@@ -776,7 +784,7 @@ export default function CreateChargingStation() {
                 type="button"
                 onClick={() => {
                   const current = watch("stationPricing") || [];
-                  const lastEnd = current.length > 0 ? current[current.length - 1].endTime : "00:00";
+                  const lastEnd = current.length > 0 ? current[current.length - 1].endTime : earliestOpenTime;
                   setValue("stationPricing", [
                     ...current,
                     { startTime: lastEnd, endTime: "", pricePerHour: "" },
@@ -798,7 +806,7 @@ export default function CreateChargingStation() {
               return (
                 <div className="space-y-2">
                   {pricing.map((rule, rIdx) => {
-                    const autoStart = rIdx === 0 ? "00:00" : (pricing[rIdx - 1]?.endTime || "");
+                    const autoStart = rIdx === 0 ? earliestOpenTime : (pricing[rIdx - 1]?.endTime || "");
                     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
                     const isValidFormat = !rule.endTime || timeRegex.test(rule.endTime);
                     const isAfterStart = !rule.endTime || !autoStart || rule.endTime > autoStart;

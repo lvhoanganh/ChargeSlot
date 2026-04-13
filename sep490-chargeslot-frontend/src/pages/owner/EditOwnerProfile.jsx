@@ -45,6 +45,12 @@ export default function EditOwnerProfile() {
   const [error, setError] = useState("");
   const [originalEmail, setOriginalEmail] = useState("");
 
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(45);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -125,16 +131,40 @@ export default function EditOwnerProfile() {
 
       if (values.email && values.email !== originalEmail) {
         await authApi.addEmail(values.email);
-        showToast.success("Link xác thực đã được gửi đến email mới của bạn.");
+        setPendingEmail(values.email);
+        setShowOtpModal(true);
+        setCooldown(45);
       } else {
         showToast.success("Cập nhật thông tin thành công");
+        navigate("/owner/owner-profile");
       }
-
-      navigate("/owner/owner-profile");
     } catch (e) {
       setError(getApiErrorMessage(e, "Lưu thất bại"));
     } finally {
       setSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    let timer;
+    if (showOtpModal && cooldown > 0) {
+      timer = setInterval(() => setCooldown(c => c - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showOtpModal, cooldown]);
+
+  const handleVerifyOtp = async () => {
+    if (!otp.trim() || otp.length < 6) return showToast.error("Vui lòng nhập đủ mã OTP 6 số");
+    setOtpLoading(true);
+    try {
+      await authApi.verifyEmailOtp(otp);
+      showToast.success("✅ Email đã được xác thực thành công");
+      setShowOtpModal(false);
+      navigate("/owner/owner-profile");
+    } catch (e) {
+      showToast.error(getApiErrorMessage(e, "OTP không hợp lệ"));
+    } finally {
+      setOtpLoading(false);
     }
   };
 
@@ -286,6 +316,53 @@ export default function EditOwnerProfile() {
           </form>
         </div>
       </div>
+
+      {/* OTP Modal */}
+      {showOtpModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 400, overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                📧 Xác thực email mới
+              </h3>
+            </div>
+            <div style={{ padding: 24 }}>
+              <p style={{ color: "#475569", fontSize: 14, marginBottom: 16 }}>
+                Mã OTP đã gửi đến:<br />
+                <strong style={{ color: "#1e293b" }}>{pendingEmail}</strong>
+              </p>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Nhập mã 6 số:</label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={otp}
+                  onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+                  placeholder="X X X X X X"
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "2px solid #e5e7eb", fontSize: 20, textAlign: "center", letterSpacing: 8, outline: "none", boxSizing: "border-box" }}
+                  onFocus={e => e.target.style.borderColor = "#f97316"}
+                  onBlur={e => e.target.style.borderColor = "#e5e7eb"}
+                />
+              </div>
+              <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "#64748b" }}>
+                {cooldown > 0 ? (
+                  <span>Gửi lại sau: {String(Math.floor(cooldown / 60)).padStart(2, '0')}:{String(cooldown % 60).padStart(2, '0')} ⏱️</span>
+                ) : (
+                  <button onClick={() => { authApi.addEmail(pendingEmail); setCooldown(45); }} style={{ background: "none", border: "none", color: "#f97316", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Gửi lại mã OTP</button>
+                )}
+              </div>
+            </div>
+            <div style={{ padding: "16px 24px", background: "#f8fafc", display: "flex", gap: 10 }}>
+              <button onClick={() => { setShowOtpModal(false); navigate("/owner/owner-profile"); }} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "1.5px solid #d1d5db", background: "#fff", color: "#475569", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+                ❌ Hủy
+              </button>
+              <button disabled={otpLoading || otp.length < 6} onClick={handleVerifyOtp} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: otpLoading || otp.length < 6 ? "#fdba74" : "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: otpLoading || otp.length < 6 ? "not-allowed" : "pointer" }}>
+                {otpLoading ? "Đang xử lý..." : "✅ Xác nhận"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
