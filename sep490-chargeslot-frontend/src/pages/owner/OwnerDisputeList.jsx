@@ -201,6 +201,25 @@ export default function OwnerDisputeList() {
                     </p>
                   )}
 
+                  {/* Strike Status — thông báo nếu Driver bị phạt do dispute này */}
+                  {(dispute.strikeStatus || dispute.driverStrikeAdded) && (
+                    <div style={{
+                      marginTop: 8, padding: "6px 10px",
+                      background: "#fef3c7", border: "1px solid #fde68a",
+                      borderRadius: 8, display: "flex", alignItems: "center", gap: 6,
+                    }}>
+                      <span style={{ fontSize: 14 }}>⚠️</span>
+                      <span style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>
+                        Driver bị xử lý:{" "}
+                        {dispute.strikeStatus === "Warned" ? "Cảnh cáo tài khoản"
+                          : dispute.strikeStatus === "Suspended" ? "Đình chỉ tài khoản"
+                          : dispute.strikeStatus === "Banned" ? "Cấm tài khoản"
+                          : dispute.driverStrikeAdded ? "Strike đã được ghi nhận"
+                          : dispute.strikeStatus}
+                      </span>
+                    </div>
+                  )}
+
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
                     <span style={{ fontSize: 12, color: "#f97316", fontWeight: 600 }}>
                       {needsAction ? "Phản hồi ngay →" : "Xem chi tiết →"}

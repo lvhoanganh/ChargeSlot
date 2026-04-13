@@ -13,7 +13,7 @@ const txTypeLabels = {
   Payment: { label: "Thanh toán", icon: "💳", color: "#3b82f6" },
   Refund: { label: "Hoàn tiền", icon: "↩️", color: "#f59e0b" },
   Withdraw: { label: "Rút tiền", icon: "🏦", color: "#ef4444" },
-  WithdrawRequest: { label: "Tạm giữ lệnh Rút tiền", icon: "⏳", color: "#f59e0b" },
+  WithdrawRequest: { label: "Yêu cầu rút tiền", icon: "⏳", color: "#f59e0b" },
   WithdrawRejected: { label: "Hoàn tiền huỷ lệnh rút", icon: "↩️", color: "#3b82f6" },
   Earning: { label: "Thu nhập", icon: "📈", color: "#22c55e" },
   OwnerPayout: { label: "Nhận thanh toán", icon: "💰", color: "#22c55e" },
@@ -43,7 +43,7 @@ export default function OwnerWallet() {
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("transactions");
-  
+
   const [txPage, setTxPage] = useState(1);
   const [txTotal, setTxTotal] = useState(0);
   const [wrPage, setWrPage] = useState(1);
@@ -55,7 +55,9 @@ export default function OwnerWallet() {
 
   // Withdraw form
   const [showWithdraw, setShowWithdraw] = useState(false);
-  const [withdrawForm, setWithdrawForm] = useState({ amount: "", bankAccountId: "", note: "" });
+  const [withdrawForm, setWithdrawForm] = useState({
+    amount: "", bankName: "", bankAccountNumber: "", bankAccountHolder: "", userNote: "",
+  });
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
   // Add bank account form
@@ -97,12 +99,12 @@ export default function OwnerWallet() {
 
   useEffect(() => {
     fetchTransactions();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txPage]);
 
   useEffect(() => {
     fetchWithdraws();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrPage]);
 
   // Backward compatibility alias
@@ -151,23 +153,22 @@ export default function OwnerWallet() {
       showToast.error("Số tiền rút tối thiểu là 10.000đ");
       return;
     }
-    if (!withdrawForm.bankAccountId) {
-      showToast.error("Vui lòng chọn tài khoản ngân hàng");
+    if (!withdrawForm.bankName || !withdrawForm.bankAccountNumber || !withdrawForm.bankAccountHolder) {
+      showToast.error("Vui lòng điền đầy đủ thông tin ngân hàng");
       return;
     }
     setWithdrawLoading(true);
     try {
-      const bank = bankAccounts.find(b => b.id === Number(withdrawForm.bankAccountId));
       await walletApi.withdraw({
         amount: amt,
-        bankName: bank.bankName,
-        bankAccountNumber: bank.bankAccountNumber,
-        bankAccountHolder: bank.bankAccountHolder,
-        userNote: withdrawForm.note,
+        bankName: withdrawForm.bankName,
+        bankAccountNumber: withdrawForm.bankAccountNumber,
+        bankAccountHolder: withdrawForm.bankAccountHolder,
+        userNote: withdrawForm.userNote,
       });
       showToast.success("Yêu cầu rút tiền đã gửi! Chờ admin duyệt.");
       setShowWithdraw(false);
-      setWithdrawForm({ amount: "", bankAccountId: "", note: "" });
+      setWithdrawForm({ amount: "", bankName: "", bankAccountNumber: "", bankAccountHolder: "", userNote: "" });
       fetchAll();
     } catch (err) {
       showToast.error(err.message || "Lỗi tạo yêu cầu rút tiền");
@@ -262,63 +263,30 @@ export default function OwnerWallet() {
           }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}>🏦 Rút tiền về ngân hàng</h3>
 
-            {bankAccounts.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "20px 0" }}>
-                <p style={{ color: "#64748b", fontSize: 14, marginBottom: 12 }}>Bạn chưa thêm tài khoản ngân hàng nào</p>
-                <button
-                  onClick={() => { setShowAddBank(true); setShowWithdraw(false); }}
-                  style={{
-                    padding: "10px 20px", borderRadius: 10, border: "none",
-                    background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-                    color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer",
-                  }}
-                >+ Thêm tài khoản ngân hàng</button>
-              </div>
-            ) : (
-              <>
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Tài khoản ngân hàng</label>
-                    <select
-                      value={withdrawForm.bankAccountId}
-                      onChange={e => setWithdrawForm(f => ({ ...f, bankAccountId: e.target.value }))}
-                      style={{
-                        width: "100%", padding: "10px 14px", borderRadius: 10,
-                        border: "1.5px solid #e5e7eb", fontSize: 14, outline: "none",
-                        background: "#fff", cursor: "pointer",
-                      }}
-                    >
-                      <option value="">-- Chọn tài khoản --</option>
-                      {bankAccounts.map(ba => (
-                        <option key={ba.id} value={ba.id}>
-                          {ba.bankName} - {ba.bankAccountNumber} ({ba.bankAccountHolder}) {ba.isDefault ? "⭐" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <FormInput label="Số tiền rút" type="number" placeholder="VD: 100000"
-                    value={withdrawForm.amount} onChange={v => setWithdrawForm(f => ({ ...f, amount: v }))} />
-                  <FormInput label="Ghi chú (tùy chọn)" placeholder="VD: Rút tiền tháng 3"
-                    value={withdrawForm.note} onChange={v => setWithdrawForm(f => ({ ...f, note: v }))} />
-                </div>
-                <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                  <ActionBtn onClick={handleWithdraw} disabled={withdrawLoading} bg="linear-gradient(135deg, #22c55e, #16a34a)">
-                    {withdrawLoading ? "Đang xử lý..." : "Gửi yêu cầu rút tiền"}
-                  </ActionBtn>
-                  <button onClick={() => setShowWithdraw(false)}
-                    style={{ padding: "12px 20px", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "#fff", color: "#64748b", fontWeight: 600, cursor: "pointer" }}>
-                    Hủy
-                  </button>
-                </div>
-                <button
-                  onClick={() => { setShowAddBank(true); setShowWithdraw(false); }}
-                  style={{
-                    marginTop: 12, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e5e7eb",
-                    background: "#f9fafb", color: "#3b82f6", fontWeight: 600, fontSize: 12, cursor: "pointer",
-                  }}
-                >+ Thêm TK ngân hàng mới</button>
-              </>
-            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <FormInput label="Số tiền rút" type="number" placeholder="VD: 100000"
+                value={withdrawForm.amount} onChange={v => setWithdrawForm(f => ({ ...f, amount: v }))} />
+              <BankCombobox
+                value={withdrawForm.bankName}
+                onChange={v => setWithdrawForm(f => ({ ...f, bankName: v }))}
+              />
+              <FormInput label="Số tài khoản" placeholder="VD: 1234567890"
+                value={withdrawForm.bankAccountNumber} onChange={v => setWithdrawForm(f => ({ ...f, bankAccountNumber: v }))} />
+              <FormInput label="Chủ tài khoản" placeholder="VD: NGUYEN VAN A"
+                value={withdrawForm.bankAccountHolder} onChange={v => setWithdrawForm(f => ({ ...f, bankAccountHolder: v }))} />
+              <FormInput label="Ghi chú (tùy chọn)" placeholder="VD: Rút tiền thanh toán"
+                value={withdrawForm.userNote} onChange={v => setWithdrawForm(f => ({ ...f, userNote: v }))} />
+            </div>
+
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <ActionBtn onClick={handleWithdraw} disabled={withdrawLoading} bg="linear-gradient(135deg, #22c55e, #16a34a)">
+                {withdrawLoading ? "Đang xử lý..." : "Gửi yêu cầu rút tiền"}
+              </ActionBtn>
+              <button
+                onClick={() => { setShowWithdraw(false); setWithdrawForm({ amount: "", bankName: "", bankAccountNumber: "", bankAccountHolder: "", userNote: "" }); }}
+                style={{ padding: "12px 20px", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "#fff", color: "#64748b", fontWeight: 600, cursor: "pointer" }}
+              >Hủy</button>
+            </div>
           </div>
         )}
 
@@ -331,9 +299,9 @@ export default function OwnerWallet() {
           }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}>🏦 Thêm tài khoản ngân hàng</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <BankCombobox 
-                value={bankForm.bankName} 
-                onChange={v => setBankForm(f => ({ ...f, bankName: v }))} 
+              <BankCombobox
+                value={bankForm.bankName}
+                onChange={v => setBankForm(f => ({ ...f, bankName: v }))}
               />
               <FormInput label="Số tài khoản" placeholder="VD: 1234567890"
                 value={bankForm.bankAccountNumber} onChange={v => setBankForm(f => ({ ...f, bankAccountNumber: v }))} />
@@ -391,7 +359,7 @@ export default function OwnerWallet() {
               <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", margin: 0 }}>Lịch sử giao dịch</h2>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <svg width="14" height="14" fill="none" stroke="#64748b" strokeWidth={2} viewBox="0 0 24 24">
-                  <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                  <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
                 <input type="date" value={txDateFrom} onChange={(e) => setTxDateFrom(e.target.value)}
                   style={{ height: 34, padding: "0 10px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 12, outline: "none", color: "#475569" }}
@@ -440,8 +408,8 @@ export default function OwnerWallet() {
                       alignItems: "center", gap: 12, cursor: "pointer",
                       transition: "transform 0.1s, box-shadow 0.1s"
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"; }}
+                      onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"; }}
                     >
                       <div style={{
                         width: 42, height: 42, borderRadius: 12,
@@ -519,7 +487,7 @@ export default function OwnerWallet() {
                           </p>
                           {issueForm.id === p.id ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                              <input 
+                              <input
                                 type="text"
                                 placeholder="Nhập lý do chưa nhận được tiền..."
                                 value={issueForm.reason}
@@ -616,14 +584,14 @@ export default function OwnerWallet() {
 
       {/* Transaction Detail Modal */}
       {selectedTx && (
-        <div 
+        <div
           onClick={() => setSelectedTx(null)}
           style={{
             position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)",
             display: "flex", alignItems: "center", justifyContent: "center", padding: 20
           }}
         >
-          <div 
+          <div
             onClick={e => e.stopPropagation()}
             style={{
               background: "#fff", borderRadius: 24, width: "100%", maxWidth: 400, overflow: "hidden",
@@ -633,14 +601,14 @@ export default function OwnerWallet() {
             {/* Header */}
             <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: 0 }}>Chi tiết giao dịch</h3>
-              <button 
-                onClick={() => setSelectedTx(null)} 
+              <button
+                onClick={() => setSelectedTx(null)}
                 style={{ background: "none", border: "none", fontSize: 24, color: "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8 }}
                 onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
               >&times;</button>
             </div>
-            
+
             {/* Content */}
             <div style={{ padding: 24 }}>
               <div style={{ textAlign: "center", marginBottom: 24 }}>
@@ -654,7 +622,7 @@ export default function OwnerWallet() {
                   {txTypeLabels[selectedTx.type || selectedTx.transactionType]?.label || selectedTx.type || selectedTx.transactionType}
                 </div>
               </div>
-              
+
               <div style={{ background: "#f8fafc", borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ color: "#64748b", fontSize: 13 }}>Mã giao dịch</span>

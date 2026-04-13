@@ -50,6 +50,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
   const [walletReceivedAlert, setWalletReceivedAlert] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [confirmingInvoice, setConfirmingInvoice] = useState(false); // Xác nhận hóa đơn
+  const [manualCheckinLoading, setManualCheckinLoading] = useState(false); // Manual check-in
   const initialWalletBalanceRef = useRef(0);
 
   // Các status có phiên sạc thực tế
@@ -195,6 +196,23 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
       showToast.error(err?.message || "Lỗi xác nhận hóa đơn");
     } finally {
       setConfirmingInvoice(false);
+    }
+  }
+
+  async function handleRequestManualCheckin() {
+    if (!window.confirm(
+      "Bạn có chắc muốn gửi yêu cầu xác nhận thủ công?\n" +
+      "Yêu cầu sẽ gửi tới chủ trạm để họ xác nhận check-in cho bạn."
+    )) return;
+    setManualCheckinLoading(true);
+    try {
+      await chargingApi.requestManualCheckin(Number(id));
+      showToast.success("Đã gửi yêu cầu! Chủ trạm sẽ xác nhận check-in cho bạn.");
+      await fetchBooking();
+    } catch (err) {
+      showToast.error(err.message || "Lỗi gửi yêu cầu manual check-in");
+    } finally {
+      setManualCheckinLoading(false);
     }
   }
 
@@ -601,6 +619,43 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             </div>
           </div>
         )}
+
+        {/* Manual Check-in: hiện khi Paid và đã trong khoảng thời gian check-in */}
+        {booking.status === "Paid" && (() => {
+          const start = booking.startTime
+            ? new Date(String(booking.startTime).replace("Z", "") + "+07:00").getTime()
+            : 0;
+          const now = Date.now();
+          const checkInWindowMs = 15 * 60 * 1000; // cho phép tự 15 phút trước giờ bắt đầu
+          const canCheckIn = start > 0 && now >= start - checkInWindowMs;
+          if (!canCheckIn) return null;
+          return (
+            <div style={{
+              background: "#fffbeb",
+              border: "2px solid #f59e0b",
+              borderRadius: 16, padding: "16px 20px", marginBottom: 16,
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#92400e", marginBottom: 8 }}>
+                📷 Quét QR bị lỗi? Yêu cầu xác nhận thủ công
+              </div>
+              <div style={{ fontSize: 13, color: "#92400e", marginBottom: 12, lineHeight: 1.6 }}>
+                Nếu không quét được QR code tại sốt, hãy yêu cầu chủ trạm xác nhận check-in thủ công cho bạn.
+              </div>
+              <button
+                onClick={handleRequestManualCheckin}
+                disabled={manualCheckinLoading}
+                style={{
+                  width: "100%", padding: "12px 0", borderRadius: 12, border: "none",
+                  background: manualCheckinLoading ? "#d1d5db" : "linear-gradient(135deg, #f59e0b, #d97706)",
+                  color: "#fff", fontWeight: 700, fontSize: 14,
+                  cursor: manualCheckinLoading ? "not-allowed" : "pointer",
+                }}
+              >
+                {manualCheckinLoading ? "Đang gửi yêu cầu..." : "🔧 Yêu cầu xác nhận thủ công"}
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Charging session link */}
         {(booking.status === "CheckedIn" || booking.status === "InProgress") && (

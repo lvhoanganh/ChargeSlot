@@ -73,23 +73,38 @@ export default function BookingForm() {
       .catch(() => setLoyaltyInfo(null));
   }, []);
 
-  // Fetch min_booking_lead_minutes từ system config
+  // Fetch min_booking_lead_minutes từ system config và khởi tạo giờ bắt đầu mặc định
   useEffect(() => {
     adminConfigApi.getAll()
       .then((cfg) => {
-        // BE key có thể là camelCase hoặc snake_case — tìm không phân biệt hoa/thường
         const key = Object.keys(cfg || {}).find(
           k => k.toLowerCase() === "min_booking_lead_minutes" || k.toLowerCase() === "minbookingleadminutes"
         );
         const val = key ? Number(cfg[key]) : NaN;
-        if (!isNaN(val) && val > 0) setLeadMinutes(val);
+        const lead = (!isNaN(val) && val > 0) ? val : 30;
+        setLeadMinutes(lead);
+        initDefaultTime(lead);
       })
-      .catch(() => { /* giữ default 30 */ });
+      .catch(() => {
+        setLeadMinutes(30);
+        initDefaultTime(30);
+      });
+
+    function initDefaultTime(leadMin) {
+      const earliestMs = Date.now() + leadMin * 60000;
+      const now = new Date(Math.ceil(earliestMs / (30 * 60000)) * 30 * 60000);
+
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      setSelectedDate(`${yyyy}-${mm}-${dd}`);
+      const hh = String(now.getHours()).padStart(2, "0");
+      const min = String(now.getMinutes()).padStart(2, "0");
+      setStartHHMM(`${hh}:${min}`);
+    }
   }, []);
 
   // Fetch lịch đã đặt của slot — gọi đúng endpoint BE
-  // BE: GET /api/stations/{stationId}/slots/{slotId}/availability?date=YYYY-MM-DD
-  // Response: { slotId, slotName, status, bookedRanges: [{startTime, endTime, status}], nextAvailableAt }
   useEffect(() => {
     if (!selectedSlot || !stationId) { setBookedRanges([]); return; }
     const base = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
@@ -108,22 +123,6 @@ export default function BookingForm() {
       })
       .catch(() => setBookedRanges([]));
   }, [selectedSlot, stationId, selectedDate]);
-
-
-  // Default: ngày hôm nay + giờ hiện tại + làm tròn lên 30 phút
-  useEffect(() => {
-    const now = new Date();
-    now.setSeconds(0, 0);
-    now.setMinutes(now.getMinutes() < 30 ? 30 : 0);
-    if (now.getMinutes() === 0) now.setHours(now.getHours() + 1);
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    setSelectedDate(`${yyyy}-${mm}-${dd}`);
-    const hh = String(now.getHours()).padStart(2, "0");
-    const min = String(now.getMinutes()).padStart(2, "0");
-    setStartHHMM(`${hh}:${min}`);
-  }, []);
 
   // Sync selectedDate + startHHMM → startTime
   useEffect(() => {
@@ -243,12 +242,11 @@ export default function BookingForm() {
     const startVN = new Date(`${selectedDate}T${startHHMM}:00+07:00`);
     const diffMinutes = (startVN - new Date()) / 60000;
     if (diffMinutes < leadMinutes) {
-      // Tính giờ sớm nhất hợp lệ rồi làm tròn lên bội số 30 phút
-      // (vì TimePicker chỉ có bước nhảy 30 phút: :00 và :30)
+      // Tính giờ sớm nhất hợp lệ rồi làm tròn lên block 30 phút
       const earliestMs = Date.now() + leadMinutes * 60000;
       const earliestRounded = new Date(Math.ceil(earliestMs / (30 * 60000)) * 30 * 60000);
       const hh = String(earliestRounded.getHours()).padStart(2, "0");
-      const mm = earliestRounded.getMinutes() === 0 ? "00" : "30";
+      const mm = String(earliestRounded.getMinutes()).padStart(2, "0");
       return `⏰ Phải đặt trước ít nhất ${leadMinutes} phút. Sớm nhất có thể chọn: ${hh}:${mm}`;
     }
     return "";
@@ -713,7 +711,7 @@ export default function BookingForm() {
                         const start = parseVN(r.startTime);
                         const end = parseVN(r.endTime);
                         const fmtT = (d) => d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
-                        
+
                         const now = new Date();
                         const isTimeStarted = now >= start && now < end;
 
@@ -892,7 +890,21 @@ export default function BookingForm() {
                 <div style={{ display: "flex", gap: 16, alignItems: "flex-end" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>Giờ bắt đầu:</div>
-                    <TimePicker24h value={startHHMM} onChange={setStartHHMM} className="w-full text-center" />
+                    <TimePicker24h
+                      value={startHHMM}
+                      onChange={setStartHHMM}
+                      minAfter={(() => {
+                        if (!selectedDate) return undefined;
+                        const todayStr = new Date().toLocaleDateString("en-CA");
+                        if (selectedDate !== todayStr) return undefined;
+                        // Tính min time bằng current time + leadMins
+                        const minTime = new Date(Date.now() + leadMinutes * 60000);
+                        const hh = String(minTime.getHours()).padStart(2, "0");
+                        const mm = String(minTime.getMinutes()).padStart(2, "0");
+                        return `${hh}:${mm}`;
+                      })()}
+                      className="w-full text-center"
+                    />
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>Dự kiến sạc:</div>

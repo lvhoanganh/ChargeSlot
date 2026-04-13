@@ -33,6 +33,7 @@ export default function BookingRequestDetail() {
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [manualCheckinLoading, setManualCheckinLoading] = useState(false);
 
   useEffect(() => {
     bookingApi.getById(Number(id))
@@ -76,6 +77,24 @@ export default function BookingRequestDetail() {
       showToast.error(err.message || "Lỗi khi từ chối");
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function handleConfirmManualCheckin() {
+    if (!window.confirm(
+      "Xác nhận check-in thủ công cho Driver?\n" +
+      "Hành động này sẽ bắt đầu phiên sạc ngay lập tức."
+    )) return;
+    setManualCheckinLoading(true);
+    try {
+      await chargingApi.confirmManualCheckin(Number(id));
+      showToast.success("✅ Đã xác nhận check-in thủ công! Phiên sạc bắt đầu.");
+      const updated = await bookingApi.getById(Number(id));
+      setBooking(updated);
+    } catch (err) {
+      showToast.error(err.message || "Lỗi xác nhận check-in thủ công");
+    } finally {
+      setManualCheckinLoading(false);
     }
   }
 
@@ -141,6 +160,30 @@ export default function BookingRequestDetail() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Manual Check-in confirm — khi Driver yêu cầu xác nhận thủ công */}
+      {booking.status === "Paid" && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{
+            padding: "12px 16px", background: "#fffbeb", border: "1.5px solid #f59e0b",
+            borderRadius: 12, marginBottom: 8, fontSize: 13, color: "#92400e", lineHeight: 1.5,
+          }}>
+            📷 <strong>Nếu Driver báo không quét được QR:</strong> Dùng nút bên dưới để xác nhận check-in thủ công.
+          </div>
+          <button
+            onClick={handleConfirmManualCheckin}
+            disabled={manualCheckinLoading}
+            style={{
+              width: "100%", padding: 14, borderRadius: 12, border: "none",
+              background: manualCheckinLoading ? "#d1d5db" : "linear-gradient(135deg, #f59e0b, #d97706)",
+              color: "#fff", fontWeight: 700, fontSize: 14,
+              cursor: manualCheckinLoading ? "not-allowed" : "pointer",
+            }}
+          >
+            {manualCheckinLoading ? "Đang xác nhận..." : "🔧 Xác nhận Check-in Thủ công"}
+          </button>
         </div>
       )}
 

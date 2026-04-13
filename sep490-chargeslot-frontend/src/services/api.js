@@ -371,6 +371,17 @@ export const adminStationApi = {
             method: "POST",
             body: JSON.stringify({ isApproved, adminNote }),
         }),
+
+    /**
+     * Admin ban/unban trạm thủ công (sau khi đã Approved)
+     * PATCH /api/admin/stations/{id}/toggle-ban
+     * Requires SecondaryPassword header
+     */
+    toggleBan: (id, secondaryPassword) =>
+        apiFetch(`/admin/stations/${id}/toggle-ban`, {
+            method: "PATCH",
+            headers: { "SecondaryPassword": secondaryPassword || "" },
+        }),
 };
 
 // ============================
@@ -682,6 +693,20 @@ export const chargingApi = {
     getByBookingId: (bookingId) => apiFetch(`/charging/booking/${bookingId}`),
 
     getInvoice: (bookingId) => apiFetch(`/charging/invoice/${bookingId}`),
+
+    /**
+     * Driver yêu cầu Manual Check-in khi quét QR lỗi
+     * POST /api/charging/manual-checkin-request/{bookingId}
+     */
+    requestManualCheckin: (bookingId) =>
+        apiFetch(`/charging/manual-checkin-request/${bookingId}`, { method: "POST" }),
+
+    /**
+     * Owner xác nhận Manual Check-in cho Driver
+     * PUT /api/charging/manual-checkin-confirm/{bookingId}
+     */
+    confirmManualCheckin: (bookingId) =>
+        apiFetch(`/charging/manual-checkin-confirm/${bookingId}`, { method: "PUT" }),
 };
 
 // ============================
@@ -966,6 +991,9 @@ export const adminConfigApi = {
     /** GET /api/AdminConfig — trả về object UpdateSystemConfigsDto */
     getAll: () => apiFetch("/AdminConfig"),
 
+    /** GET /api/AdminConfig/public — API công khai không cần đăng nhập */
+    getPublic: () => apiFetch("/AdminConfig/public"),
+
     /** PUT /api/AdminConfig — gửi toàn bộ object + secondaryPassword */
     update: (dto) =>
         apiFetch("/AdminConfig", {
@@ -1111,7 +1139,8 @@ export const adminWithdrawApi = {
         return apiFetchFormData(`/admin/withdraws/${id}/confirm-transfer`, formData, "PUT");
     },
 
-    getIssueReported: () => apiFetch("/admin/withdraws/issue-reported"),
+    // NOTE: /admin/withdraws/issue-reported không tồn tại trên BE
+    // Filter IssueReported client-side từ getAll() — xem AdminWithdraws.jsx
 
     /**
      * Giải quyết sự cố rút tiền.

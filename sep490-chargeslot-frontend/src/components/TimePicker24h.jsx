@@ -19,48 +19,63 @@ export default function TimePicker24h({ value = "00:00", onChange, disabled = fa
   const popupRef = useRef(null);
 
   const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
-  const MINS = blockOnly ? ["00", "30"] : Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+  const MINS = blockOnly 
+    ? ["00", "30"] 
+    : Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
 
   const [hh, mm] = (value || "00:00").split(":").map(s => (s || "00").padStart(2, "0"));
 
   // Snap mm về 00 hoặc 30 nếu blockOnly và có giá trị lẻ
+  // Nếu !blockOnly, snap về bội của 5
   useEffect(() => {
-    if (!blockOnly || !onChange || !value) return;
+    if (!onChange || !value) return;
     const [, m] = (value || "00:00").split(":");
-    if (m !== "00" && m !== "30") {
-      const snapped = Number(m) < 30 ? "00" : "30";
-      onChange(`${hh}:${snapped}`);
+    if (blockOnly) {
+      if (m !== "00" && m !== "30") {
+        const snapped = Number(m) < 30 ? "00" : "30";
+        onChange(`${hh}:${snapped}`);
+      }
+    } else {
+      const numM = Number(m);
+      if (numM % 5 !== 0) {
+        const snapped = Math.round(numM / 5) * 5;
+        const validM = snapped === 60 ? "55" : String(snapped).padStart(2, "0");
+        onChange(`${hh}:${validM}`);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blockOnly]);
 
-  // Tính giới hạn tối thiểu (theo block 30 phút)
   let minH = 0, minM = 0;
   if (minAfter) {
     const [mah, mam] = minAfter.split(":").map(Number);
-    const nextBlock = mam < 30 ? 30 : 0;
-    const nextHourAdd = mam < 30 ? 0 : 1;
+    let nextBlock, nextHourAdd;
+    if (blockOnly) {
+      if (mam === 0) { nextBlock = 0; nextHourAdd = 0; }
+      else if (mam <= 30) { nextBlock = 30; nextHourAdd = 0; }
+      else { nextBlock = 0; nextHourAdd = 1; }
+    } else {
+      nextBlock = mam % 5 === 0 ? mam : mam + (5 - (mam % 5));
+      nextHourAdd = nextBlock >= 60 ? 1 : 0;
+    }
     minH = mah + nextHourAdd;
-    minM = nextBlock;
-    if (minH >= 24) { minH = 23; minM = 30; }
+    minM = nextBlock >= 60 ? 0 : nextBlock;
+    if (minH >= 24) { minH = 23; minM = blockOnly ? 30 : 55; }
   }
 
   // Tự động đẩy giá trị lên block hợp lệ khi minAfter thay đổi
   useEffect(() => {
     if (!minAfter || !onChange) return;
-    const [mah, mam] = minAfter.split(":").map(Number);
     const [vh, vm] = (value || "00:00").split(":").map(Number);
-    const minTotal = mah * 60 + mam;
+    const minLimitTotal = minH * 60 + minM;
     const valTotal = vh * 60 + vm;
-    if (valTotal <= minTotal) {
-      let next = minTotal + 30;
-      if (next >= 24 * 60) next = 23 * 60 + 30;
-      const nh = Math.floor(next / 60);
-      const nm = next % 60 < 30 ? 0 : 30;
-      onChange(`${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`);
+    
+    // Chỉ push nếu giờ hiện tại đang chọn NHỎ HƠN mức giới hạn đã được làm tròn block
+    if (valTotal < minLimitTotal) {
+      onChange(`${String(minH).padStart(2, "0")}:${String(minM).padStart(2, "0")}`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minAfter]);
+  }, [minAfter, minH, minM]);
 
   // Tính vị trí popup theo fixed coordinates
   const calcPopupStyle = useCallback(() => {
@@ -127,6 +142,7 @@ export default function TimePicker24h({ value = "00:00", onChange, disabled = fa
   function pickHour(h) {
     let newMM = mm;
     if (blockOnly && (newMM !== "00" && newMM !== "30")) newMM = "00";
+    if (!blockOnly && Number(newMM) % 5 !== 0) newMM = "00";
     if (minAfter && Number(h) < minH) { h = String(minH).padStart(2, "0"); newMM = String(minM).padStart(2, "0"); }
     else if (minAfter && Number(h) === minH && Number(newMM) < minM) newMM = String(minM).padStart(2, "0");
     onChange?.(`${h}:${newMM}`);
@@ -199,7 +215,7 @@ export default function TimePicker24h({ value = "00:00", onChange, disabled = fa
         {/* Minutes grid */}
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textAlign: "center", marginBottom: 5, letterSpacing: 1 }}>PHÚT</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: blockOnly ? "flex" : "grid", gridTemplateColumns: blockOnly ? "none" : "repeat(2, 1fr)", flexDirection: blockOnly ? "column" : "none", gap: blockOnly ? 6 : 3, maxHeight: 190, overflowY: "auto" }}>
             {MINS.map(m => {
               const isDis = minAfter && Number(hh) === minH && Number(m) < minM;
               return (

@@ -3,7 +3,7 @@ import { stationApi, extraServiceApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 import { showConfirm } from "@/components/ConfirmDialog";
 
-const emptyForm = { serviceName: "", description: "", price: "", totalStock: "", isActive: true };
+const emptyForm = { serviceName: "", description: "", price: "", totalStock: "", isRental: false, isActive: true };
 
 export default function OwnerExtraServices() {
   const [stations, setStations] = useState([]);
@@ -51,6 +51,7 @@ export default function OwnerExtraServices() {
       description: svc.description || "",
       price: svc.price ?? "",
       totalStock: svc.totalStock ?? "",
+      isRental: svc.isRental === true,
       isActive: svc.isActive !== false,
     });
     setFormError("");
@@ -68,6 +69,7 @@ export default function OwnerExtraServices() {
       description: form.description.trim() || null,
       price: Number(form.price),
       totalStock: form.totalStock === "" || form.totalStock === null ? null : Number(form.totalStock),
+      isRental: !!form.isRental,
       ...(editId && { isActive: form.isActive }),
     };
 
@@ -108,6 +110,7 @@ export default function OwnerExtraServices() {
         description: svc.description,
         price: svc.price,
         totalStock: svc.totalStock,
+        isRental: svc.isRental,   // ← quanọng: giữ nguyên, không reset về false
         isActive: !svc.isActive,
       });
       setServices(prev => prev.map(s => s.id === svc.id ? { ...s, isActive: !s.isActive } : s));
@@ -177,6 +180,10 @@ export default function OwnerExtraServices() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-slate-800">{svc.serviceName}</span>
+                    {svc.isRental
+                      ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-600">🔄 Cho thuê</span>
+                      : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">🛒 Bán</span>
+                    }
                     {!svc.isActive && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Ẩn</span>}
                   </div>
                   {svc.description && <p className="text-xs text-slate-500 mt-0.5">{svc.description}</p>}
@@ -252,6 +259,23 @@ export default function OwnerExtraServices() {
                       min="0"
                     />
                   </div>
+                </div>
+                {/* isRental toggle */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-600">Loại dịch vụ:</label>
+                  <button
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, isRental: !p.isRental }))}
+                    className={`w-10 h-6 rounded-full relative transition cursor-pointer ${form.isRental ? "bg-blue-500" : "bg-orange-400"}`}
+                  >
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${form.isRental ? "left-5" : "left-1"}`} />
+                  </button>
+                  <span className="text-xs font-semibold">
+                    {form.isRental
+                      ? <span className="text-blue-600">🔄 Cho thuê (trả lại)</span>
+                      : <span className="text-orange-500">🛒 Bán / Tiêu hóa</span>
+                    }
+                  </span>
                 </div>
                 {editId && (
                   <div className="flex items-center gap-2">

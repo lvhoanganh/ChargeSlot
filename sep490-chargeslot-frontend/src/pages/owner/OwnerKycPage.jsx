@@ -37,6 +37,8 @@ export default function OwnerKycPage() {
   const [updateMode, setUpdateMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  // submitMode: true khi user muốn nộp lần đầu / nộp lại (Rejected) / cập nhật (Approved)
+  const [submitMode, setSubmitMode] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -88,8 +90,14 @@ export default function OwnerKycPage() {
     setSubmitting(true);
     try {
       await ownerKycApi.submit(formData);
-      showToast.success("Đã gửi yêu cầu cập nhật hồ sơ! Vui lòng chờ Admin xét duyệt.");
+      const isUpdate = kycStatus === "Approved";
+      showToast.success(isUpdate
+        ? "Đã gửi yêu cầu cập nhật hồ sơ! Vui lòng chờ Admin xét duyệt."
+        : kycStatus === "Rejected"
+          ? "Đã gửi lại hồ sơ KYC! Vui lòng chờ Admin xét duyệt."
+          : "Đã nộp hồ sơ KYC! Vui lòng chờ Admin xét duyệt.");
       setUpdateMode(false);
+      setSubmitMode(false);
       setAgreed(false);
       await loadProfile();
     } catch (err) {
@@ -143,12 +151,28 @@ export default function OwnerKycPage() {
             </div>
 
             {/* Action button based on status */}
-            {kycStatus === "Approved" && !updateMode && (
+            {kycStatus === "Approved" && !updateMode && !submitMode && (
               <button
-                onClick={() => { setUpdateMode(true); setAgreed(false); }}
+                onClick={() => { setUpdateMode(true); setSubmitMode(true); setAgreed(false); }}
                 className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm"
               >
                 🔄 Cập nhật hồ sơ
+              </button>
+            )}
+            {kycStatus === "Rejected" && !submitMode && (
+              <button
+                onClick={() => { setSubmitMode(true); setAgreed(false); }}
+                className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition shadow-sm"
+              >
+                📎 Nộp lại hồ sơ
+              </button>
+            )}
+            {kycStatus === "Unverified" && !submitMode && (
+              <button
+                onClick={() => { setSubmitMode(true); setAgreed(false); }}
+                className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition shadow-sm"
+              >
+                📄 Nộp hồ sơ KYC
               </button>
             )}
             {kycStatus === "PendingUpdate" && (
@@ -185,10 +209,11 @@ export default function OwnerKycPage() {
               </div>
             </div>
           )}
+          {/* Current Info (nếu đã có profile) */}
+          {/* Chỉ hiện khi không mở form, và đã có dữ liệu KYC */}
         </div>
 
-        {/* Current Info (nếu đã có profile) */}
-        {profile && !updateMode && (kycStatus === "Approved" || kycStatus === "PendingUpdate" || kycStatus === "Rejected") && (
+        {profile && !submitMode && (kycStatus === "Approved" || kycStatus === "PendingUpdate" || kycStatus === "Rejected") && (
           <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-6 mb-6">
             <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
               📋 Thông tin hiện tại
@@ -234,20 +259,42 @@ export default function OwnerKycPage() {
           </div>
         )}
 
-        {/* Update Form (chỉ khi updateMode = true và status = Approved) */}
-        {updateMode && kycStatus === "Approved" && (
+        {/* Form nộp / cập nhật hồ sơ */}
+        {submitMode && (
           <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-6 sm:p-8">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-slate-900">🔄 Cập nhật hồ sơ</h2>
-              <button onClick={() => { setUpdateMode(false); setAgreed(false); }} className="text-slate-400 hover:text-slate-600 text-sm font-medium">
+              <h2 className="text-lg font-bold text-slate-900">
+                {kycStatus === "Approved" ? "🔄 Cập nhật hồ sơ"
+                  : kycStatus === "Rejected" ? "📎 Nộp lại hồ sơ"
+                  : "📄 Nộp hồ sơ KYC"}
+              </h2>
+              <button onClick={() => { setSubmitMode(false); setUpdateMode(false); setAgreed(false); }} className="text-slate-400 hover:text-slate-600 text-sm font-medium">
                 ✕ Hủy
               </button>
             </div>
 
-            <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">
-              <strong>Lưu ý:</strong> Hồ sơ cũ vẫn có hiệu lực trong khi chờ duyệt bản cập nhật.
-              Nếu bị từ chối, thông tin cũ sẽ được tự động khôi phục.
-              <strong className="block mt-1">Bắt buộc tải lại tất cả ảnh khi cập nhật.</strong>
+            <div className={`mb-5 p-4 rounded-xl text-sm border ${
+              kycStatus === "Rejected"
+                ? "bg-red-50 border-red-200 text-red-800"
+                : "bg-blue-50 border-blue-200 text-blue-800"
+            }`}>
+              {kycStatus === "Rejected" ? (
+                <>
+                  <strong>⚠️ Hồ sơ của bạn đã bị từ chối.</strong> Vui lòng xem lý do từ chối ở trên và nộp lại hồ sơ với thông tin chính xác.
+                  <strong className="block mt-1">Bắt buộc tải lại tất cả 3 ảnh khi nộp lại.</strong>
+                </>
+              ) : kycStatus === "Approved" ? (
+                <>
+                  <strong>Lưu ý:</strong> Hồ sơ cũ vẫn có hiệu lực trong khi chờ duyệt bản cập nhật.
+                  Nếu bị từ chối, thông tin cũ sẽ được tự động khôi phục.
+                  <strong className="block mt-1">Bắt buộc tải lại tất cả ảnh khi cập nhật.</strong>
+                </>
+              ) : (
+                <>
+                  <strong>Lưu ý:</strong> Sau khi nộp hồ sơ, Admin sẽ xét duyệt trong vòng 1-3 ngày làm việc.
+                  <strong className="block mt-1">Bắt buộc tải đủ cả 3 ảnh xác thực.</strong>
+                </>
+              )}
             </div>
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">

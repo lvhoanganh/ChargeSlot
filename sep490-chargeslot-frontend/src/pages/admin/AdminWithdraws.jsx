@@ -37,17 +37,18 @@ export default function AdminWithdraws() {
 
   function fetchData() {
     setLoading(true);
-    let apiCall;
-    if (activeTab === "pending") apiCall = adminWithdrawApi.getPending();
-    else if (activeTab === "issue") apiCall = adminWithdrawApi.getIssueReported();
-    else apiCall = adminWithdrawApi.getAll();
+    // Pending dùng endpoint riêng; approved/issue/all đều gọi getAll() rồi filter client-side
+    // NOTE: /admin/withdraws/issue-reported KHÔNG tồn tại trên BE → phải filter
+    const apiCall = activeTab === "pending"
+      ? adminWithdrawApi.getPending()
+      : adminWithdrawApi.getAll();
 
     apiCall
       .then(data => {
         let list = Array.isArray(data) ? data : [];
-        if (activeTab === "approved") {
-          list = list.filter(w => w.status === "Approved");
-        }
+        if (activeTab === "approved") list = list.filter(w => w.status === "Approved");
+        else if (activeTab === "issue") list = list.filter(w => w.status === "IssueReported");
+        // "all" → không filter thêm
         setWithdraws(list);
       })
       .catch(() => setWithdraws([]))

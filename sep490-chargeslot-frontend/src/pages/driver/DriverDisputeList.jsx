@@ -220,6 +220,24 @@ export default function DriverDisputeList() {
                     </div>
                   )}
 
+                  {/* Strike Status */}
+                  {(dispute.strikeStatus || dispute.driverStrikeAdded) && (
+                    <div style={{
+                      marginTop: 8, padding: "6px 10px",
+                      background: "#fef2f2", border: "1px solid #fecaca",
+                      borderRadius: 8, display: "flex", alignItems: "center", gap: 6,
+                    }}>
+                      <span style={{ fontSize: 14 }}>⚠️</span>
+                      <span style={{ fontSize: 12, color: "#dc2626", fontWeight: 600 }}>
+                        {dispute.strikeStatus === "Warned" ? "Đã cảnh cáo tài khoản"
+                          : dispute.strikeStatus === "Suspended" ? "Tài khoản bị đình chỉ"
+                          : dispute.strikeStatus === "Banned" ? "Tài khoản bị cấm"
+                          : dispute.driverStrikeAdded ? "Strike đã được ghi nhận"
+                          : `Strike: ${dispute.strikeStatus}`}
+                      </span>
+                    </div>
+                  )}
+
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
                     <span style={{ fontSize: 12, color: "#f97316", fontWeight: 600 }}>
                       Xem chi tiết →
