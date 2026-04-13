@@ -27,8 +27,9 @@ export default function OwnerReviews() {
     stationApi.getAll()
       .then((data) => {
         const list = Array.isArray(data) ? data : data?.items || [];
-        setStations(list);
-        if (list.length > 0) loadStation(list[0]);
+        const approvedList = list.filter(st => st.approvalStatus === "Approved");
+        setStations(approvedList);
+        if (approvedList.length > 0) loadStation(approvedList[0]);
       })
       .catch(() => setStations([]))
       .finally(() => setLoading(false));

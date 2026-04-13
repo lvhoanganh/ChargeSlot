@@ -21,8 +21,9 @@ export default function OwnerExtraServices() {
     stationApi.getAll()
       .then(data => {
         const list = Array.isArray(data) ? data : [];
-        setStations(list);
-        if (list.length > 0) setSelectedStation(list[0].id);
+        const approvedList = list.filter(st => st.approvalStatus === "Approved");
+        setStations(approvedList);
+        if (approvedList.length > 0) setSelectedStation(approvedList[0].id);
       })
       .catch(() => setStations([]))
       .finally(() => setLoading(false));

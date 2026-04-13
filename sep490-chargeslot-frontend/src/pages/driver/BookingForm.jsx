@@ -75,7 +75,7 @@ export default function BookingForm() {
 
   // Fetch min_booking_lead_minutes từ system config và khởi tạo giờ bắt đầu mặc định
   useEffect(() => {
-    adminConfigApi.getAll()
+    adminConfigApi.getPublic()
       .then((cfg) => {
         const key = Object.keys(cfg || {}).find(
           k => k.toLowerCase() === "min_booking_lead_minutes" || k.toLowerCase() === "minbookingleadminutes"
