@@ -472,7 +472,7 @@ export default function AdminWallets() {
         <table className="csw-table">
           <thead>
             <tr>
-              <th>Mã Ví</th>
+              <th>STT</th>
               <th>Chủ sở hữu</th>
               <th>Loại Ví</th>
               <th>Số Dư Khả Dụng</th>
@@ -490,12 +490,12 @@ export default function AdminWallets() {
                 </td>
               </tr>
             ) : (
-              filtered.map((w) => {
+              filtered.map((w, idx) => {
                 const info = getWalletInfo(w);
                 return (
                   <tr key={w.id}>
                     <td>
-                      <span className="csw-table__id">WA_{w.id}</span>
+                      <span className="csw-table__id">{(page - 1) * pageSize + idx + 1}</span>
                     </td>
                     <td className="csw-table__owner">
                       {w.walletType === "System" ? (

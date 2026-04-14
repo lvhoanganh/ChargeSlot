@@ -108,7 +108,7 @@ export default function AdminSessions() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Tìm mã Cáp sạc, mã Lịch, mã ID..."
+            placeholder="Tìm mã Lịch"
             className="cs-admin-filter__input"
           />
         </div>
@@ -134,7 +134,7 @@ export default function AdminSessions() {
         <table className="cs-admin-table">
           <thead>
             <tr>
-              <th>Mã Phiên (HW_ID)</th>
+              <th>STT</th>
               <th>Mã Lịch</th>
               <th>Thời Gian Sạc</th >
               <th>Bắt đầu</th>
@@ -150,11 +150,11 @@ export default function AdminSessions() {
                 </td>
               </tr>
             ) : (
-              filtered.map((s) => {
+              filtered.map((s, idx) => {
                 const statusType = getStatusType(s.bookingStatus);
                 return (
                   <tr key={s.id}>
-                    <td className="cs-admin-table__id">HW_SEQ_{s.id}</td>
+                    <td className="cs-admin-table__id">{(page - 1) * pageSize + idx + 1}</td>
                     <td className="cs-admin-table__name">#{s.bookingId}</td>
                     <td style={{ fontWeight: "600", color: "#3b82f6" }}>{s.actualDurationHours ? Math.round(s.actualDurationHours * 60) : 0} Phút</td>
                     <td style={{ color: "#64748b", fontSize: 13 }}>{formatDate(s.actualStartTime)}</td>

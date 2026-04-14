@@ -196,12 +196,22 @@ export default function AdminKycRequests() {
                     {k.kycStatus === "PendingUpdate" && <span className="cs-admin-status-badge" style={{background: "#eff6ff", color: "#2563eb"}}><span className="cs-admin-status-badge__dot" style={{background: "#3b82f6"}}/>🔄 Cập nhật</span>}
                   </td>
                   <td style={{ textAlign: "right" }}>
-                    <button
-                      onClick={() => { setSelectedKyc(k); setReviewAction(null); setAdminNote(""); }}
-                      className="cs-admin-action-btn" style={{ background: "#3b82f6", color: "#fff" }}
-                    >
-                      Xem & Xử lý
-                    </button>
+                    {k.kycStatus === "Approved" ? (
+                      <button
+                        onClick={() => { setSelectedKyc(k); setReviewAction(null); setAdminNote(""); }}
+                        className="cs-admin-action-btn"
+                        style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}
+                      >
+                        👁 Xem
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => { setSelectedKyc(k); setReviewAction(null); setAdminNote(""); }}
+                        className="cs-admin-action-btn" style={{ background: "#3b82f6", color: "#fff" }}
+                      >
+                        Xem & Xử lý
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))

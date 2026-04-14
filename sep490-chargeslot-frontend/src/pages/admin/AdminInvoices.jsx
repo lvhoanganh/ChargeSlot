@@ -119,7 +119,7 @@ export default function AdminInvoices() {
         <table className="cs-admin-table">
           <thead>
             <tr>
-              <th>Mã Hóa Đơn (INV)</th>
+              <th>STT</th>
               <th>Mã Lịch</th>
               <th>Tài xế</th>
               <th>Trạm sạc</th>
@@ -138,10 +138,10 @@ export default function AdminInvoices() {
                 </td>
               </tr>
             ) : (
-              filtered.map((inv) => {
+              filtered.map((inv, idx) => {
                 return (
                   <tr key={inv.id}>
-                    <td className="cs-admin-table__id">INV_{inv.id}</td>
+                    <td className="cs-admin-table__id">{(page - 1) * pageSize + idx + 1}</td>
                     <td className="cs-admin-table__name">#{inv.bookingId}</td>
                     <td style={{ color: "#64748b", fontSize: "13px" }}>{inv.driverName || "—"}</td>
                     <td style={{ color: "#64748b", fontSize: "13px" }}>{inv.stationName || "—"}</td>
