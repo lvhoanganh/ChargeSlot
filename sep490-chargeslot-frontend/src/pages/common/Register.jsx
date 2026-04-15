@@ -8,9 +8,8 @@ import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { auth } from "@/firebase";
 
 export default function Register() {
-  // Field states
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [formattedPhone, setFormattedPhone] = useState(""); // +84xxxxxxxxx
+  const [formattedPhone, setFormattedPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -18,31 +17,26 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("Driver");
 
-  // Flow states
-  const [step, setStep] = useState(1); // 1: PHONE, 2: OTP, 3: INFO
+  const [step, setStep] = useState(1);
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [idToken, setIdToken] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // OTP countdown
   const OTP_TTL = 60;
   const [otpCountdown, setOtpCountdown] = useState(OTP_TTL);
   const [resendLoading, setResendLoading] = useState(false);
   const countdownRef = useRef(null);
-  
-  // Trạng thái lưu ID của thẻ reCAPTCHA để React render (Bắt buộc Khởi tạo động để tránh StrictMode cache lỗi)
+
   const [captchaId, setCaptchaId] = useState(() => 'recaptcha-container-' + Date.now());
 
   const navigate = useNavigate();
 
-  // Khởi tạo hoặc tái tạo recaptchaVerifier
   const initRecaptcha = (targetId = captchaId) => {
     if (window.recaptchaVerifier) {
       try { window.recaptchaVerifier.clear(); } catch (_) { }
       window.recaptchaVerifier = null;
     }
-    
-    // Đợi một chút để đảm bảo DOM (React) đã mount thẻ div với id = targetId
+
     setTimeout(() => {
       try {
         window.recaptchaVerifier = new RecaptchaVerifier(auth, targetId, {
@@ -56,8 +50,6 @@ export default function Register() {
 
   useEffect(() => {
     initRecaptcha();
-
-    // Cleanup chống lỗi "removed: 0" khi Unmount
     return () => {
       if (window.recaptchaVerifier) {
         try { window.recaptchaVerifier.clear(); } catch (_) { }
@@ -65,36 +57,27 @@ export default function Register() {
       }
       clearInterval(countdownRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Tự động xoá trắng mã OTP khi đồng hồ đếm ngược về 0
   useEffect(() => {
     if (otpCountdown === 0) {
       setOtp("");
     }
   }, [otpCountdown]);
 
-  // Hàm gửi lại OTP (Register)
   const handleResendOtp = async () => {
     if (otpCountdown > 0 || resendLoading) return;
     setResendLoading(true);
     try {
-      // Sinh ID siêu mới, React sẽ unmount node cũ và mount node mới sạch sẽ!
       const newId = 'recaptcha-container-' + Date.now();
-      
-      // Xoá dứt điểm memory cũ
       if (window.recaptchaVerifier) {
         try { window.recaptchaVerifier.clear(); } catch (_) { }
         window.recaptchaVerifier = null;
       }
-      
       setCaptchaId(newId);
-      await new Promise(r => setTimeout(r, 200)); // Đợi React unmount thẻ ID cũ và mount thẻ ID mới
-
+      await new Promise(r => setTimeout(r, 200));
       initRecaptcha(newId);
-      await new Promise(r => setTimeout(r, 600)); // Đợi Firebase script inject iframe mới vào DOM
-
+      await new Promise(r => setTimeout(r, 600));
       const appVerifier = window.recaptchaVerifier;
       const result = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
       setConfirmationResult(result);
@@ -126,8 +109,6 @@ export default function Register() {
       showToast.error("Vui lòng nhập số điện thoại");
       return;
     }
-
-    // Format số điện thoại → +84 (lưu state để dùng cho backend)
     let phone = phoneNumber.trim();
     if (phone.startsWith("0")) {
       phone = "+84" + phone.slice(1);
@@ -135,23 +116,18 @@ export default function Register() {
       phone = "+84" + phone;
     }
     setFormattedPhone(phone);
-
     setIsLoading(true);
     try {
-      // ✅ BƯỚC 1: Kiểm tra SĐT đã tồn tại chưa — TUYỆT ĐỐI không gọi Firebase nếu đã có
       const checkResult = await authApi.checkPhone(phone);
       if (checkResult?.exists === true) {
         showToast.error("Số điện thoại đã được đăng ký. Vui lòng dùng số khác hoặc đăng nhập.");
         setIsLoading(false);
-        return; // ❌ Dừng lại, không gọi Firebase
+        return;
       }
-
-      // ✅ BƯỚC 2: SĐT chưa tồn tại → mới gọi Firebase gửi OTP
       const appVerifier = window.recaptchaVerifier;
       const result = await signInWithPhoneNumber(auth, phone, appVerifier);
       setConfirmationResult(result);
       setStep(2);
-      // Khởi động đếm ngược
       setOtpCountdown(OTP_TTL);
       clearInterval(countdownRef.current);
       countdownRef.current = setInterval(() => {
@@ -162,23 +138,16 @@ export default function Register() {
       }, 1000);
       showToast.success("Mã OTP đã được gửi đến điện thoại (Bởi Firebase)!");
     } catch (error) {
-      // Phân biệt chính xác rạch ròi lỗi giữa Check SĐT (Axios) và Firebase
       if (error.isAxiosError || error.message?.includes("Network")) {
         console.error("Lỗi kiểm tra SĐT:", error);
         showToast.error("Không thể kiểm tra số điện thoại từ máy chủ. Vui lòng thử lại.");
         setIsLoading(false);
         return;
       }
-      
-      // Khối xử lý cho toàn bộ các lỗi liên quan đến Firebase/reCAPTCHA
       console.error("Lỗi gửi OTP Firebase:", error);
-      
-      // Reset reCAPTCHA sau khi lỗi để cho phép người dùng click Nhận Mã lại
       const newId = 'recaptcha-container-' + Date.now();
       setCaptchaId(newId);
       setTimeout(() => initRecaptcha(newId), 200);
-
-      // Map error sang giao diện
       if (error.code === 'auth/invalid-phone-number') {
         showToast.error("Số điện thoại không hợp lệ (Phải đúng định dạng nhà mạng).");
       } else if (error.code === 'auth/billing-not-enabled') {
@@ -204,14 +173,9 @@ export default function Register() {
 
     setIsLoading(true);
     try {
-      // Xác nhận OTP với Firebase
       const userCredential = await confirmationResult.confirm(otp);
-
-      // Lấy ID Token và giữ lại để dùng cho step 3
       const token = await userCredential.user.getIdToken();
       setIdToken(token);
-
-      // Chuyển sang bước 3: Nhập thông tin bổ sung
       setStep(3);
       showToast.success("Xác thực SĐT thành công!");
     } catch (error) {
@@ -248,8 +212,6 @@ export default function Register() {
 
     setIsLoading(true);
     try {
-      // Gửi toàn bộ data lên backend tạo tài khoản mới
-      // Dùng formattedPhone (+84...) thay vì phoneNumber gốc
       await authApi.register({
         phoneNumber: formattedPhone,
         fullName,
@@ -285,24 +247,19 @@ export default function Register() {
           </p>
           <div className="cs-auth-left__features cs-animate-fadeInUp-delay-3">
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">📱</span>
               <span>Bước 1: Nhập Số điện thoại nhận OTP Firebase</span>
             </div>
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">🔑</span>
               <span>Bước 2: Hệ thống gửi mã OTP qua SMS thật</span>
             </div>
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">🚗</span>
               <span>Bước 3: Chọn làm Chủ Trạm hoặc Tài Xế</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right Form Panel */}
       <div className="cs-auth-right">
-        {/* THẺ FIREBASE RECAPTCHA: Gán Key và ID Động để React tự xóa/tạo DOM khi Gửi lại OTP */}
         <div key={captchaId} id={captchaId}></div>
 
         {step === 1 && (
@@ -348,7 +305,6 @@ export default function Register() {
             <p className="cs-auth-form__subtitle">
               Mã bảo mật đã được gửi tới số: <strong style={{ color: "#f97316" }}>{phoneNumber}</strong>
             </p>
-
             <div className="cs-auth-input-group">
               <label>Mã OTP</label>
               <input
@@ -361,17 +317,11 @@ export default function Register() {
                 style={{ letterSpacing: "4px", fontSize: "16px", textAlign: "center" }}
               />
             </div>
-
             <button type="submit" className="cs-auth-submit" disabled={isLoading || otp.length < 6}>
               {isLoading ? "Đang xác thực..." : "Tiếp tục"}
             </button>
-
-            {/* Countdown + Resend */}
             <div style={{ textAlign: "center", marginTop: 20, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
-
-              {/* Countdown or Resend */}
               {otpCountdown > 0 ? (
-                /* Vòng tròn đếm ngược */
                 <div className="cs-otp-countdown">
                   <div className="cs-otp-countdown__circle">
                     <svg className="cs-otp-countdown__svg" viewBox="0 0 36 36">
@@ -387,7 +337,6 @@ export default function Register() {
                   </div>
                 </div>
               ) : (
-                /* Nút Gửi lại OTP — chỉ hiện khi đếm ngược hết */
                 <button
                   type="button"
                   onClick={handleResendOtp}
@@ -416,7 +365,7 @@ export default function Register() {
                     </>
                   ) : (
                     <>
-                      🔄 Gửi lại OTP
+                      Gửi lại OTP
                     </>
                   )}
                 </button>
@@ -512,8 +461,8 @@ export default function Register() {
                 required
                 style={{ cursor: "pointer" }}
               >
-                <option value="Driver">🚗 Tài xế (Driver)</option>
-                <option value="Owner">🏢 Chủ trạm (Owner)</option>
+                <option value="Driver">Tài xế (Driver)</option>
+                <option value="Owner">Chủ trạm (Owner)</option>
               </select>
             </div>
 

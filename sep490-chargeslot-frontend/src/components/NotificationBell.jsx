@@ -26,10 +26,10 @@ function getNotificationRoute(notification, role) {
   const text = ((notification.title || "") + " " + (notification.content || "")).toLowerCase();
   const id = extractId(text);
 
-  // ════════════════════════════════════════════════════════════
+  // 
   // BƯỚC 1: Content keyword — ưu tiên cao hơn type
   // (Vì BE hay gửi type "Booking" cho nhiều loại sự kiện khác nhau)
-  // ════════════════════════════════════════════════════════════
+  // 
 
   // Khiếu nại / dispute — ƯU TIÊN CAO NHẤT ĐỂ TRÁNH BỊ BẮT NHẦM VÀO VÍ NẾU CÓ CHỮ "HOÀN TIỀN" / "PHÍ PHẠT"
   if (
@@ -152,9 +152,9 @@ function getNotificationRoute(notification, role) {
     if (r === "admin") return "/admin/approve-station";
   }
 
-  // ════════════════════════════════════════════════════════════
+  // 
   // BƯỚC 2: Type-based routing (fallback khi không match keyword)
-  // ════════════════════════════════════════════════════════════
+  // 
 
   if (type === "booking") {
     if (r === "driver") return id ? `/driver/booking/${id}` : "/driver/my-bookings";
@@ -200,9 +200,9 @@ function getNotificationRoute(notification, role) {
     if (r === "admin") return "/admin/withdraws";
   }
 
-  // ════════════════════════════════════════════════════════════
+  // 
   // BƯỚC 3: Default fallback theo role
-  // ════════════════════════════════════════════════════════════
+  // 
   if (r === "driver") return "/driver/my-bookings";
   if (r === "owner") return "/owner/booking-requests";
   if (r === "admin") return "/admin/disputes";

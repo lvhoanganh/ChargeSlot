@@ -35,7 +35,7 @@ export default function NotFound() {
 
         <div className="cs-404__actions">
           <button className="cs-404__btn cs-404__btn--primary" onClick={() => navigate("/")}>
-            🏠 Về trang chủ
+             Về trang chủ
           </button>
           <button className="cs-404__btn cs-404__btn--secondary" onClick={() => navigate(-1)}>
             ← Quay lại

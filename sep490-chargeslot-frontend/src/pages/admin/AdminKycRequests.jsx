@@ -31,11 +31,11 @@ export default function AdminKycRequests() {
       queryClient.invalidateQueries({ queryKey: ["admin-kyc-pending"] });
       const isPendingUpdate = selectedKyc?.kycStatus === "PendingUpdate";
       if (variables.isApproved) {
-        showToast.success(isPendingUpdate ? "✅ Đã duyệt bản cập nhật hồ sơ!" : "✅ Đã phê duyệt hồ sơ!");
+        showToast.success(isPendingUpdate ? " Đã duyệt bản cập nhật hồ sơ!" : " Đã phê duyệt hồ sơ!");
       } else {
         showToast.success(isPendingUpdate
           ? "↩️ Đã từ chối cập nhật — thông tin cũ đã được khôi phục."
-          : "🚫 Đã từ chối hồ sơ.");
+          : " Đã từ chối hồ sơ.");
       }
       setSelectedKyc(null);
       setReviewAction(null);
@@ -90,7 +90,7 @@ export default function AdminKycRequests() {
     return (
       <div className="cs-admin-page">
         <div style={{ textAlign: "center", paddingTop: 120 }}>
-          <p style={{ color: "#ef4444", fontSize: 16, marginBottom: 16 }}>❌ Lỗi tải dữ liệu: {error.message}</p>
+          <p style={{ color: "#ef4444", fontSize: 16, marginBottom: 16 }}> Lỗi tải dữ liệu: {error.message}</p>
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["admin-kyc-pending"] })}
             className="cs-admin-action-btn cs-admin-action-btn--activate"
@@ -133,10 +133,10 @@ export default function AdminKycRequests() {
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả trạng thái</option>
-          <option value="Pending">⏳ Chờ duyệt (Pending)</option>
-          <option value="PendingUpdate">🔄 Cập nhật (PendingUpdate)</option>
-          <option value="Approved">✅ Đã duyệt (Approved)</option>
-          <option value="Rejected">❌ Từ chối (Rejected)</option>
+          <option value="Pending"> Chờ duyệt (Pending)</option>
+          <option value="PendingUpdate"> Cập nhật (PendingUpdate)</option>
+          <option value="Approved"> Đã duyệt (Approved)</option>
+          <option value="Rejected"> Từ chối (Rejected)</option>
           <option value="Unverified">Chưa cập nhật (Unverified)</option>
         </select>
         {/* Date range */}
@@ -176,7 +176,7 @@ export default function AdminKycRequests() {
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={8} className="cs-admin-table__empty">
-                  <p>Kho hồ sơ không có dữ liệu 🥳</p>
+                  <p>Kho hồ sơ không có dữ liệu </p>
                 </td>
               </tr>
             ) : (
@@ -193,7 +193,7 @@ export default function AdminKycRequests() {
                     {k.kycStatus === "Pending" && <span className="cs-admin-status-badge cs-admin-status-badge--pending"><span className="cs-admin-status-badge__dot" />🆕 Đăng ký mới</span>}
                     {k.kycStatus === "Rejected" && <span className="cs-admin-status-badge cs-admin-status-badge--banned"><span className="cs-admin-status-badge__dot" />Từ chối</span>}
                     {k.kycStatus === "Unverified" && <span className="cs-admin-status-badge" style={{background: "#f1f5f9", color: "#64748b"}}><span className="cs-admin-status-badge__dot" style={{background: "#94a3b8"}}/>Chưa cập nhật</span>}
-                    {k.kycStatus === "PendingUpdate" && <span className="cs-admin-status-badge" style={{background: "#eff6ff", color: "#2563eb"}}><span className="cs-admin-status-badge__dot" style={{background: "#3b82f6"}}/>🔄 Cập nhật</span>}
+                    {k.kycStatus === "PendingUpdate" && <span className="cs-admin-status-badge" style={{background: "#eff6ff", color: "#2563eb"}}><span className="cs-admin-status-badge__dot" style={{background: "#3b82f6"}}/> Cập nhật</span>}
                   </td>
                   <td style={{ textAlign: "right" }}>
                     {k.kycStatus === "Approved" ? (
@@ -202,7 +202,7 @@ export default function AdminKycRequests() {
                         className="cs-admin-action-btn"
                         style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}
                       >
-                        👁 Xem
+                         Xem
                       </button>
                     ) : (
                       <button
@@ -226,15 +226,15 @@ export default function AdminKycRequests() {
           <div className="cs-admin-modal" style={{ maxWidth: 900, textAlign: 'left' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 className="cs-admin-modal__title" style={{ margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 30 }}>{selectedKyc.kycStatus === "PendingUpdate" ? "🔄" : "📄"}</span>
+                <span style={{ fontSize: 30 }}>{selectedKyc.kycStatus === "PendingUpdate" ? "" : ""}</span>
                 {selectedKyc.kycStatus === "PendingUpdate" ? "Yêu cầu cập nhật hồ sơ" : "Kiểm tra hồ sơ"}
                 {selectedKyc.kycStatus === "PendingUpdate" && (
                   <span style={{ fontSize: 13, fontWeight: 600, padding: "3px 10px", borderRadius: 50, background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe" }}>
-                    🔄 Bản cập nhật
+                     Bản cập nhật
                   </span>
                 )}
               </h2>
-              <button onClick={() => setSelectedKyc(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 24 }}>✕</button>
+              <button onClick={() => setSelectedKyc(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 24 }}></button>
             </div>
 
             {/* PendingUpdate info note */}
@@ -268,7 +268,7 @@ export default function AdminKycRequests() {
                   {selectedKyc.kycStatus === "Pending" && <span className="cs-admin-status-badge cs-admin-status-badge--pending"><span className="cs-admin-status-badge__dot" />🆕 Đăng ký mới</span>}
                   {selectedKyc.kycStatus === "Rejected" && <span className="cs-admin-status-badge cs-admin-status-badge--banned"><span className="cs-admin-status-badge__dot" />Từ chối</span>}
                   {selectedKyc.kycStatus === "Unverified" && <span className="cs-admin-status-badge" style={{background: "#f1f5f9", color: "#64748b"}}><span className="cs-admin-status-badge__dot" style={{background: "#94a3b8"}}/>Chưa cập nhật</span>}
-                  {selectedKyc.kycStatus === "PendingUpdate" && <span className="cs-admin-status-badge" style={{background: "#eff6ff", color: "#2563eb"}}><span className="cs-admin-status-badge__dot" style={{background: "#3b82f6"}}/>🔄 Cập nhật</span>}
+                  {selectedKyc.kycStatus === "PendingUpdate" && <span className="cs-admin-status-badge" style={{background: "#eff6ff", color: "#2563eb"}}><span className="cs-admin-status-badge__dot" style={{background: "#3b82f6"}}/> Cập nhật</span>}
                   <span style={{ color: "#64748b" }}>Thời gian gửi:</span> <strong>{formatDate(selectedKyc.kycSubmittedAt)}</strong>
                 </div>
               </div>
@@ -294,12 +294,12 @@ export default function AdminKycRequests() {
               reviewAction !== null ? (
                 <div style={{ background: reviewAction ? "#f0fdf4" : "#fef2f2", padding: 20, borderRadius: 16, border: `1px solid ${reviewAction ? "#bbf7d0" : "#fecaca"}` }}>
                   <h3 style={{ fontSize: 15, fontWeight: 600, color: reviewAction ? "#16a34a" : "#dc2626", marginBottom: 12 }}>
-                    {reviewAction ? "✅ Phê duyệt hồ sơ này?" : "🚫 Từ chối hồ sơ này?"}
+                    {reviewAction ? " Phê duyệt hồ sơ này?" : " Từ chối hồ sơ này?"}
                   </h3>
 
                   {!reviewAction && selectedKyc.kycStatus === "PendingUpdate" && (
                     <div style={{ marginBottom: 12, padding: "8px 12px", background: "#fef3c7", borderRadius: 8, fontSize: 13, color: "#b45309", border: "1px solid #fde68a" }}>
-                      ⚠️ Từ chối bản cập nhật sẽ khôi phục thông tin cũ. Chủ trạm vẫn giữ trạng thái Approved.
+                      ️ Từ chối bản cập nhật sẽ khôi phục thông tin cũ. Chủ trạm vẫn giữ trạng thái Approved.
                     </div>
                   )}
 
@@ -338,13 +338,13 @@ export default function AdminKycRequests() {
                     onClick={() => setReviewAction(true)}
                     className="cs-admin-action-btn" style={{ flex: 1, background: "#22c55e", color: "white", height: 48, fontSize: 15 }}
                   >
-                    ✅ Phê duyệt
+                     Phê duyệt
                   </button>
                   <button
                     onClick={() => setReviewAction(false)}
                     className="cs-admin-action-btn" style={{ flex: 1, background: "#ef4444", color: "white", height: 48, fontSize: 15 }}
                   >
-                    ❌ Từ chối
+                     Từ chối
                   </button>
                 </div>
               )

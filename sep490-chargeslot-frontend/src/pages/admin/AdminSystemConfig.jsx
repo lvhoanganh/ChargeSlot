@@ -4,7 +4,7 @@ import { showToast } from "@/components/Toast";
 
 const CONFIG_GROUPS = [
   {
-    title: "💰 Tài chính & Phí",
+    title: " Tài chính & Phí",
     fields: [
       { key: "vAT_Rate", label: "Thuế VAT (%)", hint: "VD: 0.08 = 8%", type: "decimal" },
       { key: "platform_Fee_Rate", label: "Phí nền tảng (%)", hint: "VD: 0.05 = 5%", type: "decimal" },
@@ -12,14 +12,14 @@ const CONFIG_GROUPS = [
     ],
   },
   {
-    title: "📅 Chính sách Hoàn tiền",
+    title: " Chính sách Hoàn tiền",
     fields: [
       { key: "refundPolicy100_Hrs", label: "Hoàn 100% (giờ trước)", hint: "Hủy trước bao nhiêu giờ được hoàn 100%", type: "int" },
       { key: "refundPolicy50_Hrs", label: "Hoàn 50% (giờ trước)", hint: "Hủy trước bao nhiêu giờ được hoàn 50%", type: "int" },
     ],
   },
   {
-    title: "⏱️ Thời gian & Cửa sổ",
+    title: "️ Thời gian & Cửa sổ",
     fields: [
       { key: "payment_Expiry_Minutes", label: "Thanh toán hết hạn (phút)", hint: "Thời gian chờ thanh toán trước khi hủy", type: "int" },
       { key: "checkIn_Window_Minutes", label: "Cửa sổ check-in (phút)", hint: "Trước giờ đặt bao nhiêu phút được check in", type: "int" },
@@ -31,7 +31,7 @@ const CONFIG_GROUPS = [
     ],
   },
   {
-    title: "⏰ Tự động xác nhận",
+    title: " Tự động xác nhận",
     fields: [
       { key: "withdraw_AutoConfirm_Hours", label: "Auto-confirm rút tiền (giờ)", hint: "Giờ chờ tự động xác nhận rút tiền nếu User không phản hồi (1-168)", type: "int" },
       { key: "invoice_AutoConfirm_Hours", label: "Auto-confirm hóa đơn (giờ)", hint: "Giờ chờ tự động xác nhận hóa đơn nếu Driver không phản hồi (1-168)", type: "int" },
@@ -39,7 +39,7 @@ const CONFIG_GROUPS = [
     ],
   },
   {
-    title: "⚖️ Tranh chấp",
+    title: "️ Tranh chấp",
     fields: [
       { key: "dispute_Limit_Per_Month", label: "Giới hạn tranh chấp/tháng", hint: "Số lần tạo dispute tối đa mỗi tháng", type: "int" },
       { key: "dispute_OwnerEvidence_Hours", label: "Chủ trạm nộp bằng chứng (giờ)", hint: "Thời hạn owner phản hồi dispute", type: "int" },
@@ -114,7 +114,7 @@ export default function AdminSystemConfig() {
       await adminConfigApi.update({ ...form, secondaryPassword: secPass });
       setSecModal(false);
       setSecPass("");
-      showToast.success("✅ Cập nhật cấu hình thành công!");
+      showToast.success(" Cập nhật cấu hình thành công!");
       await loadConfigs();
     } catch (err) {
       showToast.error(err.message || "Lỗi cập nhật (Sai mật khẩu cấp 2?)");
@@ -127,7 +127,7 @@ export default function AdminSystemConfig() {
     return (
       <div className="min-h-screen bg-slate-100 pt-20 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-5xl mb-4 animate-spin">⚙️</div>
+          <div className="text-5xl mb-4 animate-spin">️</div>
           <p className="text-slate-500">Đang tải cấu hình...</p>
         </div>
       </div>
@@ -151,21 +151,21 @@ export default function AdminSystemConfig() {
               disabled={seeding}
               className="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 transition disabled:opacity-50 cursor-pointer"
             >
-              {seeding ? "Đang khởi tạo..." : "🌱 Khởi tạo cấu hình mặc định"}
+              {seeding ? "Đang khởi tạo..." : " Khởi tạo cấu hình mặc định"}
             </button>
           )}
         </div>
 
         {!form ? (
           <div className="rounded-2xl bg-white p-12 text-center shadow-sm ring-1 ring-slate-200">
-            <div className="text-5xl mb-4">⚙️</div>
+            <div className="text-5xl mb-4">️</div>
             <p className="text-slate-500 mb-4">Chưa có cấu hình nào trong hệ thống.</p>
             <button
               onClick={handleSeed}
               disabled={seeding}
               className="px-6 py-2.5 rounded-xl bg-orange-500 text-white font-semibold hover:bg-orange-600 transition disabled:opacity-50 cursor-pointer"
             >
-              {seeding ? "Đang khởi tạo..." : "🌱 Khởi tạo ngay"}
+              {seeding ? "Đang khởi tạo..." : " Khởi tạo ngay"}
             </button>
           </div>
         ) : (
@@ -204,7 +204,7 @@ export default function AdminSystemConfig() {
                 type="submit"
                 className="px-8 py-3 rounded-xl bg-orange-500 text-white font-bold hover:bg-orange-600 transition shadow-md shadow-orange-200 cursor-pointer"
               >
-                💾 Lưu thay đổi
+                 Lưu thay đổi
               </button>
             </div>
           </form>
@@ -214,7 +214,7 @@ export default function AdminSystemConfig() {
         {secModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-              <h2 className="text-xl font-bold text-gray-800 mb-1">🔐 Bảo mật cấp 2</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-1"> Bảo mật cấp 2</h2>
               <p className="text-sm text-gray-500 mb-4">Nhập mật khẩu cấp 2 để xác nhận thay đổi cấu hình hệ thống.</p>
               <form onSubmit={confirmSave} className="flex flex-col gap-4">
                 <input

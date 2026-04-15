@@ -21,7 +21,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-/* ─── Map helpers ─── */
+/*  Map helpers  */
 function MapFlyTo({ lat, lng }) {
   const map = useMapEvents({});
   useEffect(() => {
@@ -47,7 +47,7 @@ function LocationMarker({ pos, onSelect }) {
   return pos ? <Marker position={pos} /> : null;
 }
 
-/* ─── Map Picker with Search ─── */
+/*  Map Picker with Search  */
 function MapPicker({ lat, lng, onSelect }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -127,7 +127,7 @@ function MapPicker({ lat, lng, onSelect }) {
             type="text"
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
-            placeholder="🔍 Tìm kiếm địa chỉ"
+            placeholder=" Tìm kiếm địa chỉ"
             style={{
               width: "100%", padding: "10px 14px 10px 14px", borderRadius: 12,
               border: "1.5px solid #e2e8f0", fontSize: 14, outline: "none",
@@ -165,7 +165,7 @@ function MapPicker({ lat, lng, onSelect }) {
                   onMouseEnter={(e) => (e.currentTarget.style.background = "#fff7ed")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
-                  <span style={{ flexShrink: 0, fontSize: 16, marginTop: 1 }}>📍</span>
+                  <span style={{ flexShrink: 0, fontSize: 16, marginTop: 1 }}></span>
                   <span style={{ lineHeight: 1.4 }}>{item.display_name}</span>
                 </button>
               ))}
@@ -259,7 +259,7 @@ function FieldError({ message }) {
   return <p className="mt-1 text-sm text-red-600">{message}</p>;
 }
 
-/* ─── Slot color for the visual grid ─── */
+/*  Slot color for the visual grid  */
 const SLOT_COLOR = "#f97316";
 const SLOT_SELECTED = "#ea580c";
 
@@ -333,7 +333,7 @@ export default function CreateChargingStation() {
     onError: (error) => {
       const response = error?.response;
       const data = response?.data;
-      console.error("❌ Tạo trạm sạc lỗi:", { status: response?.status, data });
+      console.error(" Tạo trạm sạc lỗi:", { status: response?.status, data });
       let msg = "Tạo trạm sạc thất bại.";
       if (data) {
         if (typeof data === "string") {
@@ -425,12 +425,12 @@ export default function CreateChargingStation() {
       fd.append(`stationPricing[${i}].pricePerHour`, Number(rule.pricePerHour));
     });
 
-    console.log("📦 FormData entries:");
+    console.log(" FormData entries:");
     for (const [k, v] of fd.entries()) console.log(`  ${k}:`, v);
     createStationMutation.mutate(fd);
   };
 
-  /* ═══ Click empty cell to add a slot ═══ */
+  /*  Click empty cell to add a slot  */
   function handleCellClick(x, y) {
     const existingIdx = slots.findIndex((s) => Number(s.positionX) === x && Number(s.positionY) === y);
     if (existingIdx >= 0) {
@@ -470,7 +470,7 @@ export default function CreateChargingStation() {
         </div>
 
         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          {/* ═══ ROW 1: Basic info + Layout dimensions ═══ */}
+          {/*  ROW 1: Basic info + Layout dimensions  */}
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
               <h2 className="text-xl font-semibold">Thông tin cơ bản</h2>
@@ -486,7 +486,7 @@ export default function CreateChargingStation() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">📍 Chọn vị trí trên bản đồ</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-700"> Chọn vị trí trên bản đồ</label>
                   <MapPicker
                     lat={watch("latitude") || 10.7295}
                     lng={watch("longitude") || 106.7218}
@@ -521,12 +521,12 @@ export default function CreateChargingStation() {
                 </div>
               </div>
               <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-600">
-                📐 Mặt bằng hiện tại: <strong>{layoutWidth} cột × {layoutHeight} hàng</strong> = {layoutWidth * layoutHeight} ô
+                 Mặt bằng hiện tại: <strong>{layoutWidth} cột × {layoutHeight} hàng</strong> = {layoutWidth * layoutHeight} ô
                 <br />Đã đặt: <strong className="text-orange-600">{slots.length}</strong> trụ sạc
               </div>
 
               <div className="mt-5">
-                <label className="mb-2 block text-sm font-medium text-slate-700">📷 Ảnh trạm sạc</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700"> Ảnh trạm sạc</label>
                 <input
                   type="file"
                   accept="image/*"
@@ -552,7 +552,7 @@ export default function CreateChargingStation() {
                           onClick={() => setStationImages((prev) => prev.filter((_, idx) => idx !== i))}
                           className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer"
                         >
-                          ✕
+                          
                         </button>
                       </div>
                     ))}
@@ -562,7 +562,7 @@ export default function CreateChargingStation() {
             </section>
           </div>
 
-          {/* ═══ ROW 2: Operating Hours ═══ */}
+          {/*  ROW 2: Operating Hours  */}
           <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
             <h2 className="text-xl font-semibold">Giờ hoạt động</h2>
             <p className="mt-1 text-sm text-slate-600">Cấu hình cho từng ngày trong tuần.</p>
@@ -600,7 +600,7 @@ export default function CreateChargingStation() {
             </div>
           </section>
 
-          {/* ═══ ROW 3: Visual Slot Grid (Cinema-style) ═══ */}
+          {/*  ROW 3: Visual Slot Grid (Cinema-style)  */}
           <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
@@ -747,7 +747,7 @@ export default function CreateChargingStation() {
                         onClick={() => handleRemoveSlot(selectedSlotIdx)}
                         className="text-xs font-semibold text-red-500 hover:text-red-700 cursor-pointer"
                       >
-                        🗑️ Xóa
+                        ️ Xóa
                       </button>
                     </div>
                     <p className="text-xs text-slate-400">
@@ -759,7 +759,7 @@ export default function CreateChargingStation() {
                   </div>
                 ) : (
                   <div className="bg-slate-50 rounded-xl p-6 border border-dashed border-slate-300 text-center">
-                    <div className="text-3xl mb-2 opacity-40">👆</div>
+                    <div className="text-3xl mb-2 opacity-40"></div>
                     <p className="text-sm text-slate-400">
                       {slots.length === 0
                         ? "Nhấn vào ô trống để đặt ổ sạc"
@@ -773,11 +773,11 @@ export default function CreateChargingStation() {
             <FieldError message={errors.slots?.message} />
           </section>
 
-          {/* ═══ STATION-LEVEL PRICING ═══ */}
+          {/*  STATION-LEVEL PRICING  */}
           <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-semibold">⏰ Giá theo khung giờ</h2>
+                <h2 className="text-xl font-semibold"> Giá theo khung giờ</h2>
                 <p className="text-sm text-slate-500 mt-1">Áp dụng chung cho tất cả ổ sạc của trạm</p>
               </div>
               <button
@@ -870,16 +870,16 @@ export default function CreateChargingStation() {
                             className="text-red-400 hover:text-red-600 cursor-pointer mt-4"
                             title="Xóa"
                           >
-                            ✕
+                            
                           </button>
                         </div>
                         {hasError && (
                           <p className="text-xs text-red-500 mt-1 font-medium">
                             {!isValidFormat
-                              ? "⚠ Thời gian không hợp lệ! Giờ từ 00–23, phút từ 00–59."
+                              ? " Thời gian không hợp lệ! Giờ từ 00–23, phút từ 00–59."
                               : exceedsClose
-                              ? `⚠ Giờ kết thúc vượt giờ đóng cửa (${latestCloseTime})!`
-                              : `⚠ Giờ kết thúc phải sau ${autoStart}`
+                              ? ` Giờ kết thúc vượt giờ đóng cửa (${latestCloseTime})!`
+                              : ` Giờ kết thúc phải sau ${autoStart}`
                             }
                           </p>
                         )}
@@ -891,7 +891,7 @@ export default function CreateChargingStation() {
             })()}
           </section>
 
-          {/* ═══ Submit ═══ */}
+          {/*  Submit  */}
           <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
             {errors.root?.serverError?.message && (
               <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

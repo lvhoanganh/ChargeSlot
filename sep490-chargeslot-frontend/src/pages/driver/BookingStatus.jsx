@@ -5,18 +5,18 @@ import { showToast } from "@/components/Toast";
 import QRCodeModal from "@/components/QRCodeModal";
 
 const statusStyles = {
-  WaitingOwner: { label: "Chờ chủ trạm duyệt", color: "#f59e0b", bg: "#fffbeb", bgGrad: "linear-gradient(135deg, #fef3c7, #fde68a)", icon: "⏳" },
-  PendingPayment: { label: "Chờ thanh toán", color: "#3b82f6", bg: "#eff6ff", bgGrad: "linear-gradient(135deg, #dbeafe, #bfdbfe)", icon: "💳" },
-  Paid: { label: "Giữ chỗ", color: "#22c55e", bg: "#f0fdf4", bgGrad: "linear-gradient(135deg, #dcfce7, #bbf7d0)", icon: "🔒" },
-  Expired: { label: "Hết hạn", color: "#9ca3af", bg: "#f3f4f6", bgGrad: "linear-gradient(135deg, #f3f4f6, #e5e7eb)", icon: "⏰" },
-  Rejected: { label: "Bị từ chối", color: "#ef4444", bg: "#fef2f2", bgGrad: "linear-gradient(135deg, #fecaca, #fca5a5)", icon: "❌" },
-  Cancelled: { label: "Đã hủy", color: "#6b7280", bg: "#f3f4f6", bgGrad: "linear-gradient(135deg, #f3f4f6, #e5e7eb)", icon: "🚫" },
-  CheckedIn: { label: "Đã check-in", color: "#06b6d4", bg: "#ecfeff", bgGrad: "linear-gradient(135deg, #cffafe, #a5f3fc)", icon: "⚡" },
-  InProgress: { label: "Đang sạc", color: "#06b6d4", bg: "#ecfeff", bgGrad: "linear-gradient(135deg, #cffafe, #a5f3fc)", icon: "🔋" },
-  Completed: { label: "Hoàn thành", color: "#8b5cf6", bg: "#f5f3ff", bgGrad: "linear-gradient(135deg, #ede9fe, #ddd6fe)", icon: "🎉" },
-  NoShow: { label: "Không đến", color: "#9ca3af", bg: "#f3f4f6", bgGrad: "linear-gradient(135deg, #f3f4f6, #e5e7eb)", icon: "🚷" },
-  Disputed: { label: "Tranh chấp", color: "#dc2626", bg: "#fef2f2", bgGrad: "linear-gradient(135deg, #fecaca, #fca5a5)", icon: "⚠️" },
-  CompletedPendingInvoice: { label: "Chờ xác nhận hóa đơn", color: "#f97316", bg: "#fff7ed", bgGrad: "linear-gradient(135deg, #fed7aa, #fdba74)", icon: "🧾" },
+  WaitingOwner: { label: "Chờ chủ trạm duyệt", color: "#f59e0b", bg: "#fffbeb", bgGrad: "linear-gradient(135deg, #fef3c7, #fde68a)", icon: "" },
+  PendingPayment: { label: "Chờ thanh toán", color: "#3b82f6", bg: "#eff6ff", bgGrad: "linear-gradient(135deg, #dbeafe, #bfdbfe)", icon: "" },
+  Paid: { label: "Giữ chỗ", color: "#22c55e", bg: "#f0fdf4", bgGrad: "linear-gradient(135deg, #dcfce7, #bbf7d0)", icon: "" },
+  Expired: { label: "Hết hạn", color: "#9ca3af", bg: "#f3f4f6", bgGrad: "linear-gradient(135deg, #f3f4f6, #e5e7eb)", icon: "" },
+  Rejected: { label: "Bị từ chối", color: "#ef4444", bg: "#fef2f2", bgGrad: "linear-gradient(135deg, #fecaca, #fca5a5)", icon: "" },
+  Cancelled: { label: "Đã hủy", color: "#6b7280", bg: "#f3f4f6", bgGrad: "linear-gradient(135deg, #f3f4f6, #e5e7eb)", icon: "" },
+  CheckedIn: { label: "Đã check-in", color: "#06b6d4", bg: "#ecfeff", bgGrad: "linear-gradient(135deg, #cffafe, #a5f3fc)", icon: "" },
+  InProgress: { label: "Đang sạc", color: "#06b6d4", bg: "#ecfeff", bgGrad: "linear-gradient(135deg, #cffafe, #a5f3fc)", icon: "" },
+  Completed: { label: "Hoàn thành", color: "#8b5cf6", bg: "#f5f3ff", bgGrad: "linear-gradient(135deg, #ede9fe, #ddd6fe)", icon: "" },
+  NoShow: { label: "Không đến", color: "#9ca3af", bg: "#f3f4f6", bgGrad: "linear-gradient(135deg, #f3f4f6, #e5e7eb)", icon: "" },
+  Disputed: { label: "Tranh chấp", color: "#dc2626", bg: "#fef2f2", bgGrad: "linear-gradient(135deg, #fecaca, #fca5a5)", icon: "️" },
+  CompletedPendingInvoice: { label: "Chờ xác nhận hóa đơn", color: "#f97316", bg: "#fff7ed", bgGrad: "linear-gradient(135deg, #fed7aa, #fdba74)", icon: "" },
 };
 
 // BE trả về giờ VN (không phải UTC).
@@ -110,7 +110,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
           if (currentBalance > initialWalletBalanceRef.current) {
             setSepayOpen(false);
             setWalletReceivedAlert(true);
-            showToast.error("⚠️ Tiền đã vào ví! Kiểm tra lưu ý bên dưới.");
+            showToast.error("️ Tiền đã vào ví! Kiểm tra lưu ý bên dưới.");
           }
         })
         .catch(() => { });
@@ -150,7 +150,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
     } catch (err) {
       const msg = err?.message || "";
       if (msg.includes("500") || msg.includes("Internal")) {
-        showToast.error("⚠️ Hệ thống đang bảo trì thanh toán bằng ví. Vui lòng dùng VietQR hoặc thử lại sau.");
+        showToast.error("️ Hệ thống đang bảo trì thanh toán bằng ví. Vui lòng dùng VietQR hoặc thử lại sau.");
       } else {
         showToast.error(msg || "Lỗi thanh toán bằng ví");
       }
@@ -200,7 +200,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
         sessionId = session.id;
       }
       await chargingApi.confirmCompletion(sessionId);
-      showToast.success("✅ Xác nhận hóa đơn thành công!");
+      showToast.success(" Xác nhận hóa đơn thành công!");
       await fetchBooking();
     } catch (err) {
       showToast.error(err?.message || "Lỗi xác nhận hóa đơn");
@@ -241,7 +241,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
   if (!booking) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
-        <div style={{ fontSize: 56, marginBottom: 12 }}>📋</div>
+        <div style={{ fontSize: 56, marginBottom: 12 }}></div>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b", margin: "0 0 16px" }}>Booking không tồn tại</h2>
         <button
           onClick={() => navigate("/driver/my-bookings")}
@@ -312,8 +312,8 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             {/* Thông tin booking */}
             {booking?.stationName && (
               <div style={{ fontSize: 13, color: "#475569", marginBottom: 24, lineHeight: 1.6 }}>
-                <div>🏠 <strong>{booking.stationName}</strong></div>
-                {booking.slotName && <div>⚡ Slot: {booking.slotName}</div>}
+                <div> <strong>{booking.stationName}</strong></div>
+                {booking.slotName && <div> Slot: {booking.slotName}</div>}
               </div>
             )}
 
@@ -332,7 +332,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
                   boxShadow: "0 4px 14px rgba(34,197,94,0.35)",
                 }}
               >
-                📋 Xem danh sách booking
+                 Xem danh sách booking
               </button>
               <button
                 onClick={() => setShowPaymentSuccess(false)}
@@ -405,50 +405,50 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
           boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 16,
         }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-            📋 Chi tiết booking
+             Chi tiết booking
           </h3>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            <InfoRow icon="⚡" label="Slot" value={booking.slotName} />
-            <InfoRow icon="📅" label="Bắt đầu" value={toLocal(booking.startTime)} />
-            <InfoRow icon="🏁" label="Kết thúc" value={toLocal(booking.endTime)} />
-            <InfoRow icon="⏱" label="Thời lượng" value={`${Math.round(booking.durationHours * 60)} phút`} />
+            <InfoRow icon="" label="Slot" value={booking.slotName} />
+            <InfoRow icon="" label="Bắt đầu" value={toLocal(booking.startTime)} />
+            <InfoRow icon="" label="Kết thúc" value={toLocal(booking.endTime)} />
+            <InfoRow icon="" label="Thời lượng" value={`${Math.round(booking.durationHours * 60)} phút`} />
 
             {/* Phí sạc & dịch vụ tách riêng khi có extras */}
             {booking.extraServices && booking.extraServices.length > 0 ? (
               <>
-                <InfoRow icon="🔌" label="Phí sạc" value={`${((booking.totalAmount || 0) - (booking.serviceAmount || 0)).toLocaleString("vi-VN")}đ`} />
-                <InfoRow icon="🛒" label="Phí dịch vụ" value={`${(booking.serviceAmount || 0).toLocaleString("vi-VN")}đ`} purple />
-                <InfoRow icon="💰" label="Tổng cộng" value={`${(booking.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
+                <InfoRow icon="" label="Phí sạc" value={`${((booking.totalAmount || 0) - (booking.serviceAmount || 0)).toLocaleString("vi-VN")}đ`} />
+                <InfoRow icon="" label="Phí dịch vụ" value={`${(booking.serviceAmount || 0).toLocaleString("vi-VN")}đ`} purple />
+                <InfoRow icon="" label="Tổng cộng" value={`${(booking.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
               </>
             ) : (
-              <InfoRow icon="💰" label="Tổng tiền" value={`${(booking.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
+              <InfoRow icon="" label="Tổng tiền" value={`${(booking.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
             )}
 
-            {booking.note && <InfoRow icon="📝" label="Ghi chú" value={booking.note} />}
-            {booking.rejectionReason && <InfoRow icon="❌" label="Lý do từ chối" value={booking.rejectionReason} error />}
-            {booking.cancelReason && <InfoRow icon="🚫" label="Lý do hủy" value={booking.cancelReason} error />}
+            {booking.note && <InfoRow icon="" label="Ghi chú" value={booking.note} />}
+            {booking.rejectionReason && <InfoRow icon="" label="Lý do từ chối" value={booking.rejectionReason} error />}
+            {booking.cancelReason && <InfoRow icon="" label="Lý do hủy" value={booking.cancelReason} error />}
             {booking.paymentExpiresAt && booking.status === "PendingPayment" && (
-              <InfoRow icon="⏰" label="Hạn thanh toán" value={toLocal(booking.paymentExpiresAt)} warning />
+              <InfoRow icon="" label="Hạn thanh toán" value={toLocal(booking.paymentExpiresAt)} warning />
             )}
 
             {/* DEEP DETAILS */}
             {booking.paymentDetail && (
               <div style={{ marginTop: 12, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
                 <h4 style={{ fontSize: 13, color: "#475569", marginBottom: 8, fontWeight: 700 }}>Chi tiết thanh toán</h4>
-                <InfoRow icon="💳" label="Phương thức" value={booking.paymentDetail.method === "Wallet" ? "Ví hệ thống" : booking.paymentDetail.method === "BankTransfer" ? "Chuyển khoản" : booking.paymentDetail.method} />
-                {booking.paymentDetail.gatewayTxnRef && <InfoRow icon="🔄" label="Mã giao dịch" value={booking.paymentDetail.gatewayTxnRef} />}
-                {booking.paymentDetail.paidAt && <InfoRow icon="📅" label="Ngày thanh toán" value={toLocal(booking.paymentDetail.paidAt)} />}
-                {booking.paymentDetail.refundedAt && <InfoRow icon="💸" label="Ngày hoàn tiền" value={toLocal(booking.paymentDetail.refundedAt)} error />}
+                <InfoRow icon="" label="Phương thức" value={booking.paymentDetail.method === "Wallet" ? "Ví hệ thống" : booking.paymentDetail.method === "BankTransfer" ? "Chuyển khoản" : booking.paymentDetail.method} />
+                {booking.paymentDetail.gatewayTxnRef && <InfoRow icon="" label="Mã giao dịch" value={booking.paymentDetail.gatewayTxnRef} />}
+                {booking.paymentDetail.paidAt && <InfoRow icon="" label="Ngày thanh toán" value={toLocal(booking.paymentDetail.paidAt)} />}
+                {booking.paymentDetail.refundedAt && <InfoRow icon="" label="Ngày hoàn tiền" value={toLocal(booking.paymentDetail.refundedAt)} error />}
               </div>
             )}
 
             {booking.invoiceDetail && (
               <div style={{ marginTop: 12, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
                 <h4 style={{ fontSize: 13, color: "#475569", marginBottom: 8, fontWeight: 700 }}>Chi tiết hóa đơn</h4>
-                <InfoRow icon="🧾" label="Tiền sạc" value={`${(booking.invoiceDetail.chargingAmount || 0).toLocaleString("vi-VN")}đ`} />
-                {booking.invoiceDetail.vatAmount > 0 && <InfoRow icon="🏦" label="Thuế VAT" value={`${booking.invoiceDetail.vatAmount.toLocaleString("vi-VN")}đ`} />}
-                <InfoRow icon="💵" label="Tổng thanh toán" value={`${(booking.invoiceDetail.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
+                <InfoRow icon="" label="Tiền sạc" value={`${(booking.invoiceDetail.chargingAmount || 0).toLocaleString("vi-VN")}đ`} />
+                {booking.invoiceDetail.vatAmount > 0 && <InfoRow icon="" label="Thuế VAT" value={`${booking.invoiceDetail.vatAmount.toLocaleString("vi-VN")}đ`} />}
+                <InfoRow icon="" label="Tổng thanh toán" value={`${(booking.invoiceDetail.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
               </div>
             )}
 
@@ -493,12 +493,12 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
 
                   return (
                     <>
-                      {chargingStartMs > 0 && <InfoRow icon="⚡" label="Bắt đầu sạc" value={renderDate(chargingStartMs)} />}
-                      {endMs > 0 && <InfoRow icon="🏁" label="Kết thúc sạc" value={renderDate(endMs)} />}
+                      {chargingStartMs > 0 && <InfoRow icon="" label="Bắt đầu sạc" value={renderDate(chargingStartMs)} />}
+                      {endMs > 0 && <InfoRow icon="" label="Kết thúc sạc" value={renderDate(endMs)} />}
                       {durationMs > 0 && (() => {
                         const hours = Math.floor(durationMs / 3600000);
                         const minutes = Math.floor((durationMs % 3600000) / 60000);
-                        return <InfoRow icon="⏱" label="Thời lượng sạc" value={hours > 0 ? `${hours} giờ ${minutes} phút` : `${minutes} phút`} />;
+                        return <InfoRow icon="" label="Thời lượng sạc" value={hours > 0 ? `${hours} giờ ${minutes} phút` : `${minutes} phút`} />;
                       })()}
                     </>
                   );
@@ -509,8 +509,8 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             {booking.disputeDetail && (
               <div style={{ marginTop: 12, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
                 <h4 style={{ fontSize: 13, color: "#475569", marginBottom: 8, fontWeight: 700 }}>Tranh chấp ({booking.disputeDetail.status})</h4>
-                <InfoRow icon="⚠️" label="Lý do" value={booking.disputeDetail.reason} error />
-                {booking.disputeDetail.resultNote && <InfoRow icon="⚖️" label="Kết quả xử lý" value={booking.disputeDetail.resultNote} highlight />}
+                <InfoRow icon="️" label="Lý do" value={booking.disputeDetail.reason} error />
+                {booking.disputeDetail.resultNote && <InfoRow icon="️" label="Kết quả xử lý" value={booking.disputeDetail.resultNote} highlight />}
               </div>
             )}
           </div>
@@ -523,7 +523,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 16,
           }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-              🛒 Dịch vụ bổ sung
+               Dịch vụ bổ sung
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
               {booking.extraServices.map((es, idx) => (
@@ -565,7 +565,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             marginBottom: 16,
           }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <span style={{ fontSize: 24, flexShrink: 0 }}>💰</span>
+              <span style={{ fontSize: 24, flexShrink: 0 }}></span>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14, color: "#92400e", marginBottom: 6 }}>
                   Tiền đã vào ví ChargeSlot của bạn!
@@ -596,7 +596,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             onMouseEnter={e => { e.currentTarget.style.background = "#dbeafe"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#eff6ff"; }}
           >
-            💬 Chat với chủ trạm
+             Chat với chủ trạm
           </button>
         )}
 
@@ -607,7 +607,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 16,
           }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-              💳 Thanh toán
+               Thanh toán
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <ActionButton
@@ -616,7 +616,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
                 bg="linear-gradient(135deg, #0284c7, #0369a1)"
                 shadow="rgba(2,132,199,0.25)"
               >
-                {payLoading ? "Đang xử lý..." : "📱 Thanh toán VietQR"}
+                {payLoading ? "Đang xử lý..." : " Thanh toán VietQR"}
               </ActionButton>
               <ActionButton
                 onClick={handlePayWallet}
@@ -624,7 +624,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
                 bg="linear-gradient(135deg, #f97316, #ea580c)"
                 shadow="rgba(249,115,22,0.25)"
               >
-                {payLoading ? "Đang xử lý..." : "👛 Thanh toán bằng ví"}
+                {payLoading ? "Đang xử lý..." : " Thanh toán bằng ví"}
               </ActionButton>
             </div>
           </div>
@@ -646,7 +646,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
               borderRadius: 16, padding: "16px 20px", marginBottom: 16,
             }}>
               <div style={{ fontWeight: 700, fontSize: 14, color: "#92400e", marginBottom: 8 }}>
-                📷 Quét QR bị lỗi? Yêu cầu xác nhận thủ công
+                 Quét QR bị lỗi? Yêu cầu xác nhận thủ công
               </div>
               <div style={{ fontSize: 13, color: "#92400e", marginBottom: 12, lineHeight: 1.6 }}>
                 Nếu không quét được QR code tại sốt, hãy yêu cầu chủ trạm xác nhận check-in thủ công cho bạn.
@@ -661,7 +661,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
                   cursor: manualCheckinLoading ? "not-allowed" : "pointer",
                 }}
               >
-                {manualCheckinLoading ? "Đang gửi yêu cầu..." : "🔧 Yêu cầu xác nhận thủ công"}
+                {manualCheckinLoading ? "Đang gửi yêu cầu..." : " Yêu cầu xác nhận thủ công"}
               </button>
             </div>
           );
@@ -679,7 +679,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             shadow="rgba(59,130,246,0.25)"
             style={{ marginBottom: 16 }}
           >
-            ⚡ Xem phiên sạc
+             Xem phiên sạc
           </ActionButton>
         )}
 
@@ -700,12 +700,12 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
                 onMouseEnter={(e) => { if (!previewLoading) e.currentTarget.style.background = "#fef2f2"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
               >
-                {previewLoading ? "Đang kiểm tra phí hủy..." : "🚫 Hủy booking"}
+                {previewLoading ? "Đang kiểm tra phí hủy..." : " Hủy booking"}
               </button>
             ) : (
               <div style={{ background: "#fff", borderRadius: 24, padding: "28px 24px", boxShadow: "0 10px 40px rgba(0,0,0,0.1)", border: "1px solid #e2e8f0" }}>
                 <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#fef2f2", color: "#ef4444", fontSize: 32, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                  ⚠️
+                  ️
                 </div>
                 <h3 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 800, color: "#1e293b", textAlign: "center" }}>Xác nhận hủy</h3>
                 <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24, textAlign: "center", lineHeight: 1.5 }}>
@@ -728,7 +728,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
                     </div>
                     {cancelPreview.penaltyAmount === 0 && (
                       <div style={{ fontSize: 12, color: "#166534", marginTop: 12, textAlign: "center", fontWeight: 600, background: "#dcfce7", padding: "6px 10px", borderRadius: 8 }}>
-                        ✅ Không có phí phạt. Hoàn tiền 100%.
+                         Không có phí phạt. Hoàn tiền 100%.
                       </div>
                     )}
                   </div>
@@ -781,7 +781,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             marginBottom: 16,
           }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
-              <span style={{ fontSize: 28, flexShrink: 0 }}>🧾</span>
+              <span style={{ fontSize: 28, flexShrink: 0 }}></span>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: "#9a3412", marginBottom: 4 }}>
                   Phiên sạc đã kết thúc — Chờ xác nhận hóa đơn
@@ -803,7 +803,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
                   <span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spin 1s linear infinite" }} />
                   Đang xác nhận...
                 </span>
-              ) : "✅ Xác nhận hóa đơn"}
+              ) : " Xác nhận hóa đơn"}
             </ActionButton>
           </div>
         )}
@@ -820,7 +820,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
               shadow="rgba(220,38,38,0.25)"
               style={{ marginBottom: 16 }}
             >
-              ⚠️ Khiếu nại
+              ️ Khiếu nại
             </ActionButton>
           );
         })()}
@@ -901,7 +901,7 @@ function DisputeLink({ bookingId, navigate }) {
         cursor: "pointer", marginBottom: 16,
       }}
     >
-      ⚠️ Xem khiếu nại
+      ️ Xem khiếu nại
     </button>
   );
 }

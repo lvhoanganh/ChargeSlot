@@ -44,7 +44,7 @@ export default function AdminFooter() {
 
         <div className="cs-footer__bottom">
           <p className="cs-footer__copyright">
-            © {currentYear} ChargeSlot Admin Portal. Truy cập dành riêng cho quản trị viên.
+             {currentYear} ChargeSlot Admin Portal. Truy cập dành riêng cho quản trị viên.
           </p>
         </div>
       </div>

@@ -4,11 +4,11 @@ import { disputeApi } from "@/services/api";
 import Pagination from "@/components/Pagination";
 
 const STATUS_MAP = {
-  Open: { label: "Mở", color: "#f59e0b", bg: "#fffbeb", icon: "📝" },
-  WaitingOwnerEvidence: { label: "Chờ bạn phản hồi", color: "#f97316", bg: "#fff7ed", icon: "⏳" },
-  PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "🔍" },
-  ResolvedRefund: { label: "Driver thắng — Hoàn tiền", color: "#dc2626", bg: "#fef2f2", icon: "❌" },
-  ResolvedPayout: { label: "Bạn thắng — Đã thanh toán", color: "#16a34a", bg: "#f0fdf4", icon: "✅" },
+  Open: { label: "Mở", color: "#f59e0b", bg: "#fffbeb", icon: "" },
+  WaitingOwnerEvidence: { label: "Chờ bạn phản hồi", color: "#f97316", bg: "#fff7ed", icon: "" },
+  PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "" },
+  ResolvedRefund: { label: "Driver thắng — Hoàn tiền", color: "#dc2626", bg: "#fef2f2", icon: "" },
+  ResolvedPayout: { label: "Bạn thắng — Đã thanh toán", color: "#16a34a", bg: "#f0fdf4", icon: "" },
 };
 
 const toLocal = (dt) => {
@@ -64,7 +64,7 @@ export default function OwnerDisputeList() {
             Quay lại
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <span style={{ fontSize: 40 }}>⚠️</span>
+            <span style={{ fontSize: 40 }}>️</span>
             <div>
               <h1 style={{ fontSize: 22, fontWeight: 800, color: "#fff", margin: 0 }}>Khiếu nại trạm của tôi</h1>
               <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: "4px 0 0" }}>
@@ -106,7 +106,7 @@ export default function OwnerDisputeList() {
           </div>
         ) : error ? (
           <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "16px 20px", textAlign: "center" }}>
-            <p style={{ color: "#dc2626", fontSize: 14, margin: 0 }}>❌ {error}</p>
+            <p style={{ color: "#dc2626", fontSize: 14, margin: 0 }}> {error}</p>
             <button
               onClick={() => window.location.reload()}
               style={{ marginTop: 10, padding: "8px 16px", borderRadius: 8, border: "none", background: "#f97316", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: 13 }}
@@ -116,7 +116,7 @@ export default function OwnerDisputeList() {
           </div>
         ) : filteredDisputes.length === 0 ? (
           <div style={{ background: "#fff", borderRadius: 16, padding: "50px 24px", textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-            <div style={{ fontSize: 56, marginBottom: 12 }}>📋</div>
+            <div style={{ fontSize: 56, marginBottom: 12 }}></div>
             <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: "0 0 8px" }}>
               Chưa có khiếu nại nào
             </h3>
@@ -157,7 +157,7 @@ export default function OwnerDisputeList() {
                       background: "#fff7ed", borderRadius: 8, padding: "6px 12px",
                       marginBottom: 12, display: "flex", alignItems: "center", gap: 6,
                     }}>
-                      <span style={{ fontSize: 14 }}>🔔</span>
+                      <span style={{ fontSize: 14 }}></span>
                       <span style={{ fontSize: 12, fontWeight: 700, color: "#ea580c" }}>
                         Cần phản hồi của bạn!
                       </span>
@@ -197,7 +197,7 @@ export default function OwnerDisputeList() {
 
                   {dispute.createdByName && (
                     <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8, marginBottom: 0 }}>
-                      👤 {dispute.createdByName}
+                       {dispute.createdByName}
                     </p>
                   )}
 
@@ -208,7 +208,7 @@ export default function OwnerDisputeList() {
                       background: "#fef3c7", border: "1px solid #fde68a",
                       borderRadius: 8, display: "flex", alignItems: "center", gap: 6,
                     }}>
-                      <span style={{ fontSize: 14 }}>⚠️</span>
+                      <span style={{ fontSize: 14 }}>️</span>
                       <span style={{ fontSize: 12, color: "#92400e", fontWeight: 600 }}>
                         Driver bị xử lý:{" "}
                         {dispute.strikeStatus === "Warned" ? "Cảnh cáo tài khoản"

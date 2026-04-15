@@ -210,7 +210,7 @@ export default function ScanQR() {
     } catch (err) {
       clearTimeout(timeout);
       if (err.name === "AbortError") {
-        setApiError("⏱️ Yêu cầu quá lâu, vui lòng thử lại!");
+        setApiError("️ Yêu cầu quá lâu, vui lòng thử lại!");
       } else {
         setApiError("Lỗi kết nối đến server!");
       }
@@ -289,7 +289,7 @@ export default function ScanQR() {
             {cameraActive && (
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                 <div className="absolute bottom-4 left-0 right-0 text-center">
-                  <p className="text-white/80 text-sm bg-black/40 inline-block px-4 py-1.5 rounded-full">📷 Hướng camera vào mã QR</p>
+                  <p className="text-white/80 text-sm bg-black/40 inline-block px-4 py-1.5 rounded-full"> Hướng camera vào mã QR</p>
                 </div>
               </div>
             )}
@@ -359,7 +359,7 @@ export default function ScanQR() {
         </div>
         <div className="rounded-2xl bg-white shadow-lg overflow-hidden mb-6">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-            <span className="text-sm">💡</span>
+            <span className="text-sm"></span>
             <h3 className="text-sm font-bold text-gray-700">Hướng dẫn check-in</h3>
           </div>
           <div className="p-5 space-y-2 text-sm text-gray-600">

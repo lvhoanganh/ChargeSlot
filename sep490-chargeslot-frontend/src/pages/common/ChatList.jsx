@@ -27,7 +27,7 @@ export default function ChatList() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>💬</div>
+        <div style={{ fontSize: 40 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải cuộc trò chuyện...</p>
       </div>
     );
@@ -37,7 +37,7 @@ export default function ChatList() {
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90 }}>
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 16px 40px" }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1e293b", marginBottom: 20 }}>
-          💬 Tin nhắn
+           Tin nhắn
         </h1>
 
         {conversations.length === 0 ? (
@@ -45,7 +45,7 @@ export default function ChatList() {
             textAlign: "center", padding: 40, background: "#fff", borderRadius: 16,
             boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
           }}>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>💬</div>
+            <div style={{ fontSize: 48, marginBottom: 8 }}></div>
             <p style={{ color: "#6b7280" }}>Chưa có cuộc trò chuyện nào</p>
             <p style={{ color: "#9ca3af", fontSize: 13, marginTop: 4 }}>
               Bắt đầu chat từ chi tiết booking!
@@ -86,7 +86,7 @@ export default function ChatList() {
                         {conv.otherUserName}
                       </span>
                       <span style={{ fontSize: 11, color: "#94a3b8", flexShrink: 0 }}>
-                        📍 {conv.stationName}
+                         {conv.stationName}
                       </span>
                     </div>
                     <p style={{

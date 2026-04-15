@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 
 /**
  * TimePicker24h — Popup grid picker định dạng 24h (00:00 – 23:30)
- * ⚠️ BE RULE: startTime CHỈ ĐƯỢC là phút 00 hoặc 30 (30-Minute Block)
+ * ️ BE RULE: startTime CHỈ ĐƯỢC là phút 00 hoặc 30 (30-Minute Block)
  * Props:
  *   value      string "HH:MM"
  *   onChange   (newValue: string) => void
@@ -242,7 +242,7 @@ export default function TimePicker24h({ value = "00:00", onChange, disabled = fa
           boxShadow: "0 4px 12px rgba(249,115,22,0.3)",
         }}
       >
-        ✓ Xác nhận
+         Xác nhận
       </button>
 
       <style>{`
@@ -282,7 +282,7 @@ export default function TimePicker24h({ value = "00:00", onChange, disabled = fa
         <span style={{ color: "#f97316" }}>{hh}</span>
         <span style={{ color: "#cbd5e1", margin: "0 2px", fontSize: 16 }}>:</span>
         <span>{mm}</span>
-        <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: 6 }}>▾</span>
+        <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: 6 }}></span>
       </button>
 
       {popup}

@@ -80,7 +80,7 @@ export default function AdminSessions() {
     return (
       <div className="cs-admin-page">
         <div style={{ textAlign: "center", paddingTop: 120 }}>
-          <p style={{ color: "#ef4444", fontSize: 16, marginBottom: 16 }}>❌ Lỗi tải dữ liệu: {error.message}</p>
+          <p style={{ color: "#ef4444", fontSize: 16, marginBottom: 16 }}> Lỗi tải dữ liệu: {error.message}</p>
         </div>
         <style>{styles}</style>
       </div>

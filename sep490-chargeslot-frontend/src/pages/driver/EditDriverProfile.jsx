@@ -194,7 +194,7 @@ export default function EditDriverProfile() {
                 {maskPhone(phoneNumber) || "Chưa cập nhật số điện thoại"}
               </p>
               <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
-                🚗 Tài xế
+                 Tài xế
               </span>
             </div>
           </div>
@@ -236,32 +236,32 @@ export default function EditDriverProfile() {
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <ReadOnlyField icon="🏷️" label="Vai trò" value="Tài xế" />
-                <ReadOnlyField icon="📱" label="Số điện thoại" value={phoneNumber || "—"} />
+                <ReadOnlyField icon="️" label="Vai trò" value="Tài xế" />
+                <ReadOnlyField icon="" label="Số điện thoại" value={phoneNumber || "—"} />
 
                 <InputField
-                  icon="✉️"
+                  icon="️"
                   label="Email"
                   placeholder="Nhập email"
                   error={errors.email?.message}
                   {...register("email")}
                 />
                 <InputField
-                  icon="🚙"
+                  icon=""
                   label="Loại xe"
                   placeholder="Ví dụ: Xe máy, Ô tô..."
                   error={errors.vehicleType?.message}
                   {...register("vehicleType")}
                 />
                 <InputField
-                  icon="🔢"
+                  icon=""
                   label="Biển số"
                   placeholder="Nhập biển số"
                   error={errors.licensePlate?.message}
                   {...register("licensePlate")}
                 />
                 <InputField
-                  icon="📄"
+                  icon=""
                   label="Số giấy phép (12 số)"
                   placeholder="Nhập số giấy phép"
                   inputMode="numeric"
@@ -313,7 +313,7 @@ export default function EditDriverProfile() {
           <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 400, overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column" }}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                📧 Xác thực email mới
+                 Xác thực email mới
               </h3>
             </div>
             <div style={{ padding: 24 }}>
@@ -326,7 +326,7 @@ export default function EditDriverProfile() {
               </p>
               <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "#64748b" }}>
                 {cooldown > 0 ? (
-                  <span>Gửi lại sau: {String(Math.floor(cooldown / 60)).padStart(2, '0')}:{String(cooldown % 60).padStart(2, '0')} ⏱️</span>
+                  <span>Gửi lại sau: {String(Math.floor(cooldown / 60)).padStart(2, '0')}:{String(cooldown % 60).padStart(2, '0')} ️</span>
                 ) : (
                   <button onClick={() => { authApi.addEmail(pendingEmail); setCooldown(45); }} style={{ background: "none", border: "none", color: "#f97316", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Gửi lại Link xác nhận</button>
                 )}
@@ -334,7 +334,7 @@ export default function EditDriverProfile() {
             </div>
             <div style={{ padding: "16px 24px", background: "#f8fafc", display: "flex", gap: 10 }}>
               <button onClick={() => { setShowOtpModal(false); navigate("/driver/driver-profile"); }} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
-                ✅ Đã hiểu
+                 Đã hiểu
               </button>
             </div>
           </div>

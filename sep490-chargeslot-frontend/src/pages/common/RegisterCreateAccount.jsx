@@ -58,11 +58,11 @@ export default function RegisterCreateAccount() {
           </p>
           <div className="cs-auth-left__features cs-animate-fadeInUp-delay-3">
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">🚗</span>
+              <span className="cs-auth-left__feature-icon"></span>
               <span>Tài xế — Đặt lịch sạc xe</span>
             </div>
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">🏢</span>
+              <span className="cs-auth-left__feature-icon"></span>
               <span>Chủ trạm — Quản lý trạm sạc</span>
             </div>
           </div>
@@ -111,8 +111,8 @@ export default function RegisterCreateAccount() {
               required
               style={{ cursor: "pointer" }}
             >
-              <option value="Driver">🚗 Tài xế (Driver)</option>
-              <option value="Owner">🏢 Chủ trạm (Owner)</option>
+              <option value="Driver"> Tài xế (Driver)</option>
+              <option value="Owner"> Chủ trạm (Owner)</option>
             </select>
           </div>
 

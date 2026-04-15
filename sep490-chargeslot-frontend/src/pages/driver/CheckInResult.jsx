@@ -57,7 +57,7 @@ export default function CheckInResult() {
           <>
             <div className="rounded-2xl bg-white shadow-lg overflow-hidden mb-6">
               <div className="px-6 py-4 border-b border-gray-100">
-                <h2 className="text-sm font-bold text-gray-700">⚡ Thông tin phiên sạc</h2>
+                <h2 className="text-sm font-bold text-gray-700"> Thông tin phiên sạc</h2>
               </div>
               <div className="px-6 py-5 space-y-3">
                 <InfoRow label="Mã booking" value={`#${session.bookingId}`} />
@@ -81,7 +81,7 @@ export default function CheckInResult() {
         {!success && (
           <div className="space-y-3">
             <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-              <p className="text-sm text-red-700 font-medium mb-1">💡 Bạn nên kiểm tra:</p>
+              <p className="text-sm text-red-700 font-medium mb-1"> Bạn nên kiểm tra:</p>
               <ul className="text-xs text-red-600 space-y-1 ml-4 list-disc">
                 <li>Đã đến đúng trạm sạc chưa?</li>
                 <li>Booking đã được Owner chấp nhận và thanh toán chưa?</li>

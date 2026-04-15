@@ -7,17 +7,17 @@ import BankCombobox from "@/components/BankCombobox";
 import Pagination from "@/components/Pagination";
 
 const txTypeLabels = {
-  TopUp: { label: "Nạp tiền", icon: "💰", color: "#22c55e" },
-  BookingPayment: { label: "Thanh toán booking", icon: "💳", color: "#3b82f6" },
+  TopUp: { label: "Nạp tiền", icon: "", color: "#22c55e" },
+  BookingPayment: { label: "Thanh toán booking", icon: "", color: "#3b82f6" },
   BookingCancel: { label: "Hoàn tiền hủy booking", icon: "↩️", color: "#f59e0b" },
-  Payment: { label: "Thanh toán", icon: "💳", color: "#3b82f6" },
+  Payment: { label: "Thanh toán", icon: "", color: "#3b82f6" },
   Refund: { label: "Hoàn tiền", icon: "↩️", color: "#f59e0b" },
-  Withdraw: { label: "Rút tiền", icon: "🏦", color: "#ef4444" },
-  WithdrawRequest: { label: "Yêu cầu rút tiền", icon: "⏳", color: "#f59e0b" },
+  Withdraw: { label: "Rút tiền", icon: "", color: "#ef4444" },
+  WithdrawRequest: { label: "Yêu cầu rút tiền", icon: "", color: "#f59e0b" },
   WithdrawRejected: { label: "Hoàn tiền huỷ lệnh rút", icon: "↩️", color: "#3b82f6" },
-  Earning: { label: "Thu nhập", icon: "📈", color: "#22c55e" },
-  OwnerPayout: { label: "Nhận thanh toán", icon: "💰", color: "#22c55e" },
-  ChargingPayout: { label: "Thanh toán phiên sạc", icon: "⚡", color: "#22c55e" },
+  Earning: { label: "Thu nhập", icon: "", color: "#22c55e" },
+  OwnerPayout: { label: "Nhận thanh toán", icon: "", color: "#22c55e" },
+  ChargingPayout: { label: "Thanh toán phiên sạc", icon: "", color: "#22c55e" },
 };
 
 const withdrawStatusLabels = {
@@ -220,7 +220,7 @@ export default function OwnerWallet() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>💰</div>
+        <div style={{ fontSize: 40 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải ví...</p>
       </div>
     );
@@ -244,13 +244,13 @@ export default function OwnerWallet() {
           </div>
           {frozen > 0 && (
             <div style={{ fontSize: 13, opacity: 0.75, marginTop: 6 }}>
-              🔒 Đang giữ: {frozen.toLocaleString("vi-VN")}đ
+               Đang giữ: {frozen.toLocaleString("vi-VN")}đ
             </div>
           )}
           <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
-            <WalletBtn onClick={() => { setShowWithdraw(true); setShowAddBank(false); }}>🏦 Rút tiền</WalletBtn>
-            <WalletBtn onClick={() => navigate("/owner/booking-requests")}>📋 Quản lý Booking</WalletBtn>
-            <WalletBtn onClick={() => navigate("/stations")}>⚡ Quản lý trạm</WalletBtn>
+            <WalletBtn onClick={() => { setShowWithdraw(true); setShowAddBank(false); }}> Rút tiền</WalletBtn>
+            <WalletBtn onClick={() => navigate("/owner/booking-requests")}> Quản lý Booking</WalletBtn>
+            <WalletBtn onClick={() => navigate("/stations")}> Quản lý trạm</WalletBtn>
           </div>
         </div>
 
@@ -261,7 +261,7 @@ export default function OwnerWallet() {
             boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 20,
             border: "2px solid #22c55e",
           }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}>🏦 Rút tiền về ngân hàng</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}> Rút tiền về ngân hàng</h3>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <FormInput label="Số tiền rút" type="number" placeholder="VD: 100000"
@@ -297,7 +297,7 @@ export default function OwnerWallet() {
             boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 20,
             border: "2px solid #3b82f6",
           }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}>🏦 Thêm tài khoản ngân hàng</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}> Thêm tài khoản ngân hàng</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <BankCombobox
                 value={bankForm.bankName}
@@ -377,7 +377,7 @@ export default function OwnerWallet() {
               </div>
             </div>
             {transactions.length === 0 ? (
-              <EmptyState icon="📋" text="Chưa có giao dịch nào" />
+              <EmptyState icon="" text="Chưa có giao dịch nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {transactions.filter(tx => {
@@ -397,7 +397,7 @@ export default function OwnerWallet() {
                   return true;
                 }).map((tx) => {
                   const txType = tx.type || tx.transactionType || "";
-                  const typeInfo = txTypeLabels[txType] || { label: txType, icon: "📄", color: "#6b7280" };
+                  const typeInfo = txTypeLabels[txType] || { label: txType, icon: "", color: "#6b7280" };
                   const amount = tx.amount || 0;
                   const direction = (tx.direction || "").toLowerCase();
                   const isIncome = direction === "credit";
@@ -444,7 +444,7 @@ export default function OwnerWallet() {
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", marginBottom: 16 }}>Lịch sử rút tiền</h2>
 
             {withdraws.length === 0 ? (
-              <EmptyState icon="🏦" text="Chưa có yêu cầu rút tiền nào" />
+              <EmptyState icon="" text="Chưa có yêu cầu rút tiền nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {withdraws.map((p) => {
@@ -465,15 +465,15 @@ export default function OwnerWallet() {
                       </div>
                       <div style={{ fontSize: 13, color: "#64748b" }}>
                         <div>Ngân hàng: <strong>{p.bankName}</strong> - {p.bankAccountNumber}</div>
-                        {p.userNote && <div style={{ marginTop: 4 }}>📝 Ghi chú: {p.userNote}</div>}
-                        {p.adminNote && <div style={{ color: "#dc2626", marginTop: 4 }}>⚠️ Admin: {p.adminNote}</div>}
-                        {p.issueReason && <div style={{ color: "#ef4444", marginTop: 4, fontWeight: 600 }}>🔴 Báo lỗi: {p.issueReason}</div>}
+                        {p.userNote && <div style={{ marginTop: 4 }}> Ghi chú: {p.userNote}</div>}
+                        {p.adminNote && <div style={{ color: "#dc2626", marginTop: 4 }}>️ Admin: {p.adminNote}</div>}
+                        {p.issueReason && <div style={{ color: "#ef4444", marginTop: 4, fontWeight: 600 }}> Báo lỗi: {p.issueReason}</div>}
                         <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 6 }}>{toLocal(p.requestedAt)}</div>
                       </div>
 
                       {p.transferReceiptUrl && (
                         <div style={{ marginTop: 12, padding: 12, background: "#f8fafc", borderRadius: 12 }}>
-                          <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>🧾 Biên lai giao dịch (từ Kế toán):</p>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}> Biên lai giao dịch (từ Kế toán):</p>
                           <a href={p.transferReceiptUrl} target="_blank" rel="noreferrer">
                             <img src={p.transferReceiptUrl} alt="Biên lai" style={{ width: "100%", maxWidth: 300, objectFit: "contain", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff" }} />
                           </a>
@@ -502,10 +502,10 @@ export default function OwnerWallet() {
                           ) : (
                             <div style={{ display: "flex", gap: 10 }}>
                               <button onClick={() => handleConfirmWithdraw(p.id)} style={{ flex: 1, padding: "10px", background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff", borderRadius: 10, border: "none", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 10px rgba(34,197,94,0.2)" }}>
-                                🟢 Đã nhận tiền
+                                 Đã nhận tiền
                               </button>
                               <button onClick={() => setIssueForm({ id: p.id, reason: "" })} style={{ flex: 1, padding: "10px", background: "#fff", color: "#ef4444", borderRadius: 10, border: "1.5px solid #fca5a5", fontWeight: 700, cursor: "pointer" }}>
-                                🔴 Báo lỗi
+                                 Báo lỗi
                               </button>
                             </div>
                           )}
@@ -540,7 +540,7 @@ export default function OwnerWallet() {
               >+ Thêm mới</button>
             </div>
             {bankAccounts.length === 0 ? (
-              <EmptyState icon="🏦" text="Chưa có tài khoản ngân hàng nào" />
+              <EmptyState icon="" text="Chưa có tài khoản ngân hàng nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {bankAccounts.map((ba) => (
@@ -552,25 +552,25 @@ export default function OwnerWallet() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: 15, color: "#1e293b" }}>
-                          {ba.bankName} {ba.isDefault && <span style={{ fontSize: 11, color: "#22c55e" }}>⭐ Mặc định</span>}
+                          {ba.bankName} {ba.isDefault && <span style={{ fontSize: 11, color: "#22c55e" }}> Mặc định</span>}
                         </div>
                         <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
                           STK: {ba.bankAccountNumber}
                         </div>
                         <div style={{ fontSize: 13, color: "#64748b" }}>
-                          👤 {ba.bankAccountHolder}
+                           {ba.bankAccountHolder}
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
                         {!ba.isDefault && (
                           <button onClick={() => handleSetDefault(ba.id)}
                             style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #e5e7eb", background: "#fff", color: "#22c55e", fontWeight: 600, fontSize: 11, cursor: "pointer" }}>
-                            ⭐ Mặc định
+                             Mặc định
                           </button>
                         )}
                         <button onClick={() => handleDeleteBank(ba.id)}
                           style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #fca5a5", background: "#fff", color: "#ef4444", fontWeight: 600, fontSize: 11, cursor: "pointer" }}>
-                          🗑 Xóa
+                           Xóa
                         </button>
                       </div>
                     </div>
@@ -613,7 +613,7 @@ export default function OwnerWallet() {
             <div style={{ padding: 24 }}>
               <div style={{ textAlign: "center", marginBottom: 24 }}>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>
-                  {txTypeLabels[selectedTx.type || selectedTx.transactionType]?.icon || "📄"}
+                  {txTypeLabels[selectedTx.type || selectedTx.transactionType]?.icon || ""}
                 </div>
                 <div style={{ fontSize: 24, fontWeight: 800, color: (selectedTx.direction || "").toLowerCase() === "credit" ? "#22c55e" : "#ef4444" }}>
                   {(selectedTx.direction || "").toLowerCase() === "credit" ? "+" : "−"}{Math.abs(selectedTx.amount || 0).toLocaleString("vi-VN")}đ

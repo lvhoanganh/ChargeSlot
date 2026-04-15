@@ -7,7 +7,7 @@ import { instance } from "@/lib/httpRequest";
 import { AiAdvisorPanel } from "@/components/AiAdvisorPanel";
 import { ownerAnalyticsApi } from "@/services/api";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+//  Helpers 
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString("vi-VN") + "đ" : "—");
 const fmtNum = (n) => (typeof n === "number" ? n.toLocaleString("vi-VN") : "—");
 
@@ -31,7 +31,7 @@ function getDateRange(days) {
   };
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+//  Sub-components 
 function MetricCard({ icon, label, value, sub, color, bg }) {
   return (
     <div
@@ -95,7 +95,7 @@ function MiniBar({ label, value, max, color = "#f97316" }) {
   );
 }
 
-// ─── Tab: Tổng quan ───────────────────────────────────────────────────────────
+//  Tab: Tổng quan 
 function TabOverview() {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -130,7 +130,7 @@ function TabOverview() {
   const avgRating = ratedStations.length > 0
     ? ratedStations.reduce((sum, s) => sum + s.rating, 0) / ratedStations.length
     : null;
-  const starDisplay = avgRating !== null ? `${Number(avgRating).toFixed(1)} ⭐` : "—";
+  const starDisplay = avgRating !== null ? `${Number(avgRating).toFixed(1)} ` : "—";
 
   if (loading) return (
     <div>
@@ -144,7 +144,7 @@ function TabOverview() {
 
   if (error) return (
     <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 14, padding: 20, color: "#dc2626", fontSize: 14 }}>
-      ⚠️ {error}
+      ️ {error}
     </div>
   );
 
@@ -153,19 +153,19 @@ function TabOverview() {
       {/* Metrics Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 16, marginBottom: 24 }}>
         <MetricCard
-          icon="💵" label="Doanh thu 30 ngày"
+          icon="" label="Doanh thu 30 ngày"
           value={fmt(metrics?.revenueLast30Days)}
           sub="Tổng tiền đã thu từ tất cả trạm"
           color="#16a34a" bg="linear-gradient(135deg, #f0fdf4, #dcfce7)"
         />
         <MetricCard
-          icon="⭐" label="Đánh giá trung bình"
+          icon="" label="Đánh giá trung bình"
           value={starDisplay}
           sub="Trung bình rating từ tất cả trạm"
           color="#d97706" bg="linear-gradient(135deg, #fffbeb, #fef3c7)"
         />
         <MetricCard
-          icon="📋" label="Đơn đặt 30 ngày"
+          icon="" label="Đơn đặt 30 ngày"
           value={fmtNum(metrics?.bookingsLast30Days)}
           sub="Tổng booking trong 30 ngày qua"
           color="#2563eb" bg="linear-gradient(135deg, #eff6ff, #dbeafe)"
@@ -177,7 +177,7 @@ function TabOverview() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
             <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0 }}>
-              📊 So sánh doanh thu các trạm
+               So sánh doanh thu các trạm
             </h3>
             <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 0" }}>
               Hiệu suất kinh doanh từng trạm sạc của bạn
@@ -190,7 +190,7 @@ function TabOverview() {
 
         {stationPerformances.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 20px" }}>
-            <div style={{ fontSize: 40, marginBottom: 10, opacity: 0.3 }}>📊</div>
+            <div style={{ fontSize: 40, marginBottom: 10, opacity: 0.3 }}></div>
             <p style={{ color: "#94a3b8", fontSize: 14 }}>Chưa có dữ liệu hiệu suất trạm</p>
           </div>
         ) : (
@@ -222,7 +222,7 @@ function TabOverview() {
   );
 }
 
-// ─── Tab: Thống kê chi tiết ───────────────────────────────────────────────────
+//  Tab: Thống kê chi tiết 
 function TabAnalytics() {
   const [periodIdx, setPeriodIdx] = useState(1);
   const [metrics, setMetrics] = useState(null);
@@ -284,13 +284,13 @@ function TabAnalytics() {
 
       {error && (
         <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, padding: "14px 18px", color: "#dc2626", marginBottom: 20, fontSize: 14 }}>
-          ⚠️ {error}
+          ️ {error}
         </div>
       )}
 
       {loading && (
         <div style={{ textAlign: "center", paddingTop: 60, color: "#94a3b8" }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>⚡</div>
+          <div style={{ fontSize: 48, marginBottom: 8 }}></div>
           <p>Đang tải dữ liệu...</p>
         </div>
       )}
@@ -299,21 +299,21 @@ function TabAnalytics() {
         <>
           {/* Stat Cards */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
-            <StatCard icon="💰" label="Doanh thu" color="#f97316" bg="#fff7ed"
+            <StatCard icon="" label="Doanh thu" color="#f97316" bg="#fff7ed"
               value={`${(m.revenueLast30Days ?? 0).toLocaleString("vi-VN")}đ`}
               sub={`Số dư ví: ${(m.walletBalance ?? 0).toLocaleString("vi-VN")}đ`}
             />
-            <StatCard icon="📋" label="Lượt booking" color="#3b82f6" bg="#eff6ff"
+            <StatCard icon="" label="Lượt booking" color="#3b82f6" bg="#eff6ff"
               value={m.bookingsLast30Days ?? 0}
               sub={`${m.totalStations ?? 0} trạm đang quản lý`}
             />
-            <StatCard icon="📈" label="Hiệu suất hoạt động" color="#22c55e" bg="#f0fdf4"
+            <StatCard icon="" label="Hiệu suất hoạt động" color="#22c55e" bg="#f0fdf4"
               value={m.activeTimeUtilizationRate != null
                 ? `${(m.activeTimeUtilizationRate * 100).toFixed(1)}%`
                 : "—"}
               sub="Tỷ lệ giờ slot được đặt"
             />
-            <StatCard icon="❌" label="Tỷ lệ hủy" color="#ef4444" bg="#fef2f2"
+            <StatCard icon="" label="Tỷ lệ hủy" color="#ef4444" bg="#fef2f2"
               value={m.cancelRateLast30Days != null
                 ? `${(m.cancelRateLast30Days * 100).toFixed(1)}%`
                 : "—"}
@@ -324,7 +324,7 @@ function TabAnalytics() {
           {/* Station mini bars */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
             <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-              <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 16px" }}>🏆 Doanh thu từng trạm</h3>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 16px" }}> Doanh thu từng trạm</h3>
               {stationPerfs.length === 0
                 ? <p style={{ fontSize: 13, color: "#94a3b8", fontStyle: "italic" }}>Chưa có dữ liệu.</p>
                 : stationPerfs
@@ -338,7 +338,7 @@ function TabAnalytics() {
                         color="#f97316"
                       />
                       <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "right", marginTop: -4 }}>
-                        {s.totalBookings} booking · ⭐ {s.averageRating > 0 ? s.averageRating.toFixed(1) : "—"}
+                        {s.totalBookings} booking ·  {s.averageRating > 0 ? s.averageRating.toFixed(1) : "—"}
                       </div>
                     </div>
                   ))
@@ -346,7 +346,7 @@ function TabAnalytics() {
             </div>
 
             <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-              <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 16px" }}>📋 Lượt booking từng trạm</h3>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 16px" }}> Lượt booking từng trạm</h3>
               {stationPerfs.length === 0
                 ? <p style={{ fontSize: 13, color: "#94a3b8", fontStyle: "italic" }}>Chưa có dữ liệu.</p>
                 : stationPerfs
@@ -366,7 +366,7 @@ function TabAnalytics() {
           {/* Top dịch vụ bổ sung */}
           {topServices.length > 0 && (
             <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 24 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 14px" }}>🔧 Top dịch vụ bổ sung</h3>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 14px" }}> Top dịch vụ bổ sung</h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
                 {topServices.map((svc, i) => (
                   <div key={i} style={{
@@ -390,7 +390,7 @@ function TabAnalytics() {
           <div style={{ background: "linear-gradient(135deg,#1e293b,#334155)", borderRadius: 20, padding: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
               <div>
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0 }}>🤖 AI Cố vấn kinh doanh</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0 }}> AI Cố vấn kinh doanh</h3>
                 <p style={{ fontSize: 12, color: "#94a3b8", margin: "4px 0 0" }}>Phân tích dựa trên số liệu thực tế của bạn</p>
               </div>
               <button onClick={handleLoadAI} disabled={aiLoading} style={{
@@ -399,7 +399,7 @@ function TabAnalytics() {
                 color: "#fff", fontSize: 13, fontWeight: 700, transition: "all 0.15s",
                 boxShadow: aiLoading ? "none" : "0 2px 8px rgba(249,115,22,0.4)",
               }}>
-                {aiLoading ? "⏳ Đang phân tích..." : "✨ Lấy gợi ý AI"}
+                {aiLoading ? " Đang phân tích..." : " Lấy gợi ý AI"}
               </button>
             </div>
 
@@ -409,7 +409,7 @@ function TabAnalytics() {
               </p>
             )}
             {aiInsight?.error && (
-              <p style={{ fontSize: 13, color: "#fca5a5", margin: 0 }}>⚠️ {aiInsight.error}</p>
+              <p style={{ fontSize: 13, color: "#fca5a5", margin: 0 }}>️ {aiInsight.error}</p>
             )}
             {aiInsight && !aiInsight.error && aiInsight.insightMarkdown && (
               <div style={{ background: "#0f172a", borderRadius: 14, padding: 18, marginTop: 4 }}>
@@ -433,10 +433,10 @@ function TabAnalytics() {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+//  Main Component 
 const TABS = [
-  { key: "overview", label: "📊 Tổng quan", icon: "📊" },
-  { key: "analytics", label: "📈 Thống kê chi tiết", icon: "📈" },
+  { key: "overview", label: " Tổng quan", icon: "" },
+  { key: "analytics", label: " Thống kê chi tiết", icon: "" },
 ];
 
 export default function OwnerDashboard() {

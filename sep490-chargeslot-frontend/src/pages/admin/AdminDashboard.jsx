@@ -63,17 +63,17 @@ export default function AdminDashboard() {
           </div>
         ) : metricsError ? (
           <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 14, padding: 20, marginBottom: 24, color: "#dc2626", fontSize: 14 }}>
-            ⚠️ {metricsError}
+            ️ {metricsError}
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
             <MetricCard
-              icon="💰"
+              icon=""
               label="Số dư Escrow (Ký quỹ)"
               value={fmt(metrics?.totalEscrowBalance)}
               sub={
                 metrics?.totalEscrowBalance < 0
-                  ? "⚠️ Số dư âm — kiểm tra hoàn tiền/refund"
+                  ? "️ Số dư âm — kiểm tra hoàn tiền/refund"
                   : "Tổng tiền đang giữ hộ"
               }
               color={metrics?.totalEscrowBalance < 0 ? "#dc2626" : "#7c3aed"}
@@ -85,7 +85,7 @@ export default function AdminDashboard() {
               highlight={metrics?.totalEscrowBalance < 0}
             />
             <MetricCard
-              icon="🏦"
+              icon=""
               label="Doanh thu nền tảng"
               value={fmt(metrics?.totalPlatformRevenue)}
               sub="Phí & hoa hồng thu được"
@@ -93,10 +93,10 @@ export default function AdminDashboard() {
               bg="linear-gradient(135deg, #f0fdf4, #dcfce7)"
             />
             <MetricCard
-              icon="📉"
+              icon=""
               label="Tỷ lệ hủy (30 ngày)"
               value={fmtPct(cancelRate)}
-              sub={isHighCancel ? "⚠️ Vượt ngưỡng 30% — cần chú ý!" : "✓ Trong ngưỡng kiểm soát"}
+              sub={isHighCancel ? "️ Vượt ngưỡng 30% — cần chú ý!" : " Trong ngưỡng kiểm soát"}
               color={isHighCancel ? "#dc2626" : "#16a34a"}
               bg={isHighCancel ? "linear-gradient(135deg, #fef2f2, #fee2e2)" : "linear-gradient(135deg, #f0fdf4, #dcfce7)"}
               highlight={isHighCancel}
@@ -111,7 +111,7 @@ export default function AdminDashboard() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <div>
                 <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0 }}>
-                  🚨 Danh sách Tài xế rủi ro cao
+                   Danh sách Tài xế rủi ro cao
                 </h3>
                 <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 0" }}>
                   Tài xế có lịch sử lạm dụng hủy chỗ (tỉ lệ hủy &gt; 50%)
@@ -123,7 +123,7 @@ export default function AdminDashboard() {
             </div>
             {riskDrivers.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                <div style={{ fontSize: 40, marginBottom: 10, opacity: 0.3 }}>✅</div>
+                <div style={{ fontSize: 40, marginBottom: 10, opacity: 0.3 }}></div>
                 <p style={{ color: "#94a3b8", fontSize: 14 }}>
                   {metricsLoading ? "Đang tải..." : "Không có tài xế rủi ro cao"}
                 </p>

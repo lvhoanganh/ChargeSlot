@@ -22,7 +22,7 @@ export function BanStatusBadge({ banCount = 0, bannedUntil = null }) {
         whiteSpace: "nowrap",
         lineHeight: 1.5,
       }}>
-        🔒 Khóa đến {untilDate}
+         Khóa đến {untilDate}
       </span>
     );
   }
@@ -43,7 +43,7 @@ export function BanStatusBadge({ banCount = 0, bannedUntil = null }) {
         whiteSpace: "nowrap",
         lineHeight: 1.5,
       }}>
-        ⚠️ Vi phạm: {banCount}/3
+        ️ Vi phạm: {banCount}/3
       </span>
     );
   }
@@ -63,7 +63,7 @@ export function BanStatusBadge({ banCount = 0, bannedUntil = null }) {
       whiteSpace: "nowrap",
       lineHeight: 1.5,
     }}>
-      ✓ Hoạt động
+       Hoạt động
     </span>
   );
 }

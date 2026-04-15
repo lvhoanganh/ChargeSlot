@@ -140,7 +140,7 @@ export default function ChargingComplete() {
         {/* Stats */}
         <div className="mb-6">
           <div className="rounded-xl bg-white shadow-lg p-5 text-center">
-            <span className="text-3xl">⏱️</span>
+            <span className="text-3xl">️</span>
             <p className="text-2xl font-bold text-gray-800 mt-2">{formatDuration(durationSec)}</p>
             <p className="text-xs text-gray-500 mt-1">Thời gian sạc</p>
           </div>
@@ -149,7 +149,7 @@ export default function ChargingComplete() {
         {/* Invoice */}
         <div className="rounded-2xl bg-white shadow-lg overflow-hidden mb-6">
           <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-bold text-gray-700">🧾 Hóa đơn</h2>
+            <h2 className="text-sm font-bold text-gray-700"> Hóa đơn</h2>
           </div>
           <div className="px-6 py-5 space-y-3">
             <InfoRow label="Mã booking" value={`#${session.bookingId}`} />
@@ -200,13 +200,13 @@ export default function ChargingComplete() {
               disabled={confirming}
               className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-200 transition-all hover:shadow-xl cursor-pointer disabled:opacity-50"
             >
-              {confirming ? "Đang xử lý..." : "✅ Xác nhận hoàn thành"}
+              {confirming ? "Đang xử lý..." : " Xác nhận hoàn thành"}
             </button>
             <button
               onClick={() => navigate(`/driver/dispute/submit/${session.bookingId}`)}
               className="w-full h-14 bg-white hover:bg-red-50 text-red-600 font-bold text-lg rounded-xl border-2 border-red-500 transition-all cursor-pointer"
             >
-              ⚠️ Khiếu nại
+              ️ Khiếu nại
             </button>
             <p className="text-xs text-center text-gray-400">
               Nếu có vấn đề với phiên sạc, bạn có thể gửi khiếu nại thay vì xác nhận
@@ -215,13 +215,13 @@ export default function ChargingComplete() {
         ) : (
           <div className="space-y-3">
             <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">
-              <p className="text-sm font-semibold text-green-700">✅ Đã xác nhận hoàn thành!</p>
+              <p className="text-sm font-semibold text-green-700"> Đã xác nhận hoàn thành!</p>
             </div>
             <button
               onClick={() => navigate("/driver/reviews")}
               className="w-full h-14 bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-200 transition-all hover:shadow-xl cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>⭐</span> Đánh giá trạm sạc
+              <span></span> Đánh giá trạm sạc
             </button>
             <button
               onClick={() => navigate("/driver/my-bookings")}

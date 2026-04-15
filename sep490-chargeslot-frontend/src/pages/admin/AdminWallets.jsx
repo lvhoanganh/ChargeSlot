@@ -5,10 +5,10 @@ import Pagination from "@/components/Pagination";
 
 // System wallets mapping
 const SYSTEM_WALLETS = {
-  1: { code: "ESCROW", label: "Giữ Tiền Escrow", desc: "Giữ tiền booking đang hoạt động", icon: "🔒", color: "#f97316", bg: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)", border: "#fed7aa", accent: "#ea580c" },
-  2: { code: "PLATFORM_REVENUE", label: "Doanh Thu Sàn", desc: "Lợi nhuận sàn (5% phí giao dịch)", icon: "📈", color: "#8b5cf6", bg: "linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)", border: "#ddd6fe", accent: "#7c3aed" },
-  3: { code: "CLEARING", label: "Cổng Thanh Toán", desc: "Gateway VNPay / SePay", icon: "🏦", color: "#0ea5e9", bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)", border: "#bae6fd", accent: "#0284c7" },
-  99: { code: "TAX_HOLD", label: "Giữ Thuế GTGT", desc: "Thuế 8% giữ hộ cơ quan thuế", icon: "🧾", color: "#10b981", bg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "#bbf7d0", accent: "#059669" },
+  1: { code: "ESCROW", label: "Giữ Tiền Escrow", desc: "Giữ tiền booking đang hoạt động", icon: "", color: "#f97316", bg: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)", border: "#fed7aa", accent: "#ea580c" },
+  2: { code: "PLATFORM_REVENUE", label: "Doanh Thu Sàn", desc: "Lợi nhuận sàn (5% phí giao dịch)", icon: "", color: "#8b5cf6", bg: "linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)", border: "#ddd6fe", accent: "#7c3aed" },
+  3: { code: "CLEARING", label: "Cổng Thanh Toán", desc: "Gateway VNPay / SePay", icon: "", color: "#0ea5e9", bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)", border: "#bae6fd", accent: "#0284c7" },
+  99: { code: "TAX_HOLD", label: "Giữ Thuế GTGT", desc: "Thuế 8% giữ hộ cơ quan thuế", icon: "", color: "#10b981", bg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "#bbf7d0", accent: "#059669" },
 };
 
 const SYSTEM_WALLET_BY_CODE = {
@@ -37,7 +37,7 @@ function formatCurrency(value) {
   return `${(value || 0).toLocaleString("vi-VN")} đ`;
 }
 
-// ─── Transaction Detail Modal ─────────────────────────────────────────────────
+//  Transaction Detail Modal 
 function TransactionDetailModal({ transactionId, onClose }) {
   const { data: tx, isLoading, error } = useQuery({
     queryKey: ["admin-transaction-detail", transactionId],
@@ -55,20 +55,20 @@ function TransactionDetailModal({ transactionId, onClose }) {
       <div className="csw-modal" style={{ zIndex: 12001 }}>
         <div className="csw-modal__header">
           <div className="csw-modal__header-left">
-            <span className="csw-modal__icon">📒</span>
+            <span className="csw-modal__icon"></span>
             <div>
               <h2 className="csw-modal__title">Chi Tiết Sổ Cái</h2>
               {tx && <p className="csw-modal__subtitle">TX_{tx.id} — {tx.referenceType}</p>}
             </div>
           </div>
-          <button onClick={onClose} className="csw-icon-btn">✕</button>
+          <button onClick={onClose} className="csw-icon-btn"></button>
         </div>
 
         <div className="csw-modal__body">
           {isLoading ? (
             <div className="csw-center-state"><div className="csw-spinner" /><p>Đang tải chi tiết...</p></div>
           ) : error ? (
-            <div className="csw-center-state csw-center-state--error">❌ Lỗi tải chi tiết giao dịch!</div>
+            <div className="csw-center-state csw-center-state--error"> Lỗi tải chi tiết giao dịch!</div>
           ) : !tx ? (
             <div className="csw-center-state">Không tìm thấy giao dịch.</div>
           ) : (
@@ -101,7 +101,7 @@ function TransactionDetailModal({ transactionId, onClose }) {
 
               {/* Balance check */}
               <div className={`csw-balance-check ${isBalanced ? "csw-balance-check--ok" : "csw-balance-check--err"}`}>
-                <span className="csw-balance-check__icon">{isBalanced ? "✓" : "✗"}</span>
+                <span className="csw-balance-check__icon">{isBalanced ? "" : ""}</span>
                 <div>
                   <div className="csw-balance-check__title">{isBalanced ? "Sổ Cái Cân Bằng" : "SỔ CÁI LỆCH — Kiểm tra ngay!"}</div>
                   <div className="csw-balance-check__detail">Ghi Nợ: {formatCurrency(debitTotal)} &nbsp;|&nbsp; Ghi Có: {formatCurrency(creditTotal)}</div>
@@ -109,14 +109,14 @@ function TransactionDetailModal({ transactionId, onClose }) {
               </div>
 
               {/* Double-entry */}
-              <h3 className="csw-section-title">📊 Bút Toán Kép (Double-Entry)</h3>
+              <h3 className="csw-section-title"> Bút Toán Kép (Double-Entry)</h3>
               <div className="csw-entry-grid">
                 <div className="csw-entry-col csw-entry-col--debit">
-                  <div className="csw-entry-col__header">📤 Ghi Nợ (Chi Ra)</div>
+                  <div className="csw-entry-col__header"> Ghi Nợ (Chi Ra)</div>
                   {tx.entries?.filter((e) => e.direction === "Debit").map((entry, idx) => (
                     <div key={idx} className="csw-entry-card csw-entry-card--debit">
                       <div className="csw-entry-card__name">
-                        {entry.walletType === "System" ? `🏛 ${entry.ownerName}` : `👤 ${entry.ownerName}`}
+                        {entry.walletType === "System" ? ` ${entry.ownerName}` : ` ${entry.ownerName}`}
                       </div>
                       <div className="csw-entry-card__amount csw-entry-card__amount--debit">
                         −{formatCurrency(entry.amount)}
@@ -131,11 +131,11 @@ function TransactionDetailModal({ transactionId, onClose }) {
                 </div>
 
                 <div className="csw-entry-col csw-entry-col--credit">
-                  <div className="csw-entry-col__header">📥 Ghi Có (Tiền Vào)</div>
+                  <div className="csw-entry-col__header"> Ghi Có (Tiền Vào)</div>
                   {tx.entries?.filter((e) => e.direction === "Credit").map((entry, idx) => (
                     <div key={idx} className="csw-entry-card csw-entry-card--credit">
                       <div className="csw-entry-card__name">
-                        {entry.walletType === "System" ? `🏛 ${entry.ownerName}` : `👤 ${entry.ownerName}`}
+                        {entry.walletType === "System" ? ` ${entry.ownerName}` : ` ${entry.ownerName}`}
                       </div>
                       <div className="csw-entry-card__amount csw-entry-card__amount--credit">
                         +{formatCurrency(entry.amount)}
@@ -153,7 +153,7 @@ function TransactionDetailModal({ transactionId, onClose }) {
   );
 }
 
-// ─── Wallet Transactions Drawer ───────────────────────────────────────────────
+//  Wallet Transactions Drawer 
 function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
   const [page, setPage] = useState(1);
   const [txTypeFilter, setTxTypeFilter] = useState("ALL");
@@ -184,13 +184,13 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
         {/* Header */}
         <div className="csw-drawer__header">
           <div className="csw-drawer__header-left">
-            <div className="csw-drawer__icon-wrap">💳</div>
+            <div className="csw-drawer__icon-wrap"></div>
             <div>
               <h2 className="csw-drawer__title">Lịch Sử Giao Dịch</h2>
               <p className="csw-drawer__subtitle">{walletLabel || `Ví #${walletId}`}</p>
             </div>
           </div>
-          <button onClick={onClose} className="csw-icon-btn">✕</button>
+          <button onClick={onClose} className="csw-icon-btn"></button>
         </div>
 
         {/* Filters */}
@@ -203,8 +203,8 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
               className="csw-select"
             >
               <option value="ALL">Tất cả</option>
-              <option value="Credit">📥 Credit (Vào)</option>
-              <option value="Debit">📤 Debit (Ra)</option>
+              <option value="Credit"> Credit (Vào)</option>
+              <option value="Debit"> Debit (Ra)</option>
             </select>
           </div>
           <div className="csw-filter-item">
@@ -228,10 +228,10 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
           {isLoading ? (
             <div className="csw-center-state"><div className="csw-spinner" /><p>Đang tải giao dịch...</p></div>
           ) : error ? (
-            <div className="csw-center-state csw-center-state--error">❌ Lỗi tải giao dịch!</div>
+            <div className="csw-center-state csw-center-state--error"> Lỗi tải giao dịch!</div>
           ) : txs.length === 0 ? (
             <div className="csw-center-state">
-              <span style={{ fontSize: 36 }}>📭</span>
+              <span style={{ fontSize: 36 }}></span>
               <p>Ví này chưa có giao dịch nào.</p>
             </div>
           ) : (
@@ -260,7 +260,7 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
                       className="csw-detail-btn"
                       title="Xem sổ cái chi tiết"
                     >
-                      🔍
+                      
                     </button>
                   </div>
                 ))}
@@ -280,7 +280,7 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
   );
 }
 
-// ─── System Wallet Card ───────────────────────────────────────────────────────
+//  System Wallet Card 
 function SystemWalletCard({ wallet, onViewTransactions }) {
   const info = getWalletInfo(wallet);
   const totalBalance = (wallet.availableBalance || 0) + (wallet.frozenBalance || 0);
@@ -292,7 +292,7 @@ function SystemWalletCard({ wallet, onViewTransactions }) {
     >
       <div className="csw-sys-card__top">
         <div className="csw-sys-card__icon" style={{ background: info?.color + "20", color: info?.color }}>
-          {info?.icon || "💼"}
+          {info?.icon || ""}
         </div>
         <div className="csw-sys-card__info">
           <h3 className="csw-sys-card__title" style={{ color: info?.accent }}>{info?.label || `Ví #${wallet.id}`}</h3>
@@ -333,7 +333,7 @@ function SystemWalletCard({ wallet, onViewTransactions }) {
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+//  Main Page 
 export default function AdminWallets() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
@@ -399,7 +399,7 @@ export default function AdminWallets() {
   if (error) return (
     <div className="csw-page">
       <div className="csw-center-state csw-center-state--error" style={{ paddingTop: 120 }}>
-        ❌ Lỗi tải dữ liệu: {error.message}
+         Lỗi tải dữ liệu: {error.message}
       </div>
       <style>{pageStyles}</style>
     </div>
@@ -410,7 +410,7 @@ export default function AdminWallets() {
       {/* Header */}
       <div className="csw-page__header">
         <div className="csw-page__header-left">
-          <h1 className="csw-page__title">💼 Giám Sát Vốn & Ví Hệ Thống</h1>
+          <h1 className="csw-page__title"> Giám Sát Vốn & Ví Hệ Thống</h1>
           <p className="csw-page__subtitle">Theo dõi dòng tiền toàn hệ thống — Escrow · Platform Revenue · Clearing · Tax Hold</p>
         </div>
         <div className="csw-page__header-badge">
@@ -448,9 +448,9 @@ export default function AdminWallets() {
           className="csw-select"
         >
           <option value="ALL">Tất cả loại Ví</option>
-          <option value="System">🏛 Ví Hệ Thống</option>
-          <option value="Owner">🏪 Ví Chủ Trạm</option>
-          <option value="Driver">🚗 Ví Tài Xế</option>
+          <option value="System"> Ví Hệ Thống</option>
+          <option value="Owner"> Ví Chủ Trạm</option>
+          <option value="Driver"> Ví Tài Xế</option>
         </select>
         <div className="csw-date-range">
           <div className="csw-filter-item">
@@ -485,7 +485,7 @@ export default function AdminWallets() {
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="csw-table__empty">
-                  <span>🔍</span>
+                  <span></span>
                   <p>Không tìm thấy ví nào khớp.</p>
                 </td>
               </tr>
@@ -499,11 +499,11 @@ export default function AdminWallets() {
                     </td>
                     <td className="csw-table__owner">
                       {w.walletType === "System" ? (
-                        <><span className="csw-table__avatar csw-table__avatar--system">🏛</span><span className="csw-table__owner-name">Hệ Thống {w.systemCode ? `· ${w.systemCode}` : ""}</span></>
+                        <><span className="csw-table__avatar csw-table__avatar--system"></span><span className="csw-table__owner-name">Hệ Thống {w.systemCode ? `· ${w.systemCode}` : ""}</span></>
                       ) : w.walletType === "Owner" ? (
-                        <><span className="csw-table__avatar csw-table__avatar--owner">🏪</span><span className="csw-table__owner-name">{w.ownerName || "Chủ Trạm"}</span></>
+                        <><span className="csw-table__avatar csw-table__avatar--owner"></span><span className="csw-table__owner-name">{w.ownerName || "Chủ Trạm"}</span></>
                       ) : (
-                        <><span className="csw-table__avatar csw-table__avatar--driver">🚗</span><span className="csw-table__owner-name">{w.ownerName || "Tài Xế"}</span></>
+                        <><span className="csw-table__avatar csw-table__avatar--driver"></span><span className="csw-table__owner-name">{w.ownerName || "Tài Xế"}</span></>
                       )}
                     </td>
                     <td>
@@ -561,14 +561,14 @@ export default function AdminWallets() {
 }
 
 const pageStyles = `
-  /* ── Page ── */
+  /*  Page  */
   .csw-page {
     max-width: 1400px; width: 95%; margin: 0 auto; padding: 88px 0 60px;
     font-family: 'Inter', -apple-system, sans-serif;
   }
   @media (max-width: 768px) { .csw-page { width: 100%; padding: 80px 16px 40px; } }
 
-  /* ── Page Header ── */
+  /*  Page Header  */
   .csw-page__header {
     display: flex; align-items: flex-start; justify-content: space-between;
     margin-bottom: 32px; flex-wrap: wrap; gap: 12px;
@@ -590,7 +590,7 @@ const pageStyles = `
     50% { opacity: 0.5; transform: scale(0.8); }
   }
 
-  /* ── System Wallet Cards ── */
+  /*  System Wallet Cards  */
   .csw-sys-cards-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 20px; margin-bottom: 32px;
@@ -622,7 +622,7 @@ const pageStyles = `
   }
   .csw-sys-card__btn:hover { opacity: 0.88; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
 
-  /* ── Filter Bar ── */
+  /*  Filter Bar  */
   .csw-filterbar {
     background: white; border: 1px solid #e2e8f0; border-radius: 16px;
     padding: 16px 20px; margin-bottom: 20px;
@@ -641,7 +641,7 @@ const pageStyles = `
   .csw-filterbar__input:focus { border-color: #f97316; background: white; box-shadow: 0 0 0 3px rgba(249,115,22,0.08); }
   .csw-date-range { display: flex; gap: 10px; flex-wrap: wrap; }
 
-  /* ── Shared Form Controls ── */
+  /*  Shared Form Controls  */
   .csw-select {
     height: 42px; border: 1.5px solid #e2e8f0; border-radius: 12px;
     padding: 0 14px; font-size: 14px; background: #f8fafc; cursor: pointer;
@@ -663,7 +663,7 @@ const pageStyles = `
   }
   .csw-reset-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
 
-  /* ── Table ── */
+  /*  Table  */
   .csw-table-wrap {
     background: white; border: 1px solid #e2e8f0; border-radius: 20px;
     overflow-x: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
@@ -702,7 +702,7 @@ const pageStyles = `
   .csw-table__empty p { font-size: 14px; margin: 0; }
   .csw-table__pagination { padding: 20px 24px; border-top: 1px solid #f1f5f9; }
 
-  /* ── Badges ── */
+  /*  Badges  */
   .csw-badge {
     display: inline-flex; align-items: center; padding: 4px 12px;
     border-radius: 50px; font-size: 12px; font-weight: 700; white-space: nowrap;
@@ -712,7 +712,7 @@ const pageStyles = `
   .csw-badge--blue { background: #eff6ff; color: #2563eb; }
   .csw-badge--green { background: #f0fdf4; color: #15803d; }
 
-  /* ── Buttons ── */
+  /*  Buttons  */
   .csw-view-btn {
     padding: 7px 16px; border-radius: 10px;
     background: linear-gradient(135deg, #f97316, #ea580c);
@@ -734,13 +734,13 @@ const pageStyles = `
   }
   .csw-detail-btn:hover { background: #eff6ff; border-color: #bfdbfe; }
 
-  /* ── Overlay ── */
+  /*  Overlay  */
   .csw-overlay {
     position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
     z-index: 5000; backdrop-filter: blur(3px);
   }
 
-  /* ── Drawer ── */
+  /*  Drawer  */
   .csw-drawer {
     position: fixed; top: 0; right: 0; bottom: 0; width: 520px;
     background: #f8fafc; z-index: 5001;
@@ -771,7 +771,7 @@ const pageStyles = `
   .csw-drawer__body { flex: 1; overflow-y: auto; padding: 16px 20px; }
   .csw-drawer__pagination { padding-top: 16px; }
 
-  /* ── Transaction List ── */
+  /*  Transaction List  */
   .csw-tx-list { display: flex; flex-direction: column; gap: 10px; }
   .csw-tx-item {
     display: flex; align-items: center; gap: 14px; padding: 14px 16px;
@@ -799,7 +799,7 @@ const pageStyles = `
   .csw-tx-item__memo { font-size: 12px; color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .csw-tx-item__date { font-size: 11px; color: #94a3b8; white-space: nowrap; flex-shrink: 0; }
 
-  /* ── Modal ── */
+  /*  Modal  */
   .csw-modal {
     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     width: 90%; max-width: 680px; background: white;
@@ -822,7 +822,7 @@ const pageStyles = `
   .csw-modal__subtitle { font-size: 12px; color: #94a3b8; margin: 0; font-family: monospace; }
   .csw-modal__body { overflow-y: auto; padding: 24px; }
 
-  /* ── Modal Meta Grid ── */
+  /*  Modal Meta Grid  */
   .csw-meta-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;
   }
@@ -835,7 +835,7 @@ const pageStyles = `
   .csw-meta-value { font-size: 14px; font-weight: 600; color: #1e293b; }
   .csw-mono { font-family: monospace; }
 
-  /* ── Balance Check ── */
+  /*  Balance Check  */
   .csw-balance-check {
     display: flex; align-items: center; gap: 14px;
     padding: 14px 18px; border-radius: 14px; margin-bottom: 24px; border: 1.5px solid;
@@ -856,7 +856,7 @@ const pageStyles = `
   .csw-balance-check--ok .csw-balance-check__detail { color: #166534; }
   .csw-balance-check--err .csw-balance-check__detail { color: #9f1239; }
 
-  /* ── Entry Grid (double-entry) ── */
+  /*  Entry Grid (double-entry)  */
   .csw-section-title { font-size: 14px; font-weight: 700; color: #374151; margin-bottom: 16px; }
   .csw-entry-grid { display: flex; gap: 12px; align-items: flex-start; }
   .csw-entry-col { flex: 1; }
@@ -888,7 +888,7 @@ const pageStyles = `
     flex-shrink: 0;
   }
 
-  /* ── Shared states ── */
+  /*  Shared states  */
   .csw-center-state {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: 40px 20px; gap: 12px; color: #94a3b8;

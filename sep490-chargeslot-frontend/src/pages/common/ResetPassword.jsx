@@ -83,11 +83,11 @@ export default function ResetPassword() {
           </p>
           <div className="cs-auth-left__features cs-animate-fadeInUp-delay-3">
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">🔐</span>
+              <span className="cs-auth-left__feature-icon"></span>
               <span>Sử dụng ít nhất 6 ký tự</span>
             </div>
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">🛡️</span>
+              <span className="cs-auth-left__feature-icon">️</span>
               <span>Kết hợp chữ và số</span>
             </div>
           </div>

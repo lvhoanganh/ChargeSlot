@@ -6,18 +6,18 @@ import BookingStatus from "./BookingStatus";
 import Pagination from "@/components/Pagination";
 
 const statusStyles = {
-  WaitingOwner: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "⏳", group: "active" },
-  PendingPayment: { label: "Chờ thanh toán", color: "#3b82f6", bg: "#eff6ff", icon: "💳", group: "active" },
-  Paid: { label: "Giữ chỗ", color: "#22c55e", bg: "#f0fdf4", icon: "🔒", group: "active" },
-  CheckedIn: { label: "Đã check-in", color: "#06b6d4", bg: "#ecfeff", icon: "⚡", group: "active" },
-  InProgress: { label: "Đang sạc", color: "#06b6d4", bg: "#ecfeff", icon: "🔋", group: "active" },
-  CompletedPendingInvoice: { label: "Chờ xác nhận", color: "#f97316", bg: "#fff7ed", icon: "🧾", group: "active" },
-  Completed: { label: "Hoàn thành", color: "#8b5cf6", bg: "#f5f3ff", icon: "🎉", group: "done" },
-  Expired: { label: "Hết hạn", color: "#9ca3af", bg: "#f3f4f6", icon: "⏰", group: "done" },
-  Rejected: { label: "Từ chối", color: "#ef4444", bg: "#fef2f2", icon: "❌", group: "done" },
-  Cancelled: { label: "Đã hủy", color: "#6b7280", bg: "#f3f4f6", icon: "🚫", group: "done" },
-  NoShow: { label: "Không đến", color: "#9ca3af", bg: "#f3f4f6", icon: "🚷", group: "done" },
-  Disputed: { label: "Tranh chấp", color: "#dc2626", bg: "#fef2f2", icon: "⚠️", group: "done" },
+  WaitingOwner: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "", group: "active" },
+  PendingPayment: { label: "Chờ thanh toán", color: "#3b82f6", bg: "#eff6ff", icon: "", group: "active" },
+  Paid: { label: "Giữ chỗ", color: "#22c55e", bg: "#f0fdf4", icon: "", group: "active" },
+  CheckedIn: { label: "Đã check-in", color: "#06b6d4", bg: "#ecfeff", icon: "", group: "active" },
+  InProgress: { label: "Đang sạc", color: "#06b6d4", bg: "#ecfeff", icon: "", group: "active" },
+  CompletedPendingInvoice: { label: "Chờ xác nhận", color: "#f97316", bg: "#fff7ed", icon: "", group: "active" },
+  Completed: { label: "Hoàn thành", color: "#8b5cf6", bg: "#f5f3ff", icon: "", group: "done" },
+  Expired: { label: "Hết hạn", color: "#9ca3af", bg: "#f3f4f6", icon: "", group: "done" },
+  Rejected: { label: "Từ chối", color: "#ef4444", bg: "#fef2f2", icon: "", group: "done" },
+  Cancelled: { label: "Đã hủy", color: "#6b7280", bg: "#f3f4f6", icon: "", group: "done" },
+  NoShow: { label: "Không đến", color: "#9ca3af", bg: "#f3f4f6", icon: "", group: "done" },
+  Disputed: { label: "Tranh chấp", color: "#dc2626", bg: "#fef2f2", icon: "️", group: "done" },
 };
 
 const TABS = [
@@ -241,7 +241,7 @@ export default function MyBookings() {
             boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
           }}>
             <div style={{ fontSize: 52, marginBottom: 12 }}>
-              {tab === "active" ? "⚡" : tab === "done" ? "🎉" : "📋"}
+              {tab === "active" ? "" : tab === "done" ? "" : ""}
             </div>
             <p style={{ fontSize: 16, fontWeight: 700, color: "#374151", marginBottom: 4 }}>
               {tab === "active" ? "Không có booking đang xử lý" : tab === "done" ? "Chưa có booking đã kết thúc" : "Bạn chưa có booking nào"}
@@ -258,7 +258,7 @@ export default function MyBookings() {
                 cursor: "pointer", boxShadow: "0 4px 14px rgba(249,115,22,0.3)",
               }}
             >
-              🔍 Tìm trạm sạc
+               Tìm trạm sạc
             </button>
           </div>
         ) : (
@@ -328,15 +328,15 @@ export default function MyBookings() {
                       gap: "5px 8px", fontSize: 12.5, color: "#64748b",
                     }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ fontSize: 14 }}>⚡</span>
+                        <span style={{ fontSize: 14 }}></span>
                         <span><strong style={{ color: "#374151" }}>{b.slotName}</strong></span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ fontSize: 14 }}>⏱</span>
+                        <span style={{ fontSize: 14 }}></span>
                         <span>{Math.round(b.durationHours * 60)} phút sạc</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 5, gridColumn: "1/-1" }}>
-                        <span style={{ fontSize: 14 }}>🕐</span>
+                        <span style={{ fontSize: 14 }}></span>
                         <span style={{ color: "#475569" }}>{toLocal(b.startTime)}</span>
                       </div>
                     </div>
@@ -344,7 +344,7 @@ export default function MyBookings() {
                     {/* Extra Services */}
                     {b.extraServices && b.extraServices.length > 0 && (
                       <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed #e5e7eb" }}>
-                        <div style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600, marginBottom: 3 }}>🛒 Dịch vụ bổ sung:</div>
+                        <div style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600, marginBottom: 3 }}> Dịch vụ bổ sung:</div>
                         {b.extraServices.map((es, idx) => (
                           <div key={idx} style={{ fontSize: 11, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
                             <span>{es.serviceName} ×{es.quantity}</span>
@@ -418,7 +418,7 @@ export default function MyBookings() {
         }}>
           <div style={{ background: "#fff", width: "100%", maxWidth: 380, borderRadius: 24, padding: "28px 24px", boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}>
             <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#fef2f2", color: "#ef4444", fontSize: 32, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-              ⚠️
+              ️
             </div>
             <h3 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 800, color: "#1e293b", textAlign: "center" }}>Hủy Booking</h3>
             <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24, textAlign: "center", lineHeight: 1.5 }}>
@@ -441,7 +441,7 @@ export default function MyBookings() {
                 </div>
                 {cancelPreviewData.penaltyAmount === 0 && (
                   <div style={{ fontSize: 12, color: "#166534", marginTop: 12, textAlign: "center", fontWeight: 600, background: "#dcfce7", padding: "6px 10px", borderRadius: 8 }}>
-                    ✅ Không có phí phạt. Hoàn tiền 100%.
+                     Không có phí phạt. Hoàn tiền 100%.
                   </div>
                 )}
               </div>

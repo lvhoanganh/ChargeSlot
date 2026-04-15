@@ -16,7 +16,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-/* ─── Map helpers ─── */
+/*  Map helpers  */
 function MapFlyTo({ lat, lng }) {
   const map = useMapEvents({});
   useEffect(() => {
@@ -129,7 +129,7 @@ function MapPicker({ lat, lng, address, onSelect }) {
             type="text"
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
-            placeholder="🔍 Tìm kiếm địa chỉ"
+            placeholder=" Tìm kiếm địa chỉ"
             style={{
               width: "100%", padding: "10px 14px", borderRadius: 12,
               border: "1.5px solid #e2e8f0", fontSize: 14, outline: "none",
@@ -165,7 +165,7 @@ function MapPicker({ lat, lng, address, onSelect }) {
                   onMouseEnter={(e) => (e.currentTarget.style.background = "#fff7ed")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
-                  <span>📍</span>
+                  <span></span>
                   <span style={{ lineHeight: 1.4 }}>{item.display_name}</span>
                 </button>
               ))}
@@ -254,7 +254,7 @@ export default function EditChargingStation() {
       .then((data) => {
         // Guard: nếu admin đã khóa trạm, không cho chỉnh sửa
         if (data.bannedUntil) {
-          showToast.error("🔒 Trạm đang bị khóa bởi Admin. Không thể chỉnh sửa.");
+          showToast.error(" Trạm đang bị khóa bởi Admin. Không thể chỉnh sửa.");
           navigate("/stations");
           return;
         }
@@ -427,7 +427,7 @@ export default function EditChargingStation() {
                          {existingImages.map((url, idx) => (
                             <div key={`exist-${idx}`} className="relative w-20 h-20 rounded-xl border border-slate-200 overflow-hidden group">
                                 <img src={url} alt="existing" className="w-full h-full object-cover" />
-                                <button type="button" onClick={() => setExistingImages(prev => prev.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-white/80 hover:bg-white text-red-500 rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow">✕</button>
+                                <button type="button" onClick={() => setExistingImages(prev => prev.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-white/80 hover:bg-white text-red-500 rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow"></button>
                             </div>
                          ))}
                          {newImageFiles.map((file, idx) => {
@@ -436,7 +436,7 @@ export default function EditChargingStation() {
                                 <div key={`new-${idx}`} className="relative w-20 h-20 rounded-xl border-2 border-orange-200 overflow-hidden group">
                                     <div className="absolute top-0 left-0 bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded-br-lg z-10 font-bold">MỚI</div>
                                     <img src={previewUrl} alt="new" className="w-full h-full object-cover" onLoad={() => URL.revokeObjectURL(previewUrl)} />
-                                    <button type="button" onClick={() => setNewImageFiles(prev => prev.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-white/80 hover:bg-white text-red-500 rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow z-10">✕</button>
+                                    <button type="button" onClick={() => setNewImageFiles(prev => prev.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-white/80 hover:bg-white text-red-500 rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow z-10"></button>
                                 </div>
                              );
                          })}
@@ -444,7 +444,7 @@ export default function EditChargingStation() {
                   )}
 
                   <label className="flex flex-col items-center justify-center h-20 w-full rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 cursor-pointer hover:bg-slate-100 transition">
-                    <span className="text-xl mb-1">📸</span>
+                    <span className="text-xl mb-1"></span>
                     <span className="text-xs text-slate-500 font-medium">Bấm để tải thêm ảnh MỚI...</span>
                     <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => {
                         const files = Array.from(e.target.files);
@@ -456,7 +456,7 @@ export default function EditChargingStation() {
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  📍 Vị trí trên bản đồ <span className="text-red-500">*</span>
+                   Vị trí trên bản đồ <span className="text-red-500">*</span>
                 </label>
                 <MapPicker
                   lat={mapData.lat}
@@ -545,7 +545,7 @@ export default function EditChargingStation() {
           <div className="rounded-2xl bg-white p-5 sm:p-6 shadow-sm ring-1 ring-slate-200">
             {serverError && (
               <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
-                <span className="flex-shrink-0">⚠️</span>
+                <span className="flex-shrink-0">️</span>
                 <span>{serverError}</span>
               </div>
             )}
@@ -567,7 +567,7 @@ export default function EditChargingStation() {
                     Đang lưu...
                   </span>
                 ) : (
-                  "💾 Lưu thay đổi"
+                  " Lưu thay đổi"
                 )}
               </Button>
             </div>

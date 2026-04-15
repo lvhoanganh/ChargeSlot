@@ -112,7 +112,7 @@ export default function OwnerAnalytics() {
           <p style={{ fontSize: 12, fontWeight: 700, color: "#f97316", letterSpacing: "0.15em", textTransform: "uppercase", margin: 0 }}>
             Owner Dashboard
           </p>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#1e293b", margin: "6px 0 4px" }}>📊 Thống kê kinh doanh</h1>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#1e293b", margin: "6px 0 4px" }}> Thống kê kinh doanh</h1>
           <p style={{ fontSize: 14, color: "#64748b", margin: 0 }}>Tổng quan doanh thu &amp; hoạt động trạm sạc của bạn</p>
         </div>
 
@@ -133,13 +133,13 @@ export default function OwnerAnalytics() {
 
         {error && (
           <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, padding: "14px 18px", color: "#dc2626", marginBottom: 20, fontSize: 14 }}>
-            ⚠️ {error}
+            ️ {error}
           </div>
         )}
 
         {loading && (
           <div style={{ textAlign: "center", paddingTop: 80, color: "#94a3b8" }}>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>⚡</div>
+            <div style={{ fontSize: 48, marginBottom: 8 }}></div>
             <p>Đang tải dữ liệu...</p>
           </div>
         )}
@@ -148,21 +148,21 @@ export default function OwnerAnalytics() {
           <>
             {/* Stat Cards — dùng đúng field từ OwnerDashboardMetricsDto */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
-              <StatCard icon="💰" label="Doanh thu" color="#f97316" bg="#fff7ed"
+              <StatCard icon="" label="Doanh thu" color="#f97316" bg="#fff7ed"
                 value={`${(m.revenueLast30Days ?? 0).toLocaleString("vi-VN")}đ`}
                 sub={`Số dư ví: ${(m.walletBalance ?? 0).toLocaleString("vi-VN")}đ`}
               />
-              <StatCard icon="📋" label="Lượt booking" color="#3b82f6" bg="#eff6ff"
+              <StatCard icon="" label="Lượt booking" color="#3b82f6" bg="#eff6ff"
                 value={m.bookingsLast30Days ?? 0}
                 sub={`${m.totalStations ?? 0} trạm đang quản lý`}
               />
-              <StatCard icon="📈" label="Hiệu suất hoạt động" color="#22c55e" bg="#f0fdf4"
+              <StatCard icon="" label="Hiệu suất hoạt động" color="#22c55e" bg="#f0fdf4"
                 value={m.activeTimeUtilizationRate != null
                   ? `${(m.activeTimeUtilizationRate * 100).toFixed(1)}%`
                   : "—"}
                 sub="Tỷ lệ giờ slot được đặt"
               />
-              <StatCard icon="❌" label="Tỷ lệ hủy" color="#ef4444" bg="#fef2f2"
+              <StatCard icon="" label="Tỷ lệ hủy" color="#ef4444" bg="#fef2f2"
                 value={m.cancelRateLast30Days != null
                   ? `${(m.cancelRateLast30Days * 100).toFixed(1)}%`
                   : "—"}
@@ -173,7 +173,7 @@ export default function OwnerAnalytics() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
               {/* Doanh thu từng trạm */}
               <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 16px" }}>🏆 Doanh thu từng trạm</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 16px" }}> Doanh thu từng trạm</h3>
                 {stationPerfs.length === 0
                   ? <p style={{ fontSize: 13, color: "#94a3b8", fontStyle: "italic" }}>Chưa có dữ liệu.</p>
                   : stationPerfs
@@ -187,7 +187,7 @@ export default function OwnerAnalytics() {
                           color="#f97316"
                         />
                         <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "right", marginTop: -4 }}>
-                          {s.totalBookings} booking · ⭐ {s.averageRating > 0 ? s.averageRating.toFixed(1) : "—"}
+                          {s.totalBookings} booking ·  {s.averageRating > 0 ? s.averageRating.toFixed(1) : "—"}
                         </div>
                       </div>
                     ))
@@ -196,7 +196,7 @@ export default function OwnerAnalytics() {
 
               {/* Booking từng trạm */}
               <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 16px" }}>📋 Lượt booking từng trạm</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 16px" }}> Lượt booking từng trạm</h3>
                 {stationPerfs.length === 0
                   ? <p style={{ fontSize: 13, color: "#94a3b8", fontStyle: "italic" }}>Chưa có dữ liệu.</p>
                   : stationPerfs
@@ -216,7 +216,7 @@ export default function OwnerAnalytics() {
             {/* Top dịch vụ bổ sung */}
             {topServices.length > 0 && (
               <div style={{ background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 24 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 14px" }}>🔧 Top dịch vụ bổ sung</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e293b", margin: "0 0 14px" }}> Top dịch vụ bổ sung</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
                   {topServices.map((svc, i) => (
                     <div key={i} style={{
@@ -240,7 +240,7 @@ export default function OwnerAnalytics() {
             <div style={{ background: "linear-gradient(135deg,#1e293b,#334155)", borderRadius: 20, padding: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
                 <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0 }}>🤖 AI Cố vấn kinh doanh</h3>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0 }}> AI Cố vấn kinh doanh</h3>
                   <p style={{ fontSize: 12, color: "#94a3b8", margin: "4px 0 0" }}>Phân tích dựa trên số liệu thực tế của bạn</p>
                 </div>
                 <button onClick={handleLoadAI} disabled={aiLoading} style={{
@@ -249,7 +249,7 @@ export default function OwnerAnalytics() {
                   color: "#fff", fontSize: 13, fontWeight: 700, transition: "all 0.15s",
                   boxShadow: aiLoading ? "none" : "0 2px 8px rgba(249,115,22,0.4)",
                 }}>
-                  {aiLoading ? "⏳ Đang phân tích..." : "✨ Lấy gợi ý AI"}
+                  {aiLoading ? " Đang phân tích..." : " Lấy gợi ý AI"}
                 </button>
               </div>
 
@@ -260,7 +260,7 @@ export default function OwnerAnalytics() {
               )}
 
               {aiInsight?.error && (
-                <p style={{ fontSize: 13, color: "#fca5a5", margin: 0 }}>⚠️ {aiInsight.error}</p>
+                <p style={{ fontSize: 13, color: "#fca5a5", margin: 0 }}>️ {aiInsight.error}</p>
               )}
 
               {/* BE trả về: { insightMarkdown: string, generatedAt: DateTime } */}

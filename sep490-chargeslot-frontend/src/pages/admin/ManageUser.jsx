@@ -381,7 +381,7 @@ export default function ManageUser() {
         <div className="cs-admin-modal-overlay">
           <div className="cs-admin-modal">
             <div className="cs-admin-modal__icon">
-              {!(confirmTarget.status === "BANNED" || !!confirmTarget.bannedUntil) ? "🚫" : "✅"}
+              {!(confirmTarget.status === "BANNED" || !!confirmTarget.bannedUntil) ? "" : ""}
             </div>
             <h2 className="cs-admin-modal__title">Xác nhận thao tác</h2>
             <p className="cs-admin-modal__desc">
@@ -844,10 +844,10 @@ function UserProfileModal({ user, onClose }) {
       <div className="cs-admin-modal" style={{ maxWidth: 900, width: "100%", maxHeight: "90vh", overflowY: "auto", textAlign: "left" }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 className="cs-admin-modal__title" style={{ margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 30 }}>{isOwner ? "🏢" : "🚗"}</span>
+            <span style={{ fontSize: 30 }}>{isOwner ? "" : ""}</span>
             Chi tiết hồ sơ {isOwner ? "Chủ trạm" : "Tài xế"}: {user.fullName}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 24 }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 24 }}></button>
         </div>
 
         {isLoading ? (
@@ -856,7 +856,7 @@ function UserProfileModal({ user, onClose }) {
             <p style={{ color: "#64748b" }}>Đang tải dữ liệu hồ sơ...</p>
           </div>
         ) : error ? (
-          <p style={{ color: "#ef4444", textAlign: "center", padding: 40 }}>❌ Lỗi tải dữ liệu: {error.message}</p>
+          <p style={{ color: "#ef4444", textAlign: "center", padding: 40 }}> Lỗi tải dữ liệu: {error.message}</p>
         ) : data ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
@@ -943,7 +943,7 @@ function UserProfileModal({ user, onClose }) {
                               <span className="cs-admin-status-badge" style={{ background: "#f1f5f9", padding: "2px 8px" }}>{getApprovalStatusLabel(s.approvalStatus)}</span>
                             </td>
                             <td>{getOperationalStatusLabel(s.operationalStatus)}</td>
-                            <td>{s.averageRating > 0 ? `${s.averageRating} ★` : "—"}</td>
+                            <td>{s.averageRating > 0 ? `${s.averageRating} ` : "—"}</td>
                           </tr>
                         ))
                       )}
@@ -1004,7 +1004,7 @@ function UserProfileModal({ user, onClose }) {
                                         </div>
                                         <div>
                                           <p style={{ margin: "0 0 6px", fontSize: 13, color: "#64748b" }}>Tiền thanh toán: <strong style={{ color: "#16a34a" }}>{bookingDetails.totalAmount?.toLocaleString() || 0} đ</strong> {bookingDetails.totalAmount > 0 ? "(Ví)" : "(Miễn phí)"}</p>
-                                          <p style={{ margin: "0 0 6px", fontSize: 13, color: "#64748b" }}>Đánh giá: <strong style={{ color: "#000" }}>{bookingDetails.score > 0 ? `${bookingDetails.score} ★` : "Chưa có"}</strong></p>
+                                          <p style={{ margin: "0 0 6px", fontSize: 13, color: "#64748b" }}>Đánh giá: <strong style={{ color: "#000" }}>{bookingDetails.score > 0 ? `${bookingDetails.score} ` : "Chưa có"}</strong></p>
                                           <p style={{ margin: "0", fontSize: 13, color: "#64748b" }}>Giao dịch: <strong style={{ color: "#000" }}>#{bookingDetails.id}</strong></p>
                                         </div>
                                         {bookingDetails.note && (

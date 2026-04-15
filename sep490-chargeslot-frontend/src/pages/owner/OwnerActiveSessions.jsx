@@ -54,7 +54,7 @@ export default function OwnerActiveSessions() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>⚡</div>
+        <div style={{ fontSize: 40 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải phiên sạc...</p>
       </div>
     );
@@ -76,13 +76,13 @@ export default function OwnerActiveSessions() {
             onClick={() => { setLoading(true); fetchSessions(); }}
             style={{ padding: "8px 16px", borderRadius: 10, border: "1.5px solid #e5e7eb", background: "#fff", color: "#374151", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
           >
-            🔄 Làm mới
+             Làm mới
           </button>
         </div>
 
         {sessions.length === 0 ? (
           <div style={{ textAlign: "center", padding: 60, background: "#fff", borderRadius: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-            <div style={{ fontSize: 56, marginBottom: 12 }}>🔌</div>
+            <div style={{ fontSize: 56, marginBottom: 12 }}></div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>Không có phiên sạc nào</h2>
             <p style={{ color: "#6b7280", fontSize: 14 }}>Các phiên sạc đang diễn ra sẽ hiển thị tại đây</p>
           </div>
@@ -105,7 +105,7 @@ export default function OwnerActiveSessions() {
                 <div>
                   <span style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>Phiên #{s.id}</span>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "#06b6d4", background: "#ecfeff", padding: "3px 8px", borderRadius: 12, marginLeft: 8 }}>
-                    ⚡ Đang sạc
+                     Đang sạc
                   </span>
                 </div>
                 <span style={{ fontSize: 13, color: "#6b7280" }}>Booking #{s.bookingId}</span>
@@ -133,7 +133,7 @@ export default function OwnerActiveSessions() {
                   boxShadow: "0 4px 14px rgba(239,68,68,0.25)",
                 }}
               >
-                {stoppingId === s.id ? "Đang xử lý..." : "⏹️ Dừng phiên sạc & Tạo hóa đơn"}
+                {stoppingId === s.id ? "Đang xử lý..." : "️ Dừng phiên sạc & Tạo hóa đơn"}
               </button>
             </div>
           );
@@ -145,13 +145,13 @@ export default function OwnerActiveSessions() {
       {confirmStop && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
           <div style={{ background: "#fff", borderRadius: 16, padding: 24, width: 420, maxWidth: "90vw" }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>⏹️ Xác nhận dừng phiên sạc</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>️ Xác nhận dừng phiên sạc</h2>
             <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 8 }}>
               Bạn có chắc muốn dừng phiên sạc <strong>#{confirmStop.id}</strong> của driver <strong>{confirmStop.driverName}</strong>?
             </p>
             <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: 12, marginBottom: 16 }}>
               <p style={{ fontSize: 13, color: "#92400e", margin: 0 }}>
-                ⚠️ Sau khi dừng, hệ thống sẽ tạo hóa đơn và gửi cho driver xác nhận hoặc khiếu nại.
+                ️ Sau khi dừng, hệ thống sẽ tạo hóa đơn và gửi cho driver xác nhận hoặc khiếu nại.
               </p>
             </div>
             <div style={{ display: "flex", gap: 8 }}>

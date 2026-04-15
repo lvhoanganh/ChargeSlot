@@ -138,7 +138,7 @@ export default function ForgotPassword() {
 
     setIsLoading(true);
     try {
-      // ── Bước 1: Kiểm tra SĐT có tồn tại trong hệ thống không ──
+      //  Bước 1: Kiểm tra SĐT có tồn tại trong hệ thống không 
       // Gọi trước Firebase để tránh lãng phí OTP khi SĐT không đăng ký
       try {
         const checkResult = await authApi.checkPhone(phone);
@@ -152,7 +152,7 @@ export default function ForgotPassword() {
         console.warn("checkPhone API lỗi, bỏ qua:", checkErr.message);
       }
 
-      // ── Bước 2: Gửi OTP qua Firebase (SĐT đã xác nhận tồn tại) ──
+      //  Bước 2: Gửi OTP qua Firebase (SĐT đã xác nhận tồn tại) 
       const appVerifier = window.recaptchaVerifier;
       const result = await signInWithPhoneNumber(auth, phone, appVerifier);
       setConfirmationResult(result);
@@ -272,15 +272,15 @@ export default function ForgotPassword() {
           </p>
           <div className="cs-auth-left__features cs-animate-fadeInUp-delay-3">
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">📱</span>
+              <span className="cs-auth-left__feature-icon"></span>
               <span>Bước 1: Nhập Số điện thoại đã đăng ký</span>
             </div>
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">🔑</span>
+              <span className="cs-auth-left__feature-icon"></span>
               <span>Bước 2: Hệ thống Firebase check SMS tự động</span>
             </div>
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">✅</span>
+              <span className="cs-auth-left__feature-icon"></span>
               <span>Bước 3: Đặt lại mật khẩu mới</span>
             </div>
           </div>
@@ -412,7 +412,7 @@ export default function ForgotPassword() {
                     </>
                   ) : (
                     <>
-                      🔄 Gửi lại OTP
+                       Gửi lại OTP
                     </>
                   )}
                 </button>

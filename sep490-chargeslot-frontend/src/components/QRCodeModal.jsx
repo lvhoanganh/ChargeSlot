@@ -36,7 +36,7 @@ export default function QRCodeModal({ isOpen, onClose, qrUrl, title, description
             </p>
           )}
 
-          {/* ⚠️ Critical warning for booking payments */}
+          {/* ️ Critical warning for booking payments */}
           {isBookingPayment && (
             <div style={{
               background: "linear-gradient(135deg, #fef2f2, #fee2e2)",
@@ -47,7 +47,7 @@ export default function QRCodeModal({ isOpen, onClose, qrUrl, title, description
               textAlign: "left",
             }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>️</span>
                 <div style={{ fontSize: 12, color: "#991b1b", lineHeight: 1.5 }}>
                   <strong>Lưu ý quan trọng:</strong>
                   <ul style={{ margin: "4px 0 0 0", paddingLeft: 16 }}>

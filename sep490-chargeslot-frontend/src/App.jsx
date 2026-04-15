@@ -13,7 +13,7 @@ import AuthDriverMiddleware from "./middlewares/AuthDriverMiddleware";
 import PublicMiddleware from "./middlewares/PublicMiddleware";
 import SessionGuard from "./components/SessionGuard";
 
-// ── Common pages ──────────────────────────────────────────────
+//  Common pages 
 const HomePage = lazy(() => import("./pages/common/HomePage"));
 const Service = lazy(() => import("./pages/common/Service"));
 const News = lazy(() => import("./pages/common/News"));
@@ -27,7 +27,7 @@ const ChatList = lazy(() => import("./pages/common/ChatList"));
 const ChatPage = lazy(() => import("./pages/common/ChatPage"));
 const VerifyEmail = lazy(() => import("./pages/common/VerifyEmail"));
 
-// ── Admin pages ───────────────────────────────────────────────
+//  Admin pages 
 const ManageUser = lazy(() => import("./pages/admin/ManageUser"));
 const ApproveStation = lazy(() => import("./pages/admin/ApproveStation"));
 const AdminProfile = lazy(() => import("./pages/admin/AdminProfile"));
@@ -44,7 +44,7 @@ const AdminSessions = lazy(() => import("./pages/admin/AdminSessions"));
 const AdminInvoices = lazy(() => import("./pages/admin/AdminInvoices"));
 const AdminWallets = lazy(() => import("./pages/admin/AdminWallets"));
 
-// ── Driver pages ──────────────────────────────────────────────
+//  Driver pages 
 const DriverProfile = lazy(() => import("./pages/driver/DriverProfile"));
 const DriverEditProfile = lazy(() => import("./pages/driver/EditDriverProfile"));
 const ScanQR = lazy(() => import("./pages/driver/ScanQR"));
@@ -66,7 +66,7 @@ const DriverLoyalty = lazy(() => import("./pages/driver/DriverLoyalty"));
 const PaymentResult = lazy(() => import("./pages/driver/PaymentResult"));
 const WalletTopUpResult = lazy(() => import("./pages/driver/WalletTopUpResult"));
 
-// ── Owner pages ───────────────────────────────────────────────
+//  Owner pages 
 const OwnerPage = lazy(() => import("./pages/owner/OwnerPage"));
 const CreateChargingStation = lazy(() => import("./pages/owner/CreateChargingStation"));
 const EditChargingStation = lazy(() => import("./pages/owner/EditChargingStation"));
@@ -127,7 +127,7 @@ class AppErrorBoundary extends Component {
           minHeight: "60vh", display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center", gap: 16, padding: 24,
         }}>
-          <div style={{ fontSize: 48 }}>{this.state.isChunkError ? "🔄" : "⚠️"}</div>
+          <div style={{ fontSize: 48 }}>{this.state.isChunkError ? "" : "️"}</div>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b", margin: 0 }}>
             {this.state.isChunkError ? "Cần tải lại trang" : "Có lỗi xảy ra"}
           </h2>
@@ -144,7 +144,7 @@ class AppErrorBoundary extends Component {
               color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer",
             }}
           >
-            🔄 Tải lại trang
+             Tải lại trang
           </button>
         </div>
       );

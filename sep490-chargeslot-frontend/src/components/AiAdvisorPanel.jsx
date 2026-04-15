@@ -75,7 +75,7 @@ export function AiAdvisorPanel({ role }) {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, position: "relative", flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #d97706, #b45309)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0, boxShadow: "0 4px 12px rgba(217,119,6,0.4)" }}>
-            ✨
+            
           </div>
           <div>
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#fbbf24", letterSpacing: "0.3px" }}>
@@ -104,7 +104,7 @@ export function AiAdvisorPanel({ role }) {
               Đang phân tích...
             </>
           ) : (
-            <>🧠 {hasGenerated ? "Phân tích lại" : "Khởi động AI"}</>
+            <> {hasGenerated ? "Phân tích lại" : "Khởi động AI"}</>
           )}
         </button>
       </div>
@@ -115,7 +115,7 @@ export function AiAdvisorPanel({ role }) {
       {/* Content */}
       {!hasGenerated ? (
         <div style={{ color: "#64748b", fontSize: 14, textAlign: "center", padding: "40px 0" }}>
-          <div style={{ fontSize: 40, opacity: 0.3, marginBottom: 10 }}>🤖</div>
+          <div style={{ fontSize: 40, opacity: 0.3, marginBottom: 10 }}></div>
           Sẵn sàng phân tích dữ liệu tổng thể hệ thống. Hãy nhấn Khởi động AI.
         </div>
       ) : isLoading ? (
@@ -129,7 +129,7 @@ export function AiAdvisorPanel({ role }) {
         </div>
       ) : error ? (
         <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12, padding: "14px 18px", color: "#fca5a5", fontSize: 14 }}>
-          ⚠️ {error}
+          ️ {error}
         </div>
       ) : insight ? (
         <div style={{ position: "relative" }}>

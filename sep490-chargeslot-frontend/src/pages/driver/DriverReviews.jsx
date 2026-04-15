@@ -58,7 +58,7 @@ export default function DriverReviews() {
         comment: reviewForm.comment || undefined,
         isAnonymous: reviewForm.isAnonymous || false,
       });
-      setSuccessMsg("Đánh giá thành công! Cảm ơn bạn ⭐");
+      setSuccessMsg("Đánh giá thành công! Cảm ơn bạn ");
       setReviewForm(null);
       // Reload bookings sau khi đánh giá — dùng getDriverHistory (pageSize lớn để lấy đủ)
       const refreshData = await bookingApi.getDriverHistory(1, 200);
@@ -87,20 +87,20 @@ export default function DriverReviews() {
 
   return (
     <div style={{ maxWidth: 700, margin: "100px auto 40px", padding: "0 16px" }}>
-      <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1e293b", marginBottom: 6 }}>⭐ Đánh giá trạm sạc</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1e293b", marginBottom: 6 }}> Đánh giá trạm sạc</h1>
       <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>
         Đánh giá các lần sạc đã hoàn thành để giúp cải thiện dịch vụ.
       </p>
 
       {successMsg && (
         <div style={{ background: "#f0fdf4", color: "#16a34a", padding: "12px 16px", borderRadius: 12, marginBottom: 16, fontSize: 14, border: "1px solid #bbf7d0" }}>
-          ✅ {successMsg}
+           {successMsg}
         </div>
       )}
 
       {latestPerStation.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 20px", background: "#f8fafc", borderRadius: 16 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}></div>
           <p style={{ fontSize: 16, color: "#64748b", fontWeight: 600 }}>Chưa có booking nào hoàn thành</p>
           <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>Hoàn thành phiên sạc để có thể đánh giá.</p>
           <button
@@ -163,7 +163,7 @@ export default function DriverReviews() {
                           transform: star <= reviewForm.rating ? "scale(1.15)" : "scale(1)",
                         }}
                       >
-                        ★
+                        
                       </button>
                     ))}
                     <span style={{ fontSize: 13, color: "#92400e", alignSelf: "center", marginLeft: 8 }}>
@@ -192,7 +192,7 @@ export default function DriverReviews() {
                   </label>
 
                   {errorMsg && (
-                    <div style={{ color: "#dc2626", fontSize: 12, marginTop: 8 }}>⚠️ {errorMsg}</div>
+                    <div style={{ color: "#dc2626", fontSize: 12, marginTop: 8 }}>️ {errorMsg}</div>
                   )}
 
                   <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
@@ -205,7 +205,7 @@ export default function DriverReviews() {
                         color: "#fff", fontWeight: 700, fontSize: 13, cursor: submitting ? "not-allowed" : "pointer",
                       }}
                     >
-                      {submitting ? "Đang gửi..." : "Gửi đánh giá ⭐"}
+                      {submitting ? "Đang gửi..." : "Gửi đánh giá "}
                     </button>
                     <button
                       onClick={() => { setReviewForm(null); setErrorMsg(""); }}
@@ -229,7 +229,7 @@ export default function DriverReviews() {
                   onMouseEnter={(e) => { e.target.style.background = "#f97316"; e.target.style.color = "#fff"; }}
                   onMouseLeave={(e) => { e.target.style.background = "#fff7ed"; e.target.style.color = "#ea580c"; }}
                 >
-                  ⭐ Viết đánh giá
+                   Viết đánh giá
                 </button>
               )}
             </div>

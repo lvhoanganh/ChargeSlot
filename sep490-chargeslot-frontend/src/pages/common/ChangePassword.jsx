@@ -123,7 +123,7 @@ export default function ChangePassword() {
 
               {/* Current Password */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">🔒 Mật khẩu hiện tại</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5"> Mật khẩu hiện tại</label>
                 <div className="relative">
                   <input
                     type={showCurrent ? "text" : "password"}
@@ -149,7 +149,7 @@ export default function ChangePassword() {
 
               {/* New Password */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">🔑 Mật khẩu mới</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5"> Mật khẩu mới</label>
                 <div className="relative">
                   <input
                     type={showNew ? "text" : "password"}
@@ -172,13 +172,13 @@ export default function ChangePassword() {
                   </button>
                 </div>
                 {newPassword.length > 0 && newPassword.length < 6 && (
-                  <p className="text-xs text-amber-500 mt-1">⚠️ Cần ít nhất 6 ký tự</p>
+                  <p className="text-xs text-amber-500 mt-1">️ Cần ít nhất 6 ký tự</p>
                 )}
               </div>
 
               {/* Confirm Password */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">🔑 Xác nhận mật khẩu mới</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5"> Xác nhận mật khẩu mới</label>
                 <div className="relative">
                   <input
                     type={showConfirm ? "text" : "password"}
@@ -201,10 +201,10 @@ export default function ChangePassword() {
                   </button>
                 </div>
                 {confirmPassword.length > 0 && confirmPassword !== newPassword && (
-                  <p className="text-xs text-red-500 mt-1">❌ Mật khẩu xác nhận không khớp</p>
+                  <p className="text-xs text-red-500 mt-1"> Mật khẩu xác nhận không khớp</p>
                 )}
                 {confirmPassword.length > 0 && confirmPassword === newPassword && newPassword.length >= 6 && (
-                  <p className="text-xs text-green-500 mt-1">✅ Mật khẩu khớp</p>
+                  <p className="text-xs text-green-500 mt-1"> Mật khẩu khớp</p>
                 )}
               </div>
             </div>

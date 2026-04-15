@@ -56,7 +56,7 @@ export default function DriverLoyalty() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>🏆</div>
+        <div style={{ fontSize: 40 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải điểm thưởng...</p>
       </div>
     );
@@ -65,7 +65,7 @@ export default function DriverLoyalty() {
   if (!data) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 48, marginBottom: 8 }}>🏆</div>
+        <div style={{ fontSize: 48, marginBottom: 8 }}></div>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Không thể tải thông tin điểm thưởng</h2>
         <button onClick={() => navigate(-1)} style={{ marginTop: 16, padding: "10px 20px", borderRadius: 10, border: "none", background: "#f97316", color: "#fff", fontWeight: 600, cursor: "pointer" }}>
           ← Quay lại
@@ -122,7 +122,7 @@ export default function DriverLoyalty() {
             textAlign: "center", padding: 40, background: "#fff", borderRadius: 16,
             boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
           }}>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>📋</div>
+            <div style={{ fontSize: 48, marginBottom: 8 }}></div>
             <p style={{ color: "#6b7280" }}>Chưa có lịch sử điểm</p>
           </div>
         ) : (
@@ -130,7 +130,7 @@ export default function DriverLoyalty() {
             {history.map(h => {
               const isEarn = h.type === "Earn" || h.type === "Refund";
               const typeLabel = h.type === "Refund" ? "Hoàn điểm" : (isEarn ? "Tích điểm" : "Dùng điểm");
-              const iconLabel = h.type === "Refund" ? "⏪" : (isEarn ? "📈" : "🎁");
+              const iconLabel = h.type === "Refund" ? "" : (isEarn ? "" : "");
               
               return (
                 <div key={h.id} onClick={() => setSelectedTx(h)} style={{
@@ -206,7 +206,7 @@ export default function DriverLoyalty() {
             <div style={{ padding: 24 }}>
               <div style={{ textAlign: "center", marginBottom: 24 }}>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>
-                  {selectedTx.type === "Refund" ? "⏪" : ((selectedTx.type === "Earn") ? "📈" : "🎁")}
+                  {selectedTx.type === "Refund" ? "" : ((selectedTx.type === "Earn") ? "" : "")}
                 </div>
                 <div style={{ fontSize: 24, fontWeight: 800, color: (selectedTx.type === "Earn" || selectedTx.type === "Refund") ? "#22c55e" : "#ef4444" }}>
                   {(selectedTx.type === "Earn" || selectedTx.type === "Refund") ? "+" : "−"}{Math.abs(selectedTx.points || 0).toLocaleString("vi-VN")} điểm
@@ -243,26 +243,26 @@ export default function DriverLoyalty() {
                 {/* Booking detail section */}
                 {selectedTx.bookingId && (
                   <div style={{ borderTop: "1px dashed #cbd5e1", paddingTop: 12, marginTop: 4 }}>
-                    <div style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>📋 Thông tin booking</div>
+                    <div style={{ color: "#64748b", fontSize: 12, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}> Thông tin booking</div>
                     {bookingLoading ? (
                       <div style={{ textAlign: "center", padding: "12px 0", color: "#94a3b8", fontSize: 13 }}>Đang tải...</div>
                     ) : bookingDetail ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {bookingDetail.stationName && (
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                            <span style={{ color: "#64748b", fontSize: 12, flexShrink: 0 }}>🏪 Trạm sạc</span>
+                            <span style={{ color: "#64748b", fontSize: 12, flexShrink: 0 }}> Trạm sạc</span>
                             <span style={{ color: "#1e293b", fontSize: 12, fontWeight: 600, textAlign: "right" }}>{bookingDetail.stationName}</span>
                           </div>
                         )}
                         {bookingDetail.slotName && (
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "#64748b", fontSize: 12 }}>⚡ Trụ sạc</span>
+                            <span style={{ color: "#64748b", fontSize: 12 }}> Trụ sạc</span>
                             <span style={{ color: "#1e293b", fontSize: 12, fontWeight: 600 }}>{bookingDetail.slotName}</span>
                           </div>
                         )}
                         {(bookingDetail.bookingDate || bookingDetail.date) && (
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "#64748b", fontSize: 12 }}>📅 Ngày</span>
+                            <span style={{ color: "#64748b", fontSize: 12 }}> Ngày</span>
                             <span style={{ color: "#1e293b", fontSize: 12, fontWeight: 600 }}>
                               {new Date(String(bookingDetail.bookingDate || bookingDetail.date).replace("Z", "")).toLocaleDateString("vi-VN")}
                             </span>
@@ -270,7 +270,7 @@ export default function DriverLoyalty() {
                         )}
                         {(bookingDetail.startTime || bookingDetail.checkInTime) && (
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "#64748b", fontSize: 12 }}>🕐 Giờ</span>
+                            <span style={{ color: "#64748b", fontSize: 12 }}> Giờ</span>
                             <span style={{ color: "#1e293b", fontSize: 12, fontWeight: 600 }}>
                               {extractTime(bookingDetail.startTime || bookingDetail.checkInTime)}
                               {bookingDetail.endTime ? ` – ${extractTime(bookingDetail.endTime)}` : ""}
@@ -279,7 +279,7 @@ export default function DriverLoyalty() {
                         )}
                         {(bookingDetail.totalAmount != null || bookingDetail.totalCost != null) && (
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "#64748b", fontSize: 12 }}>💰 Tổng tiền</span>
+                            <span style={{ color: "#64748b", fontSize: 12 }}> Tổng tiền</span>
                             <span style={{ color: "#f97316", fontSize: 12, fontWeight: 700 }}>
                               {(bookingDetail.totalAmount ?? bookingDetail.totalCost ?? 0).toLocaleString("vi-VN")}đ
                             </span>

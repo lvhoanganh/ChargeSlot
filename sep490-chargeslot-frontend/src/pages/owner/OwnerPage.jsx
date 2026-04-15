@@ -9,7 +9,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-/* ─── Leaflet Setup ─── */
+/*  Leaflet Setup  */
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
@@ -52,12 +52,12 @@ function FlyTo({ center, zoom }) {
 
 
 const statusConfig = {
-  Draft: { label: "Nháp", color: "#6b7280", bg: "#f3f4f6", icon: "📝" },
-  PendingApproval: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "⏳" },
-  Approved: { label: "Đã duyệt", color: "#22c55e", bg: "#f0fdf4", icon: "✅" },
-  Rejected: { label: "Bị từ chối", color: "#ef4444", bg: "#fef2f2", icon: "❌" },
-  Active: { label: "Hoạt động", color: "#22c55e", bg: "#f0fdf4", icon: "⚡" },
-  Inactive: { label: "Ngưng", color: "#6b7280", bg: "#f3f4f6", icon: "⏸️" },
+  Draft: { label: "Nháp", color: "#6b7280", bg: "#f3f4f6", icon: "" },
+  PendingApproval: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb", icon: "" },
+  Approved: { label: "Đã duyệt", color: "#22c55e", bg: "#f0fdf4", icon: "" },
+  Rejected: { label: "Bị từ chối", color: "#ef4444", bg: "#fef2f2", icon: "" },
+  Active: { label: "Hoạt động", color: "#22c55e", bg: "#f0fdf4", icon: "" },
+  Inactive: { label: "Ngưng", color: "#6b7280", bg: "#f3f4f6", icon: "️" },
 };
 
 const slotColors = {
@@ -185,14 +185,14 @@ export default function OwnerPage() {
       await stationApi.updateStatus(station.id, "Inactive");
       fetchStations();
       if (usedThisMonth) {
-        showToast.error("🔒 Trạm đã bị KHÓA 30 ngày do tắt khẩn cấp lần 2 trong tháng! Booking đã được hủy & hoàn tiền tự động.");
+        showToast.error(" Trạm đã bị KHÓA 30 ngày do tắt khẩn cấp lần 2 trong tháng! Booking đã được hủy & hoàn tiền tự động.");
       } else {
-        showToast.success("⚠️ Đã tắt trạm khẩn cấp. Booking tương lai sẽ được hủy và hoàn tiền tự động.");
+        showToast.success("️ Đã tắt trạm khẩn cấp. Booking tương lai sẽ được hủy và hoàn tiền tự động.");
       }
     } catch (err) {
       const msg = err.message || "";
       if (msg.toLowerCase().includes("session") || msg.toLowerCase().includes("progress") || msg.toLowerCase().includes("charging")) {
-        showToast.error("🔌 Không thể tắt! Hiện đang có khách sạc. Vui lòng đợi sạc xong.");
+        showToast.error(" Không thể tắt! Hiện đang có khách sạc. Vui lòng đợi sạc xong.");
       } else {
         showToast.error(msg || "Lỗi khi tắt trạm khẩn cấp");
       }
@@ -205,7 +205,7 @@ export default function OwnerPage() {
     return (
       <div className="min-h-screen bg-slate-100 px-6 pt-20 pb-8 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-5xl mb-4">⚡</div>
+          <div className="text-5xl mb-4"></div>
           <p className="text-slate-500">Đang tải danh sách trạm sạc...</p>
         </div>
       </div>
@@ -272,7 +272,7 @@ export default function OwnerPage() {
         {/* Station list */}
         {stations.length === 0 ? (
           <div className="rounded-2xl bg-white p-12 text-center shadow-sm ring-1 ring-slate-200">
-            <div className="text-5xl mb-4">🏗️</div>
+            <div className="text-5xl mb-4">️</div>
             <h2 className="text-xl font-bold text-slate-800 mb-2">Chưa có trạm sạc nào</h2>
             <p className="text-slate-500 mb-6">Bắt đầu bằng cách tạo trạm sạc đầu tiên.</p>
             <Link
@@ -366,7 +366,7 @@ export default function OwnerPage() {
                       onClick={() => { setExpandedStation(isExpanded ? null : s.id); setSelectedSlot(null); }}
                     >
                       <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white text-2xl flex-shrink-0">
-                        ⚡
+                        
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -425,7 +425,7 @@ export default function OwnerPage() {
                               onClick={() => navigate(`/stations/edit/${s.id}`)}
                               className="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1.5"
                             >
-                              ✏️ Chỉnh sửa trạm
+                              ️ Chỉnh sửa trạm
                             </button>
                           )}
 
@@ -436,7 +436,7 @@ export default function OwnerPage() {
                               disabled={actionLoading === s.id}
                               className="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition disabled:opacity-50 cursor-pointer"
                             >
-                              📤 Gửi duyệt
+                               Gửi duyệt
                             </button>
                           )}
 
@@ -467,7 +467,7 @@ export default function OwnerPage() {
                                 : "bg-green-50 text-green-600 hover:bg-green-100"
                               }`}
                             >
-                              {s.operationalStatus === "Active" ? "⏸️ Tắt trạm" : "▶️ Bật trạm"}
+                              {s.operationalStatus === "Active" ? "️ Tắt trạm" : "️ Bật trạm"}
                             </button>
                           )}
                         </div>
@@ -668,9 +668,9 @@ export default function OwnerPage() {
                                           }}
                                         >
                                           {actionLoading === `qr-${slot.id}` ? (
-                                            <>⏳ Đang tạo lại...</>
+                                            <> Đang tạo lại...</>
                                           ) : (
-                                            <>🔄 Tạo lại mã QR</>
+                                            <> Tạo lại mã QR</>
                                           )}
                                         </button>
                                       </div>
@@ -684,10 +684,10 @@ export default function OwnerPage() {
                                         {isSlotBusy ? (
                                           <div style={{ fontSize: 11, color: "#64748b", background: "#f1f5f9", borderRadius: 8, padding: "7px 10px", fontStyle: "italic" }}>
                                             {displayStatus === "Occupied"
-                                              ? "⚡ Đang sạc — không thể đổi trạng thái"
+                                              ? " Đang sạc — không thể đổi trạng thái"
                                               : displayStatus === "CheckedIn"
-                                              ? "📍 Đã check-in, chưa sạc — không thể đổi trạng thái"
-                                              : "📅 Đang có lịch đặt — không thể đổi trạng thái"}
+                                              ? " Đã check-in, chưa sạc — không thể đổi trạng thái"
+                                              : " Đang có lịch đặt — không thể đổi trạng thái"}
                                           </div>
                                         ) : (
                                           <div className="flex gap-1.5 flex-wrap">
@@ -734,7 +734,7 @@ export default function OwnerPage() {
                               })()
                             ) : (
                               <div className="bg-slate-50 rounded-xl p-6 border border-dashed border-slate-300 text-center">
-                                <div className="text-3xl mb-2 opacity-40">👆</div>
+                                <div className="text-3xl mb-2 opacity-40"></div>
                                 <p className="text-sm text-slate-400">Nhấn vào một trụ sạc trên mặt bằng để xem chi tiết</p>
                               </div>
                             )}
@@ -846,7 +846,7 @@ export default function OwnerPage() {
                           
                           <div style={{ padding: "12px 16px" }}>
                             <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "12px", display: "flex", alignItems: "flex-start", gap: "4px" }}>
-                              <span style={{ fontSize: "14px" }}>📍</span>
+                              <span style={{ fontSize: "14px" }}></span>
                               <span style={{ flex: 1 }}>{s.address}</span>
                             </div>
                             
@@ -1068,7 +1068,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
     <div>
       {/* Giờ hoạt động */}
       <div className="mb-3">
-        <h4 className="text-sm font-bold text-slate-700 mb-1.5">🕐 Giờ hoạt động</h4>
+        <h4 className="text-sm font-bold text-slate-700 mb-1.5"> Giờ hoạt động</h4>
         {operatingHours.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {operatingHours.map((h) => (
@@ -1094,7 +1094,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
       {/* Coverage warnings */}
       {coverageWarnings.length > 0 && (
         <div className="mb-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          <p className="text-[11px] font-bold text-amber-700 mb-1">⚠️ Chưa phủ hết giờ hoạt động:</p>
+          <p className="text-[11px] font-bold text-amber-700 mb-1">️ Chưa phủ hết giờ hoạt động:</p>
           {coverageWarnings.map((w, i) => (
             <p key={i} className="text-[11px] text-amber-600">• {w}</p>
           ))}
@@ -1102,13 +1102,13 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
       )}
       {openHours.length > 0 && pricingTiers.length > 0 && coverageWarnings.length === 0 && (
         <div className="mb-2 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5">
-          <p className="text-[11px] font-semibold text-green-700">✅ Giá đã phủ hết giờ hoạt động</p>
+          <p className="text-[11px] font-semibold text-green-700"> Giá đã phủ hết giờ hoạt động</p>
         </div>
       )}
 
       {/* Pricing tiers */}
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-bold text-slate-700">⏰ Giá theo khung giờ</h4>
+        <h4 className="text-sm font-bold text-slate-700"> Giá theo khung giờ</h4>
         {!showAddPricing && (
           <button onClick={openAddPricing} className="text-xs font-semibold text-orange-500 hover:text-orange-700 cursor-pointer">+ Thêm</button>
         )}
@@ -1123,7 +1123,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
                 <span className="text-slate-500">{fmtTime(tier.startTime)}–{fmtTime(tier.endTime)}</span>
                 <span className="ml-2 font-bold text-amber-600">{tier.pricePerHour?.toLocaleString("vi-VN")}đ/h</span>
               </div>
-              <button onClick={() => handleDeletePricing(tier.id)} className="text-red-400 hover:text-red-600 cursor-pointer text-xs" title="Xóa">✕</button>
+              <button onClick={() => handleDeletePricing(tier.id)} className="text-red-400 hover:text-red-600 cursor-pointer text-xs" title="Xóa"></button>
             </div>
           ))}
         </div>
@@ -1133,11 +1133,11 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
 
       {showAddPricing && (
         <div className="mt-3 bg-white rounded-xl p-4 border border-orange-200 space-y-3">
-          <p className="text-xs font-bold text-slate-700 mb-1">➕ Thêm khung giờ giá</p>
+          <p className="text-xs font-bold text-slate-700 mb-1"> Thêm khung giờ giá</p>
 
           {/* Bắt đầu */}
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">🕐 Giờ bắt đầu</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5"> Giờ bắt đầu</label>
             <div className="flex justify-start">
               <TimePicker24h
                 value={newTier.startTime}
@@ -1148,7 +1148,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
 
           {/* Kết thúc */}
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">🕑 Giờ kết thúc</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5"> Giờ kết thúc</label>
             <div className="flex justify-start">
               <TimePicker24h
                 value={newTier.endTime}
@@ -1160,7 +1160,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
 
           {/* Giá */}
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">💰 Giá/giờ (VND)</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5"> Giá/giờ (VND)</label>
             <input
               type="number"
               value={newTier.pricePerHour}
@@ -1179,7 +1179,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
               disabled={pricingLoading}
               className="flex-1 h-9 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 cursor-pointer transition"
             >
-              {pricingLoading ? "Đang lưu..." : "✓ Thêm"}
+              {pricingLoading ? "Đang lưu..." : " Thêm"}
             </button>
             <button
               onClick={() => { setShowAddPricing(false); setPricingError(""); }}
@@ -1194,7 +1194,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
   );
 }
 
-// ─────────────── UNAVAILABLE DATES PANEL ───────────────
+//  UNAVAILABLE DATES PANEL 
 function UnavailableDatesPanel({ stationId }) {
   // dates = array of { id, date: "YYYY-MM-DD", reason }
   const [dates, setDates] = useState([]);
@@ -1239,7 +1239,7 @@ function UnavailableDatesPanel({ stationId }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-bold text-slate-700">🚫 Ngày không hoạt động</h4>
+        <h4 className="text-sm font-bold text-slate-700"> Ngày không hoạt động</h4>
         <span className="text-xs text-slate-400">{upcoming.length} ngày sắp tới</span>
       </div>
 
@@ -1267,7 +1267,7 @@ function UnavailableDatesPanel({ stationId }) {
                 return (
                   <div key={item.id ?? ds} className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-xs">
                     <div>
-                      <span className="text-amber-700 font-semibold">📅 {formatDate(ds)}</span>
+                      <span className="text-amber-700 font-semibold"> {formatDate(ds)}</span>
                       {item.reason && <span className="ml-2 text-amber-500 italic">{item.reason}</span>}
                     </div>
                     <button
@@ -1281,7 +1281,7 @@ function UnavailableDatesPanel({ stationId }) {
                       }}
                       className="text-red-400 hover:text-red-600 cursor-pointer ml-3"
                       title="Xóa ngày này"
-                    >✕</button>
+                    ></button>
                   </div>
                 );
               })}
@@ -1294,7 +1294,7 @@ function UnavailableDatesPanel({ stationId }) {
                 const ds = toDateStr(item.date);
                 return (
                   <div key={item.id ?? ds} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs opacity-60">
-                    <span className="text-slate-500">📅 {formatDate(ds)}</span>
+                    <span className="text-slate-500"> {formatDate(ds)}</span>
                   </div>
                 );
               })}
@@ -1306,7 +1306,7 @@ function UnavailableDatesPanel({ stationId }) {
   );
 }
 
-// ─────────────── UNAVAILABLE DATE CALENDAR ───────────────
+//  UNAVAILABLE DATE CALENDAR 
 function UnavailableDateCalendar({ stationId, unavailableDates, todayStr, toDateStr, onAdded, onRemoved }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -1457,10 +1457,10 @@ function UnavailableDateCalendar({ stationId, unavailableDates, todayStr, toDate
             >
               {day}
               {isUnavailable && (
-                <span style={{ position: "absolute", top: 0, right: 1, fontSize: 6, lineHeight: 1, opacity: 0.85 }}>✕</span>
+                <span style={{ position: "absolute", top: 0, right: 1, fontSize: 6, lineHeight: 1, opacity: 0.85 }}></span>
               )}
               {isPending && (
-                <span style={{ position: "absolute", top: 0, right: 1, fontSize: 6, lineHeight: 1, opacity: 0.85 }}>✓</span>
+                <span style={{ position: "absolute", top: 0, right: 1, fontSize: 6, lineHeight: 1, opacity: 0.85 }}></span>
               )}
             </button>
           );
@@ -1489,7 +1489,7 @@ function UnavailableDateCalendar({ stationId, unavailableDates, todayStr, toDate
               opacity: saving ? 0.6 : 1,
             }}
           >
-            {saving ? "Đang lưu..." : `✓ Lưu ${pendingDates.size} ngày`}
+            {saving ? "Đang lưu..." : ` Lưu ${pendingDates.size} ngày`}
           </button>
         )}
       </div>
@@ -1497,7 +1497,7 @@ function UnavailableDateCalendar({ stationId, unavailableDates, todayStr, toDate
   );
 }
 
-// ─────────────── EMERGENCY CANCEL MODAL ───────────────
+//  EMERGENCY CANCEL MODAL 
 function EmergencyCancelModal({ station, onConfirm, onCancel }) {
   const usedThisMonth = (() => {
     if (!station.lastEmergencyCancelAt) return false;
@@ -1524,7 +1524,7 @@ function EmergencyCancelModal({ station, onConfirm, onCancel }) {
         border: "2px solid #fca5a5", overflow: "hidden",
       }}>
         <div style={{ background: "linear-gradient(135deg, #dc2626, #b91c1c)", padding: "20px 24px", color: "#fff" }}>
-          <div style={{ fontSize: 28, marginBottom: 6 }}>🚨</div>
+          <div style={{ fontSize: 28, marginBottom: 6 }}></div>
           <div style={{ fontSize: 18, fontWeight: 800 }}>CẢNH BÁO — TẮT TRẠM KHẨN CẤP</div>
           <div style={{ fontSize: 13, opacity: 0.9, marginTop: 4 }}>Trạm: {station.name}</div>
         </div>
@@ -1539,7 +1539,7 @@ function EmergencyCancelModal({ station, onConfirm, onCancel }) {
           </div>
           {usedThisMonth && (
             <div style={{ background: "#fff7ed", border: "2px solid #fed7aa", borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
-              <p style={{ fontSize: 13, color: "#9a3412", fontWeight: 700, margin: 0 }}>⚠️ BẠN ĐÃ DÙNG TÍNH NĂNG NÀY THÁNG NÀY!</p>
+              <p style={{ fontSize: 13, color: "#9a3412", fontWeight: 700, margin: 0 }}>️ BẠN ĐÃ DÙNG TÍNH NĂNG NÀY THÁNG NÀY!</p>
               <p style={{ fontSize: 12, color: "#c2410c", margin: "6px 0 0", lineHeight: 1.6 }}>
                 Lần cuối: {lastUsedStr}<br />
                 Tắt trạm lần 2 → Trạm bị <strong>KHÓA 30 NGÀY</strong> tự động!
@@ -1547,14 +1547,14 @@ function EmergencyCancelModal({ station, onConfirm, onCancel }) {
             </div>
           )}
           {!usedThisMonth && lastUsedStr && (
-            <p style={{ fontSize: 12, color: "#6b7280", marginBottom: 16 }}>📅 Lần dùng gần nhất: {lastUsedStr}</p>
+            <p style={{ fontSize: 12, color: "#6b7280", marginBottom: 16 }}> Lần dùng gần nhất: {lastUsedStr}</p>
           )}
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={onCancel} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "#f9fafb", color: "#374151", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
               ⬛ Hủy bỏ
             </button>
             <button onClick={onConfirm} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: usedThisMonth ? "linear-gradient(135deg,#7f1d1d,#991b1b)" : "linear-gradient(135deg,#dc2626,#b91c1c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: "0 4px 14px rgba(220,38,38,0.4)" }}>
-              🔴 {usedThisMonth ? "Tắt (RỦI RO BỊ KHÓA!)" : "Tắt khẩn cấp & Hủy booking"}
+               {usedThisMonth ? "Tắt (RỦI RO BỊ KHÓA!)" : "Tắt khẩn cấp & Hủy booking"}
             </button>
           </div>
         </div>

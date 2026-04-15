@@ -103,7 +103,7 @@ export default function AdminProfile() {
                 {maskPhone(phoneNumber) || "Chưa cập nhật số điện thoại"}
               </p>
               <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
-                🛡️ Quản trị viên
+                ️ Quản trị viên
               </span>
             </div>
           </div>
@@ -128,8 +128,8 @@ export default function AdminProfile() {
 
           <div className="px-8 py-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <InfoCard icon="🏷️" label="Vai trò" value="Quản trị viên" />
-              <InfoCard icon="📱" label="Số điện thoại" value={maskPhone(phoneNumber) || "—"} />
+              <InfoCard icon="️" label="Vai trò" value="Quản trị viên" />
+              <InfoCard icon="" label="Số điện thoại" value={maskPhone(phoneNumber) || "—"} />
             </div>
           </div>
 
@@ -173,10 +173,10 @@ export default function AdminProfile() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
 
-            {/* ── SETUP LẦN ĐẦU ── */}
+            {/*  SETUP LẦN ĐẦU  */}
             {secModal === "setup" && (
               <>
-                <h2 className="text-xl font-bold text-gray-800 mb-1">🔐 Thiết lập Mật khẩu Cấp 2</h2>
+                <h2 className="text-xl font-bold text-gray-800 mb-1"> Thiết lập Mật khẩu Cấp 2</h2>
                 <p className="text-xs text-gray-400 mb-4">Dùng để xác thực các thao tác quan trọng (cấu hình, duyệt tài chính).</p>
                 <form onSubmit={handleSetupSecPass} className="flex flex-col gap-4">
                   <div>
@@ -200,7 +200,7 @@ export default function AdminProfile() {
                       placeholder="Nhập lại MK cấp 2..."
                       className="mt-1 w-full p-2.5 border rounded-lg outline-none focus:border-orange-500 text-sm" required />
                     {secForm.confirmSecPass && secForm.newSecPass !== secForm.confirmSecPass && (
-                      <p className="text-xs text-red-500 mt-1">⚠️ Mật khẩu xác nhận không khớp</p>
+                      <p className="text-xs text-red-500 mt-1">️ Mật khẩu xác nhận không khớp</p>
                     )}
                   </div>
                   <div className="flex gap-2 mt-1">
@@ -221,10 +221,10 @@ export default function AdminProfile() {
               </>
             )}
 
-            {/* ── BƯỚC 1: YÊU CẦU OTP ── */}
+            {/*  BƯỚC 1: YÊU CẦU OTP  */}
             {secModal === "reset-request" && (
               <>
-                <h2 className="text-xl font-bold text-gray-800 mb-2">📧 Đổi Mật khẩu Cấp 2</h2>
+                <h2 className="text-xl font-bold text-gray-800 mb-2"> Đổi Mật khẩu Cấp 2</h2>
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
                   <p className="text-sm text-blue-700 font-medium">Hệ thống sẽ gửi mã OTP về email quản trị viên.</p>
                   <p className="text-xs text-blue-500 mt-1">Kiểm tra hộp thư của admin sau khi bấm gửi OTP.</p>
@@ -232,7 +232,7 @@ export default function AdminProfile() {
                 <div className="flex gap-2">
                   <Button onClick={handleResetSecReq} disabled={secLoading}
                     className="flex-1 bg-orange-500 hover:bg-orange-600">
-                    {secLoading ? "Đang gửi..." : "📤 Gửi OTP qua Email"}
+                    {secLoading ? "Đang gửi..." : " Gửi OTP qua Email"}
                   </Button>
                   <Button type="button" onClick={() => setSecModal(null)}
                     className="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200">Hủy</Button>
@@ -240,10 +240,10 @@ export default function AdminProfile() {
               </>
             )}
 
-            {/* ── BƯỚC 2: NHẬP OTP + MK MỚI ── */}
+            {/*  BƯỚC 2: NHẬP OTP + MK MỚI  */}
             {secModal === "reset-confirm" && (
               <>
-                <h2 className="text-xl font-bold text-gray-800 mb-1">✅ Xác nhận OTP</h2>
+                <h2 className="text-xl font-bold text-gray-800 mb-1"> Xác nhận OTP</h2>
                 <p className="text-xs text-gray-500 mb-4">Nhập mã OTP đã được gửi về email admin và mật khẩu cấp 2 mới.</p>
                 <form onSubmit={handleResetSecConfirm} className="flex flex-col gap-4">
                   <div>
@@ -268,7 +268,7 @@ export default function AdminProfile() {
                       placeholder="Nhập lại MK cấp 2..."
                       className="mt-1 w-full p-2.5 border rounded-lg outline-none focus:border-orange-500 text-sm" required />
                     {secForm.confirmSecPass && secForm.newSecPass !== secForm.confirmSecPass && (
-                      <p className="text-xs text-red-500 mt-1">⚠️ Mật khẩu xác nhận không khớp</p>
+                      <p className="text-xs text-red-500 mt-1">️ Mật khẩu xác nhận không khớp</p>
                     )}
                   </div>
                   <div className="flex gap-2 mt-1">

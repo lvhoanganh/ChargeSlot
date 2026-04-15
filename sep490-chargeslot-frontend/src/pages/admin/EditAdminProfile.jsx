@@ -106,7 +106,7 @@ export default function EditAdminProfile() {
                 {maskPhone(phoneNumber) || "Chưa cập nhật số điện thoại"}
               </p>
               <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
-                🛡️ Quản trị viên
+                ️ Quản trị viên
               </span>
             </div>
           </div>
@@ -128,8 +128,8 @@ export default function EditAdminProfile() {
           </div>
           <div className="px-8 py-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <ReadOnlyField icon="🏷️" label="Vai trò" value="Quản trị viên" />
-              <ReadOnlyField icon="📱" label="Số điện thoại" value={phoneNumber || "—"} />
+              <ReadOnlyField icon="️" label="Vai trò" value="Quản trị viên" />
+              <ReadOnlyField icon="" label="Số điện thoại" value={phoneNumber || "—"} />
             </div>
           </div>
           <div className="px-8 py-5 bg-gray-50/50 border-t border-gray-100 flex flex-col sm:flex-row gap-3">

@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 import { publicStationApi, reviewApi, favoriteApi, chargingApi, stationApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 
-/* ─── Inject pulse animation (same as StationMap) ─── */
+/*  Inject pulse animation (same as StationMap)  */
 if (!document.getElementById("station-marker-pulse")) {
   const style = document.createElement("style");
   style.id = "station-marker-pulse";
@@ -20,7 +20,7 @@ if (!document.getElementById("station-marker-pulse")) {
   document.head.appendChild(style);
 }
 
-/* ─── Station marker (matching StationMap style) ─── */
+/*  Station marker (matching StationMap style)  */
 const stationPin = new L.DivIcon({
   html: `
     <div style="position:relative;width:52px;height:64px;">
@@ -260,7 +260,7 @@ export default function StationDetailDriver() {
     return (
       <div className="min-h-screen bg-[#f3f4f5] pt-24 px-4">
         <div className="max-w-3xl mx-auto text-center">
-          <div className="text-5xl mb-4">⚡</div>
+          <div className="text-5xl mb-4"></div>
           <p className="text-gray-500">Đang tải thông tin trạm sạc...</p>
         </div>
       </div>
@@ -271,7 +271,7 @@ export default function StationDetailDriver() {
     return (
       <div className="min-h-screen bg-[#f3f4f5] pt-24 px-4">
         <div className="max-w-3xl mx-auto text-center">
-          <div className="text-6xl mb-4">🔌</div>
+          <div className="text-6xl mb-4"></div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">
             Không tìm thấy trạm sạc
           </h2>
@@ -297,7 +297,7 @@ export default function StationDetailDriver() {
 
   return (
     <div className="min-h-screen bg-[#f3f4f5]">
-      {/* ── Hero section with mini map ── */}
+      {/*  Hero section with mini map  */}
       <div className="relative h-[280px] w-full">
         <MapContainer
           center={[station.latitude, station.longitude]}
@@ -366,7 +366,7 @@ export default function StationDetailDriver() {
         </button>
       </div>
 
-      {/* ── Content ── */}
+      {/*  Content  */}
       <div className="max-w-3xl mx-auto px-4 -mt-8 pb-8 relative z-10">
         {/* Station name & status */}
         <div className="mb-6">
@@ -436,7 +436,7 @@ export default function StationDetailDriver() {
             <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
               <div className="flex items-center justify-center gap-1">
                 <span className="text-2xl font-bold text-amber-500">{reviewSummary.averageRating?.toFixed(1)}</span>
-                <span className="text-amber-400 text-lg">⭐</span>
+                <span className="text-amber-400 text-lg"></span>
               </div>
               <div className="text-xs text-gray-500 mt-1">{reviewSummary.totalReviews} đánh giá</div>
             </div>
@@ -579,7 +579,7 @@ export default function StationDetailDriver() {
             if (tiers.length === 0) return null;
             return (
               <div className="mt-4 pt-4 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">⏰ Giá theo khung giờ</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2"> Giá theo khung giờ</h3>
                 <div className="space-y-1">
                   {tiers.map((tier, idx) => (
                     <div key={idx} className="flex justify-between text-xs bg-gray-50 rounded-lg px-3 py-2">
@@ -666,11 +666,11 @@ export default function StationDetailDriver() {
           return (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-5 mb-4">
               <h2 className="font-semibold text-red-700 mb-2 flex items-center gap-2">
-                <span>🚫</span> Ngày không hoạt động
+                <span></span> Ngày không hoạt động
               </h2>
               {isTodayBlocked && (
                 <div className="bg-red-100 border border-red-300 rounded-xl px-4 py-2.5 mb-3 text-sm font-bold text-red-700">
-                  ⚠️ Hôm nay ({fmtDate(todayStr)}) trạm không hoạt động — không thể đặt lịch!
+                  ️ Hôm nay ({fmtDate(todayStr)}) trạm không hoạt động — không thể đặt lịch!
                 </div>
               )}
               <div className="flex flex-wrap gap-2">
@@ -680,7 +680,7 @@ export default function StationDetailDriver() {
                       ? "bg-red-500 text-white"
                       : "bg-red-100 text-red-700"
                   }`}>
-                    📅 {fmtDate(d)}
+                     {fmtDate(d)}
                   </span>
                 ))}
               </div>
@@ -741,7 +741,7 @@ export default function StationDetailDriver() {
         {/* Reviews section */}
         <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
           <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            ⭐ Đánh giá {reviewSummary ? `(${reviewSummary.averageRating?.toFixed(1)}/5 — ${reviewSummary.totalReviews} lượt)` : ""}
+             Đánh giá {reviewSummary ? `(${reviewSummary.averageRating?.toFixed(1)}/5 — ${reviewSummary.totalReviews} lượt)` : ""}
           </h2>
 
           {/* Star breakdown */}
@@ -752,7 +752,7 @@ export default function StationDetailDriver() {
                 const pct = reviewSummary.totalReviews > 0 ? (count / reviewSummary.totalReviews) * 100 : 0;
                 return (
                   <div key={star} className="flex items-center gap-2 text-xs">
-                    <span className="w-6 text-right text-gray-500 font-medium">{star}⭐</span>
+                    <span className="w-6 text-right text-gray-500 font-medium">{star}</span>
                     <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                       <div className="h-full bg-amber-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
                     </div>
@@ -772,10 +772,10 @@ export default function StationDetailDriver() {
                     {r.driverAvatarUrl ? (
                       <img src={r.driverAvatarUrl.startsWith("http") ? r.driverAvatarUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${r.driverAvatarUrl.startsWith("/") ? "" : "/"}${r.driverAvatarUrl}`} alt="" className="w-7 h-7 rounded-full object-cover" />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs">👤</div>
+                      <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs"></div>
                     )}
                     <span className="text-sm font-semibold text-gray-800">{r.driverName || "Driver"}</span>
-                    <span className="text-xs text-amber-500">{"⭐".repeat(r.rating)}</span>
+                    <span className="text-xs text-amber-500">{"".repeat(r.rating)}</span>
                     <span className="text-xs text-gray-400 ml-auto">{new Date(r.createdAt).toLocaleDateString("vi-VN")}</span>
                   </div>
                   {r.comment && <p className="text-sm text-gray-600 ml-9">{r.comment}</p>}

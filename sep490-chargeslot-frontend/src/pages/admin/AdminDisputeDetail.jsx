@@ -5,7 +5,7 @@ import { instance } from "@/lib/httpRequest";
 import { bookingApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 
-/* ─── API helpers ─── */
+/*  API helpers  */
 const disputeApiAdmin = {
   getById: async (id) => {
     const { data } = await instance.get(`/dispute/${id}`);
@@ -48,12 +48,12 @@ function getStatusType(status) {
 
 function getStatusIcon(status) {
   switch (status) {
-    case "Open": return "📝";
-    case "WaitingOwnerEvidence": return "⏳";
-    case "PendingReview": return "🔍";
-    case "ResolvedRefund": return "✅";
-    case "ResolvedPayout": return "💰";
-    default: return "📄";
+    case "Open": return "";
+    case "WaitingOwnerEvidence": return "";
+    case "PendingReview": return "";
+    case "ResolvedRefund": return "";
+    case "ResolvedPayout": return "";
+    default: return "";
   }
 }
 
@@ -115,7 +115,7 @@ export default function AdminDisputeDetail() {
     return (
       <div className="cs-dispute-detail">
         <div style={{ textAlign: "center", paddingTop: 120 }}>
-          <p style={{ color: "#ef4444", fontSize: 16, marginBottom: 16 }}>❌ {error?.message || "Không tìm thấy khiếu nại"}</p>
+          <p style={{ color: "#ef4444", fontSize: 16, marginBottom: 16 }}> {error?.message || "Không tìm thấy khiếu nại"}</p>
           <button onClick={() => navigate("/admin/disputes")} className="cs-dispute-detail__btn-back-main">
             ← Danh sách khiếu nại
           </button>
@@ -172,7 +172,7 @@ export default function AdminDisputeDetail() {
         <div style={{ textAlign: "center", marginBottom: 24 }}><p style={{ color: "#64748b", fontSize: 13 }}>Đang tải bối cảnh phiên sạc...</p></div>
       ) : booking ? (
         <div className="cs-dispute-detail__card" style={{ marginBottom: 24, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-          <h2 className="cs-dispute-detail__card-title" style={{ marginBottom: 16 }}>📋 Bối cảnh phiên Booking</h2>
+          <h2 className="cs-dispute-detail__card-title" style={{ marginBottom: 16 }}> Bối cảnh phiên Booking</h2>
           <div className="cs-dispute-detail__meta">
             <div className="cs-dispute-detail__meta-item">
               <span className="cs-dispute-detail__meta-label">Thanh toán</span>
@@ -207,7 +207,7 @@ export default function AdminDisputeDetail() {
         {/* Driver's complaint */}
         <div className="cs-dispute-detail__card">
           <div className="cs-dispute-detail__card-header">
-            <div className="cs-dispute-detail__card-icon cs-dispute-detail__card-icon--driver">🚗</div>
+            <div className="cs-dispute-detail__card-icon cs-dispute-detail__card-icon--driver"></div>
             <h2 className="cs-dispute-detail__card-title">Khiếu nại từ Driver</h2>
           </div>
 
@@ -232,7 +232,7 @@ export default function AdminDisputeDetail() {
                       {ev.fileType === "image" ? (
                         <img src={url} alt="evidence" />
                       ) : (
-                        <span>{ev.fileType === "video" ? "🎬" : "📄"}</span>
+                        <span>{ev.fileType === "video" ? "" : ""}</span>
                       )}
                     </a>
                   );
@@ -247,13 +247,13 @@ export default function AdminDisputeDetail() {
         {/* Owner's response */}
         <div className="cs-dispute-detail__card">
           <div className="cs-dispute-detail__card-header">
-            <div className="cs-dispute-detail__card-icon cs-dispute-detail__card-icon--owner">🏢</div>
+            <div className="cs-dispute-detail__card-icon cs-dispute-detail__card-icon--owner"></div>
             <h2 className="cs-dispute-detail__card-title">Phản hồi từ Owner</h2>
           </div>
 
           {!dispute.ownerResponse && ownerEvidences.length === 0 ? (
             <div className="cs-dispute-detail__empty-response">
-              <span>⏳</span>
+              <span></span>
               <p>Chưa có phản hồi từ Owner</p>
             </div>
           ) : (
@@ -281,7 +281,7 @@ export default function AdminDisputeDetail() {
                           {ev.fileType === "image" ? (
                             <img src={url} alt="evidence" />
                           ) : (
-                            <span>{ev.fileType === "video" ? "🎬" : "📄"}</span>
+                            <span>{ev.fileType === "video" ? "" : ""}</span>
                           )}
                         </a>
                       );
@@ -297,9 +297,9 @@ export default function AdminDisputeDetail() {
       {/* Resolution result (if resolved) */}
       {isResolved && (
         <div className={`cs-dispute-detail__resolution cs-dispute-detail__resolution--${dispute.status === "ResolvedRefund" ? "refund" : "payout"}`}>
-          <h2 className="cs-dispute-detail__resolution-title">⚖️ Kết quả xử lý</h2>
+          <h2 className="cs-dispute-detail__resolution-title">️ Kết quả xử lý</h2>
           <span className={`cs-dispute-detail__status cs-dispute-detail__status--${statusType}`} style={{ marginBottom: 12 }}>
-            {dispute.status === "ResolvedRefund" ? "✅ Driver thắng — Hoàn tiền" : "💰 Owner thắng — Thanh toán"}
+            {dispute.status === "ResolvedRefund" ? " Driver thắng — Hoàn tiền" : " Owner thắng — Thanh toán"}
           </span>
           {dispute.adminNote && (
             <div className="cs-dispute-detail__field" style={{ marginTop: 12 }}>
@@ -314,7 +314,7 @@ export default function AdminDisputeDetail() {
       {canResolve && (
         <div style={{ display: "flex", justifyContent: "center", marginTop: 24 }}>
           <button onClick={() => setShowResolveModal(true)} className="cs-dispute-detail__resolve-btn">
-            ⚖️ Phán quyết khiếu nại
+            ️ Phán quyết khiếu nại
           </button>
         </div>
       )}
@@ -323,7 +323,7 @@ export default function AdminDisputeDetail() {
       {showResolveModal && (
         <div className="cs-admin-modal-overlay">
           <div className="cs-admin-modal">
-            <div className="cs-admin-modal__icon">⚖️</div>
+            <div className="cs-admin-modal__icon">️</div>
             <h2 className="cs-admin-modal__title">Phán quyết khiếu nại #{dispute.id}</h2>
 
             {/* Decision radio */}
@@ -335,14 +335,14 @@ export default function AdminDisputeDetail() {
                 <label className={`cs-dispute-detail__radio-option ${isDriverWin ? "cs-dispute-detail__radio-option--selected-green" : ""}`}>
                   <input type="radio" checked={isDriverWin} onChange={() => setIsDriverWin(true)} style={{ accentColor: "#22c55e" }} />
                   <div>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>✅ Driver thắng — Hoàn tiền</span>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}> Driver thắng — Hoàn tiền</span>
                     <p style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>Tiền từ ESCROW sẽ hoàn về ví Driver</p>
                   </div>
                 </label>
                 <label className={`cs-dispute-detail__radio-option ${!isDriverWin ? "cs-dispute-detail__radio-option--selected-purple" : ""}`}>
                   <input type="radio" checked={!isDriverWin} onChange={() => setIsDriverWin(false)} style={{ accentColor: "#7c3aed" }} />
                   <div>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>💰 Owner thắng — Thanh toán</span>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}> Owner thắng — Thanh toán</span>
                     <p style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>Tiền từ ESCROW sẽ chuyển cho Owner (trừ phí nền tảng)</p>
                   </div>
                 </label>

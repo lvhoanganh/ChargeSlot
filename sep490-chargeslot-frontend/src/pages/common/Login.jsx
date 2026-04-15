@@ -38,7 +38,6 @@ export default function Login() {
 
   return (
     <div className="cs-auth-wrapper">
-      {/* Left Branding Panel */}
       <div className="cs-auth-left">
         <div className="cs-auth-left__content">
           <div className="cs-animate-fadeInUp" style={{ marginBottom: 24 }}>
@@ -52,26 +51,21 @@ export default function Login() {
           </p>
           <div className="cs-auth-left__features cs-animate-fadeInUp-delay-3">
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">🗺️</span>
-              <span>Tìm trạm sạc gần bạn trên bản đồ</span>
+              <p>Tìm trạm sạc gần bạn trên bản đồ</p>
             </div>
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">📅</span>
-              <span>Đặt lịch sạc trước, không lo hàng chờ</span>
+              <p>Đặt lịch sạc trước, không lo hàng chờ</p>
             </div>
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">💰</span>
-              <span>Thanh toán tiện lợi qua ví điện tử</span>
+              <p>Thanh toán tiện lợi qua ví điện tử</p>
             </div>
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">⭐</span>
-              <span>Tích điểm thưởng mỗi lần sạc xe</span>
+              <p>Tích điểm thưởng mỗi lần sạc xe</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right Form Panel */}
       <div className="cs-auth-right">
         <form className="cs-auth-form" onSubmit={handleSubmit(onSubmit)}>
           <div className="cs-auth-form__logo">

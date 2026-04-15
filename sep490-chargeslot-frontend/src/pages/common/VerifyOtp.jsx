@@ -120,15 +120,15 @@ export default function VerifyOtp() {
           </p>
           <div className="cs-auth-left__features cs-animate-fadeInUp-delay-3">
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">📱</span>
+              <span className="cs-auth-left__feature-icon"></span>
               <span>Kiểm tra tin nhắn SMS</span>
             </div>
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">🔢</span>
+              <span className="cs-auth-left__feature-icon"></span>
               <span>Nhập mã OTP 6 số</span>
             </div>
             <div className="cs-auth-left__feature">
-              <span className="cs-auth-left__feature-icon">🔄</span>
+              <span className="cs-auth-left__feature-icon"></span>
               <span>Gửi lại mã nếu không nhận được</span>
             </div>
           </div>

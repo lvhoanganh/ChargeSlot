@@ -3,11 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { disputeApi } from "@/services/api";
 
 const STATUS_MAP = {
-  Open: { label: "Mở", color: "#f59e0b", bg: "#fffbeb", icon: "📝" },
-  WaitingOwnerEvidence: { label: "Chờ Owner phản hồi", color: "#f97316", bg: "#fff7ed", icon: "⏳" },
-  PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "🔍" },
-  ResolvedRefund: { label: "Hoàn tiền cho Driver", color: "#16a34a", bg: "#f0fdf4", icon: "✅" },
-  ResolvedPayout: { label: "Thanh toán cho Owner", color: "#8b5cf6", bg: "#f5f3ff", icon: "💰" },
+  Open: { label: "Mở", color: "#f59e0b", bg: "#fffbeb", icon: "" },
+  WaitingOwnerEvidence: { label: "Chờ Owner phản hồi", color: "#f97316", bg: "#fff7ed", icon: "" },
+  PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "" },
+  ResolvedRefund: { label: "Hoàn tiền cho Driver", color: "#16a34a", bg: "#f0fdf4", icon: "" },
+  ResolvedPayout: { label: "Thanh toán cho Owner", color: "#8b5cf6", bg: "#f5f3ff", icon: "" },
 };
 
 const toLocal = (dt) => {
@@ -33,7 +33,7 @@ export default function DisputeDetail() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>⚡</div>
+        <div style={{ fontSize: 40 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải thông tin khiếu nại...</p>
       </div>
     );
@@ -42,7 +42,7 @@ export default function DisputeDetail() {
   if (!dispute) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 48 }}>📋</div>
+        <div style={{ fontSize: 48 }}></div>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Khiếu nại không tồn tại</h2>
         <button onClick={() => navigate("/driver/my-bookings")} style={btnStyle}>← Danh sách booking</button>
       </div>
@@ -81,7 +81,7 @@ export default function DisputeDetail() {
         <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", overflow: "hidden", marginBottom: 16 }}>
           {/* Step 1: Submitted */}
           <TimelineStep
-            icon="📤" title="Đã gửi khiếu nại"
+            icon="" title="Đã gửi khiếu nại"
             time={toLocal(dispute.createdAt)}
             isActive={true} isLast={false}
           >
@@ -94,14 +94,14 @@ export default function DisputeDetail() {
 
           {/* Driver evidence */}
           {driverEvidences.length > 0 && (
-            <TimelineStep icon="📎" title="Bằng chứng từ Driver" isActive={true} isLast={false}>
+            <TimelineStep icon="" title="Bằng chứng từ Driver" isActive={true} isLast={false}>
               <EvidenceGallery evidences={driverEvidences} />
             </TimelineStep>
           )}
 
           {/* Step 2: Owner response */}
           <TimelineStep
-            icon="🏢" title="Phản hồi từ Owner"
+            icon="" title="Phản hồi từ Owner"
             isActive={hasOwnerResponded}
             isLast={!isResolved}
           >
@@ -128,13 +128,13 @@ export default function DisputeDetail() {
           {/* Step 3: Admin resolution */}
           {isResolved && (
             <TimelineStep
-              icon="⚖️" title="Kết quả xử lý"
+              icon="️" title="Kết quả xử lý"
               time={dispute.resolvedAt ? toLocal(dispute.resolvedAt) : undefined}
               isActive={true} isLast={true}
             >
               <div style={{ padding: 12, borderRadius: 10, background: dispute.status === "ResolvedRefund" ? "#f0fdf4" : "#f5f3ff", marginBottom: 8 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: dispute.status === "ResolvedRefund" ? "#16a34a" : "#8b5cf6" }}>
-                  {dispute.status === "ResolvedRefund" ? "✅ Driver thắng — Hoàn tiền" : "💰 Owner thắng — Thanh toán"}
+                  {dispute.status === "ResolvedRefund" ? " Driver thắng — Hoàn tiền" : " Owner thắng — Thanh toán"}
                 </span>
               </div>
               {dispute.adminNote && (
@@ -149,7 +149,7 @@ export default function DisputeDetail() {
 
         {/* Booking Info */}
         <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12 }}>📋 Thông tin Booking</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12 }}> Thông tin Booking</h3>
           <InfoRow label="Mã Booking" value={`#${dispute.bookingId}`} />
           <InfoRow label="Người khiếu nại" value={dispute.createdByName} />
           <InfoRow label="Ngày tạo" value={toLocal(dispute.createdAt)} />
@@ -203,7 +203,7 @@ function EvidenceGallery({ evidences }) {
             <img src={toUrl(ev.fileUrl)} alt="evidence" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 24 }}>
-              {ev.fileType === "video" ? "🎬" : "📄"}
+              {ev.fileType === "video" ? "" : ""}
             </div>
           )}
         </a>

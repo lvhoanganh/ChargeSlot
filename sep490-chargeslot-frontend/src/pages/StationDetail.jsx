@@ -187,7 +187,7 @@ export default function StationDetail() {
                 {station.name}
               </h1>
               <p className="text-gray-600 mt-2 flex items-center gap-3">
-                <span>📍 {station.address}</span>
+                <span> {station.address}</span>
               </p>
             </div>
 
@@ -203,20 +203,20 @@ export default function StationDetail() {
           <div className="mb-6 flex gap-3">
             <Link to={`/stations/${id}/edit`}>
               <Button className="bg-indigo-500 hover:bg-indigo-600">
-                ✏️ Chỉnh sửa
+                ️ Chỉnh sửa
               </Button>
             </Link>
             <Button
               onClick={handleSubmitForApproval}
               className="bg-green-500 hover:bg-green-600"
             >
-              ✓ Gửi phê duyệt
+               Gửi phê duyệt
             </Button>
             <Button
               onClick={handleDelete}
               className="bg-red-500 hover:bg-red-600"
             >
-              🗑️ Xóa
+              ️ Xóa
             </Button>
           </div>
         )}

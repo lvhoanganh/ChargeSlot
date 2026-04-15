@@ -8,7 +8,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-/* ─── Leaflet Setup ─── */
+/*  Leaflet Setup  */
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
@@ -68,7 +68,7 @@ function StationMarker({ s, icon, isActive, getStatusLabel, onViewInList }) {
             <div style={{ fontSize: 12, color: "#64748b" }}>{s.ownerName || s.owner?.fullName || s.owner?.phoneNumber || "—"}</div>
           </div>
           <div style={{ padding: "12px 16px" }}>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>📍 {s.address}</div>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}> {s.address}</div>
             <div style={{ marginBottom: 12 }}>
               <span className={`cs-admin-status-badge cs-admin-status-badge--${s.approvalStatus === "PendingApproval" ? "pending" : s.approvalStatus === "Approved" ? "active" : s.approvalStatus === "Rejected" ? "banned" : "draft"}`}>
                 <span className="cs-admin-status-badge__dot" />
@@ -89,7 +89,7 @@ function StationMarker({ s, icon, isActive, getStatusLabel, onViewInList }) {
 }
 
 
-/* ─── API helpers ─── */
+/*  API helpers  */
 const adminStationApi = {
   /** Lấy tất cả trạm (có filter + phân trang) */
   getAll: async (status = "", search = "", page = 1, pageSize = 50) => {
@@ -258,7 +258,7 @@ export default function ApproveStation() {
     return (
       <div className="cs-admin-page">
         <div style={{ textAlign: "center", paddingTop: 120 }}>
-          <p style={{ color: "#ef4444", fontSize: 16, marginBottom: 16 }}>❌ Lỗi tải dữ liệu: {error.message}</p>
+          <p style={{ color: "#ef4444", fontSize: 16, marginBottom: 16 }}> Lỗi tải dữ liệu: {error.message}</p>
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["admin-stations-all"] })}
             className="cs-admin-action-btn cs-admin-action-btn--activate"
@@ -351,9 +351,9 @@ export default function ApproveStation() {
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả</option>
-          <option value="PendingApproval">⏳ Chờ duyệt</option>
-          <option value="Approved">✅ Đã duyệt</option>
-          <option value="Rejected">❌ Từ chối</option>
+          <option value="PendingApproval"> Chờ duyệt</option>
+          <option value="Approved"> Đã duyệt</option>
+          <option value="Rejected"> Từ chối</option>
         </select>
         {/* Date range */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
@@ -437,7 +437,7 @@ export default function ApproveStation() {
                             onMouseEnter={(e) => e.currentTarget.style.textDecoration = "underline"}
                             onMouseLeave={(e) => e.currentTarget.style.textDecoration = "none"}
                           >
-                            {s.name} <span style={{ fontSize: 12 }}>📍</span>
+                            {s.name} <span style={{ fontSize: 12 }}></span>
                           </div>
                         ) : (
                           s.name
@@ -506,8 +506,8 @@ export default function ApproveStation() {
                                   await adminStationApi.toggleBan(s.id);
                                   showToast.success(
                                     isBanned
-                                      ? `✅ Đã mở khoá trạm ${s.name}`
-                                      : `🔒 Đã khoá trạm ${s.name}`
+                                      ? ` Đã mở khoá trạm ${s.name}`
+                                      : ` Đã khoá trạm ${s.name}`
                                   );
                                   queryClient.invalidateQueries({ queryKey: ["admin-stations-all"] });
                                 } catch (err) {
@@ -613,7 +613,7 @@ export default function ApproveStation() {
         <div className="cs-admin-modal-overlay">
           <div className="cs-admin-modal">
             <div className="cs-admin-modal__icon">
-              {confirmAction.isApproved ? "✅" : "🚫"}
+              {confirmAction.isApproved ? "" : ""}
             </div>
             <h2 className="cs-admin-modal__title">Xác nhận thao tác</h2>
             <p className="cs-admin-modal__desc">

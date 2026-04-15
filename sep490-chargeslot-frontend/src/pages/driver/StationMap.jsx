@@ -8,7 +8,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { showToast } from "@/components/Toast";
 import TimePicker24h from "@/components/TimePicker24h";
 
-/* ─── Fix leaflet default icon ─── */
+/*  Fix leaflet default icon  */
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
@@ -19,7 +19,7 @@ L.Icon.Default.mergeOptions({
 
 
 
-/* ─── Custom marker icons ─── */
+/*  Custom marker icons  */
 function makeIcon(gradient, pulseColor) {
   return new L.DivIcon({
     html: `
@@ -46,7 +46,7 @@ const userIcon = new L.DivIcon({
   iconAnchor: [10, 10],
 });
 
-/* ─── FlyTo ─── */
+/*  FlyTo  */
 function FlyTo({ center, zoom }) {
   const map = useMap();
   useEffect(() => {
@@ -55,19 +55,19 @@ function FlyTo({ center, zoom }) {
   return null;
 }
 
-/* ─── Status config ─── */
+/*  Status config  */
 const statusConfig = {
   Open: { label: "Đang mở", color: "#22c55e", bg: "rgba(34,197,94,0.1)", dot: "#22c55e" },
   Closed: { label: "Đã đóng", color: "#ef4444", bg: "rgba(239,68,68,0.1)", dot: "#ef4444" },
   Maintenance: { label: "Bảo trì", color: "#f97316", bg: "rgba(249,115,22,0.1)", dot: "#f97316" },
 };
 
-/* ─── Remove Vietnamese diacritics ─── */
+/*  Remove Vietnamese diacritics  */
 function removeDiacritics(str) {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
 }
 
-/* ─── Haversine: tính khoảng cách 2 toạ độ (km) ─── */
+/*  Haversine: tính khoảng cách 2 toạ độ (km)  */
 function haversine([lat1, lon1], [lat2, lon2]) {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -80,7 +80,7 @@ function haversine([lat1, lon1], [lat2, lon2]) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/* ─── useIsMobile ─── */
+/*  useIsMobile  */
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   useEffect(() => {
@@ -407,7 +407,7 @@ export default function StationMap() {
 
   const hasActiveFilters = minRating || sortBy || nearbyMode || isTimeFilterActive;
 
-  /* ══════ MAP PANEL (shared between mobile & desktop) ══════ */
+  /*  MAP PANEL (shared between mobile & desktop)  */
   const MapPanel = (
     <div className="sm-map-view">
       {/* Locate me btn */}
@@ -493,7 +493,7 @@ export default function StationMap() {
                   </div>
 
                   <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 10, lineHeight: 1.4 }}>
-                    📍 {station.address}
+                     {station.address}
                   </div>
 
                   <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
@@ -564,10 +564,10 @@ export default function StationMap() {
     </div>
   );
 
-  /* ══════ LIST PANEL (header + cards) ══════ */
+  /*  LIST PANEL (header + cards)  */
   const ListPanel = (
     <div className="sm-list-panel">
-      {/* ── Header ── */}
+      {/*  Header  */}
       <div className="sm-list-header">
         <div className="sm-list-header__top">
           <div className="sm-list-header__title-group">
@@ -622,7 +622,7 @@ export default function StationMap() {
           )}
         </div>
 
-        {/* ── Collapsible Filter Panel ── */}
+        {/*  Collapsible Filter Panel  */}
         {showFilters && (
           <div className="sm-filter-panel">
             <div className="sm-filter-row">
@@ -631,12 +631,12 @@ export default function StationMap() {
                 onChange={(e) => setMinRating(e.target.value)}
                 className="sm-select"
               >
-                <option value="">⭐ Đánh giá</option>
-                <option value="1">≥ 1 ⭐</option>
-                <option value="2">≥ 2 ⭐</option>
-                <option value="3">≥ 3 ⭐</option>
-                <option value="4">≥ 4 ⭐</option>
-                <option value="4.5">≥ 4.5 ⭐</option>
+                <option value=""> Đánh giá</option>
+                <option value="1">≥ 1 </option>
+                <option value="2">≥ 2 </option>
+                <option value="3">≥ 3 </option>
+                <option value="4">≥ 4 </option>
+                <option value="4.5">≥ 4.5 </option>
               </select>
               <select
                 value={sortBy}
@@ -871,22 +871,22 @@ export default function StationMap() {
         )}
       </div>
 
-      {/* ── Cards ── */}
+      {/*  Cards  */}
       <div className="sm-card-list">
         {loading || availabilityLoading ? (
           <div className="sm-state-box">
-            <div style={{ fontSize: 32, marginBottom: 8, animation: "spin 1s linear infinite" }}>⚡</div>
+            <div style={{ fontSize: 32, marginBottom: 8, animation: "spin 1s linear infinite" }}></div>
             <div style={{ fontSize: 14, color: "#6b7280" }}>Đang tải trạm sạc...</div>
           </div>
         ) : error ? (
           <div className="sm-state-box">
-            <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.5 }}>⚠️</div>
+            <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.5 }}>️</div>
             <div style={{ fontSize: 14, color: "#ef4444", marginBottom: 8 }}>{error}</div>
             <button className="sm-retry-btn" onClick={() => window.location.reload()}>Thử lại</button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="sm-state-box">
-            <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.4 }}>🔍</div>
+            <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.4 }}></div>
             <div style={{ fontSize: 15, fontWeight: 600, color: "#6b7280" }}>Không tìm thấy trạm sạc</div>
             <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 4 }}>Thử nhập từ khóa khác</div>
           </div>
@@ -976,7 +976,7 @@ export default function StationMap() {
                   {/* Stats row */}
                   <div className="sm-card__stats">
                     <div className="sm-card__stat sm-card__stat--yellow">
-                      <div className="sm-card__stat-val">⭐ {s.totalReviews > 0 ? Number(s.averageRating).toFixed(1) : "—"}</div>
+                      <div className="sm-card__stat-val"> {s.totalReviews > 0 ? Number(s.averageRating).toFixed(1) : "—"}</div>
                       <div className="sm-card__stat-lbl">{s.totalReviews > 0 ? `${s.totalReviews} đánh giá` : "Chưa có"}</div>
                     </div>
                     <div className="sm-card__stat sm-card__stat--green">
@@ -1008,9 +1008,9 @@ export default function StationMap() {
     </div>
   );
 
-  /* ══════════════════════════════════
+  /* 
      DESKTOP LAYOUT (side by side)
-  ══════════════════════════════════ */
+   */
   if (!isMobile) {
     return (
       <div className="sm-root sm-root--desktop">
@@ -1020,9 +1020,9 @@ export default function StationMap() {
     );
   }
 
-  /* ══════════════════════════════════
+  /* 
      MOBILE LAYOUT (tab-based)
-  ══════════════════════════════════ */
+   */
   return (
     <div className="sm-root sm-root--mobile">
       {/* Tab switcher */}

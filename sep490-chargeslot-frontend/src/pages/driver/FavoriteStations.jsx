@@ -32,7 +32,7 @@ export default function FavoriteStations() {
     return (
       <div className="min-h-screen bg-[#f3f4f5] pt-24 px-4">
         <div className="max-w-3xl mx-auto text-center">
-          <div className="text-5xl mb-4">❤️</div>
+          <div className="text-5xl mb-4">️</div>
           <p className="text-gray-500">Đang tải danh sách yêu thích...</p>
         </div>
       </div>
@@ -58,14 +58,14 @@ export default function FavoriteStations() {
 
         {favorites.length === 0 ? (
           <div className="text-center py-16">
-            <div className="text-6xl mb-4 opacity-40">💔</div>
+            <div className="text-6xl mb-4 opacity-40"></div>
             <h2 className="text-lg font-bold text-gray-600 mb-2">Chưa có trạm yêu thích</h2>
             <p className="text-sm text-gray-400 mb-6">Thêm trạm yêu thích từ bản đồ hoặc trang chi tiết trạm</p>
             <button
               onClick={() => navigate("/driver/map")}
               className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors cursor-pointer"
             >
-              🗺️ Tìm trạm sạc
+              ️ Tìm trạm sạc
             </button>
           </div>
         ) : (
@@ -99,7 +99,7 @@ export default function FavoriteStations() {
                         <h3 className="font-bold text-gray-900 text-base">{f.name}</h3>
                         {f.averageRating > 0 && (
                           <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
-                            ⭐ {Number(f.averageRating).toFixed(1)}
+                             {Number(f.averageRating).toFixed(1)}
                             <span className="text-gray-400 font-normal">({f.totalReviews})</span>
                           </span>
                         )}

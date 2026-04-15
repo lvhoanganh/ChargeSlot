@@ -7,7 +7,7 @@ const KycContainer = ({ children }) => (
     <div className="max-w-5xl w-full bg-white rounded-3xl shadow-sm ring-1 ring-slate-200 p-6 sm:p-10">
       <div className="text-center mb-8">
         <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-white text-3xl shadow-orange-500/30 shadow-lg">
-          🛡️
+          ️
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Xác thực danh tính chủ trạm</h1>
         <p className="text-slate-500 mt-2 max-w-2xl mx-auto">Theo quy định pháp luật, chủ trạm sạc điện cần xác thực định danh trước khi bắt đầu kinh doanh.</p>
@@ -95,7 +95,7 @@ export default function OwnerKycGuard({ children }) {
     );
   }
 
-  // ── Approved hoặc PendingUpdate → cho phép dùng hệ thống bình thường ──
+  //  Approved hoặc PendingUpdate → cho phép dùng hệ thống bình thường 
   // PendingUpdate: Owner vẫn dùng được, banner sẽ hiển thị qua OwnerKycPage
   if (kycStatus === "Approved" || kycStatus === "PendingUpdate") {
     return children;
@@ -105,14 +105,14 @@ export default function OwnerKycGuard({ children }) {
     return (
       <KycContainer>
         <div className="text-center py-12">
-          <div className="text-6xl mb-6">⏳</div>
+          <div className="text-6xl mb-6"></div>
           <h2 className="text-xl sm:text-2xl font-bold text-amber-600 mb-2">Hồ sơ đang chờ duyệt</h2>
           <p className="text-slate-600 max-w-xl mx-auto leading-relaxed">
             Hồ sơ của bạn đã được tiếp nhận và đang trong quá trình xét duyệt bởi Ban Quản Trị. Quá trình này thường mất từ 1-2 ngày làm việc.
             Vui lòng kiên nhẫn.
           </p>
           <button onClick={fetchMe} className="mt-8 px-6 py-3 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition">
-            🔄 Cập nhật trạng thái
+             Cập nhật trạng thái
           </button>
         </div>
       </KycContainer>
@@ -124,7 +124,7 @@ export default function OwnerKycGuard({ children }) {
     <KycContainer>
       {kycStatus === "Rejected" && (
         <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-xl flex gap-3 text-red-700 items-start max-w-3xl mx-auto">
-          <span className="text-xl">⚠️</span>
+          <span className="text-xl">️</span>
           <div>
             <h3 className="font-bold mb-1">Hồ sơ bị từ chối</h3>
             <p className="text-sm">{kycRejectReason || "Vui lòng cập nhật lại thông tin chính xác hơn."}</p>
@@ -135,7 +135,7 @@ export default function OwnerKycGuard({ children }) {
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
         {/* Left Column: Info Inputs */}
         <div className="lg:col-span-7 space-y-6">
-          <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-3">📝 Thông tin cơ bản</h3>
+          <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-3"> Thông tin cơ bản</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
@@ -173,7 +173,7 @@ export default function OwnerKycGuard({ children }) {
         {/* Right Column: Files & Submit */}
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
-            <h3 className="text-lg font-bold text-orange-800 border-b border-orange-200/60 pb-3 mb-4">🖼️ Tải lên hình ảnh xác thực</h3>
+            <h3 className="text-lg font-bold text-orange-800 border-b border-orange-200/60 pb-3 mb-4">️ Tải lên hình ảnh xác thực</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-orange-700 mb-1.5">Mặt trước Căn cước công dân <span className="text-red-500">*</span></label>

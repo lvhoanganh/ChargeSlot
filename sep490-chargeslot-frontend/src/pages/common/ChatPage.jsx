@@ -69,7 +69,7 @@ export default function ChatPage() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>💬</div>
+        <div style={{ fontSize: 40 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải tin nhắn...</p>
       </div>
     );
@@ -79,7 +79,7 @@ export default function ChatPage() {
   if (bookingNotFound) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 16px" }}>
-        <div style={{ fontSize: 56, marginBottom: 12 }}>💬</div>
+        <div style={{ fontSize: 56, marginBottom: 12 }}></div>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b", margin: "0 0 8px", textAlign: "center" }}>
           Không tìm thấy cuộc trò chuyện
         </h2>
@@ -113,7 +113,7 @@ export default function ChatPage() {
             Quay lại
           </button>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>
-            💬 Chat — Booking #{bookingId}
+             Chat — Booking #{bookingId}
           </h2>
           {isClosed && (
             <span style={{
@@ -121,7 +121,7 @@ export default function ChatPage() {
               background: "#f1f5f9", color: "#64748b",
               padding: "3px 10px", borderRadius: 20,
             }}>
-              🔒 Đã đóng
+               Đã đóng
             </span>
           )}
         </div>
@@ -133,7 +133,7 @@ export default function ChatPage() {
             borderRadius: 12, padding: "10px 16px", marginBottom: 8,
             fontSize: 13, color: "#713f12", display: "flex", alignItems: "center", gap: 8,
           }}>
-            🔒 Phiên sạc đã kết thúc — không thể gửi tin nhắn mới.
+             Phiên sạc đã kết thúc — không thể gửi tin nhắn mới.
           </div>
         )}
 

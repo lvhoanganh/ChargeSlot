@@ -16,9 +16,9 @@ function KycStatusBadge({ status }) {
   const map = {
     Unverified:    { label: "Chưa xác thực",              bg: "#f1f5f9", color: "#64748b", dot: "#94a3b8" },
     Pending:       { label: "Đang chờ duyệt",              bg: "#fffbeb", color: "#f59e0b", dot: "#f59e0b" },
-    Approved:      { label: "✅ Đã xác thực",              bg: "#f0fdf4", color: "#16a34a", dot: "#16a34a" },
-    Rejected:      { label: "❌ Bị từ chối",               bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
-    PendingUpdate: { label: "🔄 Chờ duyệt bản cập nhật",   bg: "#eff6ff", color: "#2563eb", dot: "#3b82f6" },
+    Approved:      { label: " Đã xác thực",              bg: "#f0fdf4", color: "#16a34a", dot: "#16a34a" },
+    Rejected:      { label: " Bị từ chối",               bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
+    PendingUpdate: { label: " Chờ duyệt bản cập nhật",   bg: "#eff6ff", color: "#2563eb", dot: "#3b82f6" },
   };
   const cfg = map[status] || map.Unverified;
   return (
@@ -156,7 +156,7 @@ export default function OwnerKycPage() {
                 onClick={() => { setUpdateMode(true); setSubmitMode(true); setAgreed(false); }}
                 className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm"
               >
-                🔄 Cập nhật hồ sơ
+                 Cập nhật hồ sơ
               </button>
             )}
             {kycStatus === "Rejected" && !submitMode && (
@@ -164,7 +164,7 @@ export default function OwnerKycPage() {
                 onClick={() => { setSubmitMode(true); setAgreed(false); }}
                 className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition shadow-sm"
               >
-                📎 Nộp lại hồ sơ
+                 Nộp lại hồ sơ
               </button>
             )}
             {kycStatus === "Unverified" && !submitMode && (
@@ -172,7 +172,7 @@ export default function OwnerKycPage() {
                 onClick={() => { setSubmitMode(true); setAgreed(false); }}
                 className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition shadow-sm"
               >
-                📄 Nộp hồ sơ KYC
+                 Nộp hồ sơ KYC
               </button>
             )}
             {kycStatus === "PendingUpdate" && (
@@ -190,7 +190,7 @@ export default function OwnerKycPage() {
           {/* Reject reason */}
           {profile?.kycRejectReason && (kycStatus === "Rejected" || kycStatus === "Approved") && (
             <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl flex gap-3 text-red-700 text-sm">
-              <span className="text-lg flex-shrink-0">⚠️</span>
+              <span className="text-lg flex-shrink-0">️</span>
               <div>
                 <strong className="block mb-0.5">Lý do từ chối gần nhất:</strong>
                 {profile.kycRejectReason}
@@ -201,7 +201,7 @@ export default function OwnerKycPage() {
           {/* PendingUpdate banner */}
           {kycStatus === "PendingUpdate" && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl flex gap-3 text-blue-800 text-sm">
-              <span className="text-lg flex-shrink-0">🔄</span>
+              <span className="text-lg flex-shrink-0"></span>
               <div>
                 <strong className="block mb-0.5">Yêu cầu cập nhật đang chờ duyệt</strong>
                 Bạn vẫn có thể sử dụng hệ thống bình thường trong thời gian chờ.
@@ -216,7 +216,7 @@ export default function OwnerKycPage() {
         {profile && !submitMode && (kycStatus === "Approved" || kycStatus === "PendingUpdate" || kycStatus === "Rejected") && (
           <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-6 mb-6">
             <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-              📋 Thông tin hiện tại
+               Thông tin hiện tại
               {kycStatus === "PendingUpdate" && (
                 <span className="text-xs font-normal text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">Bản cập nhật đang chờ duyệt</span>
               )}
@@ -264,12 +264,12 @@ export default function OwnerKycPage() {
           <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-6 sm:p-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold text-slate-900">
-                {kycStatus === "Approved" ? "🔄 Cập nhật hồ sơ"
-                  : kycStatus === "Rejected" ? "📎 Nộp lại hồ sơ"
-                  : "📄 Nộp hồ sơ KYC"}
+                {kycStatus === "Approved" ? " Cập nhật hồ sơ"
+                  : kycStatus === "Rejected" ? " Nộp lại hồ sơ"
+                  : " Nộp hồ sơ KYC"}
               </h2>
               <button onClick={() => { setSubmitMode(false); setUpdateMode(false); setAgreed(false); }} className="text-slate-400 hover:text-slate-600 text-sm font-medium">
-                ✕ Hủy
+                 Hủy
               </button>
             </div>
 
@@ -280,7 +280,7 @@ export default function OwnerKycPage() {
             }`}>
               {kycStatus === "Rejected" ? (
                 <>
-                  <strong>⚠️ Hồ sơ của bạn đã bị từ chối.</strong> Vui lòng xem lý do từ chối ở trên và nộp lại hồ sơ với thông tin chính xác.
+                  <strong>️ Hồ sơ của bạn đã bị từ chối.</strong> Vui lòng xem lý do từ chối ở trên và nộp lại hồ sơ với thông tin chính xác.
                   <strong className="block mt-1">Bắt buộc tải lại tất cả 3 ảnh khi nộp lại.</strong>
                 </>
               ) : kycStatus === "Approved" ? (
@@ -300,7 +300,7 @@ export default function OwnerKycPage() {
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               {/* Left: Text fields */}
               <div className="lg:col-span-7 space-y-5">
-                <h3 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-3">📝 Thông tin cơ bản</h3>
+                <h3 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-3"> Thông tin cơ bản</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -365,9 +365,9 @@ export default function OwnerKycPage() {
               {/* Right: File uploads */}
               <div className="lg:col-span-5 space-y-5">
                 <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
-                  <h3 className="text-base font-bold text-blue-800 border-b border-blue-200/60 pb-3 mb-4">🖼️ Tải lại ảnh xác thực</h3>
+                  <h3 className="text-base font-bold text-blue-800 border-b border-blue-200/60 pb-3 mb-4">️ Tải lại ảnh xác thực</h3>
                   <p className="text-xs text-blue-600 mb-4 bg-blue-100 rounded-lg px-3 py-2 font-medium">
-                    ⚠️ Phải tải lại tất cả 3 ảnh. Không được bỏ trống.
+                    ️ Phải tải lại tất cả 3 ảnh. Không được bỏ trống.
                   </p>
                   <div className="space-y-4">
                     <div>
@@ -410,7 +410,7 @@ export default function OwnerKycPage() {
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         Đang gửi...
                       </>
-                    ) : "🔄 Gửi yêu cầu cập nhật"}
+                    ) : " Gửi yêu cầu cập nhật"}
                   </button>
                 </div>
               </div>

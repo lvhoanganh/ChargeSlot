@@ -219,7 +219,7 @@ export default function ChargingActive() {
   const progress = totalDuration > 0 ? Math.min(100, (elapsed / totalDuration) * 100) : 0;
   const isTimeUp = remaining <= 0;
 
-  // ── Đang chờ đến giờ bắt đầu ──
+  //  Đang chờ đến giờ bắt đầu 
   const isWaiting = bookingStartMs != null && waitRemaining > 0;
 
   if (isWaiting) {
@@ -251,7 +251,7 @@ export default function ChargingActive() {
                       d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <p className="text-white/80 text-sm mb-1">⏳ Đang chờ đến giờ sạc...</p>
+                <p className="text-white/80 text-sm mb-1"> Đang chờ đến giờ sạc...</p>
                 <p className="text-5xl font-bold text-white font-mono tracking-wider mb-2">
                   {wH}:{wM}:{wS}
                 </p>
@@ -297,7 +297,7 @@ export default function ChargingActive() {
     );
   }
 
-  // ── Đang sạc bình thường ──
+  //  Đang sạc bình thường 
   return (
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
       <div className="max-w-md mx-auto">
@@ -317,7 +317,7 @@ export default function ChargingActive() {
                 </div>
               )}
               <p className="text-white/80 text-sm mb-1">
-                {isTimeUp ? "⏰ Hết thời gian sạc!" : "⚡ Đang sạc..."}
+                {isTimeUp ? " Hết thời gian sạc!" : " Đang sạc..."}
               </p>
               <p className="text-5xl font-bold text-white font-mono tracking-wider mb-2">
                 {formatDuration(remaining)}
@@ -348,8 +348,8 @@ export default function ChargingActive() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <StatCard icon="🏷️" label="Cổng sạc" value={sessionData.slotName || `Slot ${sessionData.slotId}`} />
-          <StatCard icon="🏢" label="Trạm" value={sessionData.stationName || "—"} />
+          <StatCard icon="️" label="Cổng sạc" value={sessionData.slotName || `Slot ${sessionData.slotId}`} />
+          <StatCard icon="" label="Trạm" value={sessionData.stationName || "—"} />
         </div>
 
         {error && (
@@ -362,7 +362,7 @@ export default function ChargingActive() {
         {earlyEndRequested ? (
           <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
             <p className="text-sm font-semibold text-amber-700">
-              {autoCompleting ? "⏳ Đang hoàn tất phiên sạc..." : "⏰ Hết thời gian sạc"}
+              {autoCompleting ? " Đang hoàn tất phiên sạc..." : " Hết thời gian sạc"}
             </p>
             <p className="text-xs text-amber-600 mt-1">
               {autoCompleting
@@ -378,7 +378,7 @@ export default function ChargingActive() {
           >
             {requestingEarlyEnd ? (
               <div className="w-4 h-4 border-2 border-amber-400 border-t-amber-700 rounded-full animate-spin" />
-            ) : "⏹️"}
+            ) : "️"}
             {requestingEarlyEnd ? "Đang gửi..." : "Kết thúc sớm"}
           </button>
         )}
@@ -386,7 +386,7 @@ export default function ChargingActive() {
         {sessionData.bookingStatus === "CompletedPendingInvoice" && !autoCompleting ? (
           <div>
             <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
-              <p className="text-sm font-semibold text-amber-700">🧾 Phiên sạc đã kết thúc!</p>
+              <p className="text-sm font-semibold text-amber-700"> Phiên sạc đã kết thúc!</p>
               <p className="text-xs text-amber-600 mt-0.5">Vui lòng kiểm tra và xác nhận hóa đơn...</p>
             </div>
             <div className="w-full h-14 bg-amber-100 rounded-xl flex items-center justify-center gap-2">

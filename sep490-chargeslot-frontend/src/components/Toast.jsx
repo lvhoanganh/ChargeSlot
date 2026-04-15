@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 
-/* ───── global event bus ───── */
+/*  global event bus  */
 const listeners = new Set();
 function emit(toast) {
   listeners.forEach((fn) => fn(toast));
@@ -22,7 +22,7 @@ showToast.error = (msg, ms) => showToast(msg, "error", ms ?? 4000);
 showToast.info = (msg, ms) => showToast(msg, "info", ms);
 showToast.warning = (msg, ms) => showToast(msg, "warning", ms);
 
-/* ───── icons ───── */
+/*  icons  */
 const icons = {
   success: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -59,7 +59,7 @@ const colors = {
   info: { bg: "#3b82f6", ring: "#2563eb" },
 };
 
-/* ───── single toast item ───── */
+/*  single toast item  */
 function ToastItem({ toast, onRemove }) {
   const [exiting, setExiting] = useState(false);
 
@@ -128,7 +128,7 @@ function ToastItem({ toast, onRemove }) {
   );
 }
 
-/* ───── container (portal) ───── */
+/*  container (portal)  */
 export function ToastContainer() {
   const [toasts, setToasts] = useState([]);
 

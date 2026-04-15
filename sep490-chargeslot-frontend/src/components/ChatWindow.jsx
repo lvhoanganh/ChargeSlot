@@ -103,7 +103,7 @@ export default function ChatWindow({ conversationId, bookingId, messages = [], o
       }}>
         {messages.length === 0 && (
           <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>💬</div>
+            <div style={{ fontSize: 36, marginBottom: 8 }}></div>
             <p style={{ fontSize: 14 }}>Chưa có tin nhắn. Hãy gửi tin nhắn đầu tiên!</p>
           </div>
         )}
@@ -136,7 +136,7 @@ export default function ChatWindow({ conversationId, bookingId, messages = [], o
                   color: isMine ? "rgba(255,255,255,0.8)" : "#94a3b8",
                 }}>
                   {formatTimeVN(msg.createdAt)}
-                  {isMine && msg.isRead && " ✓✓"}
+                  {isMine && msg.isRead && " "}
                 </div>
               </div>
             </div>

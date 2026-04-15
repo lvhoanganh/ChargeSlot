@@ -96,7 +96,7 @@ export default function SubmitDispute() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>⚡</div>
+        <div style={{ fontSize: 40 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải thông tin booking...</p>
       </div>
     );
@@ -105,7 +105,7 @@ export default function SubmitDispute() {
   if (!booking) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 48 }}>📋</div>
+        <div style={{ fontSize: 48 }}></div>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Booking không tồn tại</h2>
         <button onClick={() => navigate("/driver/my-bookings")} style={btnStyle}>← Danh sách booking</button>
       </div>
@@ -115,7 +115,7 @@ export default function SubmitDispute() {
   if (success) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 64, marginBottom: 16 }}>✅</div>
+        <div style={{ fontSize: 64, marginBottom: 16 }}></div>
         <h2 style={{ fontSize: 22, fontWeight: 700, color: "#16a34a", marginBottom: 8 }}>Gửi khiếu nại thành công!</h2>
         <p style={{ color: "#6b7280" }}>Đang chuyển đến trang chi tiết...</p>
       </div>
@@ -136,7 +136,7 @@ export default function SubmitDispute() {
         {/* Header */}
         <div style={{ background: "linear-gradient(135deg, #dc2626, #b91c1c)", borderRadius: 20, padding: "32px 24px", marginBottom: 24, textAlign: "center" }}>
           <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 28 }}>
-            ⚠️
+            ️
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#fff", margin: 0 }}>Gửi khiếu nại</h1>
           <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, marginTop: 4 }}>Booking #{bookingId} — {booking.stationName}</p>
@@ -202,7 +202,7 @@ export default function SubmitDispute() {
                 if (dt?.files?.length) handleFilesSelected({ target: { files: dt.files } });
               }}
             >
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📁</div>
+              <div style={{ fontSize: 32, marginBottom: 8 }}></div>
               <p style={{ fontSize: 14, fontWeight: 600, color: "#374151", margin: 0 }}>Nhấn để chọn file hoặc kéo thả vào đây</p>
               <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>Hỗ trợ ảnh, video — tối đa 5MB/file</p>
             </div>
@@ -216,7 +216,7 @@ export default function SubmitDispute() {
                       <img src={ev.preview} alt={ev.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 11, color: "#6b7280", padding: 4, textAlign: "center" }}>
-                        <span style={{ fontSize: 22 }}>{ev.fileType === "video" ? "🎬" : "📄"}</span>
+                        <span style={{ fontSize: 22 }}>{ev.fileType === "video" ? "" : ""}</span>
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{ev.name}</span>
                       </div>
                     )}
@@ -229,7 +229,7 @@ export default function SubmitDispute() {
                         cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1,
                       }}
                     >
-                      ✕
+                      
                     </button>
                   </div>
                 ))}
@@ -240,7 +240,7 @@ export default function SubmitDispute() {
           {/* Error */}
           {error && (
             <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
-              <p style={{ fontSize: 14, color: "#dc2626", margin: 0 }}>❌ {error}</p>
+              <p style={{ fontSize: 14, color: "#dc2626", margin: 0 }}> {error}</p>
             </div>
           )}
 
@@ -255,7 +255,7 @@ export default function SubmitDispute() {
               boxShadow: "0 4px 14px rgba(220,38,38,0.3)", transition: "all 0.2s",
             }}
           >
-            {submitting ? "Đang gửi..." : "📤 Gửi khiếu nại"}
+            {submitting ? "Đang gửi..." : " Gửi khiếu nại"}
           </button>
         </form>
       </div>

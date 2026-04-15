@@ -46,7 +46,7 @@ export default function OwnerFooter() {
 
         <div className="cs-footer__bottom">
           <p className="cs-footer__copyright">
-            © {currentYear} ChargeSlot. Tất cả các quyền được bảo lưu.
+             {currentYear} ChargeSlot. Tất cả các quyền được bảo lưu.
           </p>
         </div>
       </div>

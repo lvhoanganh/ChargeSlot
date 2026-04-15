@@ -247,7 +247,7 @@ export default function BookingForm() {
       const earliestRounded = new Date(Math.ceil(earliestMs / (30 * 60000)) * 30 * 60000);
       const hh = String(earliestRounded.getHours()).padStart(2, "0");
       const mm = String(earliestRounded.getMinutes()).padStart(2, "0");
-      return `⏰ Phải đặt trước ít nhất ${leadMinutes} phút. Sớm nhất có thể chọn: ${hh}:${mm}`;
+      return ` Phải đặt trước ít nhất ${leadMinutes} phút. Sớm nhất có thể chọn: ${hh}:${mm}`;
     }
     return "";
   })();
@@ -279,7 +279,7 @@ export default function BookingForm() {
       if (opStart === 0 && opEnd === 0) { opEnd = 24 * 60; }
       else if (opEnd <= opStart) { opEnd += 24 * 60; }
       if (bookStartMin < opStart || bookStartMin >= opEnd) {
-        return `⚠️ Giờ bắt đầu phải trong khung hoạt động ${fmtMin(opStart)} – ${fmtMin(opEnd > 24 * 60 ? opEnd - 24 * 60 : opEnd)} của trạm`;
+        return `️ Giờ bắt đầu phải trong khung hoạt động ${fmtMin(opStart)} – ${fmtMin(opEnd > 24 * 60 ? opEnd - 24 * 60 : opEnd)} của trạm`;
       }
     }
 
@@ -310,12 +310,12 @@ export default function BookingForm() {
       })();
 
       if (inOpHours || !opHours) {
-        return `⚠️ Trạm chưa thiết lập giá cho khung giờ này (giá chỉ có từ ${fmtMin(minTier)} – ${fmtMin(maxTier)})`;
+        return `️ Trạm chưa thiết lập giá cho khung giờ này (giá chỉ có từ ${fmtMin(minTier)} – ${fmtMin(maxTier)})`;
       }
     }
 
     if (bookEndMin > maxTier && maxTier !== 0) {
-      return `⚠️ Giờ kết thúc (${fmtMin(bookEndMin > 24 * 60 ? bookEndMin - 24 * 60 : bookEndMin)}) vượt quá khung giá (${fmtMin(maxTier)}). Giảm thời lượng!`;
+      return `️ Giờ kết thúc (${fmtMin(bookEndMin > 24 * 60 ? bookEndMin - 24 * 60 : bookEndMin)}) vượt quá khung giá (${fmtMin(maxTier)}). Giảm thời lượng!`;
     }
     return "";
   })();
@@ -349,14 +349,14 @@ export default function BookingForm() {
     if (!startTime) return setApiError("Vui lòng chọn thời gian bắt đầu");
 
     // BE rule: DurationHours >= 0.5 và ≤ 24
-    if (duration < 0.5) return setApiError("⚠️ Thời lượng tối thiểu là 30 phút");
-    if (duration > 24) return setApiError("⚠️ Tối đa 24 giờ mỗi lần đặt (backend giới hạn)");
+    if (duration < 0.5) return setApiError("️ Thời lượng tối thiểu là 30 phút");
+    if (duration > 24) return setApiError("️ Tối đa 24 giờ mỗi lần đặt (backend giới hạn)");
 
     // BE rule: StartTime phải cách hiện tại ≥ leadMinutes (đọc từ system config)
     const startVN = new Date(`${selectedDate}T${startHHMM}:00+07:00`);
     const nowVN = new Date();
     const diffMinutes = (startVN - nowVN) / 60000;
-    if (diffMinutes < leadMinutes) return setApiError(`⚠️ Giờ bắt đầu phải cách hiện tại ít nhất ${leadMinutes} phút`);
+    if (diffMinutes < leadMinutes) return setApiError(`️ Giờ bắt đầu phải cách hiện tại ít nhất ${leadMinutes} phút`);
 
 
     const startObj = new Date(startTime);
@@ -404,9 +404,9 @@ export default function BookingForm() {
 
     const dayOfWeek = startObj.getDay();
 
-    // ── Kiểm tra ngày không hoạt động (owner đã block cụ thể) ──
+    //  Kiểm tra ngày không hoạt động (owner đã block cụ thể) 
     if (unavailableDates.includes(selectedDate)) {
-      return setApiError(`🚫 Trạm sạc không hoạt động vào ngày ${selectedDate.split("-").reverse().join("/")}. Vui lòng chọn ngày khác!`);
+      return setApiError(` Trạm sạc không hoạt động vào ngày ${selectedDate.split("-").reverse().join("/")}. Vui lòng chọn ngày khác!`);
     }
 
     const opHours = station.operatingHours?.find(h => h.dayOfWeek === dayOfWeek);
@@ -479,7 +479,7 @@ export default function BookingForm() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40, marginBottom: 8 }}>⚡</div>
+        <div style={{ fontSize: 40, marginBottom: 8 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải thông tin trạm sạc...</p>
       </div>
     );
@@ -488,7 +488,7 @@ export default function BookingForm() {
   if (!station) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 48, marginBottom: 8 }}>🔌</div>
+        <div style={{ fontSize: 48, marginBottom: 8 }}></div>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Không tìm thấy trạm sạc</h2>
         <button onClick={() => navigate("/driver/map")} style={btnBack}>← Quay lại bản đồ</button>
       </div>
@@ -589,7 +589,7 @@ export default function BookingForm() {
             Quay lại
           </button>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: "#1e293b", margin: 0 }}>Đặt lịch sạc</h1>
-          <p style={{ fontSize: 14, color: "#64748b", marginTop: 4 }}>📍 {station.name} — {station.address}</p>
+          <p style={{ fontSize: 14, color: "#64748b", marginTop: 4 }}> {station.name} — {station.address}</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -669,7 +669,7 @@ export default function BookingForm() {
                         )}
                         <div style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{slot.slotName}</div>
                         <div style={{ fontSize: 11, color: statusColor, marginTop: 2, fontWeight: 600 }}>
-                          {isEffectivelyOccupied ? "⚡ " : isReserved ? "🔒 " : ""}{statusLabel}
+                          {isEffectivelyOccupied ? " " : isReserved ? " " : ""}{statusLabel}
                         </div>
                       </button>
                     );
@@ -683,7 +683,7 @@ export default function BookingForm() {
                 if (tiers.length === 0) return null;
                 return (
                   <div style={{ background: "#fffbeb", borderRadius: 16, padding: "14px 18px", border: "1px solid #fde68a" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 8 }}>⏰ Giá theo khung giờ — {station.name}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 8 }}> Giá theo khung giờ — {station.name}</div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 6 }}>
                       {tiers.map((tier, idx) => (
                         <div key={idx} style={{ fontSize: 12, color: "#78350f", display: "flex", justifyContent: "space-between", background: "#fff8e1", borderRadius: 8, padding: "5px 10px" }}>
@@ -701,7 +701,7 @@ export default function BookingForm() {
                 bookedRanges.length > 0 ? (
                   <div style={{ background: "#fef3c7", borderRadius: 16, padding: "14px 18px", border: "1px solid #fde68a" }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                      🔒 Khung giờ đã được đặt ngày {selectedDate ? selectedDate.split("-").reverse().join("/") : "hôm nay"} — vui lòng chọn giờ khác
+                       Khung giờ đã được đặt ngày {selectedDate ? selectedDate.split("-").reverse().join("/") : "hôm nay"} — vui lòng chọn giờ khác
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                       {bookedRanges.map((r, idx) => {
@@ -730,7 +730,7 @@ export default function BookingForm() {
                                         r.status === "Completed" ? "Hoàn thành" : r.status;
                         return (
                           <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderRadius: 8, padding: "7px 12px", border: "1px solid #fde68a" }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>🔴 {fmtT(start)} – {fmtT(end)}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}> {fmtT(start)} – {fmtT(end)}</span>
                             <span style={{ fontSize: 11, color: "#b45309", background: "#fef9c3", padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>{statusLabel}</span>
                           </div>
                         );
@@ -739,7 +739,7 @@ export default function BookingForm() {
                   </div>
                 ) : (
                   <div style={{ background: "#f0fdf4", borderRadius: 14, padding: "10px 14px", border: "1px solid #bbf7d0", fontSize: 12, color: "#166534", fontWeight: 600 }}>
-                    📅 Chưa thấy lịch đặt ngày {selectedDate ? selectedDate.split("-").reverse().join("/") : "hôm nay"} — kiểm tra kỹ giờ trước khi đặt.
+                     Chưa thấy lịch đặt ngày {selectedDate ? selectedDate.split("-").reverse().join("/") : "hôm nay"} — kiểm tra kỹ giờ trước khi đặt.
                   </div>
                 )
               )}
@@ -775,7 +775,7 @@ export default function BookingForm() {
                           transition: "all 0.15s",
                         }}>
                         <div style={{ fontSize: 10, fontWeight: 600, color: isBlocked ? "#ef4444" : isSel ? "#ea580c" : "#94a3b8" }}>
-                          {isBlocked ? "🚫" : label}
+                          {isBlocked ? "" : label}
                         </div>
                         <div style={{ fontSize: 15, fontWeight: 800 }}>{dd2}/{mm}</div>
                       </button>
@@ -872,7 +872,7 @@ export default function BookingForm() {
                           background: "rgba(239,68,68,0.7)", borderRadius: 4,
                           display: "flex", alignItems: "center", justifyContent: "center",
                         }}>
-                          <span style={{ fontSize: 8, color: "#fff", fontWeight: 700 }}>🔒</span>
+                          <span style={{ fontSize: 8, color: "#fff", fontWeight: 700 }}></span>
                         </div>
                       );
                     })}
@@ -918,12 +918,12 @@ export default function BookingForm() {
 
                 {duration >= maxAvailDuration && maxAvailDuration < 24 && (
                   <div style={{ marginTop: 10, fontSize: 12, color: "#d97706", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-                    <span>⏳</span> Bạn đã đạt mốc thời lượng sạc giới hạn (do trạm đóng cửa hoặc có lịch đặt tiếp theo).
+                    <span></span> Bạn đã đạt mốc thời lượng sạc giới hạn (do trạm đóng cửa hoặc có lịch đặt tiếp theo).
                   </div>
                 )}
                 {startHHMM && hasConflict && (
                   <div style={{ marginTop: 12, fontSize: 13, color: "#ef4444", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-                    <span>🔒</span> Giờ bắt đầu hoặc thời lượng sạc trùng vào lịch đã đặt. Vui lòng tăng thời lượng hoặc chọn lúc khác!
+                    <span></span> Giờ bắt đầu hoặc thời lượng sạc trùng vào lịch đã đặt. Vui lòng tăng thời lượng hoặc chọn lúc khác!
                   </div>
                 )}
               </div>
@@ -990,7 +990,7 @@ export default function BookingForm() {
               {/* Loyalty Points */}
               {loyaltyInfo && loyaltyInfo.currentPoints > 0 && selectedSlot && calculateTotalAmount() > 0 && (
                 <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 24 }}>
-                  <label style={labelStyle}>🏆 Dùng điểm tích lũy ({loyaltyInfo.currentPoints.toLocaleString("vi-VN")} điểm khả dụng)</label>
+                  <label style={labelStyle}> Dùng điểm tích lũy ({loyaltyInfo.currentPoints.toLocaleString("vi-VN")} điểm khả dụng)</label>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <input type="range" min={0} max={maxPoints} step={100} value={pointsToUse}
                       onChange={e => setPointsToUse(Number(e.target.value))}
@@ -1008,7 +1008,7 @@ export default function BookingForm() {
               <div style={{ position: "sticky", top: 24 }}>
                 {selectedSlot && (
                   <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.08)", padding: 24, marginBottom: 16 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 12 }}>🧾 Tóm tắt đặt lịch</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", marginBottom: 12 }}> Tóm tắt đặt lịch</div>
                     <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                       <span>Trạm sạc</span>
                       <span style={{ fontWeight: 600, color: "#1e293b", maxWidth: 160, textAlign: "right" }}>{station.name}</span>
@@ -1042,7 +1042,7 @@ export default function BookingForm() {
                     )}
                     {pointsToUse > 0 && (
                       <div style={{ fontSize: 13, color: "#64748b", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                        <span>🏆 Giảm từ điểm</span>
+                        <span> Giảm từ điểm</span>
                         <span style={{ fontWeight: 600, color: "#7c3aed" }}>−{pointsToUse.toLocaleString("vi-VN")}đ</span>
                       </div>
                     )}
@@ -1055,7 +1055,7 @@ export default function BookingForm() {
 
                 {hasNoPriceForTime && (
                   <div style={{ background: "#fffbeb", color: "#92400e", padding: "12px 16px", borderRadius: 14, fontSize: 13, marginBottom: 12, border: "1px solid #fde68a", display: "flex", alignItems: "flex-start", gap: 8 }}>
-                    <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+                    <span style={{ fontSize: 18, flexShrink: 0 }}>️</span>
                     <div>
                       <div style={{ fontWeight: 700, marginBottom: 2 }}>
                         {(station?.pricingTiers || []).filter(t => t.isActive !== false).length === 0
@@ -1073,7 +1073,7 @@ export default function BookingForm() {
 
                 {apiError && (
                   <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px 14px", borderRadius: 14, fontSize: 13, marginBottom: 12, border: "1px solid #fecaca" }}>
-                    ⚠️ {apiError}
+                    ️ {apiError}
                   </div>
                 )}
 
@@ -1090,7 +1090,7 @@ export default function BookingForm() {
                       ? "none" : "0 4px 16px rgba(249,115,22,0.4)",
                     transition: "all 0.2s",
                   }}>
-                  {submitting ? "Đang xử lý..." : "⚡ Đặt lịch sạc"}
+                  {submitting ? "Đang xử lý..." : " Đặt lịch sạc"}
                 </button>
               </div>
 

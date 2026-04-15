@@ -1,5 +1,4 @@
 import { useSearchParams, Link } from "react-router-dom";
-import { CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
@@ -21,7 +20,7 @@ export default function WalletTopUpResult() {
     <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
       {success ? (
         <div className="animate-in fade-in zoom-in duration-500">
-          <CheckCircle className="w-24 h-24 text-green-500 mx-auto mb-6" />
+          
           <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-4">
             Nạp Tiền Thành Công!
           </h1>
@@ -31,7 +30,7 @@ export default function WalletTopUpResult() {
         </div>
       ) : (
         <div className="animate-in fade-in zoom-in duration-500">
-          <XCircle className="w-24 h-24 text-red-500 mx-auto mb-6" />
+          
           <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-4">
             Nạp Tiền Thất Bại
           </h1>

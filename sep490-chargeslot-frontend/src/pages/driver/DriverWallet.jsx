@@ -8,16 +8,16 @@ import { showConfirm } from "@/components/ConfirmDialog";
 import Pagination from "@/components/Pagination";
 
 const txTypeLabels = {
-  TopUp: { label: "Nạp tiền", icon: "💰", color: "#22c55e" },
-  BookingPayment: { label: "Thanh toán booking", icon: "💳", color: "#ef4444" },
+  TopUp: { label: "Nạp tiền", icon: "", color: "#22c55e" },
+  BookingPayment: { label: "Thanh toán booking", icon: "", color: "#ef4444" },
   BookingCancel: { label: "Hoàn tiền hủy booking", icon: "↩️", color: "#3b82f6" },
-  Payment: { label: "Thanh toán", icon: "💳", color: "#ef4444" },
+  Payment: { label: "Thanh toán", icon: "", color: "#ef4444" },
   Refund: { label: "Hoàn tiền", icon: "↩️", color: "#3b82f6" },
-  Withdraw: { label: "Rút tiền", icon: "🏦", color: "#f59e0b" },
-  WithdrawRequest: { label: "Tạm giữ lệnh Rút tiền", icon: "⏳", color: "#f59e0b" },
+  Withdraw: { label: "Rút tiền", icon: "", color: "#f59e0b" },
+  WithdrawRequest: { label: "Tạm giữ lệnh Rút tiền", icon: "", color: "#f59e0b" },
   WithdrawRejected: { label: "Hoàn tiền huỷ lệnh rút", icon: "↩️", color: "#3b82f6" },
-  Earning: { label: "Thu nhập", icon: "📈", color: "#22c55e" },
-  OwnerPayout: { label: "Nhận thanh toán", icon: "💰", color: "#22c55e" },
+  Earning: { label: "Thu nhập", icon: "", color: "#22c55e" },
+  OwnerPayout: { label: "Nhận thanh toán", icon: "", color: "#22c55e" },
 };
 
 const withdrawStatusLabels = {
@@ -151,7 +151,7 @@ export default function DriverWallet() {
         .then((data) => {
           if (data && data.availableBalance > initialBalance) {
             setSepayOpen(false);
-            showToast.success("🎉 Nạp tiền thành công!");
+            showToast.success(" Nạp tiền thành công!");
             setShowTopUp(false);
             setTopUpAmount("");
             fetchAll();
@@ -226,7 +226,7 @@ export default function DriverWallet() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>💰</div>
+        <div style={{ fontSize: 40 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải ví...</p>
       </div>
     );
@@ -250,13 +250,13 @@ export default function DriverWallet() {
           </div>
           {frozen > 0 && (
             <div style={{ fontSize: 13, opacity: 0.75, marginTop: 6 }}>
-              🔒 Đang giữ: {frozen.toLocaleString("vi-VN")}đ
+               Đang giữ: {frozen.toLocaleString("vi-VN")}đ
             </div>
           )}
           <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
-            <WalletBtn onClick={() => { setShowTopUp(true); setShowWithdraw(false); }}>💰 Nạp tiền</WalletBtn>
-            <WalletBtn onClick={() => { setShowWithdraw(true); setShowTopUp(false); }}>🏦 Rút tiền</WalletBtn>
-            <WalletBtn onClick={() => navigate("/driver/my-bookings")}>📋 Booking</WalletBtn>
+            <WalletBtn onClick={() => { setShowTopUp(true); setShowWithdraw(false); }}> Nạp tiền</WalletBtn>
+            <WalletBtn onClick={() => { setShowWithdraw(true); setShowTopUp(false); }}> Rút tiền</WalletBtn>
+            <WalletBtn onClick={() => navigate("/driver/my-bookings")}> Booking</WalletBtn>
           </div>
         </div>
 
@@ -267,7 +267,7 @@ export default function DriverWallet() {
             boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 20,
             border: "2px solid #f97316",
           }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}>💰 Nạp tiền vào ví</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}> Nạp tiền vào ví</h3>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
               {TOP_UP_AMOUNTS.map(amt => (
                 <button
@@ -313,7 +313,7 @@ export default function DriverWallet() {
             boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 20,
             border: "2px solid #3b82f6",
           }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}>🏦 Rút tiền</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}> Rút tiền</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <FormInput label="Số tiền rút" type="number" placeholder="VD: 100000"
                 value={withdrawForm.amount} onChange={v => setWithdrawForm(f => ({ ...f, amount: v }))} />
@@ -390,7 +390,7 @@ export default function DriverWallet() {
               </div>
             </div>
             {transactions.length === 0 ? (
-              <EmptyState icon="📋" text="Chưa có giao dịch nào" />
+              <EmptyState icon="" text="Chưa có giao dịch nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {transactions.filter(tx => {
@@ -410,7 +410,7 @@ export default function DriverWallet() {
                   return true;
                 }).map((tx) => {
                   const txType = tx.type || tx.transactionType || "";
-                  const typeInfo = txTypeLabels[txType] || { label: txType, icon: "📄", color: "#6b7280" };
+                  const typeInfo = txTypeLabels[txType] || { label: txType, icon: "", color: "#6b7280" };
                   const amount = tx.amount || 0;
                   const direction = (tx.direction || "").toLowerCase();
                   const isIncome = direction === "credit";
@@ -468,7 +468,7 @@ export default function DriverWallet() {
             </h2>
             
             {withdrawRequests.length === 0 ? (
-              <EmptyState icon="🏦" text="Chưa có yêu cầu rút tiền nào" />
+              <EmptyState icon="" text="Chưa có yêu cầu rút tiền nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {withdrawRequests.map((wr) => {
@@ -489,17 +489,17 @@ export default function DriverWallet() {
                         }}>{st.label}</span>
                       </div>
                       <div style={{ fontSize: 13, color: "#64748b", display: "flex", flexDirection: "column", gap: 2 }}>
-                        <div>🏦 {wr.bankName} · {wr.bankAccountNumber}</div>
-                        <div>👤 {wr.bankAccountHolder}</div>
-                        {wr.userNote && <div style={{ marginTop: 4 }}>📝 Ghi chú: {wr.userNote}</div>}
-                        {wr.adminNote && <div style={{ color: "#dc2626", marginTop: 4 }}>⚠️ Admin: {wr.adminNote}</div>}
-                        {wr.issueReason && <div style={{ color: "#ef4444", marginTop: 4, fontWeight: 600 }}>🔴 Báo lỗi: {wr.issueReason}</div>}
+                        <div> {wr.bankName} · {wr.bankAccountNumber}</div>
+                        <div> {wr.bankAccountHolder}</div>
+                        {wr.userNote && <div style={{ marginTop: 4 }}> Ghi chú: {wr.userNote}</div>}
+                        {wr.adminNote && <div style={{ color: "#dc2626", marginTop: 4 }}>️ Admin: {wr.adminNote}</div>}
+                        {wr.issueReason && <div style={{ color: "#ef4444", marginTop: 4, fontWeight: 600 }}> Báo lỗi: {wr.issueReason}</div>}
                         <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 6 }}>{toLocal(wr.requestedAt)}</div>
                       </div>
 
                       {wr.transferReceiptUrl && (
                         <div style={{ marginTop: 12, padding: 12, background: "#f8fafc", borderRadius: 12 }}>
-                          <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>🧾 Biên lai giao dịch (từ Kế toán):</p>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}> Biên lai giao dịch (từ Kế toán):</p>
                           <a href={wr.transferReceiptUrl} target="_blank" rel="noreferrer">
                             <img src={wr.transferReceiptUrl} alt="Biên lai" style={{ width: "100%", maxWidth: 300, objectFit: "contain", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff" }} />
                           </a>
@@ -528,10 +528,10 @@ export default function DriverWallet() {
                           ) : (
                             <div style={{ display: "flex", gap: 10 }}>
                               <button onClick={() => handleConfirmWithdraw(wr.id)} style={{ flex: 1, padding: "10px", background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff", borderRadius: 10, border: "none", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 10px rgba(34,197,94,0.2)" }}>
-                                🟢 Đã nhận tiền
+                                 Đã nhận tiền
                               </button>
                               <button onClick={() => setIssueForm({ id: wr.id, reason: "" })} style={{ flex: 1, padding: "10px", background: "#fff", color: "#ef4444", borderRadius: 10, border: "1.5px solid #fca5a5", fontWeight: 700, cursor: "pointer" }}>
-                                🔴 Báo lỗi
+                                 Báo lỗi
                               </button>
                             </div>
                           )}
@@ -587,7 +587,7 @@ export default function DriverWallet() {
             <div style={{ padding: 24 }}>
               <div style={{ textAlign: "center", marginBottom: 24 }}>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>
-                  {txTypeLabels[selectedTx.type || selectedTx.transactionType]?.icon || "📄"}
+                  {txTypeLabels[selectedTx.type || selectedTx.transactionType]?.icon || ""}
                 </div>
                 <div style={{ fontSize: 24, fontWeight: 800, color: (selectedTx.direction || "").toLowerCase() === "credit" ? "#22c55e" : "#ef4444" }}>
                   {(selectedTx.direction || "").toLowerCase() === "credit" ? "+" : "−"}{Math.abs(selectedTx.amount || 0).toLocaleString("vi-VN")}đ

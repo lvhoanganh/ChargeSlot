@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { disputeApi } from "@/services/api";
 
 const STATUS_MAP = {
-  WaitingOwnerEvidence: { label: "Chờ Owner phản hồi", color: "#f97316", bg: "#fff7ed", icon: "⏳" },
-  PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "🔍" },
-  ResolvedRefund: { label: "Thắng — Hoàn tiền", color: "#16a34a", bg: "#f0fdf4", icon: "✅" },
-  ResolvedPayout: { label: "Thua — Thanh toán Owner", color: "#8b5cf6", bg: "#f5f3ff", icon: "💰" },
+  WaitingOwnerEvidence: { label: "Chờ Owner phản hồi", color: "#f97316", bg: "#fff7ed", icon: "" },
+  PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "" },
+  ResolvedRefund: { label: "Thắng — Hoàn tiền", color: "#16a34a", bg: "#f0fdf4", icon: "" },
+  ResolvedPayout: { label: "Thua — Thanh toán Owner", color: "#8b5cf6", bg: "#f5f3ff", icon: "" },
 };
 
 const toLocal = (dt) => {
@@ -75,7 +75,7 @@ export default function DriverDisputeList() {
             Quay lại
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <span style={{ fontSize: 40 }}>⚠️</span>
+            <span style={{ fontSize: 40 }}>️</span>
             <div>
               <h1 style={{ fontSize: 22, fontWeight: 800, color: "#fff", margin: 0 }}>Khiếu nại của tôi</h1>
               <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "4px 0 0" }}>
@@ -146,7 +146,7 @@ export default function DriverDisputeList() {
           </div>
         ) : error ? (
           <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "16px 20px", textAlign: "center" }}>
-            <p style={{ color: "#dc2626", fontSize: 14, margin: 0 }}>❌ {error}</p>
+            <p style={{ color: "#dc2626", fontSize: 14, margin: 0 }}> {error}</p>
             <button
               onClick={() => window.location.reload()}
               style={{ marginTop: 10, padding: "8px 16px", borderRadius: 8, border: "none", background: "#f97316", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: 13 }}
@@ -156,7 +156,7 @@ export default function DriverDisputeList() {
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ background: "#fff", borderRadius: 16, padding: "50px 24px", textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-            <div style={{ fontSize: 56, marginBottom: 12 }}>📋</div>
+            <div style={{ fontSize: 56, marginBottom: 12 }}></div>
             <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: "0 0 8px" }}>
               {filter === "all" ? "Chưa có khiếu nại nào" : "Không có khiếu nại nào"}
             </h3>
@@ -227,7 +227,7 @@ export default function DriverDisputeList() {
                       background: "#fef2f2", border: "1px solid #fecaca",
                       borderRadius: 8, display: "flex", alignItems: "center", gap: 6,
                     }}>
-                      <span style={{ fontSize: 14 }}>⚠️</span>
+                      <span style={{ fontSize: 14 }}>️</span>
                       <span style={{ fontSize: 12, color: "#dc2626", fontWeight: 600 }}>
                         {dispute.strikeStatus === "Warned" ? "Đã cảnh cáo tài khoản"
                           : dispute.strikeStatus === "Suspended" ? "Tài khoản bị đình chỉ"
