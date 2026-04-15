@@ -17,6 +17,7 @@ namespace ChargeSlot.Api.Services.Implementation
     {
         private readonly IChargingStationRepository _stationRepo;
         private readonly IOwnerRepository _ownerRepo;
+        private readonly IContractRepository _contractRepo;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IFileStorageService _fileStorageService;
         private readonly IStationPricingRepository _pricingRepo;
@@ -30,6 +31,7 @@ namespace ChargeSlot.Api.Services.Implementation
         public ChargingStationService(
             IChargingStationRepository stationRepo,
             IOwnerRepository ownerRepo,
+            IContractRepository contractRepo,
             UserManager<ApplicationUser> userManager,
             IFileStorageService fileStorageService,
             IStationPricingRepository pricingRepo,
@@ -42,6 +44,7 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             _stationRepo = stationRepo;
             _ownerRepo = ownerRepo;
+            _contractRepo = contractRepo;
             _userManager = userManager;
             _fileStorageService = fileStorageService;
             _pricingRepo = pricingRepo;
@@ -93,6 +96,12 @@ namespace ChargeSlot.Api.Services.Implementation
             if (ownerExists.KycStatus != KycStatus.Approved && ownerExists.KycStatus != KycStatus.PendingUpdate)
             {
                 throw new InvalidOperationException("Hồ sơ doanh nghiệp chưa được duyệt. Vui lòng xác thực danh tính (KYC) và chờ Admin kiểm duyệt trước khi tạo trạm sạc.");
+            }
+
+            var contract = await _contractRepo.GetByOwnerAsync(ownerUserId);
+            if (contract == null || contract.Status != ContractStatus.Signed)
+            {
+                throw new InvalidOperationException("Vốn pháp lý chưa đủ: Bạn cần Đọc và Ký hợp đồng hợp tác bằng chữ ký điện tử trước khi bắt đầu tạo hệ thống trạm sạc.");
             }
             var station = new ChargingStation
             {
@@ -185,6 +194,12 @@ namespace ChargeSlot.Api.Services.Implementation
             if (ownerExists.KycStatus != KycStatus.Approved && ownerExists.KycStatus != KycStatus.PendingUpdate)
             {
                 throw new InvalidOperationException("Hồ sơ doanh nghiệp chưa được duyệt. Vui lòng xác thực danh tính (KYC) và chờ Admin kiểm duyệt trước khi tạo trạm sạc.");
+            }
+
+            var contract = await _contractRepo.GetByOwnerAsync(ownerUserId);
+            if (contract == null || contract.Status != ContractStatus.Signed)
+            {
+                throw new InvalidOperationException("Vốn pháp lý chưa đủ: Bạn cần Đọc và Ký hợp đồng hợp tác bằng chữ ký điện tử trước khi bắt đầu tạo hệ thống trạm sạc.");
             }
 
             var station = new ChargingStation
