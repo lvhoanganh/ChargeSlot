@@ -1,4 +1,5 @@
 using ChargeSlot.Api.DTOs.Admin;
+using ChargeSlot.Api.DTOs;
 
 namespace ChargeSlot.Api.Services.Interfaces
 {

@@ -28,9 +28,8 @@ namespace ChargeSlot.Api.Controllers
             [FromQuery] int pageSize = 20)
         {
             var userId = GetUserId();
-            var items = await _notificationService.GetByUserAsync(userId, page, pageSize);
-            var total = await _notificationService.GetTotalCountAsync(userId);
-            return Ok(new { total, page, pageSize, items });
+            var result = await _notificationService.GetByUserAsync(userId, page, pageSize);
+            return Ok(result);
         }
 
         /// <summary>

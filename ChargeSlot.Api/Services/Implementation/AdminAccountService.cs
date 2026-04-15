@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.DTOs.Admin;
+using ChargeSlot.Api.DTOs;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using ChargeSlot.Api.Constants;

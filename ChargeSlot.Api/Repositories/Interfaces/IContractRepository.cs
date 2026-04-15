@@ -8,6 +8,7 @@ namespace ChargeSlot.Api.Repositories.Interfaces
         Task<Contract?> GetByOwnerAsync(int ownerUserId);
         Task<Contract?> GetByIdAsync(int id);
         Task<List<Contract>> GetAllAsync(ContractStatus? status = null);
+        Task<(List<Contract> Items, int TotalCount)> GetAllPagedAsync(ContractStatus? status, int page, int pageSize);
         Task<int> GetMaxIdAsync();
         Task AddAsync(Contract contract);
         void Update(Contract contract);

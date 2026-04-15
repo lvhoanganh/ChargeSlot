@@ -239,6 +239,7 @@ builder.Services.AddScoped<IAiInsightsService, GeminiInsightsService>();
 
 // Miscellaneous Refactored Services
 builder.Services.AddScoped<IBankAccountRepository, BankAccountRepository>();
+builder.Services.AddScoped<IBankAccountService, BankAccountService>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IFavoriteStationRepository, FavoriteStationRepository>();
 builder.Services.AddScoped<IFavoriteService, FavoriteService>();

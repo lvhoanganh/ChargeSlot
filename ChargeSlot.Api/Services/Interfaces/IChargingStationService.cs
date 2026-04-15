@@ -1,5 +1,6 @@
 using ChargeSlot.Api.DTOs.Station;
 using ChargeSlot.Api.DTOs.Admin;
+using ChargeSlot.Api.DTOs;
 
 namespace ChargeSlot.Api.Services.Interfaces
 {
@@ -8,6 +9,7 @@ namespace ChargeSlot.Api.Services.Interfaces
         // CRUD
         Task<ChargingStationDto?> GetByIdAsync(int id, int ownerUserId);
         Task<List<ChargingStationDto>> GetAllByOwnerAsync(int ownerUserId);
+        Task<PagedResultDto<ChargingStationDto>> GetAllByOwnerPagedAsync(int ownerUserId, int page, int pageSize);
         Task<ChargingStationDto> CreateAsync(int ownerUserId, CreateChargingStationDto dto);
         Task<ChargingStationDto> CreateFromFormAsync(int ownerUserId, CreateStationFormDto dto, HttpRequest request);
         Task<ChargingStationDto> UpdateFromFormAsync(int id, int ownerUserId, UpdateStationFormDto dto, HttpRequest request);
@@ -39,6 +41,7 @@ namespace ChargeSlot.Api.Services.Interfaces
         // Admin
         Task<PagedResultDto<ChargingStationDto>> GetAdminStationsAsync(string? status, string? search, string? ownerName, int page, int pageSize);
         Task<List<ChargingStationDto>> GetPendingStationsAsync();
+        Task<PagedResultDto<ChargingStationDto>> GetPendingStationsPagedAsync(int page, int pageSize);
         Task<ChargingStationDto?> GetStationDetailForAdminAsync(int id);
         Task ReviewStationAsync(int id, int adminUserId, ReviewStationDto dto);
         Task<string> ToggleBanStationAsync(int id, int adminUserId, string? reason);

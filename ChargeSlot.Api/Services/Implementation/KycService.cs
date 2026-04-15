@@ -14,14 +14,16 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFileStorageService _fileService;
         private readonly INotificationService _notificationService;
+        private readonly IContractService _contractService;
         private readonly ILogger<KycService> _logger;
 
-        public KycService(IOwnerRepository ownerRepo, IUnitOfWork unitOfWork, IFileStorageService fileService, INotificationService notificationService, ILogger<KycService> logger)
+        public KycService(IOwnerRepository ownerRepo, IUnitOfWork unitOfWork, IFileStorageService fileService, INotificationService notificationService, IContractService contractService, ILogger<KycService> logger)
         {
             _ownerRepo = ownerRepo;
             _unitOfWork = unitOfWork;
             _fileService = fileService;
             _notificationService = notificationService;
+            _contractService = contractService;
             _logger = logger;
         }
 
@@ -110,11 +112,35 @@ namespace ChargeSlot.Api.Services.Implementation
             return owners.Select(MapToDto).ToList();
         }
 
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<OwnerKycProfileDto>> GetPendingKycsPagedAsync(int page, int pageSize)
+        {
+            var result = await _ownerRepo.GetPendingKycPagedAsync(page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<OwnerKycProfileDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
+        }
+
         public async Task<List<OwnerKycProfileDto>> GetAllKycsAsync(string? status = null)
         {
             var owners = await _ownerRepo.GetAllKycsAsync(status);
 
             return owners.Select(MapToDto).ToList();
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<OwnerKycProfileDto>> GetAllKycsPagedAsync(string? status, int page, int pageSize)
+        {
+            var result = await _ownerRepo.GetAllKycsPagedAsync(status, page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<OwnerKycProfileDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
         }
 
         public async Task<OwnerKycProfileDto> ReviewKycAsync(int adminUserId, int targetOwnerUserId, ReviewKycDto dto)
@@ -133,6 +159,10 @@ namespace ChargeSlot.Api.Services.Implementation
                 owner.KycStatus = KycStatus.Approved;
                 owner.KycRejectReason = null;
                 ClearPrevSnapshot(owner);
+
+                // Tạo hợp đồng tự động (idempotent — nếu đã có Pending/Signed thì cập nhật PII hoặc bỏ qua)
+                // Lưu ý: CreateContractAsync KHÔNG gọi CompleteAsync bên trong
+                await _contractService.CreateContractAsync(targetOwnerUserId);
             }
             else
             {
@@ -171,7 +201,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 subject = isUpdate ? "Hồ sơ cập nhật đã được duyệt" : "Hồ sơ của bạn đã được duyệt";
                 content = isUpdate
                     ? "Thông tin KYC cập nhật của bạn đã được Admin phê duyệt."
-                    : "Chúc mừng, giờ đây bạn có thể đăng ký Trạm Sạc mới!";
+                    : "Chúc mừng! Hồ sơ KYC đã được duyệt. Hợp đồng hợp tác đã được tạo — vui lòng đọc và ký hợp đồng để bắt đầu hoạt động.";
             }
             else
             {

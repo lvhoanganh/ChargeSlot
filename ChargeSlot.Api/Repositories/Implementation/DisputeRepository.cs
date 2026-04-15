@@ -57,6 +57,21 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
+        public async Task<(List<Dispute> Items, int TotalCount)> GetPendingPagedAsync(int page, int pageSize)
+        {
+            var query = _db.Disputes
+                .Include(d => d.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(d => d.Booking).ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
+                .Include(d => d.Invoice)
+                .Include(d => d.CreatedByUser)
+                .Include(d => d.Evidences)
+                .Where(d => d.Status == DisputeStatus.WaitingOwnerEvidence || d.Status == DisputeStatus.PendingReview);
+
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderBy(d => d.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            return (items, totalCount);
+        }
+
         public async Task<int> GetDisputeCountByDriverInMonthAsync(int driverUserId, DateTime monthStart)
         {
             return await _db.Disputes
@@ -105,6 +120,26 @@ namespace ChargeSlot.Api.Repositories.Implementation
             return await query.OrderByDescending(d => d.CreatedAt).ToListAsync();
         }
 
+        public async Task<(List<Dispute> Items, int TotalCount)> GetAllPagedAsync(string? status, int page, int pageSize)
+        {
+            var query = _db.Disputes
+                .Include(d => d.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(d => d.Booking).ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
+                .Include(d => d.Invoice)
+                .Include(d => d.CreatedByUser)
+                .Include(d => d.Evidences).ThenInclude(e => e.UploadedByUser)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(status) && Enum.TryParse<DisputeStatus>(status, true, out var parsed))
+            {
+                query = query.Where(d => d.Status == parsed);
+            }
+
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(d => d.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            return (items, totalCount);
+        }
+
         public async Task<List<Dispute>> GetByDriverAsync(int driverUserId)
         {
             return await _db.Disputes
@@ -121,6 +156,21 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
+        public async Task<(List<Dispute> Items, int TotalCount)> GetByDriverPagedAsync(int driverUserId, int page, int pageSize)
+        {
+            var query = _db.Disputes
+                .Include(d => d.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(d => d.Booking).ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
+                .Include(d => d.Invoice)
+                .Include(d => d.CreatedByUser)
+                .Include(d => d.Evidences).ThenInclude(e => e.UploadedByUser)
+                .Where(d => d.CreatedByUserId == driverUserId);
+
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(d => d.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            return (items, totalCount);
+        }
+
         public async Task<List<Dispute>> GetByOwnerAsync(int ownerUserId)
         {
             return await _db.Disputes
@@ -135,6 +185,21 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Where(d => d.Booking.ChargingSlot.ChargingStation.OwnerUserId == ownerUserId)
                 .OrderByDescending(d => d.CreatedAt)
                 .ToListAsync();
+        }
+
+        public async Task<(List<Dispute> Items, int TotalCount)> GetByOwnerPagedAsync(int ownerUserId, int page, int pageSize)
+        {
+            var query = _db.Disputes
+                .Include(d => d.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(d => d.Booking).ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
+                .Include(d => d.Invoice)
+                .Include(d => d.CreatedByUser)
+                .Include(d => d.Evidences).ThenInclude(e => e.UploadedByUser)
+                .Where(d => d.Booking.ChargingSlot.ChargingStation.OwnerUserId == ownerUserId);
+
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(d => d.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            return (items, totalCount);
         }
 
         public void Add(Dispute dispute)

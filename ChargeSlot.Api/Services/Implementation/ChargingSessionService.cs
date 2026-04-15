@@ -782,27 +782,27 @@ namespace ChargeSlot.Api.Services.Implementation
             }
         }
 
-        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<ChargingSessionDto>> GetAdminAllSessionsAsync(ChargeSlot.Api.DTOs.Admin.Overview.SessionFilterDto filter)
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<ChargingSessionDto>> GetAdminAllSessionsAsync(ChargeSlot.Api.DTOs.Admin.Overview.SessionFilterDto filter)
         {
             var result = await _sessionRepo.GetAdminAllSessionsAsync(filter);
             
-            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<ChargingSessionDto>
+            return new ChargeSlot.Api.DTOs.PagedResultDto<ChargingSessionDto>
             {
                 Items = result.Items.Select(s => MapToDto(s, s.Booking)).ToList(),
-                TotalCount = result.TotalCount,
+                TotalItems = result.TotalCount,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };
         }
 
-        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<InvoiceDto>> GetAdminAllInvoicesAsync(ChargeSlot.Api.DTOs.Admin.Overview.InvoiceFilterDto filter)
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<InvoiceDto>> GetAdminAllInvoicesAsync(ChargeSlot.Api.DTOs.Admin.Overview.InvoiceFilterDto filter)
         {
             var result = await _invoiceRepo.GetAdminAllInvoicesAsync(filter);
             
-            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<InvoiceDto>
+            return new ChargeSlot.Api.DTOs.PagedResultDto<InvoiceDto>
             {
                 Items = result.Items.Select(MapToInvoiceDto).ToList(),
-                TotalCount = result.TotalCount,
+                TotalItems = result.TotalCount,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };

@@ -249,6 +249,38 @@ namespace ChargeSlot.Api.Services.Implementation
             }).ToList();
         }
 
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<ContractPreviewDto>> GetAllContractsPagedAsync(string? status, int page, int pageSize)
+        {
+            ContractStatus? parsed = null;
+            if (!string.IsNullOrEmpty(status) && Enum.TryParse<ContractStatus>(status, true, out var s))
+                parsed = s;
+
+            var result = await _contractRepo.GetAllPagedAsync(parsed, page, pageSize);
+
+            var items = result.Items.Select(c => new ContractPreviewDto
+            {
+                ContractId = c.Id,
+                ContractNumber = c.ContractNumber,
+                OwnerName = c.OwnerName,
+                OwnerUserId = c.OwnerUserId,
+                Status = c.Status.ToString(),
+                ContractHtml = "",
+                CreatedAt = c.CreatedAt,
+                SignedAt = c.SignedAt,
+                ExpiresAt = c.ExpiresAt,
+                ContractDurationMonths = c.ContractDurationMonths,
+                SignedPdfUrl = c.SignedPdfUrl
+            }).ToList();
+
+            return new ChargeSlot.Api.DTOs.PagedResultDto<ContractPreviewDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = items
+            };
+        }
+
         public async Task<byte[]?> DownloadContractPdfForAdminAsync(int ownerUserId)
         {
             var contract = await _contractRepo.GetByOwnerAsync(ownerUserId);

@@ -2,6 +2,7 @@ using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.DTOs.Slot;
 using ChargeSlot.Api.DTOs.Station;
 using ChargeSlot.Api.DTOs.Admin;
+using ChargeSlot.Api.DTOs;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Models.Identity;
@@ -67,6 +68,18 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             var stations = await _stationRepo.GetAllByOwnerAsync(ownerUserId);
             return stations.Select(MapToDto).ToList();
+        }
+
+        public async Task<PagedResultDto<ChargingStationDto>> GetAllByOwnerPagedAsync(int ownerUserId, int page, int pageSize)
+        {
+            var result = await _stationRepo.GetAllByOwnerPagedAsync(ownerUserId, page, pageSize);
+            return new PagedResultDto<ChargingStationDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
         }
 
         public async Task<ChargingStationDto> CreateAsync(int ownerUserId, CreateChargingStationDto dto)
@@ -874,6 +887,18 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             var stations = await _stationRepo.GetByApprovalStatusAsync(ApprovalStatus.PendingApproval);
             return stations.Select(MapToDto).ToList();
+        }
+
+        public async Task<PagedResultDto<ChargingStationDto>> GetPendingStationsPagedAsync(int page, int pageSize)
+        {
+            var result = await _stationRepo.GetByApprovalStatusPagedAsync(ApprovalStatus.PendingApproval, page, pageSize);
+            return new PagedResultDto<ChargingStationDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
         }
 
         public async Task<ChargingStationDto?> GetStationDetailForAdminAsync(int id)

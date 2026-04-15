@@ -593,11 +593,35 @@ namespace ChargeSlot.Api.Services.Implementation
             return disputes.Select(MapToDto).ToList();
         }
 
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>> GetPendingPagedAsync(int page, int pageSize)
+        {
+            var result = await _disputeRepo.GetPendingPagedAsync(page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
+        }
+
         public async Task<List<DisputeDto>> GetAllAsync(string? status = null)
         {
             var disputes = await _disputeRepo.GetAllAsync(status);
 
             return disputes.Select(MapToDto).ToList();
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>> GetAllPagedAsync(string? status, int page, int pageSize)
+        {
+            var result = await _disputeRepo.GetAllPagedAsync(status, page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
         }
 
         public async Task<List<DisputeDto>> GetMyDisputesAsync(int driverUserId)
@@ -606,10 +630,34 @@ namespace ChargeSlot.Api.Services.Implementation
             return disputes.Select(MapToDto).ToList();
         }
 
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>> GetMyDisputesPagedAsync(int driverUserId, int page, int pageSize)
+        {
+            var result = await _disputeRepo.GetByDriverPagedAsync(driverUserId, page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
+        }
+
         public async Task<List<DisputeDto>> GetOwnerDisputesAsync(int ownerUserId)
         {
             var disputes = await _disputeRepo.GetByOwnerAsync(ownerUserId);
             return disputes.Select(MapToDto).ToList();
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>> GetOwnerDisputesPagedAsync(int ownerUserId, int page, int pageSize)
+        {
+            var result = await _disputeRepo.GetByOwnerPagedAsync(ownerUserId, page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
         }
 
         // ─────────────── HELPERS ───────────────

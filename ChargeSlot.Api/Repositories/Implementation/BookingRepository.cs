@@ -45,6 +45,48 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
+        public async Task<(List<Booking> Items, int TotalCount)> GetByDriverPagedAsync(int driverUserId, string? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize)
+        {
+            var query = _db.Bookings
+                .Include(b => b.Driver).ThenInclude(d => d.User)
+                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(b => b.BookingExtraServices).ThenInclude(be => be.ExtraService)
+                .Where(b => b.DriverUserId == driverUserId)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(status))
+                if (System.Enum.TryParse<BookingStatus>(status, true, out var statusEnum))
+                    query = query.Where(b => b.Status == statusEnum);
+
+            if (fromDate.HasValue) query = query.Where(b => b.CreatedAt >= fromDate.Value.Date);
+            if (toDate.HasValue) query = query.Where(b => b.CreatedAt < toDate.Value.Date.AddDays(1));
+
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(b => b.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+            return (items, totalCount);
+        }
+
+        public async Task<(List<Booking> Items, int TotalCount)> GetDriverHistoryPagedAsync(int driverUserId, DateTime? fromDate, DateTime? toDate, int page, int pageSize)
+        {
+            var historyStatuses = new[] { BookingStatus.Completed, BookingStatus.Cancelled, BookingStatus.Rejected, BookingStatus.Expired, BookingStatus.NoShow };
+            
+            var query = _db.Bookings
+                .Include(b => b.Driver).ThenInclude(d => d.User)
+                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(b => b.BookingExtraServices).ThenInclude(be => be.ExtraService)
+                .Where(b => b.DriverUserId == driverUserId && historyStatuses.Contains(b.Status))
+                .AsQueryable();
+
+            if (fromDate.HasValue) query = query.Where(b => b.CreatedAt >= fromDate.Value.Date);
+            if (toDate.HasValue) query = query.Where(b => b.CreatedAt < toDate.Value.Date.AddDays(1));
+
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(b => b.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+            return (items, totalCount);
+        }
+
         public async Task<List<Booking>> GetByOwnerAsync(int ownerUserId)
         {
             return await _db.Bookings
@@ -54,6 +96,28 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Where(b => b.ChargingSlot.ChargingStation.OwnerUserId == ownerUserId)
                 .OrderByDescending(b => b.CreatedAt)
                 .ToListAsync();
+        }
+
+        public async Task<(List<Booking> Items, int TotalCount)> GetByOwnerPagedAsync(int ownerUserId, string? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize)
+        {
+            var query = _db.Bookings
+                .Include(b => b.Driver).ThenInclude(d => d.User)
+                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
+                .Include(b => b.BookingExtraServices).ThenInclude(be => be.ExtraService)
+                .Where(b => b.ChargingSlot.ChargingStation.OwnerUserId == ownerUserId)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(status))
+                if (System.Enum.TryParse<BookingStatus>(status, true, out var statusEnum))
+                    query = query.Where(b => b.Status == statusEnum);
+
+            if (fromDate.HasValue) query = query.Where(b => b.CreatedAt >= fromDate.Value.Date);
+            if (toDate.HasValue) query = query.Where(b => b.CreatedAt < toDate.Value.Date.AddDays(1));
+
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(b => b.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+            return (items, totalCount);
         }
 
         public async Task<bool> HasOverlappingBookingAsync(int slotId, DateTime startTime, DateTime endTime, int bufferMinutes, int? excludeBookingId = null)

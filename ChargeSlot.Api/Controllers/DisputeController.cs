@@ -82,10 +82,8 @@ namespace ChargeSlot.Api.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
-            var result = await _disputeService.GetPendingAsync();
-            var total = result.Count;
-            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            return Ok(new { total, page, pageSize, items });
+            var result = await _disputeService.GetPendingPagedAsync(page, pageSize);
+            return Ok(result);
         }
 
         /// <summary>Tất cả dispute (Admin, phân trang), filter theo status + ngày.</summary>
@@ -93,57 +91,33 @@ namespace ChargeSlot.Api.Controllers
         [Authorize(Roles = RoleConstants.Admin)]
         public async Task<IActionResult> GetAll(
             [FromQuery] string? status = null,
-            [FromQuery] DateTime? fromDate = null,
-            [FromQuery] DateTime? toDate = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
-            var result = await _disputeService.GetAllAsync(status);
-            if (fromDate.HasValue)
-                result = result.Where(d => d.CreatedAt >= fromDate.Value.Date).ToList();
-            if (toDate.HasValue)
-                result = result.Where(d => d.CreatedAt < toDate.Value.Date.AddDays(1)).ToList();
-            var total = result.Count;
-            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            return Ok(new { total, page, pageSize, items });
+            var result = await _disputeService.GetAllPagedAsync(status, page, pageSize);
+            return Ok(result);
         }
 
         /// <summary>Driver xem danh sách khiếu nại của mình (phân trang).</summary>
         [HttpGet("my")]
         [Authorize(Roles = "Driver")]
         public async Task<IActionResult> GetMyDisputes(
-            [FromQuery] DateTime? fromDate = null,
-            [FromQuery] DateTime? toDate = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
-            var result = await _disputeService.GetMyDisputesAsync(GetUserId());
-            if (fromDate.HasValue)
-                result = result.Where(d => d.CreatedAt >= fromDate.Value.Date).ToList();
-            if (toDate.HasValue)
-                result = result.Where(d => d.CreatedAt < toDate.Value.Date.AddDays(1)).ToList();
-            var total = result.Count;
-            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            return Ok(new { total, page, pageSize, items });
+            var result = await _disputeService.GetMyDisputesPagedAsync(GetUserId(), page, pageSize);
+            return Ok(result);
         }
 
         /// <summary>Owner xem danh sách khiếu nại liên quan (phân trang).</summary>
         [HttpGet("owner")]
         [Authorize(Roles = "Owner")]
         public async Task<IActionResult> GetOwnerDisputes(
-            [FromQuery] DateTime? fromDate = null,
-            [FromQuery] DateTime? toDate = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
-            var result = await _disputeService.GetOwnerDisputesAsync(GetUserId());
-            if (fromDate.HasValue)
-                result = result.Where(d => d.CreatedAt >= fromDate.Value.Date).ToList();
-            if (toDate.HasValue)
-                result = result.Where(d => d.CreatedAt < toDate.Value.Date.AddDays(1)).ToList();
-            var total = result.Count;
-            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            return Ok(new { total, page, pageSize, items });
+            var result = await _disputeService.GetOwnerDisputesPagedAsync(GetUserId(), page, pageSize);
+            return Ok(result);
         }
 
         /// <summary>Chi tiết dispute.</summary>

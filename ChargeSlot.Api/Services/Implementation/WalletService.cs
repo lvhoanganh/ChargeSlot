@@ -348,6 +348,19 @@ namespace ChargeSlot.Api.Services.Implementation
             return requests.Select(r => MapToWithdrawDto(r, user?.FullName)).ToList();
         }
 
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>> GetUserWithdrawRequestsPagedAsync(int userId, int page, int pageSize)
+        {
+            var result = await _withdrawRepo.GetByUserIdPagedAsync(userId, page, pageSize);
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            return new ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(r => MapToWithdrawDto(r, user?.FullName)).ToList()
+            };
+        }
+
         /// <summary>
         /// Admin xem tất cả yêu cầu rút tiền pending
         /// </summary>
@@ -355,6 +368,18 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             var requests = await _withdrawRepo.GetPendingAsync();
             return requests.Select(r => MapToWithdrawDto(r, r.User?.FullName)).ToList();
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>> GetAllPendingWithdrawsPagedAsync(int page, int pageSize)
+        {
+            var result = await _withdrawRepo.GetPendingPagedAsync(page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(r => MapToWithdrawDto(r, r.User?.FullName)).ToList()
+            };
         }
 
         /// <summary>
@@ -414,6 +439,18 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             var requests = await _withdrawRepo.GetAllWithUserAsync();
             return requests.Select(r => MapToWithdrawDto(r, r.User?.FullName)).ToList();
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>> GetAllWithdrawsPagedAsync(int page, int pageSize)
+        {
+            var result = await _withdrawRepo.GetAllWithUserPagedAsync(page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(r => MapToWithdrawDto(r, r.User?.FullName)).ToList()
+            };
         }
 
         /// <summary>
@@ -687,20 +724,20 @@ namespace ChargeSlot.Api.Services.Implementation
             };
         }
 
-        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<WalletDto>> GetAdminAllWalletsAsync(ChargeSlot.Api.DTOs.Admin.Overview.WalletFilterDto filter)
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<WalletDto>> GetAdminAllWalletsAsync(ChargeSlot.Api.DTOs.Admin.Overview.WalletFilterDto filter)
         {
             var result = await _walletRepo.GetAdminAllWalletsAsync(filter);
             
-            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<WalletDto>
+            return new ChargeSlot.Api.DTOs.PagedResultDto<WalletDto>
             {
                 Items = result.Items.Select(MapToDto).ToList(),
-                TotalCount = result.TotalCount,
+                TotalItems = result.TotalCount,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };
         }
 
-        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<TransactionHistoryDto>> GetAdminWalletTransactionsAsync(int walletId, ChargeSlot.Api.DTOs.Admin.Overview.TransactionFilterDto filter)
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<TransactionHistoryDto>> GetAdminWalletTransactionsAsync(int walletId, ChargeSlot.Api.DTOs.Admin.Overview.TransactionFilterDto filter)
         {
             var result = await _ledgerRepo.GetAdminWalletTransactionsAsync(walletId, filter);
 
@@ -714,10 +751,10 @@ namespace ChargeSlot.Api.Services.Implementation
                 CreatedAt = e.CreatedAt
             }).ToList();
 
-            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<TransactionHistoryDto>
+            return new ChargeSlot.Api.DTOs.PagedResultDto<TransactionHistoryDto>
             {
                 Items = dtoList,
-                TotalCount = result.TotalCount,
+                TotalItems = result.TotalCount,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };

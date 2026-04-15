@@ -1,4 +1,4 @@
-﻿namespace ChargeSlot.Api.DTOs.Admin
+namespace ChargeSlot.Api.DTOs.Admin
 {
     public class AccountStatisticsDto
     {

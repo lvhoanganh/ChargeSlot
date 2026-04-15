@@ -34,13 +34,16 @@ namespace ChargeSlot.Api.Controllers
 
         /// <summary>List all slots for a station.</summary>
         [HttpGet]
-        public async Task<ActionResult<List<ChargingSlotDto>>> GetAll(int stationId)
+        public async Task<IActionResult> GetAll(
+            int stationId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
             var userId = GetUserId();
             try
             {
-                var slots = await _slotService.GetAllByStationAsync(stationId, userId);
-                return Ok(slots);
+                var result = await _slotService.GetAllByStationPagedAsync(stationId, userId, page, pageSize);
+                return Ok(result);
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }

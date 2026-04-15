@@ -62,11 +62,13 @@ namespace ChargeSlot.Api.Services.Implementation
             _bookingRepo.Update(booking);
             await _unitOfWork.CompleteAsync();
 
-            // Cộng tiền vào ESCROW wallet (Atomic via Repository)
+            // Cộng tiền vào ESCROW wallet và CLEARING wallet (Atomic via Repository)
             var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW")
                 ?? throw new InvalidOperationException("Ví hệ thống ESCROW chưa được cấu hình.");
             var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
                 ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
+            
+            await _walletRepo.AdjustBalanceAtomicAsync(clearingWallet.Id, booking.TotalAmount, 0);
             await _walletRepo.AdjustBalanceAtomicAsync(escrowWallet.Id, booking.TotalAmount, 0);
             await _unitOfWork.CompleteAsync();
 
@@ -130,6 +132,10 @@ namespace ChargeSlot.Api.Services.Implementation
             // Ghi ledger double-entry: DEBIT từ CLEARING (VNPay refund), CREDIT vào ví Driver
             var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
                 ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
+
+            // Cập nhật thực tế ví CLEARING
+            await _walletRepo.AdjustBalanceAtomicAsync(clearingWallet.Id, booking.TotalAmount, 0);
+
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "PaymentRaceRefund",
@@ -244,6 +250,26 @@ namespace ChargeSlot.Api.Services.Implementation
             }
 
             // ── Không nhận diện được mã → Nạp vào ví CLEARING, log cảnh báo ──
+            var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING");
+            if (clearingWallet != null)
+            {
+                await _walletRepo.AdjustBalanceAtomicAsync(clearingWallet.Id, amount, 0);
+                var ledgerTx = new LedgerTransaction
+                {
+                    ReferenceType = "UnrecognizedWebhook",
+                    ReferenceId = 0,
+                    Memo = $"Tiền rơi vãi không rõ nguồn gốc (không tìm thấy CSxxx/Wxxx) | SePay#{sePayTxnId} | Ref: {request.referenceCode}",
+                    CreatedByUserId = null,
+                    CreatedAt = DateTimeHelper.VietnamNow(),
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = clearingWallet.Id, Direction = LedgerDirection.Debit, Amount = amount, CreatedAt = DateTimeHelper.VietnamNow() }
+                    }
+                };
+                _ledgerRepo.Add(ledgerTx);
+                await _unitOfWork.CompleteAsync();
+            }
+
             _logger.LogWarning($"SePay Webhook: Không tìm thấy mã CSxxx/Wxxx trong nội dung '{rawContent}'. Tiền {amount:N0} VND ghi nhận vào CLEARING. SePay#{sePayTxnId}");
             return true;
         }
@@ -279,6 +305,10 @@ namespace ChargeSlot.Api.Services.Implementation
 
                 var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
                     ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
+                
+                // Cập nhật thực tế tiền vào ví CLEARING
+                await _walletRepo.AdjustBalanceAtomicAsync(clearingWallet.Id, amount, 0);
+
                 var ledgerTx = new LedgerTransaction
                 {
                     ReferenceType = "TopUp",
@@ -472,6 +502,10 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
                 ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
+
+            // Cập nhật thực tế ví CLEARING
+            await _walletRepo.AdjustBalanceAtomicAsync(clearingWallet.Id, amount, 0);
+
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "BookingFallbackDeposit",

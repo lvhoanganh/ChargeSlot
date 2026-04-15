@@ -194,4 +194,4 @@ namespace ChargeSlot.Api.Controllers
             }
         }
     }
-}
+}
