@@ -55,7 +55,8 @@ function getNotificationRoute(notification, role) {
     text.includes("từ chối hồ sơ") ||
     text.includes("hồ sơ xác thực") ||
     text.includes("nộp hồ sơ") ||
-    text.includes("hồ sơ chủ trạm")
+    text.includes("hồ sơ chủ trạm") ||
+    text.includes("hồ sơ")
   ) {
     if (r === "owner") return "/owner/kyc";
     if (r === "admin") return "/admin/manage-kyc";
@@ -210,8 +211,15 @@ function getNotificationRoute(notification, role) {
 }
 
 /** Icon theo loại notification */
-function NotifIcon({ type }) {
-  const t = (type || "").toLowerCase();
+function NotifIcon({ notification }) {
+  const t = (notification.type || "").toLowerCase();
+  const text = ((notification.title || "") + " " + (notification.content || "")).toLowerCase();
+  
+  let effectiveType = t;
+  if (t === "system" || !t) {
+    if (text.includes("kyc") || text.includes("hồ sơ")) effectiveType = "kyc";
+    else if (text.includes("ví") || text.includes("tiền") || text.includes("thanh toán")) effectiveType = "payment";
+  }
   const icons = {
     booking: {
       bg: "linear-gradient(135deg,#f97316,#ea580c)",
@@ -271,7 +279,7 @@ function NotifIcon({ type }) {
     },
   };
 
-  const cfg = icons[t] || {
+  const cfg = icons[effectiveType] || {
     bg: "linear-gradient(135deg,#6b7280,#4b5563)",
     svg: (
       <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -432,7 +440,7 @@ export default function NotificationBell() {
                     onClick={() => handleClick(n)}
                     className={`cs-nbell__item ${!n.isRead ? "cs-nbell__item--unread" : ""}`}
                   >
-                    <NotifIcon type={n.type} />
+                    <NotifIcon notification={n} />
                     <div className="cs-nbell__item-body">
                       <p className="cs-nbell__item-title">{n.title}</p>
                       <p className="cs-nbell__item-content">{n.content}</p>

@@ -114,10 +114,32 @@ export default function AdminRevenue() {
 
         {/* Summary Cards */}
         <div className="rev-grid-4">
-          <SummaryCard icon="" label="Tổng doanh thu" value={fmt(data.totalRevenue)} color="#16a34a" bg="linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)" />
-          <SummaryCard icon="" label="Phí nền tảng (5%)" value={fmt(data.platformFee)} color="#8b5cf6" bg="linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)" />
-          <SummaryCard icon="" label="Tổng booking" value={data.totalBookings} sub={`${data.completedBookings} hoàn thành`} color="#3b82f6" bg="linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)" />
-          <SummaryCard icon="️" label="Tranh chấp" value={data.disputedBookings} sub={`VAT thu: ${fmt(data.vatCollected)}`} color="#f59e0b" bg="linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)" />
+          <SummaryCard
+            label="Tổng doanh thu"
+            value={fmt(data.totalRevenue)}
+            color="#16a34a"
+            bg="linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)"
+          />
+          <SummaryCard
+            label="Phí nền tảng (5%)"
+            value={fmt(data.platformFee)}
+            color="#8b5cf6"
+            bg="linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)"
+          />
+          <SummaryCard
+            label="Tổng booking"
+            value={data.totalBookings}
+            sub={`${data.completedBookings} hoàn thành`}
+            color="#3b82f6"
+            bg="linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)"
+          />
+          <SummaryCard
+            label="Tranh chấp"
+            value={data.disputedBookings}
+            sub={`VAT thu: ${fmt(data.vatCollected)}`}
+            color="#f59e0b"
+            bg="linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
+          />
         </div>
         {/* Charts Row */}
         <div className="rev-grid-2-1">
@@ -193,8 +215,8 @@ export default function AdminRevenue() {
               ) : (
                 topStations.map((st, idx) => (
                   <div key={st.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: idx === 0 ? "#fffbeb" : "#f8fafc" }}>
-                    <span style={{ fontSize: 18, width: 28, textAlign: "center" }}>
-                      {idx === 0 ? "" : idx === 1 ? "" : idx === 2 ? "" : `#${idx + 1}`}
+                    <span style={{ fontSize: 18, width: 28, textAlign: "center", fontWeight: 700, color: idx === 0 ? "#d97706" : idx === 1 ? "#4b5563" : idx === 2 ? "#b45309" : "#1e293b" }}>
+                      {`#${idx + 1}`}
                     </span>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 14, fontWeight: 600, color: "#1e293b", margin: 0 }}>{st.name}</p>
@@ -215,8 +237,8 @@ export default function AdminRevenue() {
                 <p style={{ color: "#94a3b8", fontSize: 14, textAlign: "center", padding: 20 }}>Chưa có giao dịch</p>
               ) : (
                 recentTx.map((tx) => (
-                  <div 
-                    key={tx.id} 
+                  <div
+                    key={tx.id}
                     onClick={() => setSelectedTxId(tx.id)}
                     style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", borderRadius: 8, background: "#f8fafc", cursor: "pointer", transition: "all 0.2s" }}
                     onMouseEnter={e => { e.currentTarget.style.background = "#eff6ff"; }}
@@ -245,13 +267,17 @@ export default function AdminRevenue() {
 
 function SummaryCard({ icon, label, value, sub, color, bg }) {
   return (
-    <div style={{ background: bg, borderRadius: 14, padding: "18px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 22 }}>{icon}</span>
-        <span style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>{label}</span>
+    <div style={{ background: bg, borderRadius: 14, padding: "18px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", height: "100%", justifyContent: "space-between" }}>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          {icon && <span style={{ display: "flex", alignItems: "center", justifyContent: "center", color }}>{icon}</span>}
+          <span style={{ fontSize: 13, color: "#64748b", fontWeight: 600 }}>{label}</span>
+        </div>
+        <p style={{ fontSize: 24, fontWeight: 800, color, margin: 0 }}>{value}</p>
       </div>
-      <p style={{ fontSize: 22, fontWeight: 800, color, margin: 0 }}>{value}</p>
-      {sub && <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>{sub}</p>}
+      <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 4, margin: 0, minHeight: 18, fontWeight: 500 }}>
+        {sub || "\u00A0"}
+      </p>
     </div>
   );
 }
