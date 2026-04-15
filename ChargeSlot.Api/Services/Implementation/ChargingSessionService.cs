@@ -100,29 +100,27 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.CheckedInAt = now;
             booking.UpdatedAt = now;
             _bookingRepo.Update(booking);
-            await _unitOfWork.CompleteAsync();
 
             // 6. Create charging session
-            var session = new ChargingSession
-            {
+            var actualStartTime = now < booking.StartTime ? booking.StartTime : now; 
+            var session = new ChargingSession 
+            {   
                 BookingId = booking.Id,
-                CheckinTime = now,
-                ActualStartTime = now,
-                CreatedAt = now
+                CheckinTime = now, 
+                ActualStartTime = actualStartTime,
+                CreatedAt = now 
             };
             _sessionRepo.Add(session);
-            await _unitOfWork.CompleteAsync();
 
-            // 6. Update slot status to Booked
+            // 7. Update slot status to Booked
             var slotEntity = await _slotRepo.GetByIdAsync(slot.Id, tracking: true);
             if (slotEntity != null)
             {
                 slotEntity.Status = SlotStatus.Booked;
-                slotEntity.UpdatedAt = now;
-                await _unitOfWork.CompleteAsync();
+                slotEntity.UpdatedAt = now;           
             }
-
-            // 7. Notify Owner
+            await _unitOfWork.CompleteAsync();
+            // 8. Notify Owner
             await _notificationService.SendAsync(
                 slot.ChargingStation.OwnerUserId,
                 "Driver đã check-in",
@@ -247,6 +245,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<ChargingSessionDto> RequestEarlyEndAsync(int driverUserId, int sessionId)
         {
+            var now = DateTimeHelper.VietnamNow();
             var session = await _sessionRepo.GetByIdWithDetailsAsync(sessionId)
                 ?? throw new InvalidOperationException("Session không tồn tại.");
 
@@ -257,6 +256,9 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (booking.Status != BookingStatus.CheckedIn)
                 throw new InvalidOperationException("Booking không ở trạng thái đang sạc.");
+
+            if (now < session.ActualStartTime)
+                throw new InvalidOperationException("Chưa đến thời gian sạc, không thể yêu cầu dừng sớm");
 
             if (booking.EarlyEndRequestedAt.HasValue)
                 throw new InvalidOperationException("Bạn đã yêu cầu kết thúc sớm rồi.");
