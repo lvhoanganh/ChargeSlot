@@ -163,7 +163,7 @@ export default function DriverReviews() {
                           transform: star <= reviewForm.rating ? "scale(1.15)" : "scale(1)",
                         }}
                       >
-                        
+                        ★
                       </button>
                     ))}
                     <span style={{ fontSize: 13, color: "#92400e", alignSelf: "center", marginLeft: 8 }}>

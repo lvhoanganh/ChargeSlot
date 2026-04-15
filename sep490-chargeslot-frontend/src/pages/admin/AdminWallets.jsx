@@ -5,10 +5,10 @@ import Pagination from "@/components/Pagination";
 
 // System wallets mapping
 const SYSTEM_WALLETS = {
-  1: { code: "ESCROW", label: "Giữ Tiền Escrow", desc: "Giữ tiền booking đang hoạt động", icon: "", color: "#f97316", bg: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)", border: "#fed7aa", accent: "#ea580c" },
-  2: { code: "PLATFORM_REVENUE", label: "Doanh Thu Sàn", desc: "Lợi nhuận sàn (5% phí giao dịch)", icon: "", color: "#8b5cf6", bg: "linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)", border: "#ddd6fe", accent: "#7c3aed" },
-  3: { code: "CLEARING", label: "Cổng Thanh Toán", desc: "Gateway SePay", icon: "", color: "#0ea5e9", bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)", border: "#bae6fd", accent: "#0284c7" },
-  99: { code: "TAX_HOLD", label: "Giữ Thuế GTGT", desc: "Thuế 8% giữ hộ cơ quan thuế", icon: "", color: "#10b981", bg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "#bbf7d0", accent: "#059669" },
+  1: { code: "ESCROW", label: "Giữ Tiền Escrow", desc: "Giữ tiền booking đang hoạt động", icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>, color: "#f97316", bg: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)", border: "#fed7aa", accent: "#ea580c" },
+  2: { code: "PLATFORM_REVENUE", label: "Doanh Thu Sàn", desc: "Lợi nhuận sàn (5% phí giao dịch)", icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>, color: "#8b5cf6", bg: "linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)", border: "#ddd6fe", accent: "#7c3aed" },
+  3: { code: "CLEARING", label: "Cổng Thanh Toán", desc: "Gateway SePay", icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>, color: "#0ea5e9", bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)", border: "#bae6fd", accent: "#0284c7" },
+  99: { code: "TAX_HOLD", label: "Giữ Thuế GTGT", desc: "Thuế 8% giữ hộ cơ quan thuế", icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-4 0h.01M15 14h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>, color: "#10b981", bg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "#bbf7d0", accent: "#059669" },
 };
 
 const SYSTEM_WALLET_BY_CODE = {
@@ -55,13 +55,15 @@ function TransactionDetailModal({ transactionId, onClose }) {
       <div className="csw-modal" style={{ zIndex: 12001 }}>
         <div className="csw-modal__header">
           <div className="csw-modal__header-left">
-            <span className="csw-modal__icon"></span>
+            <span className="csw-modal__icon">
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            </span>
             <div>
               <h2 className="csw-modal__title">Chi Tiết Sổ Cái</h2>
               {tx && <p className="csw-modal__subtitle">TX_{tx.id} — {tx.referenceType}</p>}
             </div>
           </div>
-          <button onClick={onClose} className="csw-icon-btn"></button>
+          <button onClick={onClose} className="csw-icon-btn">✕</button>
         </div>
 
         <div className="csw-modal__body">
@@ -101,7 +103,7 @@ function TransactionDetailModal({ transactionId, onClose }) {
 
               {/* Balance check */}
               <div className={`csw-balance-check ${isBalanced ? "csw-balance-check--ok" : "csw-balance-check--err"}`}>
-                <span className="csw-balance-check__icon">{isBalanced ? "" : ""}</span>
+                <span className="csw-balance-check__icon">{isBalanced ? "✓" : "⚠️"}</span>
                 <div>
                   <div className="csw-balance-check__title">{isBalanced ? "Sổ Cái Cân Bằng" : "SỔ CÁI LỆCH — Kiểm tra ngay!"}</div>
                   <div className="csw-balance-check__detail">Ghi Nợ: {formatCurrency(debitTotal)} &nbsp;|&nbsp; Ghi Có: {formatCurrency(creditTotal)}</div>
@@ -184,13 +186,15 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
         {/* Header */}
         <div className="csw-drawer__header">
           <div className="csw-drawer__header-left">
-            <div className="csw-drawer__icon-wrap"></div>
+            <div className="csw-drawer__icon-wrap">
+              <svg width="20" height="20" fill="none" stroke="#ea580c" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
             <div>
               <h2 className="csw-drawer__title">Lịch Sử Giao Dịch</h2>
               <p className="csw-drawer__subtitle">{walletLabel || `Ví #${walletId}`}</p>
             </div>
           </div>
-          <button onClick={onClose} className="csw-icon-btn"></button>
+          <button onClick={onClose} className="csw-icon-btn">✕</button>
         </div>
 
         {/* Filters */}
@@ -231,7 +235,7 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
             <div className="csw-center-state csw-center-state--error"> Lỗi tải giao dịch!</div>
           ) : txs.length === 0 ? (
             <div className="csw-center-state">
-              <span style={{ fontSize: 36 }}></span>
+              <span style={{ fontSize: 36 }}>📄</span>
               <p>Ví này chưa có giao dịch nào.</p>
             </div>
           ) : (
@@ -260,7 +264,7 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
                       className="csw-detail-btn"
                       title="Xem sổ cái chi tiết"
                     >
-
+                      👁
                     </button>
                   </div>
                 ))}
@@ -485,7 +489,7 @@ export default function AdminWallets() {
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="csw-table__empty">
-                  <span></span>
+                  <span>📄</span>
                   <p>Không tìm thấy ví nào khớp.</p>
                 </td>
               </tr>
@@ -499,11 +503,11 @@ export default function AdminWallets() {
                     </td>
                     <td className="csw-table__owner">
                       {w.walletType === "System" ? (
-                        <><span className="csw-table__avatar csw-table__avatar--system"></span><span className="csw-table__owner-name">Hệ Thống {w.systemCode ? `· ${w.systemCode}` : ""}</span></>
+                        <><span className="csw-table__avatar csw-table__avatar--system">⚙️</span><span className="csw-table__owner-name">Hệ Thống {w.systemCode ? `· ${w.systemCode}` : ""}</span></>
                       ) : w.walletType === "Owner" ? (
-                        <><span className="csw-table__avatar csw-table__avatar--owner"></span><span className="csw-table__owner-name">{w.ownerName || "Chủ Trạm"}</span></>
+                        <><span className="csw-table__avatar csw-table__avatar--owner">🏢</span><span className="csw-table__owner-name">{w.ownerName || "Chủ Trạm"}</span></>
                       ) : (
-                        <><span className="csw-table__avatar csw-table__avatar--driver"></span><span className="csw-table__owner-name">{w.ownerName || "Tài Xế"}</span></>
+                        <><span className="csw-table__avatar csw-table__avatar--driver">🧑</span><span className="csw-table__owner-name">{w.ownerName || "Tài Xế"}</span></>
                       )}
                     </td>
                     <td>

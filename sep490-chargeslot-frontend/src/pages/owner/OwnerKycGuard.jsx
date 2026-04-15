@@ -6,9 +6,6 @@ const KycContainer = ({ children }) => (
   <div className="min-h-screen bg-slate-100 flex justify-center pt-24 pb-12 px-4 sm:px-6">
     <div className="max-w-5xl w-full bg-white rounded-3xl shadow-sm ring-1 ring-slate-200 p-6 sm:p-10">
       <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-white text-3xl shadow-orange-500/30 shadow-lg">
-          ️
-        </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Xác thực danh tính chủ trạm</h1>
         <p className="text-slate-500 mt-2 max-w-2xl mx-auto">Theo quy định pháp luật, chủ trạm sạc điện cần xác thực định danh trước khi bắt đầu kinh doanh.</p>
       </div>
@@ -112,7 +109,7 @@ export default function OwnerKycGuard({ children }) {
             Vui lòng kiên nhẫn.
           </p>
           <button onClick={fetchMe} className="mt-8 px-6 py-3 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition">
-             Cập nhật trạng thái
+            Cập nhật trạng thái
           </button>
         </div>
       </KycContainer>
