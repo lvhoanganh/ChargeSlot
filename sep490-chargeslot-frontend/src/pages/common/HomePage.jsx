@@ -7,8 +7,6 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { token, role } = useAuthStore();
   const [expandedFeature, setExpandedFeature] = useState(null);
-
-  // Redirect theo role nếu đã đăng nhập
   if (token) {
     if (role === "Admin") return <Navigate to="/admin/manage-users" replace />;
     if (role === "Owner") return <Navigate to="/stations" replace />;
@@ -16,7 +14,6 @@ export default function HomePage() {
 
   const features = [
     {
-      icon: "🗺️",
       title: "Tìm trạm nhanh",
       desc: "Tìm kiếm và lọc trạm sạc trên bản đồ tương tác Google Maps.",
       detail: [
@@ -28,7 +25,6 @@ export default function HomePage() {
       ],
     },
     {
-      icon: "📅",
       title: "Đặt lịch dễ dàng",
       desc: "Chọn slot sạc, khung giờ, dịch vụ phụ và xác nhận booking ngay.",
       detail: [
@@ -40,7 +36,6 @@ export default function HomePage() {
       ],
     },
     {
-      icon: "💰",
       title: "Thanh toán tiện lợi",
       desc: "Ví điện tử tích hợp, nạp tiền nhanh chóng qua VietQR.",
       detail: [
@@ -52,7 +47,6 @@ export default function HomePage() {
       ],
     },
     {
-      icon: "⭐",
       title: "Điểm tích lũy",
       desc: "Tích điểm mỗi lần sạc xe, dùng điểm giảm giá cho booking tiếp theo.",
       detail: [
@@ -63,7 +57,6 @@ export default function HomePage() {
       ],
     },
     {
-      icon: "📊",
       title: "Quản lý trạm sạc",
       desc: "Dành cho Chủ trạm: tạo trạm, quản lý booking và tương tác với tài xế.",
       detail: [
@@ -75,7 +68,6 @@ export default function HomePage() {
       ],
     },
     {
-      icon: "🔒",
       title: "Bảo mật tuyệt đối",
       desc: "Xác thực OTP, quét QR check-in và bảo vệ thông tin cá nhân.",
       detail: [
@@ -100,13 +92,9 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* ===== HERO SECTION ===== */}
       <section className="cs-hero">
         <div className="cs-hero__bg" />
         <div className="cs-hero__content">
-          <div className="cs-hero__badge cs-animate-fadeInUp">
-            <span>⚡</span> Nền tảng #1 Việt Nam
-          </div>
           <h1 className="cs-hero__title cs-animate-fadeInUp-delay-1">
             Đặt lịch sạc xe điện<br />
             <span className="cs-hero__title-accent">dễ dàng & thông minh</span>
@@ -117,7 +105,7 @@ export default function HomePage() {
           </p>
           <div className="cs-hero__actions cs-animate-fadeInUp-delay-3">
             <button className="cs-hero__btn cs-hero__btn--primary" onClick={() => navigate("/driver/map")}>
-              🗺️ Tìm trạm sạc ngay
+              Tìm trạm sạc ngay
             </button>
             <button className="cs-hero__btn cs-hero__btn--secondary" onClick={() => navigate("/register")}>
               Đăng ký miễn phí
@@ -125,12 +113,10 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ===== FEATURES SECTION ===== */}
       <section className="cs-features">
         <div className="cs-features__container">
           <div className="cs-features__header">
-            <span className="cs-features__badge">✨ Tính năng nổi bật</span>
+            <span className="cs-features__badge">Tính năng nổi bật</span>
             <h2 className="cs-features__title">Tại sao chọn ChargeSlot?</h2>
             <p className="cs-features__subtitle">
               Giải pháp toàn diện cho cả tài xế và chủ trạm sạc xe điện — bấm vào để xem chi tiết
@@ -144,7 +130,6 @@ export default function HomePage() {
                 onClick={() => toggleFeature(i)}
               >
                 <div className="cs-feature-card__header">
-                  <div className="cs-feature-card__icon">{f.icon}</div>
                   <svg
                     className={`cs-feature-card__chevron ${expandedFeature === i ? "cs-feature-card__chevron--open" : ""}`}
                     width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -154,12 +139,10 @@ export default function HomePage() {
                 </div>
                 <h3 className="cs-feature-card__title">{f.title}</h3>
                 <p className="cs-feature-card__desc">{f.desc}</p>
-
-                {/* Expandable detail section */}
                 <div className={`cs-feature-card__detail ${expandedFeature === i ? "cs-feature-card__detail--open" : ""}`}>
                   <div className="cs-feature-card__detail-inner">
                     <div className="cs-feature-card__detail-divider" />
-                    <p className="cs-feature-card__detail-label">📋 Cách sử dụng:</p>
+                    <p className="cs-feature-card__detail-label">Cách sử dụng:</p>
                     <ol className="cs-feature-card__detail-steps">
                       {f.detail.map((step, j) => (
                         <li key={j}>
@@ -175,12 +158,10 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ===== HOW IT WORKS ===== */}
       <section className="cs-steps">
         <div className="cs-steps__container">
           <div className="cs-steps__header">
-            <span className="cs-features__badge">🚀 Hướng dẫn</span>
+            <span className="cs-features__badge">Hướng dẫn</span>
             <h2 className="cs-features__title">Sử dụng ChargeSlot như thế nào?</h2>
             <p className="cs-features__subtitle">Chỉ 4 bước đơn giản để bắt đầu sạc xe</p>
           </div>
@@ -196,26 +177,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ===== CTA SECTION ===== */}
-      <section className="cs-cta">
-        <div className="cs-cta__container">
-          <ChargeSlotLogo size={48} dark />
-          <h2 className="cs-cta__title">Bắt đầu sạc xe thông minh ngay hôm nay</h2>
-          <p className="cs-cta__desc">
-            Đăng ký miễn phí và khám phá hàng trăm trạm sạc trên toàn quốc.
-          </p>
-          <div className="cs-cta__actions">
-            <button className="cs-hero__btn cs-hero__btn--primary" onClick={() => navigate("/register")}>
-              Đăng ký miễn phí
-            </button>
-            <button className="cs-hero__btn cs-hero__btn--secondary" onClick={() => navigate("/login")}>
-              Đăng nhập
-            </button>
-          </div>
-        </div>
-      </section>
-
       <style>{`
         /* ===== HERO SECTION ===== */
         .cs-hero {

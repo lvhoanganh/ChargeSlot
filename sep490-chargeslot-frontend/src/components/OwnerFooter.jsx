@@ -22,11 +22,11 @@ export default function OwnerFooter() {
           <div className="cs-footer__links-col">
             <h3 className="cs-footer__heading">Quản lý</h3>
             <ul className="cs-footer__links">
-              <li><Link to="/stations" className="cs-footer__link">🏢 Trạm sạc</Link></li>
-              <li><Link to="/stations/add" className="cs-footer__link">➕ Tạo trạm mới</Link></li>
-              <li><Link to="/owner/booking-requests" className="cs-footer__link">📋 Lịch đặt</Link></li>
-              <li><Link to="/owner/active-sessions" className="cs-footer__link">⚡ Phiên sạc</Link></li>
-              <li><Link to="/owner/extra-services" className="cs-footer__link">🔧 Dịch vụ thêm</Link></li>
+              <li><Link to="/stations" className="cs-footer__link">Trạm sạc</Link></li>
+              <li><Link to="/stations/add" className="cs-footer__link">Tạo trạm mới</Link></li>
+              <li><Link to="/owner/booking-requests" className="cs-footer__link">Lịch đặt</Link></li>
+              <li><Link to="/owner/active-sessions" className="cs-footer__link">Phiên sạc</Link></li>
+              <li><Link to="/owner/extra-services" className="cs-footer__link">Dịch vụ thêm</Link></li>
             </ul>
           </div>
 
@@ -34,10 +34,10 @@ export default function OwnerFooter() {
           <div className="cs-footer__links-col">
             <h3 className="cs-footer__heading">Tài khoản</h3>
             <ul className="cs-footer__links">
-              <li><Link to="/owner/owner-profile" className="cs-footer__link">👤 Hồ sơ cá nhân</Link></li>
-              <li><Link to="/owner/wallet" className="cs-footer__link">💰 Ví tiền</Link></li>
-              <li><Link to="/owner/reviews" className="cs-footer__link">⭐ Đánh giá</Link></li>
-              <li><Link to="/owner/chat-list" className="cs-footer__link">💬 Nhắn tin</Link></li>
+              <li><Link to="/owner/owner-profile" className="cs-footer__link">Hồ sơ cá nhân</Link></li>
+              <li><Link to="/owner/wallet" className="cs-footer__link">Ví tiền</Link></li>
+              <li><Link to="/owner/reviews" className="cs-footer__link">Đánh giá</Link></li>
+              <li><Link to="/owner/chat-list" className="cs-footer__link">Nhắn tin</Link></li>
             </ul>
           </div>
         </div>
@@ -47,9 +47,6 @@ export default function OwnerFooter() {
         <div className="cs-footer__bottom">
           <p className="cs-footer__copyright">
             © {currentYear} ChargeSlot. Tất cả các quyền được bảo lưu.
-          </p>
-          <p className="cs-footer__tagline">
-            Được xây dựng với ⚡ bởi đội ngũ ChargeSlot
           </p>
         </div>
       </div>

@@ -22,12 +22,12 @@ export default function Footer() {
           <div className="cs-footer__links-col">
             <h3 className="cs-footer__heading">Tính năng</h3>
             <ul className="cs-footer__links">
-              <li><Link to="/driver/map" className="cs-footer__link">🗺️ Tìm trạm sạc</Link></li>
-              <li><Link to="/driver/my-bookings" className="cs-footer__link">📅 Lịch đặt trạm</Link></li>
-              <li><Link to="/driver/scan-qr" className="cs-footer__link">📷 Quét mã slot sạc</Link></li>
-              <li><Link to="/driver/wallet" className="cs-footer__link">💰 Ví điện tử</Link></li>
-              <li><Link to="/driver/favorites" className="cs-footer__link">❤️ Trạm yêu thích</Link></li>
-              <li><Link to="/driver/loyalty" className="cs-footer__link">🏆 Điểm thưởng</Link></li>
+              <li><Link to="/driver/map" className="cs-footer__link">Tìm trạm sạc</Link></li>
+              <li><Link to="/driver/my-bookings" className="cs-footer__link">Lịch đặt trạm</Link></li>
+              <li><Link to="/driver/scan-qr" className="cs-footer__link">Quét mã slot sạc</Link></li>
+              <li><Link to="/driver/wallet" className="cs-footer__link">Ví điện tử</Link></li>
+              <li><Link to="/driver/favorites" className="cs-footer__link">Trạm yêu thích</Link></li>
+              <li><Link to="/driver/loyalty" className="cs-footer__link">Điểm thưởng</Link></li>
             </ul>
           </div>
 
@@ -35,9 +35,9 @@ export default function Footer() {
           <div className="cs-footer__links-col">
             <h3 className="cs-footer__heading">Tài khoản</h3>
             <ul className="cs-footer__links">
-              <li><Link to="/" className="cs-footer__link">🏠 Trang chủ</Link></li>
-              <li><Link to="/login" className="cs-footer__link">🔑 Đăng nhập</Link></li>
-              <li><Link to="/register" className="cs-footer__link">📝 Đăng ký</Link></li>
+              <li><Link to="/" className="cs-footer__link">Trang chủ</Link></li>
+              <li><Link to="/login" className="cs-footer__link">Đăng nhập</Link></li>
+              <li><Link to="/register" className="cs-footer__link">Đăng ký</Link></li>
             </ul>
           </div>
         </div>

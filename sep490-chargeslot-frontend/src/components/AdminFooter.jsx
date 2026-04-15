@@ -22,11 +22,11 @@ export default function AdminFooter() {
           <div className="cs-footer__links-col">
             <h3 className="cs-footer__heading">Quản lý</h3>
             <ul className="cs-footer__links">
-              <li><Link to="/admin/manage-users" className="cs-footer__link">👥 Quản lý người dùng</Link></li>
-              <li><Link to="/admin/approve-station" className="cs-footer__link">✅ Duyệt trạm sạc</Link></li>
-              <li><Link to="/admin/disputes" className="cs-footer__link">⚠️ Giải quyết tranh chấp</Link></li>
-              <li><Link to="/admin/view-financial-report" className="cs-footer__link">📊 Báo cáo tài chính</Link></li>
-              <li><Link to="/admin/system-config" className="cs-footer__link">⚙️ Cấu hình hệ thống</Link></li>
+              <li><Link to="/admin/manage-users" className="cs-footer__link">Quản lý người dùng</Link></li>
+              <li><Link to="/admin/approve-station" className="cs-footer__link">Duyệt trạm sạc</Link></li>
+              <li><Link to="/admin/disputes" className="cs-footer__link">Giải quyết tranh chấp</Link></li>
+              <li><Link to="/admin/view-financial-report" className="cs-footer__link">Báo cáo tài chính</Link></li>
+              <li><Link to="/admin/system-config" className="cs-footer__link">Cấu hình hệ thống</Link></li>
             </ul>
           </div>
 
@@ -34,8 +34,8 @@ export default function AdminFooter() {
           <div className="cs-footer__links-col">
             <h3 className="cs-footer__heading">Tài khoản</h3>
             <ul className="cs-footer__links">
-              <li><Link to="/admin/admin-profile" className="cs-footer__link">👤 Hồ sơ cá nhân</Link></li>
-              <li><Link to="/admin/edit-admin-profile" className="cs-footer__link">✏️ Chỉnh sửa hồ sơ</Link></li>
+              <li><Link to="/admin/admin-profile" className="cs-footer__link">Hồ sơ cá nhân</Link></li>
+              <li><Link to="/admin/edit-admin-profile" className="cs-footer__link">Chỉnh sửa hồ sơ</Link></li>
             </ul>
           </div>
         </div>
