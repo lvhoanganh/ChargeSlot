@@ -68,14 +68,14 @@ const statusConfig = {
 };
 
 const slotStatusConfig = {
-  Available:  { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
-  Active:     { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
-  Occupied:   { label: "Đang dùng", color: "#ef4444", bg: "#fef2f2" },
-  CheckedIn:  { label: "Đã check-in", color: "#06b6d4", bg: "#ecfeff" },
-  Booked:     { label: "Đã đặt chỗ", color: "#f59e0b", bg: "#fffbeb" },
-  Reserved:   { label: "Giữ chỗ", color: "#3b82f6", bg: "#eff6ff" },
-  Maintenance:{ label: "Bảo trì", color: "#f97316", bg: "#fff7ed" },
-  Inactive:   { label: "Ngưng", color: "#6b7280", bg: "#f3f4f6" },
+  Available: { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
+  Active: { label: "Trống", color: "#22c55e", bg: "#f0fdf4" },
+  Occupied: { label: "Đang dùng", color: "#ef4444", bg: "#fef2f2" },
+  CheckedIn: { label: "Đã check-in", color: "#06b6d4", bg: "#ecfeff" },
+  Booked: { label: "Đã đặt chỗ", color: "#f59e0b", bg: "#fffbeb" },
+  Reserved: { label: "Giữ chỗ", color: "#3b82f6", bg: "#eff6ff" },
+  Maintenance: { label: "Bảo trì", color: "#f97316", bg: "#fff7ed" },
+  Inactive: { label: "Ngưng", color: "#6b7280", bg: "#f3f4f6" },
 };
 
 export default function StationDetailDriver() {
@@ -117,11 +117,6 @@ export default function StationDetailDriver() {
       try {
         const data = await publicStationApi.getById(Number(id));
         if (cancelled) return;
-
-        // BE limitation: /public/stations/{id} không include ExtraServices trong DB query
-        // (ChargingStationRepository.GetByIdAsync thiếu .Include(s=>s.ExtraServices))
-        // → trả về extraServices: [] rỗng.
-        // Workaround: gọi thêm list endpoint (có include ExtraServices) và tìm theo ID.
         try {
           const listResult = await publicStationApi.getAll({ keyword: data.name, pageSize: 10 });
           const items = Array.isArray(listResult) ? listResult : (listResult?.items || []);
@@ -129,17 +124,14 @@ export default function StationDetailDriver() {
           if (found?.extraServices?.length > 0) {
             data.extraServices = found.extraServices;
           }
-        } catch { /* Giữ extraServices rỗng nếu list fetch lỗi */ }
-
+        } catch { }
         setStation(data);
-
-        // Fetch unavailable dates song song
         try {
           const udData = await stationApi.getUnavailableDates(Number(id));
           if (!cancelled && Array.isArray(udData)) {
             setUnavailableDates(udData.map(item => String(item?.date ?? item).substring(0, 10)));
           }
-        } catch { /* không block UI */ }
+        } catch { }
 
       } catch (err) {
         if (!cancelled) setError(err.message);
@@ -151,7 +143,6 @@ export default function StationDetailDriver() {
     return () => { cancelled = true; };
   }, [id]);
 
-  // Fetch active sessions — phân biệt đang sạc (InProgress) và đã check-in (chưa sạc)
   useEffect(() => {
     if (!id) return;
     function parseSessions(response) {
@@ -176,7 +167,7 @@ export default function StationDetailDriver() {
 
           const isOccupied = isInProgressRaw || (isCheckedInRaw && isTimeStarted);
           const isCheckedIn = isCheckedInRaw && !isTimeStarted;
-          
+
           if (isOccupied) {
             occupied.add(Number(session.slotId)); // Đang sạc thực sự
           } else if (isCheckedIn) {
@@ -201,7 +192,7 @@ export default function StationDetailDriver() {
           setOccupiedSlots(occupied);
           setCheckedInSlots(checkedIn);
         })
-        .catch(() => {});
+        .catch(() => { });
     }, 10000);
     return () => clearInterval(interval);
   }, [id]);
@@ -209,12 +200,12 @@ export default function StationDetailDriver() {
   // Fetch reviews
   useEffect(() => {
     if (!id) return;
-    reviewApi.getSummary(Number(id)).then(setReviewSummary).catch(() => {});
+    reviewApi.getSummary(Number(id)).then(setReviewSummary).catch(() => { });
     reviewApi.getByStation(Number(id), 1, 5).then((data) => {
       const list = Array.isArray(data) ? data : (data?.items || []);
       setReviews(list);
       setHasMoreReviews(list.length >= 5);
-    }).catch(() => {});
+    }).catch(() => { });
   }, [id]);
 
   // Check favorite status
@@ -222,7 +213,7 @@ export default function StationDetailDriver() {
     if (!id || !token) return;
     favoriteApi.check(Number(id))
       .then(data => setIsFavorite(data?.isFavorite || false))
-      .catch(() => {});
+      .catch(() => { });
   }, [id, token]);
 
   async function toggleFavorite() {
@@ -297,7 +288,6 @@ export default function StationDetailDriver() {
 
   return (
     <div className="min-h-screen bg-[#f3f4f5]">
-      {/*  Hero section with mini map  */}
       <div className="relative h-[280px] w-full">
         <MapContainer
           center={[station.latitude, station.longitude]}
@@ -366,9 +356,7 @@ export default function StationDetailDriver() {
         </button>
       </div>
 
-      {/*  Content  */}
       <div className="max-w-3xl mx-auto px-4 -mt-8 pb-8 relative z-10">
-        {/* Station name & status */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-2xl font-bold text-gray-900">
@@ -386,9 +374,6 @@ export default function StationDetailDriver() {
               className="ml-auto p-2 rounded-full hover:bg-red-50 transition-colors cursor-pointer"
               title={isFavorite ? "Bỏ yêu thích" : "Thêm yêu thích"}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill={isFavorite ? "#ef4444" : "none"} stroke={isFavorite ? "#ef4444" : "#9ca3af"} strokeWidth="2">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
             </button>
           </div>
           <p className="text-gray-500 flex items-center gap-1">
@@ -406,8 +391,6 @@ export default function StationDetailDriver() {
             {station.address}
           </p>
         </div>
-
-        {/* Quick stats */}
         <div className={`grid ${reviewSummary ? 'grid-cols-4' : 'grid-cols-3'} gap-3 mb-6`}>
           <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
             <div className="text-2xl font-bold text-green-500">
@@ -443,23 +426,9 @@ export default function StationDetailDriver() {
           )}
         </div>
 
-        {/* Description */}
         {station.description && (
           <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
             <h2 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-              </svg>
               Mô tả
             </h2>
             <p className="text-gray-600 text-sm leading-relaxed">
@@ -468,25 +437,15 @@ export default function StationDetailDriver() {
           </div>
         )}
 
-        {/* ExtraServices */}
         {station.extraServices && station.extraServices.filter(es => es.isActive).length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
             <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 7h-9" /><path d="M14 17H5" />
-                <circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" />
-              </svg>
               Dịch vụ bổ sung
             </h2>
             <div className="space-y-2">
               {station.extraServices.filter(es => es.isActive).map((es, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-purple-50 border border-purple-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2">
-                        <path d="M12 2v20M2 12h20" />
-                      </svg>
-                    </div>
                     <div>
                       <div className="text-sm font-semibold text-gray-800">{es.serviceName}</div>
                       {es.description && <div className="text-xs text-gray-500">{es.description}</div>}
@@ -505,8 +464,6 @@ export default function StationDetailDriver() {
             </div>
           </div>
         )}
-
-        {/* Charging slots */}
         <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
           <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
             <svg
@@ -515,17 +472,15 @@ export default function StationDetailDriver() {
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="2.5"
             >
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
             Các slot sạc ({station.chargingSlots.length})
           </h2>
-
           <div className="space-y-3">
             {station.chargingSlots.map((slot) => {
-              // Ưu tiên: Đang sạc > Đã check-in > trạng thái gốc từ BE
-              const isOccupied  = occupiedSlots.has(slot.id);
+              const isOccupied = occupiedSlots.has(slot.id);
               const isCheckedIn = checkedInSlots.has(slot.id);
               const displayStatus = isOccupied ? "Occupied" : isCheckedIn ? "CheckedIn" : slot.status;
               const ss = slotStatusConfig[displayStatus] || slotStatusConfig[slot.status] || slotStatusConfig.Available;
@@ -540,23 +495,22 @@ export default function StationDetailDriver() {
                       className="w-10 h-10 rounded-lg flex items-center justify-center"
                       style={{ background: `${ss.color}20` }}
                     >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke={ss.color}
-                        strokeWidth="2.5"
-                      >
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                      </svg>
+                      <div>
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke={ss.color}
+                          strokeWidth="2.5"
+                        >
+                          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                        </svg>
+                      </div>
                     </div>
                     <div>
                       <div className="font-semibold text-gray-900 text-sm">
                         {slot.slotName}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Vị trí: {slot.positionY && slot.positionX ? `${String.fromCharCode(64 + Number(slot.positionY))}${slot.positionX}` : "—"}
                       </div>
                     </div>
                   </div>
@@ -572,8 +526,6 @@ export default function StationDetailDriver() {
               );
             })}
           </div>
-
-          {/* Station-level pricing tiers */}
           {(() => {
             const tiers = (station.pricingTiers || []).filter(t => t.isActive !== false);
             if (tiers.length === 0) return null;
@@ -583,7 +535,7 @@ export default function StationDetailDriver() {
                 <div className="space-y-1">
                   {tiers.map((tier, idx) => (
                     <div key={idx} className="flex justify-between text-xs bg-gray-50 rounded-lg px-3 py-2">
-                      <span className="text-gray-500">{String(tier.startTime).substring(0,5)}–{String(tier.endTime).substring(0,5)}</span>
+                      <span className="text-gray-500">{String(tier.startTime).substring(0, 5)}–{String(tier.endTime).substring(0, 5)}</span>
                       <span className="font-bold text-amber-600">{tier.pricePerHour?.toLocaleString("vi-VN")}đ/h</span>
                     </div>
                   ))}
@@ -596,17 +548,6 @@ export default function StationDetailDriver() {
         {/* Operating hours */}
         <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
           <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
             Giờ hoạt động
           </h2>
 
@@ -619,16 +560,14 @@ export default function StationDetailDriver() {
               return (
                 <div
                   key={day}
-                  className={`flex justify-between text-sm px-3 py-2 rounded-lg ${
-                    isToday
-                      ? "bg-orange-50 border border-orange-100"
-                      : ""
-                  }`}
+                  className={`flex justify-between text-sm px-3 py-2 rounded-lg ${isToday
+                    ? "bg-orange-50 border border-orange-100"
+                    : ""
+                    }`}
                 >
                   <span
-                    className={`font-medium ${
-                      isToday ? "text-orange-600" : "text-gray-700"
-                    }`}
+                    className={`font-medium ${isToday ? "text-orange-600" : "text-gray-700"
+                      }`}
                   >
                     {dayNames[day]}
                     {isToday && (
@@ -662,7 +601,7 @@ export default function StationDetailDriver() {
             .filter(d => d >= todayStr)
             .sort()
             .slice(0, 5);
-          const fmtDate = (s) => { const [y,m,d] = s.split("-"); return `${d}/${m}/${y}`; };
+          const fmtDate = (s) => { const [y, m, d] = s.split("-"); return `${d}/${m}/${y}`; };
           return (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-5 mb-4">
               <h2 className="font-semibold text-red-700 mb-2 flex items-center gap-2">
@@ -675,12 +614,11 @@ export default function StationDetailDriver() {
               )}
               <div className="flex flex-wrap gap-2">
                 {upcoming.map(d => (
-                  <span key={d} className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                    d === todayStr
-                      ? "bg-red-500 text-white"
-                      : "bg-red-100 text-red-700"
-                  }`}>
-                     {fmtDate(d)}
+                  <span key={d} className={`text-xs font-semibold px-3 py-1 rounded-full ${d === todayStr
+                    ? "bg-red-500 text-white"
+                    : "bg-red-100 text-red-700"
+                    }`}>
+                    {fmtDate(d)}
                   </span>
                 ))}
               </div>
@@ -716,11 +654,6 @@ export default function StationDetailDriver() {
           return (
             <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
               <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <polyline points="21 15 16 10 5 21" />
-                </svg>
                 Hình ảnh
               </h2>
               <div className="grid grid-cols-2 gap-3">
@@ -741,7 +674,7 @@ export default function StationDetailDriver() {
         {/* Reviews section */}
         <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
           <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-             Đánh giá {reviewSummary ? `(${reviewSummary.averageRating?.toFixed(1)}/5 — ${reviewSummary.totalReviews} lượt)` : ""}
+            Đánh giá {reviewSummary ? `(${reviewSummary.averageRating?.toFixed(1)}/5 — ${reviewSummary.totalReviews} lượt)` : ""}
           </h2>
 
           {/* Star breakdown */}
@@ -810,19 +743,6 @@ export default function StationDetailDriver() {
             background: "linear-gradient(135deg, #f97316, #ea580c)",
           }}
         >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
           Đặt lịch sạc
         </button>
 
@@ -831,22 +751,16 @@ export default function StationDetailDriver() {
           className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ${loginToast
             ? "opacity-100 translate-y-0"
             : "opacity-0 -translate-y-4 pointer-events-none"
-          }`}
+            }`}
         >
           <div className="flex items-center gap-3 bg-white border border-orange-200 shadow-2xl rounded-xl px-5 py-4 min-w-[360px]">
             <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-800">Yêu cầu đăng nhập</p>
               <p className="text-xs text-gray-500 mt-0.5">Bạn phải đăng nhập vào hệ thống mới có thể đặt lịch sạc</p>
             </div>
             <button onClick={() => setLoginToast(false)} className="ml-auto text-gray-400 hover:text-gray-600 cursor-pointer">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
             </button>
           </div>
         </div>

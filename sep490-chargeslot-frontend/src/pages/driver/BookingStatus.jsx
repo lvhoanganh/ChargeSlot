@@ -137,7 +137,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
 
   async function handlePayWallet() {
     if (payLoading) return; // Prevent double-click spam
-    
+
     // Add confirmation before executing payment
     const confirmMessage = `Xác nhận thanh toán ${(booking?.totalAmount || 0).toLocaleString("vi-VN")}đ bằng Ví ChargeSlot?`;
     if (!window.confirm(confirmMessage)) return;
@@ -332,7 +332,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
                   boxShadow: "0 4px 14px rgba(34,197,94,0.35)",
                 }}
               >
-                 Xem danh sách booking
+                Xem danh sách booking
               </button>
               <button
                 onClick={() => setShowPaymentSuccess(false)}
@@ -405,7 +405,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
           boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 16,
         }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-             Chi tiết booking
+            Chi tiết booking
           </h3>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -523,7 +523,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 16,
           }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-               Dịch vụ bổ sung
+              Dịch vụ bổ sung
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
               {booking.extraServices.map((es, idx) => (
@@ -596,7 +596,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             onMouseEnter={e => { e.currentTarget.style.background = "#dbeafe"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#eff6ff"; }}
           >
-             Chat với chủ trạm
+            Chat với chủ trạm
           </button>
         )}
 
@@ -607,7 +607,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 16,
           }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-               Thanh toán
+              Thanh toán
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <ActionButton
@@ -629,14 +629,12 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             </div>
           </div>
         )}
-
-        {/* Manual Check-in: hiện khi Paid và đã trong khoảng thời gian check-in */}
         {booking.status === "Paid" && (() => {
           const start = booking.startTime
             ? new Date(String(booking.startTime).replace("Z", "") + "+07:00").getTime()
             : 0;
           const now = Date.now();
-          const checkInWindowMs = 15 * 60 * 1000; // cho phép tự 15 phút trước giờ bắt đầu
+          const checkInWindowMs = 15 * 60 * 1000;
           const canCheckIn = start > 0 && now >= start - checkInWindowMs;
           if (!canCheckIn) return null;
           return (
@@ -646,7 +644,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
               borderRadius: 16, padding: "16px 20px", marginBottom: 16,
             }}>
               <div style={{ fontWeight: 700, fontSize: 14, color: "#92400e", marginBottom: 8 }}>
-                 Quét QR bị lỗi? Yêu cầu xác nhận thủ công
+                Quét QR bị lỗi? Yêu cầu xác nhận thủ công
               </div>
               <div style={{ fontSize: 13, color: "#92400e", marginBottom: 12, lineHeight: 1.6 }}>
                 Nếu không quét được QR code tại sốt, hãy yêu cầu chủ trạm xác nhận check-in thủ công cho bạn.
@@ -679,7 +677,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             shadow="rgba(59,130,246,0.25)"
             style={{ marginBottom: 16 }}
           >
-             Xem phiên sạc
+            Xem phiên sạc
           </ActionButton>
         )}
 
@@ -728,7 +726,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
                     </div>
                     {cancelPreview.penaltyAmount === 0 && (
                       <div style={{ fontSize: 12, color: "#166534", marginTop: 12, textAlign: "center", fontWeight: 600, background: "#dcfce7", padding: "6px 10px", borderRadius: 8 }}>
-                         Không có phí phạt. Hoàn tiền 100%.
+                        Không có phí phạt. Hoàn tiền 100%.
                       </div>
                     )}
                   </div>
