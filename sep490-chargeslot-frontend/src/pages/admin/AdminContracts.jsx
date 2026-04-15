@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminContractApi } from "@/services/api";
 import { showToast as toast } from "@/components/Toast";
 import Pagination from "@/components/Pagination";
+import UserProfileModal from "@/components/UserProfileModal";
 
 const STATUS_LABELS = {
   Pending: { label: "Chờ ký", color: "#f59e0b", bg: "#fef3c7" },
@@ -15,6 +16,7 @@ export default function AdminContracts() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [terminateModal, setTerminateModal] = useState({ open: false, ownerUserId: null, reason: "" });
+  const [viewProfileTarget, setViewProfileTarget] = useState(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -108,7 +110,6 @@ export default function AdminContracts() {
             <tr>
               <th>Mã Hợp Đồng</th>
               <th>Chủ Trạm</th>
-              <th>Số điện thoại</th>
               <th>Trạng thái</th>
               <th>Ngày thiết lập</th>
               <th>Ngày ký</th>
@@ -120,100 +121,114 @@ export default function AdminContracts() {
               <tr>
                 <td colSpan={7} className="cs-admin-table__empty">
                   <svg width="40" height="40" fill="none" stroke="#cbd5e1" viewBox="0 0 24 24" style={{ margin: "0 auto 12px" }}>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   <p>Không có dữ liệu hợp đồng</p>
                 </td>
               </tr>
             ) : (
-             contracts.map(c => {
-               const st = STATUS_LABELS[c.status] || { label: c.status, color: "gray", bg: "#f1f5f9" };
-               return (
-                 <tr key={c.ownerUserId}>
-                   <td className="cs-admin-table__id">#{c.contractNumber}</td>
-                   <td className="cs-admin-table__name">{c.ownerName} <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 4 }}>ID: {c.ownerUserId}</span></td>
-                   <td>{c.ownerPhone}</td>
-                   <td>
-                     <span className="cs-admin-status-badge" style={{ background: st.bg, color: st.color }}>
-                       <span className="cs-admin-status-badge__dot" style={{ background: st.color }} />
-                       {st.label}
-                     </span>
-                   </td>
-                   <td>{c.createdAt ? new Date(c.createdAt).toLocaleDateString("vi-VN") : "—"}</td>
-                   <td>{c.signedAt ? new Date(c.signedAt).toLocaleDateString("vi-VN") : "—"}</td>
-                   <td style={{ textAlign: "right" }}>
-                     <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                       <button
-                         onClick={() => handleDownload(c.ownerUserId)}
-                         title="Tải PDF"
-                         className="cs-admin-action-btn"
-                         style={{ background: "#eff6ff", color: "#3b82f6", height: 32, minWidth: "unset", padding: "0 12px" }}
-                       >
-                         Tải xuống
-                       </button>
-                       {c.status === "Signed" && (
-                         <button
-                           onClick={() => setTerminateModal({ open: true, ownerUserId: c.ownerUserId, reason: "" })}
-                           title="Chấm dứt HĐ"
-                           className="cs-admin-action-btn cs-admin-action-btn--ban"
-                           style={{ height: 32, minWidth: "unset", padding: "0 12px" }}
-                         >
-                           Chấm dứt
-                         </button>
-                       )}
-                     </div>
-                   </td>
-                 </tr>
-               );
-             })
+              contracts.map(c => {
+                const st = STATUS_LABELS[c.status] || { label: c.status, color: "gray", bg: "#f1f5f9" };
+                return (
+                  <tr key={c.ownerUserId}>
+                    <td className="cs-admin-table__id">#{c.contractNumber}</td>
+                    <td className="cs-admin-table__name">{c.ownerName} <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 4 }}>ID: {c.ownerUserId}</span></td>
+                    <td>
+                      <span className="cs-admin-status-badge" style={{ background: st.bg, color: st.color }}>
+                        <span className="cs-admin-status-badge__dot" style={{ background: st.color }} />
+                        {st.label}
+                      </span>
+                    </td>
+                    <td>{c.createdAt ? new Date(c.createdAt).toLocaleDateString("vi-VN") : "—"}</td>
+                    <td>{c.signedAt ? new Date(c.signedAt).toLocaleDateString("vi-VN") : "—"}</td>
+                    <td style={{ textAlign: "right" }}>
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                        <button
+                          onClick={() => setViewProfileTarget({ id: c.ownerUserId, role: "Owner", fullName: c.ownerName })}
+                          title="Chi tiết"
+                          className="cs-admin-action-btn"
+                          style={{ background: "#f8fafc", color: "#475569", border: "1px solid #cbd5e1", height: 32, minWidth: "unset", padding: "0 12px" }}
+                        >
+                          Chi tiết
+                        </button>
+                        <button
+                          onClick={() => handleDownload(c.ownerUserId)}
+                          title="Tải PDF"
+                          className="cs-admin-action-btn"
+                          style={{ background: "#eff6ff", color: "#3b82f6", height: 32, minWidth: "unset", padding: "0 12px" }}
+                        >
+                          Tải xuống
+                        </button>
+                        {c.status === "Signed" && (
+                          <button
+                            onClick={() => setTerminateModal({ open: true, ownerUserId: c.ownerUserId, reason: "" })}
+                            title="Chấm dứt HĐ"
+                            className="cs-admin-action-btn cs-admin-action-btn--ban"
+                            style={{ height: 32, minWidth: "unset", padding: "0 12px" }}
+                          >
+                            Chấm dứt
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
 
       <div className="cs-admin-pagination" style={{ margin: "20px 0" }}>
-          <Pagination page={page} totalCount={totalItems} pageSize={20} onPageChange={setPage} />
+        <Pagination page={page} totalCount={totalItems} pageSize={20} onPageChange={setPage} />
       </div>
 
       {terminateModal.open && (
         <div className="cs-admin-modal-overlay">
-           <div className="cs-admin-modal text-center" style={{ maxWidth: 450, textAlign: "left" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                 <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fef2f2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                 </div>
-                 <div>
-                   <h3 className="cs-admin-modal__title" style={{ marginBottom: 0 }}>Chấm dứt Hợp đồng</h3>
-                   <p className="cs-admin-modal__desc" style={{ marginBottom: 0, color: "#dc2626" }}>Thao tác này là dứt khoát và không thể hoàn tác.</p>
-                 </div>
+          <div className="cs-admin-modal text-center" style={{ maxWidth: 450, textAlign: "left" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fef2f2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
               </div>
-              <div style={{ marginBottom: 24 }}>
-                 <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>Lý do chấm dứt (Bắt buộc):</label>
-                 <textarea
-                   style={{ width: "100%", border: "2px solid #e5e7eb", borderRadius: 12, padding: 12, fontSize: 14, outline: "none", resize: "none" }}
-                   rows="3"
-                   placeholder="Nhập lý do rõ ràng để thông báo cho Chủ trạm..."
-                   value={terminateModal.reason}
-                   onChange={e => setTerminateModal(prev => ({ ...prev, reason: e.target.value }))}
-                 />
+              <div>
+                <h3 className="cs-admin-modal__title" style={{ marginBottom: 0 }}>Chấm dứt Hợp đồng</h3>
+                <p className="cs-admin-modal__desc" style={{ marginBottom: 0, color: "#dc2626" }}>Thao tác này là dứt khoát và không thể hoàn tác.</p>
               </div>
-              <div className="cs-admin-modal__actions" style={{ justifyContent: "flex-end", marginTop: 0 }}>
-                 <button
-                   onClick={() => setTerminateModal({ open: false, ownerUserId: null, reason: "" })}
-                   className="cs-admin-modal__btn cs-admin-modal__btn--cancel"
-                 >
-                   Hủy bỏ
-                 </button>
-                 <button
-                   disabled={!terminateModal.reason.trim() || terminateMutation.isPending}
-                   onClick={() => terminateMutation.mutate({ ownerUserId: terminateModal.ownerUserId, reason: terminateModal.reason })}
-                   className="cs-admin-modal__btn cs-admin-modal__btn--danger"
-                 >
-                   {terminateMutation.isPending ? "Đang xử lý..." : "Xác nhận Chấm dứt"}
-                 </button>
-              </div>
-           </div>
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>Lý do chấm dứt (Bắt buộc):</label>
+              <textarea
+                style={{ width: "100%", border: "2px solid #e5e7eb", borderRadius: 12, padding: 12, fontSize: 14, outline: "none", resize: "none" }}
+                rows="3"
+                placeholder="Nhập lý do rõ ràng để thông báo cho Chủ trạm..."
+                value={terminateModal.reason}
+                onChange={e => setTerminateModal(prev => ({ ...prev, reason: e.target.value }))}
+              />
+            </div>
+            <div className="cs-admin-modal__actions" style={{ justifyContent: "flex-end", marginTop: 0 }}>
+              <button
+                onClick={() => setTerminateModal({ open: false, ownerUserId: null, reason: "" })}
+                className="cs-admin-modal__btn cs-admin-modal__btn--cancel"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                disabled={!terminateModal.reason.trim() || terminateMutation.isPending}
+                onClick={() => terminateMutation.mutate({ ownerUserId: terminateModal.ownerUserId, reason: terminateModal.reason })}
+                className="cs-admin-modal__btn cs-admin-modal__btn--danger"
+              >
+                {terminateMutation.isPending ? "Đang xử lý..." : "Xác nhận Chấm dứt"}
+              </button>
+            </div>
+          </div>
         </div>
+      )}
+
+      {viewProfileTarget && (
+        <UserProfileModal
+          user={viewProfileTarget}
+          onClose={() => setViewProfileTarget(null)}
+        />
       )}
 
       {/* Reused CSS from other pages for styling consistency */}

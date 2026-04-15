@@ -14,11 +14,11 @@ function toInputDate(ddmmyyyy) {
 
 function KycStatusBadge({ status }) {
   const map = {
-    Unverified:    { label: "Chưa xác thực",              bg: "#f1f5f9", color: "#64748b", dot: "#94a3b8" },
-    Pending:       { label: "Đang chờ duyệt",              bg: "#fffbeb", color: "#f59e0b", dot: "#f59e0b" },
-    Approved:      { label: " Đã xác thực",              bg: "#f0fdf4", color: "#16a34a", dot: "#16a34a" },
-    Rejected:      { label: " Bị từ chối",               bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
-    PendingUpdate: { label: "🟠 Chờ duyệt bản cập nhật",  bg: "#fff7ed", color: "#ea580c", dot: "#f97316" },
+    Unverified: { label: "Chưa xác thực", bg: "#f1f5f9", color: "#64748b", dot: "#94a3b8" },
+    Pending: { label: "Đang chờ duyệt", bg: "#fffbeb", color: "#f59e0b", dot: "#f59e0b" },
+    Approved: { label: " Đã xác thực", bg: "#f0fdf4", color: "#16a34a", dot: "#16a34a" },
+    Rejected: { label: " Bị từ chối", bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
+    PendingUpdate: { label: "🟠 Chờ duyệt bản cập nhật", bg: "#fff7ed", color: "#ea580c", dot: "#f97316" },
   };
   const cfg = map[status] || map.Unverified;
   return (
@@ -161,7 +161,7 @@ export default function OwnerKycPage() {
                 onClick={() => { setUpdateMode(true); setSubmitMode(true); setAgreed(false); }}
                 className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-sm"
               >
-                 Cập nhật hồ sơ
+                Cập nhật hồ sơ
               </button>
             )}
             {kycStatus === "Rejected" && !submitMode && (
@@ -169,7 +169,7 @@ export default function OwnerKycPage() {
                 onClick={() => { setSubmitMode(true); setAgreed(false); }}
                 className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition shadow-sm"
               >
-                 Nộp lại hồ sơ
+                Nộp lại hồ sơ
               </button>
             )}
             {kycStatus === "Unverified" && !submitMode && (
@@ -177,7 +177,7 @@ export default function OwnerKycPage() {
                 onClick={() => { setSubmitMode(true); setAgreed(false); }}
                 className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition shadow-sm"
               >
-                 Nộp hồ sơ KYC
+                Nộp hồ sơ KYC
               </button>
             )}
             {kycStatus === "PendingUpdate" && (
@@ -221,7 +221,7 @@ export default function OwnerKycPage() {
         {profile && !submitMode && (kycStatus === "Approved" || kycStatus === "PendingUpdate" || kycStatus === "Rejected") && (
           <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-6 mb-6">
             <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-               Thông tin hiện tại
+              Thông tin hiện tại
               {kycStatus === "PendingUpdate" && (
                 <span className="text-xs font-normal text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">🟠 Bản cập nhật đang chờ duyệt</span>
               )}
@@ -271,18 +271,17 @@ export default function OwnerKycPage() {
               <h2 className="text-lg font-bold text-slate-900">
                 {kycStatus === "Approved" ? " Cập nhật hồ sơ"
                   : kycStatus === "Rejected" ? " Nộp lại hồ sơ"
-                  : " Nộp hồ sơ KYC"}
+                    : " Nộp hồ sơ KYC"}
               </h2>
               <button onClick={() => { setSubmitMode(false); setUpdateMode(false); setAgreed(false); }} className="text-slate-400 hover:text-slate-600 text-sm font-medium">
-                 Hủy
+                Hủy
               </button>
             </div>
 
-            <div className={`mb-5 p-4 rounded-xl text-sm border ${
-              kycStatus === "Rejected"
+            <div className={`mb-5 p-4 rounded-xl text-sm border ${kycStatus === "Rejected"
                 ? "bg-red-50 border-red-200 text-red-800"
                 : "bg-blue-50 border-blue-200 text-blue-800"
-            }`}>
+              }`}>
               {kycStatus === "Rejected" ? (
                 <>
                   <strong>️ Hồ sơ của bạn đã bị từ chối.</strong> Vui lòng xem lý do từ chối ở trên và nộp lại hồ sơ với thông tin chính xác.
@@ -385,7 +384,7 @@ export default function OwnerKycPage() {
               {/* Right: File uploads */}
               <div className="lg:col-span-5 space-y-5">
                 <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
-                  <h3 className="text-base font-bold text-blue-800 border-b border-blue-200/60 pb-3 mb-4">️ Tải lại ảnh xác thực</h3>
+                  {/* <h3 className="text-base font-bold text-blue-800 border-b border-blue-200/60 pb-3 mb-4">️ Tải lại ảnh xác thực</h3>
                   <p className="text-xs text-blue-600 mb-4 bg-blue-100 rounded-lg px-3 py-2 font-medium">
                     ️ Phải tải lại tất cả 3 ảnh. Không được bỏ trống.
                   </p>
@@ -402,6 +401,10 @@ export default function OwnerKycPage() {
                       <label className="block text-xs font-semibold text-blue-800 mb-1.5">Ảnh Giấy phép KD <span className="text-red-500">*</span></label>
                       <input type="file" name="BusinessLicenseImage" accept="image/*" required className="block w-full text-sm text-slate-600 bg-white border border-slate-200 rounded-xl file:mr-3 file:py-2 file:px-4 file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition cursor-pointer" />
                     </div>
+                  </div> */}
+                  <div>
+                    <label className="block text-xs font-semibold text-blue-800 mb-1.5">Ảnh Giấy phép KD <span className="text-red-500">*</span></label>
+                    <input type="file" name="BusinessLicenseImage" accept="image/*" required className="block w-full text-sm text-slate-600 bg-white border border-slate-200 rounded-xl file:mr-3 file:py-2 file:px-4 file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 transition cursor-pointer" />
                   </div>
                 </div>
 

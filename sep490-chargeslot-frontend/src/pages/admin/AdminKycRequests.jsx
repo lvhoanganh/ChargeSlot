@@ -146,7 +146,7 @@ export default function AdminKycRequests() {
         {/* Date range */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <svg width="15" height="15" fill="none" stroke="#64748b" strokeWidth={2} viewBox="0 0 24 24">
-            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
           </svg>
           <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
             className="cs-admin-filter__select" style={{ width: 140, cursor: "pointer" }} title="Từ ngày gửi" />
@@ -196,8 +196,8 @@ export default function AdminKycRequests() {
                     {k.kycStatus === "Approved" && <span className="cs-admin-status-badge cs-admin-status-badge--active"><span className="cs-admin-status-badge__dot" />Đã duyệt</span>}
                     {k.kycStatus === "Pending" && <span className="cs-admin-status-badge cs-admin-status-badge--pending"><span className="cs-admin-status-badge__dot" />🆕 Đăng ký mới</span>}
                     {k.kycStatus === "Rejected" && <span className="cs-admin-status-badge cs-admin-status-badge--banned"><span className="cs-admin-status-badge__dot" />Từ chối</span>}
-                    {k.kycStatus === "Unverified" && <span className="cs-admin-status-badge" style={{background: "#f1f5f9", color: "#64748b"}}><span className="cs-admin-status-badge__dot" style={{background: "#94a3b8"}}/>Chưa cập nhật</span>}
-                    {k.kycStatus === "PendingUpdate" && <span className="cs-admin-status-badge" style={{background: "#eff6ff", color: "#2563eb"}}><span className="cs-admin-status-badge__dot" style={{background: "#3b82f6"}}/> Cập nhật</span>}
+                    {k.kycStatus === "Unverified" && <span className="cs-admin-status-badge" style={{ background: "#f1f5f9", color: "#64748b" }}><span className="cs-admin-status-badge__dot" style={{ background: "#94a3b8" }} />Chưa cập nhật</span>}
+                    {k.kycStatus === "PendingUpdate" && <span className="cs-admin-status-badge" style={{ background: "#eff6ff", color: "#2563eb" }}><span className="cs-admin-status-badge__dot" style={{ background: "#3b82f6" }} /> Cập nhật</span>}
                   </td>
                   <td style={{ textAlign: "right" }}>
                     {k.kycStatus === "Approved" ? (
@@ -206,7 +206,7 @@ export default function AdminKycRequests() {
                         className="cs-admin-action-btn"
                         style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}
                       >
-                         Xem
+                        Xem
                       </button>
                     ) : (
                       <button
@@ -234,7 +234,7 @@ export default function AdminKycRequests() {
                 {selectedKyc.kycStatus === "PendingUpdate" ? "Yêu cầu cập nhật hồ sơ" : "Kiểm tra hồ sơ"}
                 {selectedKyc.kycStatus === "PendingUpdate" && (
                   <span style={{ fontSize: 13, fontWeight: 600, padding: "3px 10px", borderRadius: 50, background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe" }}>
-                     Bản cập nhật
+                    Bản cập nhật
                   </span>
                 )}
               </h2>
@@ -275,12 +275,12 @@ export default function AdminKycRequests() {
                 <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "8px 12px", fontSize: 14 }}>
                   <span style={{ color: "#64748b" }}>Số CCCD:</span> <strong>{selectedKyc.idCardNumber}</strong>
                   <span style={{ color: "#64748b" }}>Ngày cấp:</span> <strong>{selectedKyc.idCardDate}</strong>
-                  <span style={{ color: "#64748b" }}>Trạng thái:</span> 
+                  <span style={{ color: "#64748b" }}>Trạng thái:</span>
                   {selectedKyc.kycStatus === "Approved" && <span className="cs-admin-status-badge cs-admin-status-badge--active"><span className="cs-admin-status-badge__dot" />Đã duyệt</span>}
                   {selectedKyc.kycStatus === "Pending" && <span className="cs-admin-status-badge cs-admin-status-badge--pending"><span className="cs-admin-status-badge__dot" />🆕 Đăng ký mới</span>}
                   {selectedKyc.kycStatus === "Rejected" && <span className="cs-admin-status-badge cs-admin-status-badge--banned"><span className="cs-admin-status-badge__dot" />Từ chối</span>}
-                  {selectedKyc.kycStatus === "Unverified" && <span className="cs-admin-status-badge" style={{background: "#f1f5f9", color: "#64748b"}}><span className="cs-admin-status-badge__dot" style={{background: "#94a3b8"}}/>Chưa cập nhật</span>}
-                  {selectedKyc.kycStatus === "PendingUpdate" && <span className="cs-admin-status-badge" style={{background: "#eff6ff", color: "#2563eb"}}><span className="cs-admin-status-badge__dot" style={{background: "#3b82f6"}}/> Cập nhật</span>}
+                  {selectedKyc.kycStatus === "Unverified" && <span className="cs-admin-status-badge" style={{ background: "#f1f5f9", color: "#64748b" }}><span className="cs-admin-status-badge__dot" style={{ background: "#94a3b8" }} />Chưa cập nhật</span>}
+                  {selectedKyc.kycStatus === "PendingUpdate" && <span className="cs-admin-status-badge" style={{ background: "#eff6ff", color: "#2563eb" }}><span className="cs-admin-status-badge__dot" style={{ background: "#3b82f6" }} /> Cập nhật</span>}
                   <span style={{ color: "#64748b" }}>Thời gian gửi:</span> <strong>{formatDate(selectedKyc.kycSubmittedAt)}</strong>
                 </div>
               </div>
@@ -288,14 +288,6 @@ export default function AdminKycRequests() {
 
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", marginBottom: 12 }}>Hình ảnh xác thực</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
-              <a href={selectedKyc.frontIdCardUrl} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                <div style={{ background: "#f1f5f9", padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>CCCD Mặt Trước</div>
-                <div style={{ height: 160, background: `url(${selectedKyc.frontIdCardUrl}) center / cover no-repeat`, backgroundColor: "#f8fafc" }}></div>
-              </a>
-              <a href={selectedKyc.backIdCardUrl} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                <div style={{ background: "#f1f5f9", padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>CCCD Mặt Sau</div>
-                <div style={{ height: 160, background: `url(${selectedKyc.backIdCardUrl}) center / cover no-repeat`, backgroundColor: "#f8fafc" }}></div>
-              </a>
               <a href={selectedKyc.businessLicenseUrl} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
                 <div style={{ background: "#f1f5f9", padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Giấy phép KD</div>
                 <div style={{ height: 160, background: `url(${selectedKyc.businessLicenseUrl}) center / cover no-repeat`, backgroundColor: "#f8fafc" }}></div>
@@ -350,13 +342,13 @@ export default function AdminKycRequests() {
                     onClick={() => setReviewAction(true)}
                     className="cs-admin-action-btn" style={{ flex: 1, background: "#22c55e", color: "white", height: 48, fontSize: 15 }}
                   >
-                     Phê duyệt
+                    Phê duyệt
                   </button>
                   <button
                     onClick={() => setReviewAction(false)}
                     className="cs-admin-action-btn" style={{ flex: 1, background: "#ef4444", color: "white", height: 48, fontSize: 15 }}
                   >
-                     Từ chối
+                    Từ chối
                   </button>
                 </div>
               )
