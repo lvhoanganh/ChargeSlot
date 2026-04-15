@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { walletApi } from "@/services/api";
+import { walletApi, bankAccountApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 import QRCodeModal from "@/components/QRCodeModal";
 import BankCombobox from "@/components/BankCombobox";
@@ -42,8 +42,9 @@ export default function DriverWallet() {
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [withdrawRequests, setWithdrawRequests] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("transactions"); // transactions | withdraw-history
+  const [activeTab, setActiveTab] = useState("transactions"); // transactions | withdraw-history | bank-accounts
   
   const [txPage, setTxPage] = useState(1);
   const [txTotal, setTxTotal] = useState(0);
@@ -68,6 +69,11 @@ export default function DriverWallet() {
     amount: "", bankName: "", bankAccountNumber: "", bankAccountHolder: "", userNote: "",
   });
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+  // Add bank account form
+  const [showAddBank, setShowAddBank] = useState(false);
+  const [bankForm, setBankForm] = useState({ bankName: "", bankAccountNumber: "", bankAccountHolder: "", isDefault: false });
+  const [bankLoading, setBankLoading] = useState(false);
 
   const [issueForm, setIssueForm] = useState({ id: null, reason: "" });
   const [issueLoading, setIssueLoading] = useState(false);
@@ -123,8 +129,13 @@ export default function DriverWallet() {
       }).catch(() => setWithdrawRequests([]));
   }
 
+  function fetchBankAccounts() {
+    bankAccountApi.getAll().then(bas => setBankAccounts(Array.isArray(bas) ? bas : [])).catch(() => []);
+  }
+
   useEffect(() => {
     fetchWallet();
+    fetchBankAccounts();
     setLoading(false);
   }, []);
 
@@ -142,6 +153,47 @@ export default function DriverWallet() {
     fetchWallet();
     fetchTransactions();
     fetchWithdraws();
+    fetchBankAccounts();
+  }
+
+  async function handleAddBank() {
+    if (!bankForm.bankName || !bankForm.bankAccountNumber || !bankForm.bankAccountHolder) {
+      showToast.error("Vui lòng điền đầy đủ thông tin ngân hàng");
+      return;
+    }
+    setBankLoading(true);
+    try {
+      await bankAccountApi.create(bankForm);
+      showToast.success("Thêm tài khoản ngân hàng thành công!");
+      setShowAddBank(false);
+      setBankForm({ bankName: "", bankAccountNumber: "", bankAccountHolder: "", isDefault: false });
+      fetchAll();
+    } catch (err) {
+      showToast.error(err.message || "Lỗi thêm tài khoản");
+    } finally {
+      setBankLoading(false);
+    }
+  }
+
+  async function handleDeleteBank(id) {
+    if (!(await showConfirm("Bạn có chắc muốn xóa tài khoản ngân hàng này?", "Xác nhận xóa tài khoản"))) return;
+    try {
+      await bankAccountApi.delete(id);
+      showToast.success("Đã xóa tài khoản ngân hàng");
+      fetchAll();
+    } catch (err) {
+      showToast.error(err.message || "Lỗi xóa tài khoản");
+    }
+  }
+
+  async function handleSetDefault(id) {
+    try {
+      await bankAccountApi.setDefault(id);
+      showToast.success("Đã đặt làm tài khoản mặc định");
+      fetchAll();
+    } catch (err) {
+      showToast.error(err.message || "Lỗi");
+    }
   }
 
   useEffect(() => {
@@ -311,9 +363,9 @@ export default function DriverWallet() {
           <div style={{
             background: "#fff", borderRadius: 20, padding: 24,
             boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 20,
-            border: "2px solid #3b82f6",
+            border: "2px solid #f97316",
           }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}> Rút tiền</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}> Rút tiền về ngân hàng</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <FormInput label="Số tiền rút" type="number" placeholder="VD: 100000"
                 value={withdrawForm.amount} onChange={v => setWithdrawForm(f => ({ ...f, amount: v }))} />
@@ -329,13 +381,49 @@ export default function DriverWallet() {
                 value={withdrawForm.userNote} onChange={v => setWithdrawForm(f => ({ ...f, userNote: v }))} />
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <ActionButton onClick={handleWithdraw} disabled={withdrawLoading} bg="linear-gradient(135deg, #3b82f6, #2563eb)">
+              <ActionButton onClick={handleWithdraw} disabled={withdrawLoading} bg="linear-gradient(135deg, #f97316, #ea580c)">
                 {withdrawLoading ? "Đang xử lý..." : "Gửi yêu cầu rút tiền"}
               </ActionButton>
               <button
                 onClick={() => { setShowWithdraw(false); setWithdrawForm({ amount: "", bankName: "", bankAccountNumber: "", bankAccountHolder: "", userNote: "" }); }}
                 style={{ padding: "12px 20px", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "#fff", color: "#64748b", fontWeight: 600, cursor: "pointer" }}
               >Hủy</button>
+            </div>
+          </div>
+        )}
+
+        {/* Add bank account form */}
+        {showAddBank && (
+          <div style={{
+            background: "#fff", borderRadius: 20, padding: 24,
+            boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 20,
+            border: "2px solid #f97316",
+          }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}> Thêm tài khoản ngân hàng</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <BankCombobox
+                value={bankForm.bankName}
+                onChange={v => setBankForm(f => ({ ...f, bankName: v }))}
+              />
+              <FormInput label="Số tài khoản" placeholder="VD: 1234567890"
+                value={bankForm.bankAccountNumber} onChange={v => setBankForm(f => ({ ...f, bankAccountNumber: v }))} />
+              <FormInput label="Chủ tài khoản" placeholder="VD: NGUYEN VAN A"
+                value={bankForm.bankAccountHolder} onChange={v => setBankForm(f => ({ ...f, bankAccountHolder: v }))} />
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#374151", cursor: "pointer" }}>
+                <input type="checkbox" checked={bankForm.isDefault}
+                  onChange={e => setBankForm(f => ({ ...f, isDefault: e.target.checked }))}
+                  style={{ width: 16, height: 16, accentColor: "#f97316" }} />
+                Đặt làm tài khoản mặc định
+              </label>
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <ActionButton onClick={handleAddBank} disabled={bankLoading} bg="linear-gradient(135deg, #f97316, #ea580c)">
+                {bankLoading ? "Đang xử lý..." : "Thêm tài khoản"}
+              </ActionButton>
+              <button onClick={() => setShowAddBank(false)}
+                style={{ padding: "12px 20px", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "#fff", color: "#64748b", fontWeight: 600, cursor: "pointer" }}>
+                Hủy
+              </button>
             </div>
           </div>
         )}
@@ -348,16 +436,17 @@ export default function DriverWallet() {
           {[
             { key: "transactions", label: `Giao dịch (${transactions.length})` },
             { key: "withdraw-history", label: `Rút tiền (${withdrawRequests.length})` },
+            { key: "bank-accounts", label: `TK Ngân hàng (${bankAccounts.length})` },
           ].map(t => (
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key)}
               style={{
-                flex: 1, padding: "10px 8px", borderRadius: 10, border: "none",
+                flex: 1, padding: "10px 4px", borderRadius: 10, border: "none",
                 background: activeTab === t.key ? "#fff" : "transparent",
                 color: activeTab === t.key ? "#1e293b" : "#64748b",
                 fontWeight: activeTab === t.key ? 700 : 500,
-                fontSize: 13, cursor: "pointer",
+                fontSize: 12, cursor: "pointer",
                 boxShadow: activeTab === t.key ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
                 transition: "all 0.2s",
               }}
@@ -540,6 +629,62 @@ export default function DriverWallet() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Bank accounts */}
+        {activeTab === "bank-accounts" && (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", margin: 0 }}>Tài khoản ngân hàng</h2>
+              <button
+                onClick={() => { setShowAddBank(true); setShowWithdraw(false); setShowTopUp(false); }}
+                style={{
+                  padding: "8px 16px", borderRadius: 10, border: "none",
+                  background: "linear-gradient(135deg, #f97316, #ea580c)",
+                  color: "#fff", fontWeight: 600, fontSize: 12, cursor: "pointer",
+                }}
+              >+ Thêm mới</button>
+            </div>
+            {bankAccounts.length === 0 ? (
+              <EmptyState icon="🏦" text="Chưa có tài khoản ngân hàng nào" />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {bankAccounts.map((ba) => (
+                  <div key={ba.id} style={{
+                    background: "#fff", borderRadius: 16, padding: "16px 20px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                    borderLeft: ba.isDefault ? "4px solid #f97316" : "4px solid #e5e7eb",
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: "#1e293b" }}>
+                          {ba.bankName} {ba.isDefault && <span style={{ fontSize: 11, color: "#f97316" }}> Mặc định</span>}
+                        </div>
+                        <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
+                          STK: {ba.bankAccountNumber}
+                        </div>
+                        <div style={{ fontSize: 13, color: "#64748b" }}>
+                           {ba.bankAccountHolder}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {!ba.isDefault && (
+                          <button onClick={() => handleSetDefault(ba.id)}
+                            style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #fed7aa", background: "#fff7ed", color: "#ea580c", fontWeight: 600, fontSize: 11, cursor: "pointer" }}>
+                             Mặc định
+                          </button>
+                        )}
+                        <button onClick={() => handleDeleteBank(ba.id)}
+                          style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #fca5a5", background: "#fff", color: "#ef4444", fontWeight: 600, fontSize: 11, cursor: "pointer" }}>
+                           Xóa
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </>
