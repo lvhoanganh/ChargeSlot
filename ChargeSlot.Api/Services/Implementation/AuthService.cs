@@ -382,15 +382,13 @@ namespace ChargeSlot.Api.Services.Implementation
             var user = await _userManager.FindByIdAsync(userId.ToString())
                 ?? throw new InvalidOperationException("Tài khoản không tồn tại.");
 
-            if (user.EmailConfirmed)
-                throw new InvalidOperationException("Email đã được xác thực trước đó.");
-
             // Decode token (frontend gửi URL-encoded)
             var decodedToken = Uri.UnescapeDataString(token);
             IdentityResult result;
 
             if (!string.IsNullOrEmpty(user.PendingEmail))
             {
+                // Đổi email: user đã verify email cũ, giờ muốn chuyển sang email mới
                 result = await _userManager.ChangeEmailAsync(user, user.PendingEmail, decodedToken);
                 if (result.Succeeded)
                 {
@@ -401,6 +399,7 @@ namespace ChargeSlot.Api.Services.Implementation
             }
             else
             {
+                // Xác thực email lần đầu (đăng ký mới)
                 if (user.EmailConfirmed)
                     throw new InvalidOperationException("Email đã được xác thực trước đó.");
                 
