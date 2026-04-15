@@ -94,5 +94,24 @@ namespace ChargeSlot.Api.Services.Implementation
                 _logger.LogWarning("File not found on Firebase Storage (already deleted?): {ObjectName}", objectName);
             }
         }
+
+        public async Task<string> UploadBytesAsync(byte[] bytes, string folder, string fileName, string contentType)
+        {
+            var objectName = $"{folder}/{Guid.NewGuid():N}_{fileName}";
+
+            using var stream = new MemoryStream(bytes);
+            var obj = await _client.UploadObjectAsync(
+                _bucketName,
+                objectName,
+                contentType,
+                stream);
+
+            var encodedPath = Uri.EscapeDataString(objectName);
+            var publicUrl = $"https://firebasestorage.googleapis.com/v0/b/{_bucketName}/o/{encodedPath}?alt=media";
+
+            _logger.LogInformation("Uploaded bytes {ObjectName} to Firebase Storage ({Size} bytes)", objectName, bytes.Length);
+
+            return publicUrl;
+        }
     }
 }

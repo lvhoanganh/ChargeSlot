@@ -41,6 +41,6 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<List<ChargingStationDto>> GetPendingStationsAsync();
         Task<ChargingStationDto?> GetStationDetailForAdminAsync(int id);
         Task ReviewStationAsync(int id, int adminUserId, ReviewStationDto dto);
-        Task<string> ToggleBanStationAsync(int id, int adminUserId);
+        Task<string> ToggleBanStationAsync(int id, int adminUserId, string? reason);
     }
 }

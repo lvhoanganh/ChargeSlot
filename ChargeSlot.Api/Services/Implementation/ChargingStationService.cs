@@ -938,21 +938,38 @@ namespace ChargeSlot.Api.Services.Implementation
             await _unitOfWork.CompleteAsync();
         }
 
-        public async Task<string> ToggleBanStationAsync(int id, int adminUserId)
+        public async Task<string> ToggleBanStationAsync(int id, int adminUserId, string? reason)
         {
             var station = await _stationRepo.GetByIdAsync(id, tracking: true);
             if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
 
             if (station.BannedUntil == null)
             {
+                if (string.IsNullOrWhiteSpace(reason))
+                    throw new InvalidOperationException("Vui lòng cung cấp lý do khi khóa trạm.");
+
                 station.OperationalStatus = Enums.OperationalStatus.Inactive;
-                station.BannedUntil = DateTimeHelper.VietnamNow().AddYears(100);
+                // Lưu DateTime siêu xa báo hiệu khóa thủ công đến khi mở
+                station.BannedUntil = DateTimeHelper.VietnamNow().AddYears(100); 
+                station.AdminNote = string.IsNullOrEmpty(station.AdminNote) ? $"Khóa trạm: {reason}" : $"{station.AdminNote} | Khóa trạm: {reason}";
+                
+                await _notificationService.SendAsync(
+                    station.OwnerUserId, 
+                    "Trạm sạc bị khóa", 
+                    $"Trạm sạc {station.Name} đã bị Admin khóa. Lý do: {reason}", 
+                    NotificationType.System);
             }
             else
             {
                 station.OperationalStatus = Enums.OperationalStatus.Active;
                 station.BannedUntil = null;
                 station.BanCount = 0; 
+                
+                await _notificationService.SendAsync(
+                    station.OwnerUserId, 
+                    "Trạm sạc được mở khóa", 
+                    $"Trạm sạc {station.Name} đã được Admin mở khóa, có thể hoạt động trở lại.", 
+                    NotificationType.System);
             }
 
             await _unitOfWork.CompleteAsync();

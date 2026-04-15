@@ -292,18 +292,9 @@ namespace ChargeSlot.Api.Services.Implementation
                         if (driverUser.Status != Constants.UserStatusConstants.Banned && driverUser.BannedUntil == null)
                         {
                             driverUser.BanCount += 1;
-                            if (driverUser.BanCount == 1)
-                            {
-                                driverUser.Status = Constants.UserStatusConstants.Suspended;
-                                driverUser.BannedUntil = now.AddDays(30);
-                                await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị đình chỉ", "Tài khoản bị đình chỉ 30 ngày do vi phạm chính sách khiếu nại (thua quá 3 lần/tháng).", NotificationType.System);
-                            }
-                            else
-                            {
-                                driverUser.Status = Constants.UserStatusConstants.Banned;
-                                driverUser.BannedUntil = null;
-                                await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị khóa vĩnh viễn", "Tài khoản bị khóa vĩnh viễn do lạm dụng bộ phận CSKH nhiều lần.", NotificationType.System);
-                            }
+                            driverUser.Status = Constants.UserStatusConstants.Suspended;
+                            driverUser.BannedUntil = now.AddDays(30);
+                            await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị đình chỉ", "Tài khoản bị đình chỉ 30 ngày do vi phạm chính sách khiếu nại (thua quá 3 lần/tháng).", NotificationType.System);
                             
                             await _userManager.UpdateAsync(driverUser);
 
@@ -333,22 +324,14 @@ namespace ChargeSlot.Api.Services.Implementation
                     {
                         var station = dispute.Booking.ChargingSlot?.ChargingStation;
                         
-                        // Đảm bảo không phạt dồn lặp lại nếu trạm đang trong thời gian phạt hoặc đã bị cấm vĩnh viễn
-                        if (station != null && station.BannedUntil == null && station.BanCount < 2)
+                        // Đảm bảo không phạt dồn lặp lại nếu trạm đang trong thời gian phạt
+                        if (station != null && station.BannedUntil == null)
                         {
                             station.BanCount += 1;
-                            if (station.BanCount == 1)
-                            {
-                                station.OperationalStatus = OperationalStatus.Inactive;
-                                station.BannedUntil = now.AddDays(30);
-                                await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị đình chỉ", $"Trạm {station.Name} bị đình chỉ 30 ngày do lượng khiếu nại quá cao (>= 5 lần/tháng).", NotificationType.System);
-                            }
-                            else
-                            {
-                                station.OperationalStatus = OperationalStatus.Inactive;
-                                station.BannedUntil = null;
-                                await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị khóa vĩnh viễn", $"Trạm {station.Name} bị khóa vĩnh viễn do chất lượng dịch vụ không đạt yêu cầu tái phạm.", NotificationType.System);
-                            }
+                            station.OperationalStatus = OperationalStatus.Inactive;
+                            station.BannedUntil = now.AddDays(30);
+                            await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị đình chỉ", $"Trạm {station.Name} bị đình chỉ 30 ngày do lượng khiếu nại quá cao (>= 5 lần/tháng).", NotificationType.System);
+                            
                             _stationRepo.Update(station);
                             await _unitOfWork.CompleteAsync();
                             
@@ -782,7 +765,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 BanThreshold = threshold,
                 RemainingBeforeBan = Math.Max(0, threshold - loseCount),
                 BanCount = station.BanCount,
-                IsBanned = station.BannedUntil.HasValue || (station.BanCount >= 2 && station.BannedUntil == null),
+                IsBanned = station.BannedUntil.HasValue,
                 BannedUntil = station.BannedUntil
             };
         }
