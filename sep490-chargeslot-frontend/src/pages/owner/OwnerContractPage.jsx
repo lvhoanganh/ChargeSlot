@@ -10,25 +10,46 @@ import { formatDateVN } from "@/utils/dateVN";
 function useSignatureCanvas(canvasRef) {
   const drawing = useRef(false);
   const lastPos = useRef(null);
+  // Tỷ lệ HiDPI — cần lưu để dùng trong getPos
+  const dpr = useRef(window.devicePixelRatio || 1);
 
+  // Đồng bộ buffer canvas với CSS size + support retina
+  function resizeCanvas() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ratio = window.devicePixelRatio || 1;
+    dpr.current = ratio;
+    const cssW = canvas.offsetWidth;
+    const cssH = canvas.offsetHeight;
+    if (canvas.width !== Math.round(cssW * ratio) || canvas.height !== Math.round(cssH * ratio)) {
+      canvas.width = Math.round(cssW * ratio);
+      canvas.height = Math.round(cssH * ratio);
+      const ctx = canvas.getContext("2d");
+      ctx.scale(ratio, ratio);
+    }
+  }
+
+  /**
+   * Lấy toạ độ chuẩn (CSS px) so với canvas, không nhân thêm DPR
+   * vì ctx đã được scale(dpr) rồi.
+   */
   function getPos(e, canvas) {
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
     if (e.touches) {
       return {
-        x: (e.touches[0].clientX - rect.left) * scaleX,
-        y: (e.touches[0].clientY - rect.top) * scaleY,
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
       };
     }
     return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
     };
   }
 
   function start(e) {
     e.preventDefault();
+    resizeCanvas(); // đảm bảo đúng kích thước trước khi vẽ
     drawing.current = true;
     lastPos.current = getPos(e, canvasRef.current);
   }
@@ -43,7 +64,7 @@ function useSignatureCanvas(canvasRef) {
     ctx.moveTo(lastPos.current.x, lastPos.current.y);
     ctx.lineTo(pos.x, pos.y);
     ctx.strokeStyle = "#1e293b";
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.stroke();
@@ -59,7 +80,10 @@ function useSignatureCanvas(canvasRef) {
   function clear() {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
+    // Reset và re-apply scale
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(dpr.current, dpr.current);
   }
 
   function isEmpty() {
@@ -69,7 +93,7 @@ function useSignatureCanvas(canvasRef) {
     return !data.some((v) => v !== 0);
   }
 
-  return { start, move, end, clear, isEmpty };
+  return { start, move, end, clear, isEmpty, resizeCanvas };
 }
 
 // ──────────────────────────────────
@@ -146,6 +170,14 @@ export default function OwnerContractPage() {
   const navigate = useNavigate();
   const canvasRef = useRef(null);
   const sig = useSignatureCanvas(canvasRef);
+
+  // Khi component mount, resize canvas đúng kích thước thực
+  useEffect(() => {
+    sig.resizeCanvas();
+    window.addEventListener("resize", sig.resizeCanvas);
+    return () => window.removeEventListener("resize", sig.resizeCanvas);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [loading, setLoading] = useState(true);
   const [contract, setContract] = useState(null);
@@ -430,10 +462,8 @@ export default function OwnerContractPage() {
                   <div className="relative rounded-xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 group hover:border-orange-300 transition-colors">
                     <canvas
                       ref={canvasRef}
-                      width={400}
-                      height={160}
                       className="w-full touch-none cursor-crosshair block"
-                      style={{ display: "block" }}
+                      style={{ display: "block", height: 160 }}
                       onMouseDown={sig.start}
                       onMouseMove={sig.move}
                       onMouseUp={sig.end}

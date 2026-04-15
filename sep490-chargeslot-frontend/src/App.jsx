@@ -42,6 +42,7 @@ const AdminKycRequests = lazy(() => import("./pages/admin/AdminKycRequests"));
 const AdminBookings = lazy(() => import("./pages/admin/AdminBookings"));
 const AdminInvoices = lazy(() => import("./pages/admin/AdminInvoices"));
 const AdminWallets = lazy(() => import("./pages/admin/AdminWallets"));
+const AdminContracts = lazy(() => import("./pages/admin/AdminContracts"));
 
 //  Driver pages 
 const DriverProfile = lazy(() => import("./pages/driver/DriverProfile"));
@@ -200,6 +201,7 @@ export default function App() {
                 <Route path="bookings" element={<AdminBookings />} />
                 <Route path="invoices" element={<AdminInvoices />} />
                 <Route path="wallets" element={<AdminWallets />} />
+                <Route path="contracts" element={<AdminContracts />} />
               </Route>
             </Route>
 

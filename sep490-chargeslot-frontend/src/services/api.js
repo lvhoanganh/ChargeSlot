@@ -136,6 +136,11 @@ export async function apiFetch(endpoint, options = {}) {
         throw new Error(msg);
     }
 
+    // Trả về blob nếu được yêu cầu (download tài liệu)
+    if (options.responseType === "blob") {
+        return response.blob();
+    }
+
     return response.json();
 }
 
@@ -436,16 +441,42 @@ export const ownerContractApi = {
 };
 
 export const adminKycApi = {
-    getPending: () => apiFetch("/admin/kyc/pending"),
-    getAll: (status) => {
+    getPending: (page = 1, pageSize = 100) =>
+        apiFetch(`/admin/kyc/pending?page=${page}&pageSize=${pageSize}`),
+    getAll: (status, page = 1, pageSize = 100) => {
         const params = new URLSearchParams();
         if (status && status !== "ALL") params.set("status", status);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
         return apiFetch(`/admin/kyc/all?${params.toString()}`);
     },
     review: (ownerUserId, isApproved, rejectReason) =>
         apiFetch(`/admin/kyc/${ownerUserId}/review`, {
             method: "PUT",
             body: JSON.stringify({ isApproved, rejectReason }),
+        }),
+};
+
+// ============================
+// ADMIN CONTRACT
+// ============================
+
+export const adminContractApi = {
+    getAll: (status, page = 1, pageSize = 20) => {
+        const params = new URLSearchParams();
+        if (status && status !== "ALL") params.set("status", status);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
+        return apiFetch(`/admin/contracts?${params.toString()}`);
+    },
+    download: (ownerUserId) =>
+        apiFetch(`/admin/contracts/${ownerUserId}/download`, {
+            responseType: "blob",
+        }),
+    terminate: (ownerUserId, reason) =>
+        apiFetch(`/admin/contracts/${ownerUserId}/terminate`, {
+            method: "PUT",
+            body: JSON.stringify({ reason }),
         }),
 };
 
@@ -1080,7 +1111,7 @@ export const chatApi = {
 // ============================
 
 export const bankAccountApi = {
-    getAll: () => apiFetch("/bank-accounts"),
+    getAll: (page = 1, pageSize = 50) => apiFetch(`/bank-accounts?page=${page}&pageSize=${pageSize}`),
 
     create: (data) =>
         apiFetch("/bank-accounts", {

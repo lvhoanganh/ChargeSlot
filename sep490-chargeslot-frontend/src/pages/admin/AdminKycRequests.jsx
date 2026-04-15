@@ -21,7 +21,11 @@ export default function AdminKycRequests() {
 
   const { data: kycs = [], isLoading, error } = useQuery({
     queryKey: ["admin-kyc-pending", statusFilter],
-    queryFn: () => adminKycApi.getAll(statusFilter),
+    queryFn: async () => {
+      const res = await adminKycApi.getAll(statusFilter);
+      // BE trả PagedResultDto: { items, totalCount } hoặc array thảng (backward compat)
+      return res?.items ?? (Array.isArray(res) ? res : []);
+    },
   });
 
   const reviewMutation = useMutation({

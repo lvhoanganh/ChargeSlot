@@ -70,9 +70,9 @@ export default function DriverWallet() {
   });
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
-  // Add bank account form
   const [showAddBank, setShowAddBank] = useState(false);
   const [bankForm, setBankForm] = useState({ bankName: "", bankAccountNumber: "", bankAccountHolder: "", isDefault: false });
+  const [bankFormErrors, setBankFormErrors] = useState({});
   const [bankLoading, setBankLoading] = useState(false);
 
   const [issueForm, setIssueForm] = useState({ id: null, reason: "" });
@@ -130,7 +130,11 @@ export default function DriverWallet() {
   }
 
   function fetchBankAccounts() {
-    bankAccountApi.getAll().then(bas => setBankAccounts(Array.isArray(bas) ? bas : [])).catch(() => []);
+    bankAccountApi.getAll().then(data => {
+      // BE trả PagedResultDto: { items, totalCount, page, pageSize }
+      const list = data?.items ?? (Array.isArray(data) ? data : []);
+      setBankAccounts(list);
+    }).catch(() => []);
   }
 
   useEffect(() => {
@@ -156,17 +160,32 @@ export default function DriverWallet() {
     fetchBankAccounts();
   }
 
-  async function handleAddBank() {
-    if (!bankForm.bankName || !bankForm.bankAccountNumber || !bankForm.bankAccountHolder) {
-      showToast.error("Vui lòng điền đầy đủ thông tin ngân hàng");
-      return;
+  const validateBankForm = () => {
+    const errors = {};
+    if (!bankForm.bankName) errors.bankName = "Vui lòng chọn ngân hàng";
+    if (!bankForm.bankAccountNumber) {
+       errors.bankAccountNumber = "Vui lòng nhập số tài khoản";
+    } else if (!/^[0-9]{6,20}$/.test(bankForm.bankAccountNumber)) {
+       errors.bankAccountNumber = "Số tài khoản chỉ chứa số và từ 6-20 ký tự";
     }
+    if (!bankForm.bankAccountHolder) {
+       errors.bankAccountHolder = "Vui lòng nhập tên chủ tài khoản";
+    } else if (!/^[A-Z0-9 ]+$/.test(bankForm.bankAccountHolder)) {
+       errors.bankAccountHolder = "Tên chủ tài khoản phải là chữ IN HOA, không dấu";
+    }
+    setBankFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  async function handleAddBank() {
+    if (!validateBankForm()) return;
     setBankLoading(true);
     try {
       await bankAccountApi.create(bankForm);
       showToast.success("Thêm tài khoản ngân hàng thành công!");
       setShowAddBank(false);
       setBankForm({ bankName: "", bankAccountNumber: "", bankAccountHolder: "", isDefault: false });
+      setBankFormErrors({});
       fetchAll();
     } catch (err) {
       showToast.error(err.message || "Lỗi thêm tài khoản");
@@ -401,14 +420,25 @@ export default function DriverWallet() {
           }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 16 }}> Thêm tài khoản ngân hàng</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <BankCombobox
-                value={bankForm.bankName}
-                onChange={v => setBankForm(f => ({ ...f, bankName: v }))}
-              />
-              <FormInput label="Số tài khoản" placeholder="VD: 1234567890"
-                value={bankForm.bankAccountNumber} onChange={v => setBankForm(f => ({ ...f, bankAccountNumber: v }))} />
-              <FormInput label="Chủ tài khoản" placeholder="VD: NGUYEN VAN A"
-                value={bankForm.bankAccountHolder} onChange={v => setBankForm(f => ({ ...f, bankAccountHolder: v }))} />
+              <div>
+                <BankCombobox
+                  value={bankForm.bankName}
+                  onChange={v => { setBankForm(f => ({ ...f, bankName: v })); setBankFormErrors(e => ({ ...e, bankName: "" })); }}
+                />
+                {bankFormErrors.bankName && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>{bankFormErrors.bankName}</div>}
+              </div>
+              <FormInput label="Số tài khoản" placeholder="VD: 1234567890" error={bankFormErrors.bankAccountNumber}
+                value={bankForm.bankAccountNumber} onChange={v => {
+                  const formatted = v.replace(/[^0-9]/g, "");
+                  setBankForm(f => ({ ...f, bankAccountNumber: formatted }));
+                  setBankFormErrors(e => ({ ...e, bankAccountNumber: "" }));
+                }} />
+              <FormInput label="Chủ tài khoản" placeholder="VD: NGUYEN VAN A" error={bankFormErrors.bankAccountHolder}
+                value={bankForm.bankAccountHolder} onChange={v => {
+                  const formatted = (v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9 ]/g, "");
+                  setBankForm(f => ({ ...f, bankAccountHolder: formatted }));
+                  setBankFormErrors(e => ({ ...e, bankAccountHolder: "" }));
+                }} />
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#374151", cursor: "pointer" }}>
                 <input type="checkbox" checked={bankForm.isDefault}
                   onChange={e => setBankForm(f => ({ ...f, isDefault: e.target.checked }))}
@@ -790,7 +820,7 @@ function WalletBtn({ onClick, children }) {
   );
 }
 
-function FormInput({ label, type = "text", placeholder, value, onChange }) {
+function FormInput({ label, type = "text", placeholder, value, onChange, error }) {
   return (
     <div>
       <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>{label}</label>
@@ -801,12 +831,13 @@ function FormInput({ label, type = "text", placeholder, value, onChange }) {
         placeholder={placeholder}
         style={{
           width: "100%", padding: "10px 14px", borderRadius: 10,
-          border: "1.5px solid #e5e7eb", fontSize: 14, outline: "none", boxSizing: "border-box",
+          border: error ? "1.5px solid #ef4444" : "1.5px solid #e5e7eb", fontSize: 14, outline: "none", boxSizing: "border-box",
           transition: "border-color 0.2s",
         }}
-        onFocus={e => { e.target.style.borderColor = "#3b82f6"; }}
-        onBlur={e => { e.target.style.borderColor = "#e5e7eb"; }}
+        onFocus={e => { if(!error) e.target.style.borderColor = "#3b82f6"; }}
+        onBlur={e => { if(!error) e.target.style.borderColor = "#e5e7eb"; }}
       />
+      {error && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>{error}</div>}
     </div>
   );
 }

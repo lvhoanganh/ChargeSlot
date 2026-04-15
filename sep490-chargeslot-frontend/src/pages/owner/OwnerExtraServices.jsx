@@ -196,16 +196,58 @@ export default function OwnerExtraServices() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {/* Toggle */}
+                  {/* Toggle active */}
                   <button
                     onClick={() => handleToggle(svc)}
-                    className={`w-10 h-6 rounded-full relative transition cursor-pointer ${svc.isActive ? "bg-purple-500" : "bg-slate-300"}`}
                     title={svc.isActive ? "Ẩn dịch vụ" : "Hiện dịch vụ"}
+                    className={`w-10 h-6 rounded-full relative transition-all cursor-pointer ${
+                      svc.isActive ? "bg-purple-500" : "bg-slate-300"
+                    }`}
                   >
-                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${svc.isActive ? "left-5" : "left-1"}`} />
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 shadow transition-all ${
+                      svc.isActive ? "left-5" : "left-1"
+                    }`} />
                   </button>
-                  <button onClick={() => openEdit(svc)} className="text-xs font-semibold text-blue-500 hover:text-blue-700 cursor-pointer px-2 py-1">️</button>
-                  <button onClick={() => handleDelete(svc.id)} className="text-xs font-semibold text-red-400 hover:text-red-600 cursor-pointer px-2 py-1">️</button>
+                  {/* Sửa */}
+                  <button
+                    onClick={() => openEdit(svc)}
+                    title="Chỉnh sửa dịch vụ"
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "6px 10px", borderRadius: 8, border: "1.5px solid #bfdbfe",
+                      background: "#eff6ff", color: "#2563eb", fontWeight: 600, fontSize: 12,
+                      cursor: "pointer", whiteSpace: "nowrap",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#dbeafe"}
+                    onMouseLeave={e => e.currentTarget.style.background = "#eff6ff"}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    Sửa
+                  </button>
+                  {/* Xóa */}
+                  <button
+                    onClick={() => handleDelete(svc.id)}
+                    title="Xóa dịch vụ"
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "6px 10px", borderRadius: 8, border: "1.5px solid #fca5a5",
+                      background: "#fff", color: "#ef4444", fontWeight: 600, fontSize: 12,
+                      cursor: "pointer", whiteSpace: "nowrap",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#fef2f2"}
+                    onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                      <path d="M10 11v6M14 11v6" />
+                      <path d="M9 6V4h6v2" />
+                    </svg>
+                    Xóa
+                  </button>
                 </div>
               </div>
             ))}

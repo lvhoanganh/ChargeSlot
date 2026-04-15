@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { authApi, ownerKycApi, ownerContractApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 
@@ -17,6 +17,7 @@ const KycContainer = ({ children }) => (
 
 export default function OwnerKycGuard({ children }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [kycStatus, setKycStatus] = useState(null);
   const [kycRejectReason, setKycRejectReason] = useState(null);
@@ -112,8 +113,8 @@ export default function OwnerKycGuard({ children }) {
 
   // Approved hoặc PendingUpdate → kiểm tra hợp đồng trước khi cho phép dùng
   if (kycStatus === "Approved" || kycStatus === "PendingUpdate") {
-    // Nếu hợp đồng đang Pending (chưa ký) → block, yêu cầu ký trước
-    if (contractStatus === "Pending") {
+    // Nếu hợp đồng đang Pending (chưa ký) và KHÔNG đang ở trang ký → block, yêu cầu ký trước
+    if (contractStatus === "Pending" && !location.pathname.startsWith("/owner/contract")) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 flex items-center justify-center pt-20 pb-12 px-4">
           <div className="max-w-lg w-full bg-white rounded-3xl shadow-xl ring-1 ring-orange-100 p-8 text-center">
