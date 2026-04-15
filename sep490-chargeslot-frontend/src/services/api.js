@@ -1173,9 +1173,9 @@ export const adminAccountApi = {
     /** GET /api/AdminAccounts/statistics */
     getStatistics: () => apiFetch("/AdminAccounts/statistics"),
 
-    /** PATCH /api/AdminAccounts/{id}/toggle-ban — bật/tắt ban */
+    /** POST /api/AdminAccounts/{id}/toggle-ban — bật/tắt ban */
     toggleBan: (id) =>
-        apiFetch(`/AdminAccounts/${id}/toggle-ban`, { method: "PATCH" }),
+        apiFetch(`/AdminAccounts/${id}/toggle-ban`, { method: "POST", body: JSON.stringify({ reason: "" }) }),
 };
 
 // ============================

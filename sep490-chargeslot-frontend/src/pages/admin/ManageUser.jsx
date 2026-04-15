@@ -87,6 +87,7 @@ export default function ManageUser() {
   const pageSize = 10;
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [toggling, setToggling] = useState(false);
+  const [banReason, setBanReason] = useState("");
   const debounceRef = useRef(null);
 
   const [viewProfileTarget, setViewProfileTarget] = useState(null); // {id, role, fullName}
@@ -131,6 +132,7 @@ export default function ManageUser() {
 
   function askToggle(user) {
     if (user.role === "Admin") return;
+    setBanReason("");
     setConfirmTarget(user);
   }
 
@@ -138,7 +140,7 @@ export default function ManageUser() {
     if (!confirmTarget) return;
     setToggling(true);
     try {
-      await toggleBan(confirmTarget.id);
+      await toggleBan(confirmTarget.id, banReason);
       await Promise.all([
         fetchUsers(search, role, status, page, pageSize),
         fetchStatistics(),
@@ -390,6 +392,15 @@ export default function ManageUser() {
               <strong>{!(confirmTarget.status === "BANNED" || !!confirmTarget.bannedUntil) ? "tạm khoá" : "mở khoá (ân xá)"}</strong>{" "}
               tài khoản <strong>{confirmTarget.fullName}</strong> không?
             </p>
+            {!(confirmTarget.status === "BANNED" || !!confirmTarget.bannedUntil) && (
+              <textarea
+                value={banReason}
+                onChange={(e) => setBanReason(e.target.value)}
+                placeholder="Nhập lý do khóa (bắt buộc)..."
+                className="cs-admin-modal__textarea mb-6"
+                rows={3}
+              />
+            )}
             <div className="cs-admin-modal__actions">
               <button
                 onClick={() => setConfirmTarget(null)}
@@ -800,11 +811,30 @@ export default function ManageUser() {
           flex: 1;
           height: 44px;
           border-radius: 12px;
-          font-size: 14px;
           font-weight: 600;
+          font-size: 14px;
           cursor: pointer;
-          transition: all 0.2s;
           border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+        .cs-admin-modal__textarea {
+          width: 100%;
+          border: 1.5px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 12px 16px;
+          font-size: 14px;
+          outline: none;
+          resize: vertical;
+          background: #f9fafb;
+          transition: all 0.2s;
+        }
+        .cs-admin-modal__textarea:focus {
+          border-color: #f97316;
+          background: white;
+          box-shadow: 0 0 0 3px rgba(249,115,22,0.1);
         }
         .cs-admin-modal__btn--cancel {
           background: #f1f5f9;

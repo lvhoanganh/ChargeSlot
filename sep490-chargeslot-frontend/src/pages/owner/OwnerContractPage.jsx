@@ -356,8 +356,8 @@ export default function OwnerContractPage() {
             <div>
               <strong className="block text-base mb-0.5">Hợp đồng đã chấm dứt</strong>
               <p className="text-sm text-red-700">
-                Toàn bộ trạm sạc đã bị đình chỉ hoạt động. Bạn vẫn có thể rút số dư ví trong vòng 15 ngày làm việc.
-                Để tiếp tục hoạt động, vui lòng liên hệ Admin để ký hợp đồng mới.
+                Toàn bộ trạm sạc đã bị đình chỉ hoạt động. Bạn vẫn có thể rút số dư ví trên hệ thống.
+                Để tiếp tục kinh doanh, vui lòng liên hệ Admin để yêu cầu tái ký hợp đồng mới.
               </p>
             </div>
           </div>

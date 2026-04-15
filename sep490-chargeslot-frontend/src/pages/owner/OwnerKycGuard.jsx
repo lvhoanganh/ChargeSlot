@@ -152,6 +152,45 @@ export default function OwnerKycGuard({ children }) {
         </div>
       );
     }
+
+    if (contractStatus === "Terminated" && !location.pathname.startsWith("/owner/contract") && !location.pathname.startsWith("/owner/wallet")) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-red-50 via-rose-50 to-red-50 flex items-center justify-center pt-20 pb-12 px-4">
+          <div className="max-w-lg w-full bg-white rounded-3xl shadow-xl ring-1 ring-red-100 p-8 text-center">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg width="40" height="40" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Hợp đồng đã chấm dứt</h2>
+            <p className="text-slate-500 leading-relaxed mb-6">
+              Hợp đồng hợp tác của bạn đã bị chấm dứt. Toàn bộ trạm sạc đã ngừng hoạt động và bạn không thể quản lý trạm nhưng <strong className="text-slate-700">vẫn có thể rút số dư ví điện tử</strong> của mình.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => navigate("/owner/wallet")}
+                className="w-full py-3.5 rounded-xl border-2 border-slate-200 text-slate-800 hover:bg-slate-50 font-bold text-base transition flex items-center justify-center gap-2"
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+                Vào ví rút tiền
+              </button>
+              <button
+                onClick={() => navigate("/owner/contract")}
+                className="w-full py-3.5 rounded-xl bg-red-600 text-white hover:bg-red-700 font-bold text-base transition flex items-center justify-center gap-2"
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                Xem chi tiết hợp đồng
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
     // Hợp đồng đã ký hoặc không có hợp đồng → cho phép dùng bình thường
     return children;
   }

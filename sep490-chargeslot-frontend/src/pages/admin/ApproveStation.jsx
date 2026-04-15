@@ -151,7 +151,7 @@ export default function ApproveStation() {
   const [dateTo, setDateTo] = useState("");
   const [confirmAction, setConfirmAction] = useState(null);
   const [adminNote, setAdminNote] = useState("");
-  const [viewMode, setViewMode] = useState("list");
+
   const [userPos, setUserPos] = useState(null);
   const [flyTarget, setFlyTarget] = useState([21.0285, 105.8542]);
   const [activeStationId, setActiveStationId] = useState(null);
@@ -380,25 +380,12 @@ export default function ApproveStation() {
           </svg>
           Xóa bộ lọc
         </button>
-        <div style={{ display: "flex", background: "#f1f5f9", borderRadius: 12, padding: 4 }}>
-          <button
-            onClick={() => setViewMode("list")}
-            style={{ padding: "6px 12px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, background: viewMode === "list" ? "white" : "transparent", color: viewMode === "list" ? "#1e293b" : "#64748b", boxShadow: viewMode === "list" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", cursor: "pointer", transition: "all .2s" }}
-          >
-            Danh sách
-          </button>
-          <button
-            onClick={() => setViewMode("map")}
-            style={{ padding: "6px 12px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, background: viewMode === "map" ? "white" : "transparent", color: viewMode === "map" ? "#1e293b" : "#64748b", boxShadow: viewMode === "map" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", cursor: "pointer", transition: "all .2s" }}
-          >
-            Bản đồ
-          </button>
-        </div>
+
       </div>
 
-      {/* Table or Map */}
-      {viewMode === "list" ? (
-        <div className="cs-admin-table-wrap">
+      {/* Table and Map side-by-side */}
+      <div style={{ display: "flex", gap: "24px", alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div className="cs-admin-table-wrap" style={{ flex: "1 1 min(60%, 800px)", minWidth: 0, overflowX: "auto" }}>
           <table className="cs-admin-table">
             <thead>
               <tr>
@@ -438,7 +425,6 @@ export default function ApproveStation() {
                             onClick={() => {
                               setFlyTarget([s.latitude, s.longitude]);
                               setActiveStationId(s.id);
-                              setViewMode("map");
                             }}
                             style={{ cursor: "pointer", color: "#0ea5e9", display: "inline-flex", alignItems: "center", gap: "4px" }}
                             title="Xác định trên bản đồ"
@@ -540,8 +526,8 @@ export default function ApproveStation() {
             </tbody>
           </table>
         </div>
-      ) : (
-        <div className="map-view-container" style={{ height: 600, borderRadius: 16, border: "1px solid #e2e8f0", overflow: "hidden", position: "relative", zIndex: 1, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}>
+
+        <div className="map-view-container" style={{ flex: "1 1 400px", position: "sticky", top: "100px", height: "calc(100vh - 120px)", minHeight: 600, borderRadius: 16, border: "1px solid #e2e8f0", overflow: "hidden", zIndex: 1, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}>
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -591,7 +577,6 @@ export default function ApproveStation() {
                   getStatusLabel={getStatusLabel}
                   onViewInList={() => {
                     setSearch(s.name);
-                    setViewMode("list");
                     setActiveStationId(null);
                   }}
                   onViewDetail={() => setDetailStationId(s.id)}
@@ -615,7 +600,7 @@ export default function ApproveStation() {
             }
           `}</style>
         </div>
-      )}
+      </div>
 
       {/* Detail Modal */}
       {detailStationId && (

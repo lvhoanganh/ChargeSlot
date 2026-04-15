@@ -49,8 +49,8 @@ export const useAdminAccountStore = create((set, get) => ({
     }
   },
 
-  toggleBan: async (id) => {
-    const res = await instance.patch(`/AdminAccounts/${id}/toggle-ban`);
+  toggleBan: async (id, reason = "") => {
+    const res = await instance.post(`/AdminAccounts/${id}/toggle-ban`, { reason });
     return res.data;
   },
 
