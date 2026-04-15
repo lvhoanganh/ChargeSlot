@@ -23,11 +23,7 @@ namespace ChargeSlot.Api.DTOs.Kyc
         [Required(ErrorMessage = "Địa chỉ trụ sở là bắt buộc")]
         public string Address { get; set; } = null!;
 
-        [Required(ErrorMessage = "Ảnh mặt trước CCCD là bắt buộc")]
-        public IFormFile FrontIdCardImage { get; set; } = null!;
 
-        [Required(ErrorMessage = "Ảnh mặt sau CCCD là bắt buộc")]
-        public IFormFile BackIdCardImage { get; set; } = null!;
 
         [Required(ErrorMessage = "Ảnh giấy phép kinh doanh là bắt buộc")]
         public IFormFile BusinessLicenseImage { get; set; } = null!;

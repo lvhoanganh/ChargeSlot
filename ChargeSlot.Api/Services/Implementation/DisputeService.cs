@@ -481,6 +481,26 @@ namespace ChargeSlot.Api.Services.Implementation
             var vatAmount = invoice.VatAmount;
             var totalDeduct = ownerNet + platformFee + vatAmount;
 
+            // 0. Bù tiền bảo trợ Điểm thưởng vào ESCROW trước khi settle (Atomic via Repository)
+            if (booking.PointsDiscountAmount > 0)
+            {
+                await _walletRepo.TransferAtomicAsync(platformWallet!.Id, escrowWallet!.Id, booking.PointsDiscountAmount);
+
+                _ledgerRepo.Add(new LedgerTransaction
+                {
+                    ReferenceType = "PointsSubsidy",
+                    ReferenceId = booking.Id,
+                    Memo = $"Nền tảng bù {booking.PointsDiscountAmount:N0}đ chiết khấu điểm thưởng cho Dispute #{dispute.Id}",
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Debit, Amount = booking.PointsDiscountAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Credit, Amount = booking.PointsDiscountAmount, CreatedAt = now }
+                    }
+                });
+                await _unitOfWork.CompleteAsync();
+            }
+
             // 1. Unfreeze ALL back to ESCROW.AvailableBalance (Atomic via Repository)
             await _walletRepo.UnfreezeAtomicAsync(escrowWallet!.Id, totalDeduct);
 

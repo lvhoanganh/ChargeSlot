@@ -387,11 +387,9 @@ namespace ChargeSlot.Api.Services.Implementation
             }
             else
             {
-                // Reject: trả lại tiền frozen → available
-                wallet.FrozenBalance -= request.Amount;
-                wallet.AvailableBalance += request.Amount;
+                // Reject: trả lại tiền frozen → available (Atomic via Repository)
+                await _walletRepo.UnfreezeAtomicAsync(wallet.Id, request.Amount);
                 request.Status = WithdrawStatus.Rejected;
-                _walletRepo.Update(wallet);
 
                 await _notificationService.SendAsync(
                     request.UserId,
@@ -520,12 +518,10 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (refund)
             {
-                // Hoàn tiền: frozen → available, status = Rejected
+                // Hoàn tiền: frozen → available, status = Rejected (Atomic via Repository)
                 var wallet = request.Wallet;
-                wallet.FrozenBalance -= request.Amount;
-                wallet.AvailableBalance += request.Amount;
+                await _walletRepo.UnfreezeAtomicAsync(wallet.Id, request.Amount);
                 request.Status = WithdrawStatus.Rejected;
-                _walletRepo.Update(wallet);
 
                 await _notificationService.SendAsync(
                     request.UserId,
@@ -561,7 +557,8 @@ namespace ChargeSlot.Api.Services.Implementation
             var wallet = request.Wallet ?? await _walletRepo.GetByIdAsync(request.WalletId)
                 ?? throw new InvalidOperationException("Không tìm thấy ví tương ứng để cập nhật.");
 
-            wallet.FrozenBalance -= request.Amount;
+            // Trừ frozen balance (Atomic via Repository)
+            await _walletRepo.AdjustBalanceAtomicAsync(wallet.Id, 0, -request.Amount);
             request.Status = WithdrawStatus.Completed;
             if (request.UserConfirmedAt == null)
                 request.UserConfirmedAt = DateTimeHelper.VietnamNow(); // auto-confirm
@@ -569,14 +566,14 @@ namespace ChargeSlot.Api.Services.Implementation
             // Ghi ledger: DEBIT CLEARING → out (tiền rời hệ thống)
             var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
                 ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
-            clearingWallet.AvailableBalance -= request.Amount;
+            await _walletRepo.AdjustBalanceAtomicAsync(clearingWallet.Id, -request.Amount, 0);
 
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "WithdrawCompleted",
                 ReferenceId = request.Id,
                 Memo = $"Rút {request.Amount:N0} VND → {request.BankName} - {request.BankAccountNumber} (hoàn tất)",
-                CreatedByUserId = confirmedByUserId ?? 0,
+                CreatedByUserId = confirmedByUserId,
                 CreatedAt = DateTimeHelper.VietnamNow(),
                 Entries = new List<LedgerEntry>
                 {
@@ -590,8 +587,6 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             };
             _ledgerRepo.Add(ledgerTx);
-            _walletRepo.Update(clearingWallet);
-            _walletRepo.Update(wallet);
             _withdrawRepo.Update(request);
             await _unitOfWork.CompleteAsync();
         }

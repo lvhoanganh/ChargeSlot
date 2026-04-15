@@ -34,8 +34,6 @@ namespace ChargeSlot.Api.Services.Implementation
                 TaxCode = owner.TaxCode,
                 IdCardNumber = owner.IdCardNumber,
                 IdCardDate = owner.IdCardDate,
-                FrontIdCardUrl = owner.FrontIdCardUrl,
-                BackIdCardUrl = owner.BackIdCardUrl,
                 BusinessLicenseNumber = owner.BusinessLicenseNumber,
                 BusinessLicenseUrl = owner.BusinessLicenseUrl,
                 Address = owner.Address,
@@ -63,8 +61,6 @@ namespace ChargeSlot.Api.Services.Implementation
 
             // Validate uploads
             var fileExts = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-            ValidateImage(dto.FrontIdCardImage, fileExts);
-            ValidateImage(dto.BackIdCardImage, fileExts);
             ValidateImage(dto.BusinessLicenseImage, fileExts);
 
             string folder = $"kyc/{ownerUserId}";
@@ -76,8 +72,6 @@ namespace ChargeSlot.Api.Services.Implementation
                 // Lưu snapshot data cũ vào các trường Prev_*
                 owner.PrevIdCardNumber = owner.IdCardNumber;
                 owner.PrevIdCardDate = owner.IdCardDate;
-                owner.PrevFrontIdCardUrl = owner.FrontIdCardUrl;
-                owner.PrevBackIdCardUrl = owner.BackIdCardUrl;
                 owner.PrevBusinessName = owner.BusinessName;
                 owner.PrevBusinessLicenseNumber = owner.BusinessLicenseNumber;
                 owner.PrevBusinessLicenseUrl = owner.BusinessLicenseUrl;
@@ -86,8 +80,6 @@ namespace ChargeSlot.Api.Services.Implementation
             }
 
             // Upload ảnh mới
-            owner.FrontIdCardUrl = await _fileService.UploadAsync(dto.FrontIdCardImage, folder);
-            owner.BackIdCardUrl = await _fileService.UploadAsync(dto.BackIdCardImage, folder);
             owner.BusinessLicenseUrl = await _fileService.UploadAsync(dto.BusinessLicenseImage, folder);
 
             // Cập nhật thông tin mới
@@ -149,8 +141,6 @@ namespace ChargeSlot.Api.Services.Implementation
                     // Từ chối bản update → khôi phục data cũ, giữ Approved
                     owner.IdCardNumber = owner.PrevIdCardNumber;
                     owner.IdCardDate = owner.PrevIdCardDate;
-                    owner.FrontIdCardUrl = owner.PrevFrontIdCardUrl;
-                    owner.BackIdCardUrl = owner.PrevBackIdCardUrl;
                     owner.BusinessName = owner.PrevBusinessName!;
                     owner.BusinessLicenseNumber = owner.PrevBusinessLicenseNumber;
                     owner.BusinessLicenseUrl = owner.PrevBusinessLicenseUrl;
@@ -208,8 +198,6 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             owner.PrevIdCardNumber = null;
             owner.PrevIdCardDate = null;
-            owner.PrevFrontIdCardUrl = null;
-            owner.PrevBackIdCardUrl = null;
             owner.PrevBusinessName = null;
             owner.PrevBusinessLicenseNumber = null;
             owner.PrevBusinessLicenseUrl = null;

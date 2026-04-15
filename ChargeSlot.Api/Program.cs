@@ -251,6 +251,8 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ILedgerTransactionRepository, LedgerTransactionRepository>();
 builder.Services.AddScoped<IStationUnavailableDateRepository, StationUnavailableDateRepository>();
 builder.Services.AddScoped<ILoyaltyTransactionRepository, LoyaltyTransactionRepository>();
+builder.Services.AddScoped<IContractRepository, ContractRepository>();
+builder.Services.AddScoped<IContractService, ContractService>();
 
 // Background Jobs
 builder.Services.AddHostedService<PaymentExpiryJob>();

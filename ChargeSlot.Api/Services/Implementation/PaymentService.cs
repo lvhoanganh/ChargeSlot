@@ -124,9 +124,8 @@ namespace ChargeSlot.Api.Services.Implementation
             await _unitOfWork.CompleteAsync();
             }
 
-            driverWallet.AvailableBalance += booking.TotalAmount;
-            _walletRepo.Update(driverWallet);
-            await _unitOfWork.CompleteAsync();
+            // Hoàn tiền vào ví Driver (Atomic via Repository)
+            await _walletRepo.AdjustBalanceAtomicAsync(driverWallet.Id, booking.TotalAmount, 0);
 
             // Ghi ledger double-entry: DEBIT từ CLEARING (VNPay refund), CREDIT vào ví Driver
             var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
@@ -275,9 +274,8 @@ namespace ChargeSlot.Api.Services.Implementation
             await _unitOfWork.CompleteAsync();
                 }
 
-                wallet.AvailableBalance += amount;
-                _walletRepo.Update(wallet);
-            await _unitOfWork.CompleteAsync();
+                // Nạp tiền vào ví Driver (Atomic via Repository)
+                await _walletRepo.AdjustBalanceAtomicAsync(wallet.Id, amount, 0);
 
                 var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
                     ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
@@ -469,9 +467,8 @@ namespace ChargeSlot.Api.Services.Implementation
             await _unitOfWork.CompleteAsync();
             }
 
-            wallet.AvailableBalance += amount;
-            _walletRepo.Update(wallet);
-            await _unitOfWork.CompleteAsync();
+            // Nạp tiền vào ví Driver (Atomic via Repository)
+            await _walletRepo.AdjustBalanceAtomicAsync(wallet.Id, amount, 0);
 
             var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
                 ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");

@@ -175,8 +175,6 @@ namespace ChargeSlot.Api.Services.Implementation
                     TaxCode = owner.TaxCode ?? string.Empty,
                     IdCardNumber = owner.IdCardNumber,
                     IdCardDate = owner.IdCardDate,
-                    FrontIdCardUrl = owner.FrontIdCardUrl,
-                    BackIdCardUrl = owner.BackIdCardUrl,
                     BusinessLicenseNumber = owner.BusinessLicenseNumber,
                     BusinessLicenseUrl = owner.BusinessLicenseUrl,
                     Address = owner.Address,
