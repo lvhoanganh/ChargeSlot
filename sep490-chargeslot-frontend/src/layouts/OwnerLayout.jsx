@@ -6,11 +6,13 @@ import OwnerKycGuard from "@/pages/owner/OwnerKycGuard";
 
 export default function OwnerLayout() {
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <OwnerNav />
-      <OwnerKycGuard>
-        <Outlet />
-      </OwnerKycGuard>
+      <main style={{ flex: 1 }}>
+        <OwnerKycGuard>
+          <Outlet />
+        </OwnerKycGuard>
+      </main>
       <OwnerFooter />
     </div>
   );

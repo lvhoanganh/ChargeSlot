@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import ChargeSlotLogo from "@/components/ChargeSlotLogo";
 
 export default function AdminFooter() {
-  const currentYear = new Date().getFullYear();
 
   return (
     <footer className="cs-footer cs-footer--admin">
@@ -41,12 +40,6 @@ export default function AdminFooter() {
         </div>
 
         <div className="cs-footer__divider" />
-
-        <div className="cs-footer__bottom">
-          <p className="cs-footer__copyright">
-             {currentYear} ChargeSlot Admin Portal. Truy cập dành riêng cho quản trị viên.
-          </p>
-        </div>
       </div>
 
       <style>{`

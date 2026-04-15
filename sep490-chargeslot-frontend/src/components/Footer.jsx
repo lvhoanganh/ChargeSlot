@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import ChargeSlotLogo from "@/components/ChargeSlotLogo";
 
 export default function Footer() {
-  const currentYear = new Date().getFullYear();
 
   return (
     <footer className="cs-footer">
