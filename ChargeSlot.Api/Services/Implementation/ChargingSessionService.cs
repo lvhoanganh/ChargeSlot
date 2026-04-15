@@ -100,6 +100,7 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.CheckedInAt = now;
             booking.UpdatedAt = now;
             _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
             // 6. Create charging session
             var actualStartTime = now < booking.StartTime ? booking.StartTime : now; 
@@ -111,15 +112,17 @@ namespace ChargeSlot.Api.Services.Implementation
                 CreatedAt = now 
             };
             _sessionRepo.Add(session);
+            await _unitOfWork.CompleteAsync();
 
             // 7. Update slot status to Booked
             var slotEntity = await _slotRepo.GetByIdAsync(slot.Id, tracking: true);
             if (slotEntity != null)
             {
                 slotEntity.Status = SlotStatus.Booked;
-                slotEntity.UpdatedAt = now;           
+                slotEntity.UpdatedAt = now;
+                await _unitOfWork.CompleteAsync();
             }
-            await _unitOfWork.CompleteAsync();
+           
             // 8. Notify Owner
             await _notificationService.SendAsync(
                 slot.ChargingStation.OwnerUserId,
