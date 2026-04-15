@@ -7,6 +7,7 @@ import { BanStatusBadge } from "@/components/BanStatusBadge";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import AdminStationDetailModal from "@/components/AdminStationDetailModal";
 
 /*  Leaflet Setup  */
 delete L.Icon.Default.prototype._getIconUrl;
@@ -48,7 +49,7 @@ function FlyTo({ center, zoom }) {
   return null;
 }
 
-function StationMarker({ s, icon, isActive, getStatusLabel, onViewInList }) {
+function StationMarker({ s, icon, isActive, getStatusLabel, onViewInList, onViewDetail }) {
   const markerRef = useRef(null);
 
   useEffect(() => {
@@ -80,6 +81,12 @@ function StationMarker({ s, icon, isActive, getStatusLabel, onViewInList }) {
               style={{ width: "100%", padding: "8px", background: "#f1f5f9", color: "#334155", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: "pointer" }}
             >
               Xem trong danh sách
+            </button>
+            <button
+              onClick={onViewDetail}
+              style={{ width: "100%", padding: "8px", background: "#f97316", color: "white", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: "pointer", marginTop: 8 }}
+            >
+              Xem chi tiết trạm
             </button>
           </div>
         </div>
@@ -148,6 +155,7 @@ export default function ApproveStation() {
   const [userPos, setUserPos] = useState(null);
   const [flyTarget, setFlyTarget] = useState([21.0285, 105.8542]);
   const [activeStationId, setActiveStationId] = useState(null);
+  const [detailStationId, setDetailStationId] = useState(null);
 
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
@@ -420,7 +428,7 @@ export default function ApproveStation() {
                   const isApproved = s.approvalStatus === "Approved";
                   const isToggleOn = isApproved && !isBanned;
                   const isToggleDisabled = !isApproved;
-                  
+
                   return (
                     <tr key={s.id}>
                       <td className="cs-admin-table__id" style={{ fontWeight: 700, color: "#64748b" }}>{idx + 1}</td>
@@ -586,6 +594,7 @@ export default function ApproveStation() {
                     setViewMode("list");
                     setActiveStationId(null);
                   }}
+                  onViewDetail={() => setDetailStationId(s.id)}
                 />
               )
             })}
@@ -606,6 +615,14 @@ export default function ApproveStation() {
             }
           `}</style>
         </div>
+      )}
+
+      {/* Detail Modal */}
+      {detailStationId && (
+        <AdminStationDetailModal
+          stationId={detailStationId}
+          onClose={() => setDetailStationId(null)}
+        />
       )}
 
       {/* Confirm Modal */}
