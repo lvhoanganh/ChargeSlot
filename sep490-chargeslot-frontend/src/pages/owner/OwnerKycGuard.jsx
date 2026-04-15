@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { authApi, ownerKycApi } from "@/services/api";
+import { useNavigate } from "react-router-dom";
+import { authApi, ownerKycApi, ownerContractApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 
 const KycContainer = ({ children }) => (
@@ -15,9 +16,11 @@ const KycContainer = ({ children }) => (
 );
 
 export default function OwnerKycGuard({ children }) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [kycStatus, setKycStatus] = useState(null);
   const [kycRejectReason, setKycRejectReason] = useState(null);
+  const [contractStatus, setContractStatus] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [agreed, setAgreed] = useState(false);
 
@@ -28,12 +31,22 @@ export default function OwnerKycGuard({ children }) {
   async function fetchMe() {
     setLoading(true);
     try {
-      // We can use getMe or getStatus, getMe gets everything
-      // But getStatus gets the specific OwnerKycProfileDto which might have the existing images info if we need it
-      // We will just use getMe to get kycStatus fast, then if Unverified/Rejected we show form
       const me = await authApi.getMe();
-      setKycStatus(me.kycStatus || "Unverified");
+      const status = me.kycStatus || "Unverified";
+      setKycStatus(status);
       setKycRejectReason(me.kycRejectReason);
+
+      // Nếu KYC đã Approved hoặc PendingUpdate → kiểm tra trạng thái hợp đồng
+      // BE tự động tạo contract (Pending) ngay khi Admin duyệt KYC
+      if (status === "Approved" || status === "PendingUpdate") {
+        try {
+          const contract = await ownerContractApi.get();
+          setContractStatus(contract?.status || null);
+        } catch {
+          // Chưa có hợp đồng hoặc lỗi → bỏ qua, không block
+          setContractStatus(null);
+        }
+      }
     } catch (err) {
       showToast.error("Lỗi xác minh danh tính: " + (err.message || "Không rõ"));
     } finally {
@@ -45,9 +58,13 @@ export default function OwnerKycGuard({ children }) {
     e.preventDefault();
     const formData = new FormData(e.target);
 
+    // Helper: kiểm tra giá trị masked từ BE (có chứa dấu *)
+    const isMasked = (val) => typeof val === "string" && val.includes("*");
+
     // Validation
     const idCard = formData.get("IdCardNumber")?.trim();
-    if (!/^\d{12}$/.test(idCard)) {
+    // Nếu chuỗi chứa "*" → là masked value, bỏ qua validate — BE tự giữ nguyên trong DB
+    if (!isMasked(idCard) && !/^\d{12}$/.test(idCard)) {
       showToast.error("Số CCCD/CMND không hợp lệ. Vui lòng nhập đúng 12 chữ số.");
       return;
     }
@@ -64,7 +81,8 @@ export default function OwnerKycGuard({ children }) {
     }
 
     const businessLicense = formData.get("BusinessLicenseNumber")?.trim();
-    if (!/^\d{10}$/.test(businessLicense)) {
+    // Tương tự — nếu masked thì bỏ qua validate
+    if (!isMasked(businessLicense) && !/^\d{10}$/.test(businessLicense)) {
       showToast.error("Mã số Đăng ký kinh doanh không hợp lệ. Vui lòng nhập chính xác 10 chữ số.");
       return;
     }
@@ -92,9 +110,48 @@ export default function OwnerKycGuard({ children }) {
     );
   }
 
-  //  Approved hoặc PendingUpdate → cho phép dùng hệ thống bình thường 
-  // PendingUpdate: Owner vẫn dùng được, banner sẽ hiển thị qua OwnerKycPage
+  // Approved hoặc PendingUpdate → kiểm tra hợp đồng trước khi cho phép dùng
   if (kycStatus === "Approved" || kycStatus === "PendingUpdate") {
+    // Nếu hợp đồng đang Pending (chưa ký) → block, yêu cầu ký trước
+    if (contractStatus === "Pending") {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 flex items-center justify-center pt-20 pb-12 px-4">
+          <div className="max-w-lg w-full bg-white rounded-3xl shadow-xl ring-1 ring-orange-100 p-8 text-center">
+            <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg width="40" height="40" fill="none" stroke="#ea580c" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Ký hợp đồng hợp tác</h2>
+            <p className="text-slate-500 leading-relaxed mb-2">
+              Hồ sơ KYC của bạn đã được <strong className="text-green-600">phê duyệt thành công</strong>!
+            </p>
+            <p className="text-slate-500 leading-relaxed mb-6">
+              Để chính thức bắt đầu kinh doanh trên ChargeSlot, bạn cần đọc và ký hợp đồng hợp tác điện tử trước khi sử dụng các tính năng.
+            </p>
+            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 text-sm text-orange-800 text-left">
+              <div className="flex items-start gap-2">
+                <span className="text-lg flex-shrink-0">ℹ️</span>
+                <div>
+                  <strong className="block mb-0.5">Lưu ý:</strong>
+                  Hợp đồng hợp tác có hiệu lực ngay sau khi ký và trạm sạc của bạn sẽ được kích hoạt đầy đủ.
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate("/owner/contract")}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-base transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+            >
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              Đọc và ký hợp đồng ngay
+            </button>
+          </div>
+        </div>
+      );
+    }
+    // Hợp đồng đã ký hoặc không có hợp đồng → cho phép dùng bình thường
     return children;
   }
 
@@ -169,7 +226,7 @@ export default function OwnerKycGuard({ children }) {
 
         {/* Right Column: Files & Submit */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
+          {/* <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
             <h3 className="text-lg font-bold text-orange-800 border-b border-orange-200/60 pb-3 mb-4">️ Tải lên hình ảnh xác thực</h3>
             <div className="space-y-4">
               <div>
@@ -179,13 +236,15 @@ export default function OwnerKycGuard({ children }) {
               <div>
                 <label className="block text-xs font-semibold text-orange-700 mb-1.5">Mặt sau Căn cước công dân <span className="text-red-500">*</span></label>
                 <input type="file" name="BackIdCardImage" accept="image/*" required className="block w-full text-sm text-slate-600 bg-white border border-slate-200 rounded-xl file:mr-3 file:py-2.5 file:px-4 file:border-0 file:text-sm file:font-semibold file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 transition cursor-pointer" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-orange-700 mb-1.5">Ảnh Giấy phép Đăng ký kinh doanh <span className="text-red-500">*</span></label>
-                <input type="file" name="BusinessLicenseImage" accept="image/*" required className="block w-full text-sm text-slate-600 bg-white border border-slate-200 rounded-xl file:mr-3 file:py-2.5 file:px-4 file:border-0 file:text-sm file:font-semibold file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 transition cursor-pointer" />
-              </div>
+              </div> */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-orange-700 mb-1.5">Ảnh Giấy phép Đăng ký kinh doanh <span className="text-red-500">*</span></label>
+              <input type="file" name="BusinessLicenseImage" accept="image/*" required className="block w-full text-sm text-slate-600 bg-white border border-slate-200 rounded-xl file:mr-3 file:py-2.5 file:px-4 file:border-0 file:text-sm file:font-semibold file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 transition cursor-pointer" />
             </div>
           </div>
+          {/* </div>
+          </div> */}
 
           <div className="pt-2">
             <div className="flex items-start gap-2.5 mb-4">

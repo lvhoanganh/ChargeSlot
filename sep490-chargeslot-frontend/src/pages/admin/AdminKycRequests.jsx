@@ -234,7 +234,15 @@ export default function AdminKycRequests() {
                   </span>
                 )}
               </h2>
-              <button onClick={() => setSelectedKyc(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 24 }}></button>
+              <button
+                onClick={() => { setSelectedKyc(null); setReviewAction(null); setAdminNote(""); }}
+                style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', width: 36, height: 36, borderRadius: '50%', fontSize: 18, color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'}
+                onMouseLeave={e => e.currentTarget.style.background = '#f1f5f9'}
+                title="Đóng"
+              >
+                ✕
+              </button>
             </div>
 
             {/* PendingUpdate info note */}

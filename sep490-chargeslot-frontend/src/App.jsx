@@ -81,6 +81,7 @@ const OwnerReviews = lazy(() => import("./pages/owner/OwnerReviews"));
 const OwnerExtraServices = lazy(() => import("./pages/owner/OwnerExtraServices"));
 const OwnerDashboard = lazy(() => import("./pages/owner/OwnerDashboard"));
 const OwnerKycPage = lazy(() => import("./pages/owner/OwnerKycPage"));
+const OwnerContractPage = lazy(() => import("./pages/owner/OwnerContractPage"));
 
 // Loading fallback
 const PageLoader = () => (
@@ -246,6 +247,7 @@ export default function App() {
                 <Route path="dashboard" element={<OwnerDashboard />} />
                 <Route path="analytics" element={<Navigate to="/owner/dashboard" replace />} />
                 <Route path="kyc" element={<OwnerKycPage />} />
+                <Route path="contract" element={<OwnerContractPage />} />
               </Route>
             </Route>
 

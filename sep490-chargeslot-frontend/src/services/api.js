@@ -393,6 +393,48 @@ export const ownerKycApi = {
     submit: (formData) => apiFetchFormData("/owner/kyc/submit", formData, "POST"),
 };
 
+// ============================
+// OWNER CONTRACT (E-Contract)
+// ============================
+
+export const ownerContractApi = {
+    /** GET /api/owner/contract — lấy hợp đồng + contractHtml */
+    get: () => apiFetch("/owner/contract"),
+
+    /** POST /api/owner/contract/sign — gửi chữ ký base64 */
+    sign: (signatureBase64) =>
+        apiFetch("/owner/contract/sign", {
+            method: "POST",
+            body: JSON.stringify({ signatureBase64 }),
+        }),
+
+    /**
+     * GET /api/owner/contract/download — tải PDF hợp đồng (đã ký có chữ ký, chưa ký có preview)
+     * Trả về Blob (application/pdf)
+     */
+    download: async () => {
+        const token = getToken();
+        const response = await fetch(`${API_BASE_URL}/owner/contract/download`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || `Lỗi ${response.status}`);
+        }
+        return response.blob();
+    },
+
+    /**
+     * POST /api/owner/contract/terminate — Owner yêu cầu chấm dứt hợp đồng (Điều 6.3)
+     * Điều kiện: Hợp đồng đang Signed và không có booking đang hoạt động
+     */
+    terminate: (reason) =>
+        apiFetch("/owner/contract/terminate", {
+            method: "POST",
+            body: JSON.stringify({ reason }),
+        }),
+};
+
 export const adminKycApi = {
     getPending: () => apiFetch("/admin/kyc/pending"),
     getAll: (status) => {

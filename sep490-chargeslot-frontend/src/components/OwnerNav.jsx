@@ -134,13 +134,18 @@ export default function OwnerNav() {
       to: "/owner/extra-services",
     },
     {
+      icon: <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+      label: "Hợp đồng",
+      to: "/owner/contract",
+    },
+    {
       icon: <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>,
       label: "Nhắn tin",
       to: "/owner/chat-list",
     },
   ];
 
-  const moreSubPaths = ["/owner/reviews", "/owner/extra-services", "/owner/chat-list"];
+  const moreSubPaths = ["/owner/reviews", "/owner/extra-services", "/owner/chat-list", "/owner/contract"];
   const isMoreActive = moreSubPaths.some(p => location.pathname.startsWith(p))
     || location.pathname.includes("/dispute");
 
@@ -425,6 +430,7 @@ export default function OwnerNav() {
           {[
             { emoji: "👤", label: "Hồ sơ", to: "/owner/owner-profile" },
             { emoji: "🛡️", label: "Xác thực", to: "/owner/kyc" },
+            { emoji: "📜", label: "Hợp đồng", to: "/owner/contract" },
             { emoji: "📊", label: "Thống kê", to: "/owner/analytics" },
             { emoji: "💳", label: "Ví tiền", to: "/owner/wallet" },
             { emoji: "💬", label: "Nhắn tin", to: "/owner/chat-list" },

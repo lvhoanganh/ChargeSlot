@@ -18,7 +18,7 @@ function KycStatusBadge({ status }) {
     Pending:       { label: "Đang chờ duyệt",              bg: "#fffbeb", color: "#f59e0b", dot: "#f59e0b" },
     Approved:      { label: " Đã xác thực",              bg: "#f0fdf4", color: "#16a34a", dot: "#16a34a" },
     Rejected:      { label: " Bị từ chối",               bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
-    PendingUpdate: { label: " Chờ duyệt bản cập nhật",   bg: "#eff6ff", color: "#2563eb", dot: "#3b82f6" },
+    PendingUpdate: { label: "🟠 Chờ duyệt bản cập nhật",  bg: "#fff7ed", color: "#ea580c", dot: "#f97316" },
   };
   const cfg = map[status] || map.Unverified;
   return (
@@ -63,12 +63,16 @@ export default function OwnerKycPage() {
     }
   }
 
+  /** Kiểm tra xem một chuỗi có phải là giá trị masked từ BE không (chứa dấu *) */
+  const isMasked = (val) => typeof val === "string" && val.includes("*");
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
 
     const idCard = formData.get("IdCardNumber")?.trim();
-    if (!/^\d{12}$/.test(idCard)) {
+    // Nếu chuỗi chứa "*" → là masked value từ BE, bỏ qua validate (BE sẽ giữ nguyên)
+    if (!isMasked(idCard) && !/^\d{12}$/.test(idCard)) {
       showToast.error("Số CCCD/CMND không hợp lệ. Vui lòng nhập đúng 12 chữ số.");
       return;
     }
@@ -82,7 +86,8 @@ export default function OwnerKycPage() {
     formData.set("IdCardDate", `${dateMatch[3]}/${dateMatch[2]}/${dateMatch[1]}`);
 
     const businessLicense = formData.get("BusinessLicenseNumber")?.trim();
-    if (!/^\d{10}$/.test(businessLicense)) {
+    // Tương tự — nếu masked thì bỏ qua validate
+    if (!isMasked(businessLicense) && !/^\d{10}$/.test(businessLicense)) {
       showToast.error("Mã số ĐKKD không hợp lệ. Vui lòng nhập chính xác 10 chữ số.");
       return;
     }
@@ -176,8 +181,8 @@ export default function OwnerKycPage() {
               </button>
             )}
             {kycStatus === "PendingUpdate" && (
-              <div className="text-sm text-blue-600 font-semibold bg-blue-50 px-4 py-2 rounded-xl border border-blue-200">
-                Đang chờ Admin xét duyệt bản cập nhật
+              <div className="text-sm text-orange-700 font-semibold bg-orange-50 px-4 py-2 rounded-xl border border-orange-200">
+                🟠 Đang chờ Admin xét duyệt bản cập nhật
               </div>
             )}
             {kycStatus === "Pending" && (
@@ -200,11 +205,11 @@ export default function OwnerKycPage() {
 
           {/* PendingUpdate banner */}
           {kycStatus === "PendingUpdate" && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl flex gap-3 text-blue-800 text-sm">
-              <span className="text-lg flex-shrink-0"></span>
+            <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-xl flex gap-3 text-orange-800 text-sm">
+              <span className="text-lg flex-shrink-0">🟠</span>
               <div>
                 <strong className="block mb-0.5">Yêu cầu cập nhật đang chờ duyệt</strong>
-                Bạn vẫn có thể sử dụng hệ thống bình thường trong thời gian chờ.
+                Trạm sạc vẫn hoạt động bình thường dựa trên hồ sơ gốc trong khi chờ Admin xét duyệt.
                 Nếu bị từ chối, thông tin cũ sẽ được tự động khôi phục.
               </div>
             </div>
@@ -218,7 +223,7 @@ export default function OwnerKycPage() {
             <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
                Thông tin hiện tại
               {kycStatus === "PendingUpdate" && (
-                <span className="text-xs font-normal text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">Bản cập nhật đang chờ duyệt</span>
+                <span className="text-xs font-normal text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">🟠 Bản cập nhật đang chờ duyệt</span>
               )}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -311,6 +316,11 @@ export default function OwnerKycPage() {
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                       placeholder="12 chữ số"
                     />
+                    {profile?.idCardNumber?.includes("*") && (
+                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                        <span>🔒</span> Xóa trắng ô này và nhập số mới nếu muốn thay đổi
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">Ngày cấp CCCD <span className="text-red-500">*</span></label>
@@ -330,6 +340,11 @@ export default function OwnerKycPage() {
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                     placeholder="Mã số thuế"
                   />
+                  {profile?.taxCode?.includes("*") && (
+                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                      <span>🔒</span> Xóa trắng ô này và nhập mã mới nếu muốn thay đổi
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -349,6 +364,11 @@ export default function OwnerKycPage() {
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                       placeholder="10 chữ số"
                     />
+                    {profile?.businessLicenseNumber?.includes("*") && (
+                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                        <span>🔒</span> Xóa trắng ô này và nhập số mới nếu muốn thay đổi
+                      </p>
+                    )}
                   </div>
                 </div>
 
