@@ -27,7 +27,7 @@ export default function OwnerActiveSessions() {
 
   function fetchSessions() {
     chargingApi.getActiveSessions()
-      .then((data) => setSessions(Array.isArray(data) ? data : []))
+      .then((data) => setSessions(Array.isArray(data) ? data : (data?.items || [])))
       .catch(() => setSessions([]))
       .finally(() => setLoading(false));
   }

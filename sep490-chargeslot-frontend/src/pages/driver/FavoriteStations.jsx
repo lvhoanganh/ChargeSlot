@@ -11,7 +11,7 @@ export default function FavoriteStations() {
   useEffect(() => {
     setLoading(true);
     favoriteApi.getMyFavorites()
-      .then(data => setFavorites(Array.isArray(data) ? data : []))
+      .then(data => setFavorites(Array.isArray(data) ? data : (data?.items || [])))
       .catch(() => setFavorites([]))
       .finally(() => setLoading(false));
   }, []);

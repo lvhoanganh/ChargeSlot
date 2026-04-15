@@ -20,7 +20,7 @@ export default function OwnerExtraServices() {
   useEffect(() => {
     stationApi.getAll()
       .then(data => {
-        const list = Array.isArray(data) ? data : [];
+        const list = Array.isArray(data) ? data : (data?.items || []);
         const approvedList = list.filter(st => st.approvalStatus === "Approved");
         setStations(approvedList);
         if (approvedList.length > 0) setSelectedStation(approvedList[0].id);
@@ -33,7 +33,7 @@ export default function OwnerExtraServices() {
     if (!selectedStation) return;
     setSvcLoading(true);
     extraServiceApi.getAll(selectedStation)
-      .then(data => setServices(Array.isArray(data) ? data : []))
+      .then(data => setServices(Array.isArray(data) ? data : (data?.items || [])))
       .catch(() => setServices([]))
       .finally(() => setSvcLoading(false));
   }, [selectedStation]);
@@ -85,7 +85,7 @@ export default function OwnerExtraServices() {
       setShowForm(false);
       // Reload
       const data = await extraServiceApi.getAll(selectedStation);
-      setServices(Array.isArray(data) ? data : []);
+      setServices(Array.isArray(data) ? data : (data?.items || []));
     } catch (err) {
       setFormError(err.message || "Lỗi lưu dịch vụ");
     } finally {

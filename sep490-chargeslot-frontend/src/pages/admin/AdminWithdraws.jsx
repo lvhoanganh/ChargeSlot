@@ -41,7 +41,7 @@ export default function AdminWithdraws() {
 
     apiCall
       .then(data => {
-        let list = Array.isArray(data) ? data : [];
+        let list = Array.isArray(data) ? data : (data?.items || []);
         if (activeTab === "approved") list = list.filter(w => w.status === "Approved");
         else if (activeTab === "issue") list = list.filter(w => w.status === "IssueReported");
         setWithdraws(list);

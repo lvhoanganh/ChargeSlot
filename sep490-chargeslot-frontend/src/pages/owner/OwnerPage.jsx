@@ -99,7 +99,7 @@ export default function OwnerPage() {
   function fetchStations() {
     setLoading(true);
     stationApi.getAll()
-      .then((data) => setStations(Array.isArray(data) ? data : []))
+      .then((data) => setStations(Array.isArray(data) ? data : (data?.items || [])))
       .catch(() => setStations([]))
       .finally(() => setLoading(false));
   }
@@ -921,7 +921,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
       setFetchingPricing(true);
       try {
         const data = await stationPricingApi.getAll(stationId);
-        if (!cancelled) setPricingTiers(Array.isArray(data) ? data : []);
+        if (!cancelled) setPricingTiers(Array.isArray(data) ? data : (data?.items || []));
       } catch {
         if (!cancelled) setPricingTiers(initialTiers);
       } finally {
@@ -1000,7 +1000,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
   async function reloadPricing() {
     try {
       const data = await stationPricingApi.getAll(stationId);
-      setPricingTiers(Array.isArray(data) ? data : []);
+      setPricingTiers(Array.isArray(data) ? data : (data?.items || []));
     } catch { /* keep current */ }
   }
 
@@ -1205,7 +1205,7 @@ function UnavailableDatesPanel({ stationId }) {
     setLoading(true);
     try {
       const data = await stationApi.getUnavailableDates(stationId);
-      setDates(Array.isArray(data) ? data : []);
+      setDates(Array.isArray(data) ? data : (data?.items || []));
     } catch {
       setDates([]);
     } finally {
