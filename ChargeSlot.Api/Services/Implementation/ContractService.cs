@@ -475,14 +475,14 @@ namespace ChargeSlot.Api.Services.Implementation
 
             return $@"
 <div style='font-family: ""Times New Roman"", serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6;'>
-    <div style='text-align: center;'>
-        <p style='font-size: 14px; font-weight: bold; margin: 0;'>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
-        <p style='font-size: 13px; margin: 0;'>Độc lập — Tự do — Hạnh phúc</p>
-        <p style='font-size: 11px; margin: 4px 0 16px;'>─────────── ✦ ───────────</p>
-        <p style='font-size: 16px; font-weight: bold; margin: 4px 0;'>HỢP ĐỒNG HỢP TÁC KINH DOANH</p>
-        <p style='font-size: 14px; font-weight: bold; margin: 0 0 4px;'>DỊCH VỤ VẬN HÀNH TRẠM SẠC XE ĐIỆN</p>
-        <p>Số: <strong>{contract.ContractNumber}</strong></p>
-        <p>Ngày: <strong>{contract.CreatedAt:dd/MM/yyyy}</strong></p>
+    <div>
+        <p style='text-align: center; font-size: 14px; font-weight: bold; margin: 0;'>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
+        <p style='text-align: center; font-size: 13px; margin: 0;'>Độc lập — Tự do — Hạnh phúc</p>
+        <p style='text-align: center; font-size: 11px; margin: 4px 0 16px;'>─────────── ✦ ───────────</p>
+        <p style='text-align: center; font-size: 16px; font-weight: bold; margin: 4px 0;'>HỢP ĐỒNG HỢP TÁC KINH DOANH</p>
+        <p style='text-align: center; font-size: 14px; font-weight: bold; margin: 0 0 4px;'>DỊCH VỤ VẬN HÀNH TRẠM SẠC XE ĐIỆN</p>
+        <p style='text-align: center;'>Số: <strong>{contract.ContractNumber}</strong></p>
+        <p style='text-align: center;'>Ngày: <strong>{contract.CreatedAt:dd/MM/yyyy}</strong></p>
     </div>
     <hr/>
     <p><em>Căn cứ Bộ luật Dân sự 2015;<br/>Căn cứ Luật Thương mại 2005;<br/>Căn cứ Luật Giao dịch điện tử 2023;<br/>Căn cứ nhu cầu và năng lực thực tế của hai bên;</em></p>
@@ -555,23 +555,25 @@ namespace ChargeSlot.Api.Services.Implementation
     <p>7.3. Hợp đồng được lập thành bản điện tử, mỗi bên giữ một bản có giá trị pháp lý như nhau.</p>
     <hr/>
 
-    <table style='width:100%; margin-top:20px;'>
+    <table style='width:100%; margin-top:20px; border:none;'>
         <tr>
-            <td style='width:50%; text-align:center; vertical-align:top;'>
-                <p><strong>ĐẠI DIỆN BÊN A</strong></p>
-                <p><em>(Đã ký điện tử)</em></p>
+            <td style='width:50%; text-align:center; vertical-align:top; border:none;'>
+                <p style='text-align: center;'><strong>ĐẠI DIỆN BÊN A</strong></p>
+                <p style='text-align: center;'><em>(Đã ký điện tử)</em></p>
                 <br/><br/>
-                <p><strong>Lại Vũ Hoàng Anh</strong></p>
-                <p>Giám đốc</p>
-                <p>Ngày: {contract.CreatedAt:dd/MM/yyyy}</p>
+                <p style='text-align: center;'><strong>Lại Vũ Hoàng Anh</strong></p>
+                <p style='text-align: center;'>Giám đốc</p>
+                <p style='text-align: center;'>Ngày: {contract.CreatedAt:dd/MM/yyyy}</p>
             </td>
-            <td style='width:50%; text-align:center; vertical-align:top;'>
-                <p><strong>ĐẠI DIỆN BÊN B</strong></p>
-                {signatureHtml}
+            <td style='width:50%; text-align:center; vertical-align:top; border:none;'>
+                <p style='text-align: center;'><strong>ĐẠI DIỆN BÊN B</strong></p>
+                <div style='text-align: center;'>
+                    {signatureHtml}
+                </div>
                 <br/>
-                <p><strong>{HttpUtility.HtmlEncode(contract.OwnerName)}</strong></p>
-                <p>Đại diện pháp luật</p>
-                <p>Ngày: {signedAtStr}</p>
+                <p style='text-align: center;'><strong>{HttpUtility.HtmlEncode(contract.OwnerName)}</strong></p>
+                <p style='text-align: center;'>Đại diện pháp luật</p>
+                <p style='text-align: center;'>Ngày: {signedAtStr}</p>
             </td>
         </tr>
     </table>

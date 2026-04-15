@@ -22,6 +22,8 @@ var builder = WebApplication.CreateBuilder(args);
 // =======================
 // CONFIGURATION
 // =======================
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var configuration = builder.Configuration;
 var jwtSection = configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"] ?? throw new Exception("Jwt:Key is missing");
@@ -354,7 +356,7 @@ app.Use(async (context, next) =>
 
         var response = new 
         {
-            message = "Lỗi hệ thống ngoài ý muốn."
+            message = $"Lỗi hệ thống: {ex.Message} {(ex.InnerException != null ? ex.InnerException.Message : "")}"
         };
 
         await context.Response.WriteAsJsonAsync(response);
