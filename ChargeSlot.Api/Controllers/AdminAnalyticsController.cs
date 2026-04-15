@@ -12,12 +12,10 @@ namespace ChargeSlot.Api.Controllers
     public class AdminAnalyticsController : ControllerBase
     {
         private readonly IDashboardService _dashboardService;
-        private readonly IAiInsightsService _aiInsightsService;
 
-        public AdminAnalyticsController(IDashboardService dashboardService, IAiInsightsService aiInsightsService)
+        public AdminAnalyticsController(IDashboardService dashboardService)
         {
             _dashboardService = dashboardService;
-            _aiInsightsService = aiInsightsService;
         }
 
         /// <summary>Lấy số liệu thô cho Dashboard Admin</summary>
@@ -26,15 +24,6 @@ namespace ChargeSlot.Api.Controllers
         {
             var metrics = await _dashboardService.GetAdminMetricsAsync(fromDate, toDate);
             return Ok(metrics);
-        }
-
-        /// <summary>Gọi AI phân tích số liệu cho Admin</summary>
-        [HttpGet("ai-insights")]
-        public async Task<ActionResult<AiInsightResponseDto>> GetAiInsights([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
-        {
-            var metrics = await _dashboardService.GetAdminMetricsAsync(fromDate, toDate);
-            var insight = await _aiInsightsService.GenerateAdminInsightAsync(metrics);
-            return Ok(insight);
         }
     }
 }

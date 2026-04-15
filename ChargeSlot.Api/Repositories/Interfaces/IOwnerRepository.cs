@@ -12,6 +12,7 @@ namespace ChargeSlot.Api.Repositories.Interfaces
         Task AddAsync(Owner owner);
         void Update(Owner owner);
         void Remove(Owner owner);
+        Task<int> CountAsync();
     }
 }
 

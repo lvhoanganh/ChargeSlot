@@ -70,8 +70,10 @@ namespace ChargeSlot.Api.BackgroundJobs
                             invoice.UpdatedAt = DateTimeHelper.VietnamNow();
                             invoiceRepo.Update(invoice);
 
-                            // Complete booking
-                            booking.Status = BookingStatus.Completed;
+                            // Complete booking: NoShow nếu chưa check-in, Completed nếu đã check-in
+                            booking.Status = booking.CheckedInAt == null 
+                                ? BookingStatus.NoShow 
+                                : BookingStatus.Completed;
                             booking.UpdatedAt = DateTimeHelper.VietnamNow();
                             bookingRepo.Update(booking);
 

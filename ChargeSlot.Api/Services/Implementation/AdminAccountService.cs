@@ -367,11 +367,18 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             var users = await _adminAccountRepository.GetAllUsersForStatisticsAsync();
 
+            var ownerCount = await _ownerRepo.CountAsync();
+            var driverCount = await _driverRepo.CountAsync();
+            var adminIds = await _adminAccountRepository.GetAdminUserIdsAsync();
+
             return new AccountStatisticsDto
             {
                 TotalAccounts = users.Count,
                 ActiveAccounts = users.Count(x => x.Status == UserStatusConstants.Active),
                 BannedAccounts = users.Count(x => x.Status == UserStatusConstants.Banned || x.Status == UserStatusConstants.Suspended),
+                TotalOwners = ownerCount,
+                TotalDrivers = driverCount,
+                TotalAdmins = adminIds.Count
             };
         }
 

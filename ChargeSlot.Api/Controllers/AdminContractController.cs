@@ -18,14 +18,12 @@ namespace ChargeSlot.Api.Controllers
             _contractService = contractService;
         }
 
-        /// <summary>Danh sách tất cả hợp đồng (hỗ trợ lọc theo trạng thái: Pending, Signed, Expired, Terminated).</summary>
+        /// <summary>Danh sách tất cả hợp đồng (hỗ trợ lọc theo: status, ownerUserId, search, fromDate, toDate + phân trang).</summary>
         [HttpGet]
         public async Task<ActionResult<ChargeSlot.Api.DTOs.PagedResultDto<ContractPreviewDto>>> GetAllContracts(
-            [FromQuery] string? status = null,
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10)
+            [FromQuery] ContractFilterDto filter)
         {
-            var result = await _contractService.GetAllContractsPagedAsync(status, page, pageSize);
+            var result = await _contractService.GetAllContractsFilteredAsync(filter);
             return Ok(result);
         }
 

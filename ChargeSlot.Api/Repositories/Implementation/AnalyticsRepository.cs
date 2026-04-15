@@ -18,40 +18,45 @@ namespace ChargeSlot.Api.Repositories.Implementation
 
         public async Task<AdminDashboardMetricsDto> GetAdminMetricsAsync(DateTime start, DateTime end)
         {
+            // Wallet balances - single queries
             var escrowBal = await _db.Wallets.Where(w => w.SystemCode == "ESCROW").Select(w => w.AvailableBalance).FirstOrDefaultAsync();
             var platformBal = await _db.Wallets.Where(w => w.SystemCode == "PLATFORM_REVENUE").Select(w => w.AvailableBalance).FirstOrDefaultAsync();
             
+            // Counts - DB level
             var totalStations = await _db.ChargingStations.CountAsync();
             var activeStations = await _db.ChargingStations.CountAsync(s => s.OperationalStatus == OperationalStatus.Active);
             var totalUsers = await _db.Users.CountAsync();
 
-            var bookingsLast30 = await _db.Bookings
-                .Where(b => b.CreatedAt >= start && b.CreatedAt <= end)
-                .ToListAsync();
-
-            var disputesLast30 = await _db.Disputes
-                .Where(d => d.CreatedAt >= start && d.CreatedAt <= end)
-                .Include(d => d.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .ToListAsync();
-
-            int totalBookings = bookingsLast30.Count;
-            int cancelledBookings = bookingsLast30.Count(b => b.Status == BookingStatus.Cancelled);
+            // Booking statistics - DB level aggregation (no ToListAsync)
+            var bookingQuery = _db.Bookings.Where(b => b.CreatedAt >= start && b.CreatedAt <= end);
+            var totalBookings = await bookingQuery.CountAsync();
+            var cancelledBookings = await bookingQuery.CountAsync(b => b.Status == BookingStatus.Cancelled);
+            var noShowBookings = await bookingQuery.CountAsync(b => b.Status == BookingStatus.NoShow);
             decimal cancelRate = totalBookings > 0 ? (decimal)cancelledBookings / totalBookings : 0m;
 
-            var topDisputed = disputesLast30
-                .Where(d => d.Booking?.ChargingSlot?.ChargingStation != null)
-                .GroupBy(d => d.Booking.ChargingSlot.StationId)
+            // Disputes - count at DB level
+            var disputesCount = await _db.Disputes
+                .Where(d => d.CreatedAt >= start && d.CreatedAt <= end)
+                .CountAsync();
+
+            // Top disputed stations - DB level aggregation
+            var topDisputed = await _db.Disputes
+                .Where(d => d.CreatedAt >= start && d.CreatedAt <= end)
+                .Where(d => d.Booking.ChargingSlot.ChargingStation != null)
+                .GroupBy(d => new { d.Booking.ChargingSlot.StationId, d.Booking.ChargingSlot.ChargingStation.Name })
                 .Select(g => new StationDisputeSummaryDto
                 {
-                    StationId = g.Key,
-                    StationName = g.First().Booking.ChargingSlot.ChargingStation.Name,
+                    StationId = g.Key.StationId,
+                    StationName = g.Key.Name,
                     DisputeCount = g.Count()
                 })
                 .OrderByDescending(x => x.DisputeCount)
                 .Take(5)
-                .ToList();
+                .ToListAsync();
 
-            var highRiskDrivers = bookingsLast30
+            // High risk drivers - DB level aggregation
+            var highRiskRaw = await _db.Bookings
+                .Where(b => b.CreatedAt >= start && b.CreatedAt <= end)
                 .GroupBy(b => b.DriverUserId)
                 .Select(g => new
                 {
@@ -59,16 +64,16 @@ namespace ChargeSlot.Api.Repositories.Implementation
                     Total = g.Count(),
                     Cancelled = g.Count(b => b.Status == BookingStatus.Cancelled)
                 })
-                .Where(x => x.Total >= 5 && x.Cancelled >= x.Total * 0.5m)
+                .Where(x => x.Total >= 5 && x.Cancelled >= x.Total / 2)
                 .OrderByDescending(x => x.Cancelled)
                 .Take(5)
-                .ToList();
+                .ToListAsync();
 
             var driverNames = await _db.Users
-                .Where(u => highRiskDrivers.Select(h => h.DriverId).Contains(u.Id))
+                .Where(u => highRiskRaw.Select(h => h.DriverId).Contains(u.Id))
                 .ToDictionaryAsync(u => u.Id, u => u.FullName ?? "Unknown");
 
-            var driverRiskDtos = highRiskDrivers.Select(h => new DriverCollusionRiskDto
+            var driverRiskDtos = highRiskRaw.Select(h => new DriverCollusionRiskDto
             {
                 DriverUserId = h.DriverId,
                 DriverName = driverNames.GetValueOrDefault(h.DriverId, "Unknown Driver"),
@@ -76,6 +81,16 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 CancelledBookings = h.Cancelled,
                 SuspiciousNote = $"Tài khoản này đã hủy {h.Cancelled}/{h.Total} đơn đặt trong khoảng thời gian qua (Tỉ lệ {Math.Round((decimal)h.Cancelled/h.Total*100)}%)."
             }).ToList();
+
+            // Withdraw statistics
+            var pendingWithdrawQuery = _db.WithdrawRequests
+                .Where(w => w.Status == WithdrawStatus.Pending || w.Status == WithdrawStatus.Approved);
+            var pendingWithdrawCount = await pendingWithdrawQuery.CountAsync();
+            var pendingWithdrawAmount = await pendingWithdrawQuery.SumAsync(w => w.Amount);
+
+            var completedWithdrawAmount = await _db.WithdrawRequests
+                .Where(w => w.Status == WithdrawStatus.Completed && w.RequestedAt >= start && w.RequestedAt <= end)
+                .SumAsync(w => w.Amount);
 
             return new AdminDashboardMetricsDto
             {
@@ -86,9 +101,13 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 TotalUsers = totalUsers,
                 BookingsLast30Days = totalBookings,
                 CancelRateLast30Days = cancelRate,
-                DisputesLast30Days = disputesLast30.Count,
+                DisputesLast30Days = disputesCount,
+                NoShowLast30Days = noShowBookings,
                 TopDisputedStations = topDisputed,
-                HighRiskDrivers = driverRiskDtos
+                HighRiskDrivers = driverRiskDtos,
+                PendingWithdrawCount = pendingWithdrawCount,
+                PendingWithdrawAmount = pendingWithdrawAmount,
+                CompletedWithdrawAmount = completedWithdrawAmount
             };
         }
 
@@ -101,51 +120,68 @@ namespace ChargeSlot.Api.Repositories.Implementation
 
             var stations = await _db.ChargingStations
                 .Where(s => s.OwnerUserId == ownerUserId)
+                .AsNoTracking()
                 .ToListAsync();
 
             var stationIds = stations.Select(s => s.Id).ToList();
 
-            var bookingsLast30 = await _db.Bookings
-                .Include(b => b.ChargingSlot)
-                .Include(b => b.BookingExtraServices).ThenInclude(es => es.ExtraService)
-                .Where(b => stationIds.Contains(b.ChargingSlot.StationId) && b.CreatedAt >= start && b.CreatedAt <= end)
-                .ToListAsync();
+            // DB-level aggregation for booking stats
+            var bookingQuery = _db.Bookings
+                .Where(b => stationIds.Contains(b.ChargingSlot.StationId) && b.CreatedAt >= start && b.CreatedAt <= end);
 
-            decimal totalRevenue = bookingsLast30
-                .Where(b => b.Status == BookingStatus.Completed || b.Status == BookingStatus.Paid)
-                .Sum(b => b.TotalAmount);
-
-            int totalBookings = bookingsLast30.Count;
-            int cancelledBookings = bookingsLast30.Count(b => b.Status == BookingStatus.Cancelled);
+            var totalBookings = await bookingQuery.CountAsync();
+            var cancelledBookings = await bookingQuery.CountAsync(b => b.Status == BookingStatus.Cancelled);
+            var completedBookings = await bookingQuery.CountAsync(b => b.Status == BookingStatus.Completed);
+            var noShowBookings = await bookingQuery.CountAsync(b => b.Status == BookingStatus.NoShow);
             decimal cancelRate = totalBookings > 0 ? (decimal)cancelledBookings / totalBookings : 0m;
 
+            // Revenue from confirmed/resolved invoices (accurate, not from booking amounts)
+            var totalRevenue = await _db.Invoices
+                .Where(i => (i.Status == InvoiceStatus.Confirmed || i.Status == InvoiceStatus.Resolved)
+                         && stationIds.Contains(i.Booking.ChargingSlot.StationId)
+                         && i.CreatedAt >= start && i.CreatedAt <= end)
+                .SumAsync(i => i.TotalAmount - i.PlatformFee - i.VatAmount);
+
+            // Station performances - DB level
             var performances = new List<StationPerformanceDto>();
             foreach (var s in stations)
             {
-                var sBookings = bookingsLast30.Where(b => b.ChargingSlot.StationId == s.Id).ToList();
+                var sBookingCount = await _db.Bookings
+                    .Where(b => b.ChargingSlot.StationId == s.Id && b.CreatedAt >= start && b.CreatedAt <= end)
+                    .CountAsync();
+
+                var sRevenue = await _db.Invoices
+                    .Where(i => (i.Status == InvoiceStatus.Confirmed || i.Status == InvoiceStatus.Resolved)
+                             && i.Booking.ChargingSlot.StationId == s.Id
+                             && i.CreatedAt >= start && i.CreatedAt <= end)
+                    .SumAsync(i => i.TotalAmount - i.PlatformFee - i.VatAmount);
+
                 performances.Add(new StationPerformanceDto
                 {
                     StationId = s.Id,
                     StationName = s.Name,
-                    TotalBookings = sBookings.Count,
-                    TotalRevenue = sBookings.Where(b => b.Status == BookingStatus.Completed || b.Status == BookingStatus.Paid).Sum(b => b.TotalAmount),
+                    TotalBookings = sBookingCount,
+                    TotalRevenue = sRevenue,
                     AverageRating = s.AverageRating
                 });
             }
 
-            var extraServicesSold = bookingsLast30
-                .Where(b => b.Status == BookingStatus.Completed || b.Status == BookingStatus.Paid)
-                .SelectMany(b => b.BookingExtraServices ?? new List<Models.BookingExtraService>())
-                .GroupBy(es => es.ExtraService?.ServiceName ?? "Dịch vụ khác")
+            // Top selling extra services
+            var extraServicesSold = await _db.BookingExtraServices
+                .Include(es => es.ExtraService)
+                .Where(es => stationIds.Contains(es.Booking.ChargingSlot.StationId)
+                          && (es.Booking.Status == BookingStatus.Completed || es.Booking.Status == BookingStatus.Paid)
+                          && es.Booking.CreatedAt >= start && es.Booking.CreatedAt <= end)
+                .GroupBy(es => es.ExtraService.ServiceName)
                 .Select(g => new ServiceSalesDto
                 {
-                    ServiceName = g.Key,
+                    ServiceName = g.Key ?? "Dịch vụ khác",
                     QuantitySold = g.Sum(es => es.Quantity),
                     Revenue = g.Sum(es => es.TotalPrice)
                 })
                 .OrderByDescending(s => s.Revenue)
                 .Take(5)
-                .ToList();
+                .ToListAsync();
 
             return new OwnerDashboardMetricsDto
             {
@@ -155,7 +191,8 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 TotalStations = stations.Count,
                 BookingsLast30Days = totalBookings,
                 CancelRateLast30Days = Math.Round(cancelRate, 2),
-                ActiveTimeUtilizationRate = 0.35m, // Mock for demonstration
+                CompletedBookingsLast30Days = completedBookings,
+                NoShowLast30Days = noShowBookings,
                 StationPerformances = performances.OrderByDescending(p => p.TotalRevenue).ToList(),
                 TopServicesSold = extraServicesSold
             };

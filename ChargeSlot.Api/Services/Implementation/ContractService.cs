@@ -281,6 +281,34 @@ namespace ChargeSlot.Api.Services.Implementation
             };
         }
 
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<ContractPreviewDto>> GetAllContractsFilteredAsync(ContractFilterDto filter)
+        {
+            var result = await _contractRepo.GetAllFilteredPagedAsync(filter);
+
+            var items = result.Items.Select(c => new ContractPreviewDto
+            {
+                ContractId = c.Id,
+                ContractNumber = c.ContractNumber,
+                OwnerName = c.OwnerName,
+                OwnerUserId = c.OwnerUserId,
+                Status = c.Status.ToString(),
+                ContractHtml = "",
+                CreatedAt = c.CreatedAt,
+                SignedAt = c.SignedAt,
+                ExpiresAt = c.ExpiresAt,
+                ContractDurationMonths = c.ContractDurationMonths,
+                SignedPdfUrl = c.SignedPdfUrl
+            }).ToList();
+
+            return new ChargeSlot.Api.DTOs.PagedResultDto<ContractPreviewDto>
+            {
+                Page = filter.Page <= 0 ? 1 : filter.Page,
+                PageSize = filter.PageSize <= 0 ? 20 : filter.PageSize,
+                TotalItems = result.TotalCount,
+                Items = items
+            };
+        }
+
         public async Task<byte[]?> DownloadContractPdfForAdminAsync(int ownerUserId)
         {
             var contract = await _contractRepo.GetByOwnerAsync(ownerUserId);
@@ -406,6 +434,8 @@ namespace ChargeSlot.Api.Services.Implementation
                         col.Item().Text("6.4. Khi hợp đồng chấm dứt, toàn bộ trạm sạc của Bên B sẽ bị đình chỉ hoạt động trên nền tảng và không tiếp nhận đặt chỗ mới.");
                         col.Item().Text("6.5. Bên A sẽ thanh toán toàn bộ doanh thu còn lại trong ví cho Bên B trong vòng 15 ngày làm việc kể từ ngày chấm dứt. Bên B vẫn có quyền rút số dư ví trong thời gian này.");
                         col.Item().Text("6.6. Trong trường hợp Bên A đơn phương chấm dứt do vi phạm, các đặt chỗ đang hoạt động sẽ được hệ thống tự động hủy và hoàn tiền cho tài xế.");
+                        col.Item().Text("6.7. Trường hợp Bên A đơn phương chấm dứt hợp đồng theo khoản 6.2 (do vi phạm), Bên B sẽ không được ký kết hợp đồng hợp tác mới với Bên A trừ khi có quyết định khác từ Bên A.");
+                        col.Item().Text("6.8. Trường hợp Bên B tự nguyện chấm dứt hợp đồng theo khoản 6.3, Bên B có quyền đăng ký ký kết hợp đồng hợp tác mới với Bên A khi đáp ứng đầy đủ điều kiện tại thời điểm đăng ký.");
                         col.Item().Height(6);
 
                         // ── ĐIỀU 7 ──
@@ -548,6 +578,8 @@ namespace ChargeSlot.Api.Services.Implementation
     <p>6.4. Khi hợp đồng chấm dứt, toàn bộ trạm sạc của Bên B sẽ bị đình chỉ hoạt động và không tiếp nhận đặt chỗ mới.</p>
     <p>6.5. Bên A sẽ thanh toán toàn bộ doanh thu còn lại trong ví cho Bên B trong vòng <strong>15 ngày làm việc</strong>. Bên B vẫn có quyền rút số dư ví trong thời gian này.</p>
     <p>6.6. Trong trường hợp Bên A đơn phương chấm dứt do vi phạm, các đặt chỗ đang hoạt động sẽ được hệ thống tự động hủy và hoàn tiền cho tài xế.</p>
+    <p>6.7. Trường hợp Bên A đơn phương chấm dứt hợp đồng theo khoản 6.2 (do vi phạm), Bên B sẽ <strong>không được ký kết hợp đồng hợp tác mới</strong> với Bên A trừ khi có quyết định khác từ Bên A.</p>
+    <p>6.8. Trường hợp Bên B tự nguyện chấm dứt hợp đồng theo khoản 6.3, Bên B có quyền đăng ký ký kết hợp đồng hợp tác mới với Bên A khi đáp ứng đầy đủ điều kiện tại thời điểm đăng ký.</p>
 
     <h3>ĐIỀU 7: ĐIỀU KHOẢN CHUNG</h3>
     <p>7.1. Hợp đồng này được ký bằng chữ ký điện tử và có giá trị pháp lý theo Luật Giao dịch điện tử 2023 (Luật số 20/2023/QH15).</p>

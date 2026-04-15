@@ -8,6 +8,7 @@ namespace ChargeSlot.Api.Repositories.Interfaces
         Task AddAsync(Driver driver);
         void Update(Driver driver);
         void Remove(Driver driver);
+        Task<int> CountAsync();
     }
 }
 

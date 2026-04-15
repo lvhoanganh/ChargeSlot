@@ -20,6 +20,7 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<ContractPreviewDto?> GetContractByOwnerForAdminAsync(int ownerUserId);
         Task<List<ContractPreviewDto>> GetAllContractsAsync(string? status = null);
         Task<ChargeSlot.Api.DTOs.PagedResultDto<ContractPreviewDto>> GetAllContractsPagedAsync(string? status, int page, int pageSize);
+        Task<ChargeSlot.Api.DTOs.PagedResultDto<ContractPreviewDto>> GetAllContractsFilteredAsync(ContractFilterDto filter);
         Task<byte[]?> DownloadContractPdfForAdminAsync(int ownerUserId);
         Task TerminateContractAsync(int ownerUserId, string reason);
 

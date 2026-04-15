@@ -83,6 +83,11 @@ namespace ChargeSlot.Api.Repositories.Implementation
         {
             _context.Owner.Remove(owner);
         }
+
+        public async Task<int> CountAsync()
+        {
+            return await _context.Owner.CountAsync();
+        }
     }
 }
 

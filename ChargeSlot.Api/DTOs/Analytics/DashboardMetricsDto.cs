@@ -1,5 +1,3 @@
-using System.Text.Json.Serialization;
-
 namespace ChargeSlot.Api.DTOs.Analytics
 {
     public class AdminDashboardMetricsDto
@@ -13,9 +11,15 @@ namespace ChargeSlot.Api.DTOs.Analytics
         public int BookingsLast30Days { get; set; }
         public decimal CancelRateLast30Days { get; set; } // 0.0 to 1.0
         public int DisputesLast30Days { get; set; }
+        public int NoShowLast30Days { get; set; }
 
         public List<StationDisputeSummaryDto> TopDisputedStations { get; set; } = new();
         public List<DriverCollusionRiskDto> HighRiskDrivers { get; set; } = new();
+
+        // Withdraw summary
+        public int PendingWithdrawCount { get; set; }
+        public decimal PendingWithdrawAmount { get; set; }
+        public decimal CompletedWithdrawAmount { get; set; }
     }
 
     public class OwnerDashboardMetricsDto
@@ -27,7 +31,8 @@ namespace ChargeSlot.Api.DTOs.Analytics
 
         public int BookingsLast30Days { get; set; }
         public decimal CancelRateLast30Days { get; set; }
-        public decimal ActiveTimeUtilizationRate { get; set; } // e.g., 0.45 = 45% used during open hours
+        public int CompletedBookingsLast30Days { get; set; }
+        public int NoShowLast30Days { get; set; }
 
         public List<StationPerformanceDto> StationPerformances { get; set; } = new();
         public List<ServiceSalesDto> TopServicesSold { get; set; } = new();
@@ -63,11 +68,5 @@ namespace ChargeSlot.Api.DTOs.Analytics
         public string ServiceName { get; set; } = string.Empty;
         public int QuantitySold { get; set; }
         public decimal Revenue { get; set; }
-    }
-
-    public class AiInsightResponseDto
-    {
-        public string InsightMarkdown { get; set; } = string.Empty;
-        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
     }
 }

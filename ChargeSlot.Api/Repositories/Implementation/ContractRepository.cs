@@ -53,6 +53,46 @@ namespace ChargeSlot.Api.Repositories.Implementation
             return (items, totalCount);
         }
 
+        public async Task<(List<Contract> Items, int TotalCount)> GetAllFilteredPagedAsync(DTOs.Contract.ContractFilterDto filter)
+        {
+            var query = _context.Contracts.AsQueryable();
+
+            // Filter by status
+            if (!string.IsNullOrEmpty(filter.Status) && Enum.TryParse<ContractStatus>(filter.Status, true, out var parsedStatus))
+                query = query.Where(c => c.Status == parsedStatus);
+
+            // Filter by OwnerUserId
+            if (filter.OwnerUserId.HasValue)
+                query = query.Where(c => c.OwnerUserId == filter.OwnerUserId.Value);
+
+            // Search by owner name or contract number
+            if (!string.IsNullOrWhiteSpace(filter.Search))
+            {
+                var s = filter.Search.Trim();
+                query = query.Where(c => c.OwnerName.Contains(s) || c.ContractNumber.Contains(s));
+            }
+
+            // Date range filter
+            if (filter.FromDate.HasValue)
+                query = query.Where(c => c.CreatedAt >= filter.FromDate.Value);
+            if (filter.ToDate.HasValue)
+                query = query.Where(c => c.CreatedAt <= filter.ToDate.Value);
+
+            int totalCount = await query.CountAsync();
+
+            var page = filter.Page <= 0 ? 1 : filter.Page;
+            var pageSize = filter.PageSize <= 0 ? 20 : filter.PageSize;
+            if (pageSize > 100) pageSize = 100;
+
+            var items = await query
+                .OrderByDescending(c => c.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
+
         public async Task<int> GetMaxIdAsync()
         {
             var any = await _context.Contracts.AnyAsync();
