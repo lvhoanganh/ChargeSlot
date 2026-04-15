@@ -245,6 +245,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<ChargingSessionDto> RequestEarlyEndAsync(int driverUserId, int sessionId)
         {
+            var now = DateTimeHelper.VietnamNow();
             var session = await _sessionRepo.GetByIdWithDetailsAsync(sessionId)
                 ?? throw new InvalidOperationException("Session không tồn tại.");
 
@@ -255,6 +256,9 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (booking.Status != BookingStatus.CheckedIn)
                 throw new InvalidOperationException("Booking không ở trạng thái đang sạc.");
+
+            if (now < session.ActualStartTime)
+                throw new InvalidOperationException("Chưa đến thời gian sạc, không thể yêu cầu dừng sớm");
 
             if (booking.EarlyEndRequestedAt.HasValue)
                 throw new InvalidOperationException("Bạn đã yêu cầu kết thúc sớm rồi.");
