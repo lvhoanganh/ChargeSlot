@@ -7,7 +7,7 @@ import Pagination from "@/components/Pagination";
 const SYSTEM_WALLETS = {
   1: { code: "ESCROW", label: "Giữ Tiền Escrow", desc: "Giữ tiền booking đang hoạt động", icon: "", color: "#f97316", bg: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)", border: "#fed7aa", accent: "#ea580c" },
   2: { code: "PLATFORM_REVENUE", label: "Doanh Thu Sàn", desc: "Lợi nhuận sàn (5% phí giao dịch)", icon: "", color: "#8b5cf6", bg: "linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)", border: "#ddd6fe", accent: "#7c3aed" },
-  3: { code: "CLEARING", label: "Cổng Thanh Toán", desc: "Gateway VNPay / SePay", icon: "", color: "#0ea5e9", bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)", border: "#bae6fd", accent: "#0284c7" },
+  3: { code: "CLEARING", label: "Cổng Thanh Toán", desc: "Gateway SePay", icon: "", color: "#0ea5e9", bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)", border: "#bae6fd", accent: "#0284c7" },
   99: { code: "TAX_HOLD", label: "Giữ Thuế GTGT", desc: "Thuế 8% giữ hộ cơ quan thuế", icon: "", color: "#10b981", bg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "#bbf7d0", accent: "#059669" },
 };
 
@@ -260,7 +260,7 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
                       className="csw-detail-btn"
                       title="Xem sổ cái chi tiết"
                     >
-                      
+
                     </button>
                   </div>
                 ))}
@@ -308,7 +308,7 @@ function SystemWalletCard({ wallet, onViewTransactions }) {
           </span>
         </div>
         <div className="csw-sys-card__balance-row">
-          <span className="csw-sys-card__bal-label">Đông lạnh</span>
+          <span className="csw-sys-card__bal-label">Đóng băng</span>
           <span className="csw-sys-card__bal-value csw-sys-card__bal-value--frozen">
             {formatCurrency(wallet.frozenBalance || 0)}
           </span>
@@ -399,7 +399,7 @@ export default function AdminWallets() {
   if (error) return (
     <div className="csw-page">
       <div className="csw-center-state csw-center-state--error" style={{ paddingTop: 120 }}>
-         Lỗi tải dữ liệu: {error.message}
+        Lỗi tải dữ liệu: {error.message}
       </div>
       <style>{pageStyles}</style>
     </div>

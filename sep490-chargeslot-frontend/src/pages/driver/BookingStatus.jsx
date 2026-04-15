@@ -51,6 +51,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [confirmingInvoice, setConfirmingInvoice] = useState(false); // Xác nhận hóa đơn
   const [manualCheckinLoading, setManualCheckinLoading] = useState(false); // Manual check-in
+  const [showWalletConfirm, setShowWalletConfirm] = useState(false);
   const initialWalletBalanceRef = useRef(0);
 
   // Các status có phiên sạc thực tế
@@ -135,17 +136,17 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
     } finally { setPayLoading(false); }
   }
 
-  async function handlePayWallet() {
-    if (payLoading) return; // Prevent double-click spam
+  function handlePayWalletClick() {
+    if (payLoading) return;
+    setShowWalletConfirm(true);
+  }
 
-    // Add confirmation before executing payment
-    const confirmMessage = `Xác nhận thanh toán ${(booking?.totalAmount || 0).toLocaleString("vi-VN")}đ bằng Ví ChargeSlot?`;
-    if (!window.confirm(confirmMessage)) return;
-
+  async function executePayWallet() {
     setPayLoading(true);
     try {
       await walletApi.payBooking(Number(id));
       await fetchBooking();
+      setShowWalletConfirm(false);
       setShowPaymentSuccess(true); // Hiện overlay thành công
     } catch (err) {
       const msg = err?.message || "";
@@ -618,14 +619,40 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
               >
                 {payLoading ? "Đang xử lý..." : " Thanh toán VietQR"}
               </ActionButton>
-              <ActionButton
-                onClick={handlePayWallet}
-                disabled={payLoading}
-                bg="linear-gradient(135deg, #f97316, #ea580c)"
-                shadow="rgba(249,115,22,0.25)"
-              >
-                {payLoading ? "Đang xử lý..." : " Thanh toán bằng ví"}
-              </ActionButton>
+              
+              {!showWalletConfirm ? (
+                <ActionButton
+                  onClick={handlePayWalletClick}
+                  disabled={payLoading}
+                  bg="linear-gradient(135deg, #f97316, #ea580c)"
+                  shadow="rgba(249,115,22,0.25)"
+                >
+                  {payLoading ? "Đang xử lý..." : " Thanh toán bằng ví"}
+                </ActionButton>
+              ) : (
+                <div style={{ background: "#fff", borderRadius: 20, padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: "1.5px solid #f97316" }}>
+                  <h4 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800, color: "#1e293b", textAlign: "center" }}>Xác nhận thanh toán</h4>
+                  <p style={{ fontSize: 13, color: "#475569", marginBottom: 16, textAlign: "center", lineHeight: 1.5 }}>
+                    Bạn sẽ trích <strong>{(booking?.totalAmount || 0).toLocaleString("vi-VN")}đ</strong> từ Ví ChargeSlot để thanh toán cho phiên sạc này.
+                  </p>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                      onClick={() => setShowWalletConfirm(false)}
+                      disabled={payLoading}
+                      style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "1px solid #cbd5e1", background: "#f8fafc", color: "#475569", fontWeight: 700, cursor: payLoading ? "not-allowed" : "pointer" }}
+                    >
+                      Hủy bỏ
+                    </button>
+                    <button
+                      onClick={executePayWallet}
+                      disabled={payLoading}
+                      style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, cursor: payLoading ? "not-allowed" : "pointer" }}
+                    >
+                      {payLoading ? "Đang xử lý..." : "Xác nhận trả"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

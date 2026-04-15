@@ -107,10 +107,6 @@ export default function AdminNav() {
       label: "Tổng Bookings",
     },
     {
-      to: "/admin/sessions",
-      label: "Log Phiên sạc",
-    },
-    {
       to: "/admin/invoices",
       label: "Tất cả Hóa đơn",
     },
@@ -340,7 +336,6 @@ export default function AdminNav() {
             location.pathname.startsWith("/admin/manage-kyc") ||
             location.pathname.startsWith("/admin/withdraws") ||
             location.pathname.startsWith("/admin/bookings") ||
-            location.pathname.startsWith("/admin/sessions") ||
             location.pathname.startsWith("/admin/invoices") ||
             location.pathname.startsWith("/admin/wallets") ||
             mobileMoreOpen ? "cs-admin-bnav__item--active" : ""
@@ -382,7 +377,6 @@ export default function AdminNav() {
             { label: "Rút tiền", to: "/admin/withdraws", emoji: "💸" },
             { label: "Cấu hình", to: "/admin/system-config", emoji: "⚙️" },
             { label: "Bookings", to: "/admin/bookings", emoji: "📊" },
-            { label: "Phiên sạc", to: "/admin/sessions", emoji: "⚡" },
             { label: "Hóa đơn", to: "/admin/invoices", emoji: "📝" },
             { label: "Ví & Vốn", to: "/admin/wallets", emoji: "💰" },
           ].map((item) => (

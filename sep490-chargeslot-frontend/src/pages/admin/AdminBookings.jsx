@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { adminOperationsApi } from "@/services/api";
 import Pagination from "@/components/Pagination";
+import AdminOperationDetailModal from "@/components/AdminOperationDetailModal";
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -44,6 +45,7 @@ export default function AdminBookings() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
+  const [selectedBookingId, setSelectedBookingId] = useState(null);
   const pageSize = 20;
 
   const { data: rawData, isLoading, error } = useQuery({
@@ -184,7 +186,11 @@ export default function AdminBookings() {
               filtered.map((b, idx) => {
                 const statusType = getStatusType(b.status);
                 return (
-                  <tr key={b.id}>
+                  <tr 
+                    key={b.id} 
+                    onClick={() => setSelectedBookingId(b.id)}
+                    style={{ cursor: "pointer" }}
+                  >
                     <td className="cs-admin-table__id" style={{ fontWeight: 700, color: "#64748b" }}>{(page - 1) * pageSize + idx + 1}</td>
                     <td className="cs-admin-table__name">{b.driverName || "N/A"}</td>
                     <td>{b.stationName || "N/A"}</td>
@@ -215,6 +221,13 @@ export default function AdminBookings() {
       </div>
 
       <style>{styles}</style>
+
+      {selectedBookingId && (
+        <AdminOperationDetailModal
+          bookingId={selectedBookingId}
+          onClose={() => setSelectedBookingId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -40,7 +40,6 @@ const AdminWithdraws = lazy(() => import("./pages/admin/AdminWithdraws"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminKycRequests = lazy(() => import("./pages/admin/AdminKycRequests"));
 const AdminBookings = lazy(() => import("./pages/admin/AdminBookings"));
-const AdminSessions = lazy(() => import("./pages/admin/AdminSessions"));
 const AdminInvoices = lazy(() => import("./pages/admin/AdminInvoices"));
 const AdminWallets = lazy(() => import("./pages/admin/AdminWallets"));
 
@@ -198,7 +197,6 @@ export default function App() {
                 <Route path="change-password" element={<ChangePassword />} />
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="bookings" element={<AdminBookings />} />
-                <Route path="sessions" element={<AdminSessions />} />
                 <Route path="invoices" element={<AdminInvoices />} />
                 <Route path="wallets" element={<AdminWallets />} />
               </Route>
