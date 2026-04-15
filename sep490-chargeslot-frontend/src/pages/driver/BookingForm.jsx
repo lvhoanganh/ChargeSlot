@@ -897,16 +897,6 @@ export default function BookingForm() {
                     <TimePicker24h
                       value={startHHMM}
                       onChange={setStartHHMM}
-                      minAfter={(() => {
-                        if (!selectedDate) return undefined;
-                        const todayStr = new Date().toLocaleDateString("en-CA");
-                        if (selectedDate !== todayStr) return undefined;
-                        // Tính min time bằng current time + leadMins
-                        const minTime = new Date(Date.now() + leadMinutes * 60000);
-                        const hh = String(minTime.getHours()).padStart(2, "0");
-                        const mm = String(minTime.getMinutes()).padStart(2, "0");
-                        return `${hh}:${mm}`;
-                      })()}
                       className="w-full text-center"
                     />
                   </div>

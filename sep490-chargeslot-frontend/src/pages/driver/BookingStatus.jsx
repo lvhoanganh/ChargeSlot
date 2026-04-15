@@ -191,10 +191,15 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
   async function handleConfirmInvoice() {
     setConfirmingInvoice(true);
     try {
-      // Lấy session theo bookingId, sau đó xác nhận
-      const session = await chargingApi.getByBookingId(Number(id));
-      if (!session?.id) throw new Error("Không tìm thấy phiên sạc.");
-      await chargingApi.confirmCompletion(session.id);
+      // Ưu tiên dùng sessionDetail đã có trong state (tránh gọi API thừa)
+      // Nếu chưa có thì mới fallback sang API
+      let sessionId = sessionDetail?.id;
+      if (!sessionId) {
+        const session = await chargingApi.getByBookingId(Number(id));
+        if (!session?.id) throw new Error("Không tìm thấy phiên sạc.");
+        sessionId = session.id;
+      }
+      await chargingApi.confirmCompletion(sessionId);
       showToast.success("✅ Xác nhận hóa đơn thành công!");
       await fetchBooking();
     } catch (err) {

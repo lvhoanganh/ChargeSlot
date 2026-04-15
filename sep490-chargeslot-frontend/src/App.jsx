@@ -156,7 +156,6 @@ class AppErrorBoundary extends Component {
 export default function App() {
   return (
     <div>
-      {/* SessionGuard: lắng nghe cs:logout → navigate mượt qua React Router, tránh nháy màn hình */}
       <SessionGuard />
       <AppErrorBoundary>
         <Suspense fallback={<PageLoader />}>
@@ -168,7 +167,6 @@ export default function App() {
               <Route path="about" element={<About />} />
               <Route path="driver/map" element={<StationMap />} />
               <Route path="driver/station/:id" element={<StationDetailDriver />} />
-              <Route path="driver/station/:stationId/book" element={<BookingForm />} />
               <Route path="forgotPassword" element={<ForgotPassword />} />
               <Route path="verify-email" element={<VerifyEmail />} />
               <Route element={<PublicMiddleware />}>
@@ -228,6 +226,7 @@ export default function App() {
                 <Route path="change-password" element={<ChangePassword />} />
                 <Route path="payment-result" element={<PaymentResult />} />
                 <Route path="wallet-topup-result" element={<WalletTopUpResult />} />
+                <Route path="station/:stationId/book" element={<BookingForm />} />
               </Route>
             </Route>
 
