@@ -73,13 +73,13 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>Toggle ban status of a station (Manual Ban/Unban).</summary>
-        [HttpPatch("{id:int}/toggle-ban")]
-        public async Task<IActionResult> ToggleBan(int id)
+        [HttpPost("{id:int}/toggle-ban")]
+        public async Task<IActionResult> ToggleBan(int id, [FromBody] ToggleBanDto dto)
         {
             var adminUserId = GetUserId();
             try
             {
-                var newStatus = await _stationService.ToggleBanStationAsync(id, adminUserId);
+                var newStatus = await _stationService.ToggleBanStationAsync(id, adminUserId, dto.Reason);
                 return Ok(new { stationId = id, status = newStatus });
             }
             catch (KeyNotFoundException) { return NotFound(); }
