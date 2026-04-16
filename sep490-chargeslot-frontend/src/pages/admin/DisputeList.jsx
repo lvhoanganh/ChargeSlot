@@ -16,8 +16,8 @@ function getStatusLabel(status) {
     case "Open": return "Mở";
     case "WaitingOwnerEvidence": return "Chờ Owner phản hồi";
     case "PendingReview": return "Chờ xem xét";
-    case "ResolvedRefund": return "Hoàn tiền Driver";
-    case "ResolvedPayout": return "Thanh toán Owner";
+    case "ResolvedRefund": return "Hoàn tiền tài xế";
+    case "ResolvedPayout": return "Thanh toán chủ trạm";
     default: return status;
   }
 }
@@ -91,7 +91,7 @@ export default function DisputeList() {
       <div className="cs-admin-page__header">
         <div>
           <h1 className="cs-admin-page__title">Quản lý khiếu nại (Tổng: {totalCount})</h1>
-          <p className="cs-admin-page__subtitle">Xem xét và xử lý các khiếu nại từ Driver</p>
+          <p className="cs-admin-page__subtitle">Xem xét và xử lý các khiếu nại từ tài xế</p>
         </div>
       </div>
 
@@ -115,10 +115,10 @@ export default function DisputeList() {
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả trạng thái</option>
-          <option value="WaitingOwnerEvidence">Chờ Owner phản hồi</option>
+          <option value="WaitingOwnerEvidence">Chờ chủ trạm phản hồi</option>
           <option value="PendingReview">Chờ xem xét</option>
-          <option value="ResolvedRefund">Hoàn tiền Driver</option>
-          <option value="ResolvedPayout">Thanh toán Owner</option>
+          <option value="ResolvedRefund">Hoàn tiền tài xế</option>
+          <option value="ResolvedPayout">Thanh toán chủ trạm</option>
         </select>
         <button onClick={() => { setSearch(""); setStatusFilter("ALL"); setPage(1); }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">

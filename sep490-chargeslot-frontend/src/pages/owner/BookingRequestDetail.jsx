@@ -133,7 +133,7 @@ export default function BookingRequestDetail() {
             onMouseEnter={e => { e.currentTarget.style.background = "#dbeafe"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#eff6ff"; }}
           >
-             Chat với Driver
+             Nhắn tin với tài xế
           </button>
         </div>
       )}
@@ -221,10 +221,10 @@ export default function BookingRequestDetail() {
             {/* ========== CỘT TRÁI: Thông tin cơ bản ========== */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 4, borderBottom: "1px solid #e2e8f0", paddingBottom: 8 }}>Thông tin đặt lịch</div>
-              <InfoRow label="Booking #" value={booking.id} />
-              <InfoRow label="Driver" value={booking.driverName} />
+              <InfoRow label="Mã đặt lịch" value={booking.id} />
+              <InfoRow label="Tài xế" value={booking.driverName} />
               <InfoRow label="Trạm" value={booking.stationName} />
-              <InfoRow label="Slot" value={booking.slotName} />
+              <InfoRow label="Cổng sạc" value={booking.slotName} />
               <InfoRow label="Bắt đầu" value={toLocal(booking.startTime)} />
               <InfoRow label="Kết thúc" value={toLocal(booking.endTime)} />
               <InfoRow label="Thời lượng" value={`${Math.round(booking.durationHours * 60)} phút`} />

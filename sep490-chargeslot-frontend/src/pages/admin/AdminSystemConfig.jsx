@@ -26,7 +26,7 @@ const CONFIG_GROUPS = [
       { key: "noShow_Grace_Minutes", label: "Gia hạn no-show (phút)", hint: "Thời gian chờ trước khi bị đánh dấu no-show", type: "int" },
       { key: "slot_Buffer_Minutes", label: "Buffer giữa 2 slot (phút)", hint: "Thời gian cách nhau giữa 2 lịch đặt", type: "int" },
       { key: "oTP_Expiry_Minutes", label: "OTP hết hạn (phút)", hint: "Thời gian hiệu lực của mã OTP", type: "int" },
-      { key: "oTP_Cooldown_Seconds", label: "Cooldown OTP xác thực Email (giây)", hint: "Thời gian chờ tối thiểu giữa 2 lần gửi OTP email (dùng cho luồng đổi email, KHÔNG liên quan đến OTP SMS Firebase)", type: "int" },
+      { key: "oTP_Cooldown_Seconds", label: "Cooldown OTP xác thực Email (giây)", hint: "Thời gian chờ tối thiểu giữa 2 lần gửi OTP email (dùng cho đổi email)", type: "int" },
       { key: "min_Booking_Lead_Minutes", label: "Đặt trước tối thiểu (phút)", hint: "Số phút tối thiểu phải đặt trước giờ sạc", type: "int" },
     ],
   },
@@ -204,7 +204,7 @@ export default function AdminSystemConfig() {
                 type="submit"
                 className="px-8 py-3 rounded-xl bg-orange-500 text-white font-bold hover:bg-orange-600 transition shadow-md shadow-orange-200 cursor-pointer"
               >
-                 Lưu thay đổi
+                Lưu thay đổi
               </button>
             </div>
           </form>

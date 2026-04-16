@@ -137,11 +137,11 @@ export default function AdminKycRequests() {
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả trạng thái</option>
-          <option value="Pending"> Chờ duyệt (Pending)</option>
-          <option value="PendingUpdate"> Cập nhật (PendingUpdate)</option>
-          <option value="Approved"> Đã duyệt (Approved)</option>
-          <option value="Rejected"> Từ chối (Rejected)</option>
-          <option value="Unverified">Chưa cập nhật (Unverified)</option>
+          <option value="Pending"> Chờ duyệt lần đầu</option>
+          <option value="PendingUpdate"> Chờ duyệt cập nhật</option>
+          <option value="Approved"> Đã duyệt</option>
+          <option value="Rejected"> Từ chối</option>
+          <option value="Unverified">Chưa cập nhật</option>
         </select>
         {/* Date range */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
@@ -355,7 +355,7 @@ export default function AdminKycRequests() {
             ) : (
               <div style={{ background: "#f8fafc", padding: 20, borderRadius: 16, border: "1px solid #e2e8f0", textAlign: "center" }}>
                 <p style={{ color: "#64748b", fontWeight: 600, margin: 0 }}>
-                  Hồ sơ này đã được kiểm duyệt vào {formatDate(selectedKyc.kycReviewedAt)} by Hệ thống.
+                  Hồ sơ này đã được kiểm duyệt vào {formatDate(selectedKyc.kycReviewedAt)} bởi Hệ thống.
                 </p>
                 {selectedKyc.kycRejectReason && (
                   <p style={{ color: "#dc2626", marginTop: 8, fontSize: 14 }}>

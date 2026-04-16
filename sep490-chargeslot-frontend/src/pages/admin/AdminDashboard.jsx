@@ -71,7 +71,7 @@ export default function AdminDashboard() {
         {/* Page Header */}
         <div style={{ marginBottom: 28 }}>
           <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "#f97316", margin: 0 }}>
-            Admin Dashboard
+          Bảng điều khiển quản trị
           </p>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", margin: "6px 0 4px", letterSpacing: "-0.5px" }}>
             Tổng quan hệ thống
@@ -104,7 +104,7 @@ export default function AdminDashboard() {
               />
               <MetricCard
                 icon={<Lock size={24} color="#7c3aed" />}
-                label="Tiền cọc Escrow"
+                label="Tiền giữ hộ (Escrow)"
                 value={fmt(metrics?.totalEscrowBalance)}
                 color="#7c3aed"
                 bg="linear-gradient(135deg, #f5f3ff, #ede9fe)"

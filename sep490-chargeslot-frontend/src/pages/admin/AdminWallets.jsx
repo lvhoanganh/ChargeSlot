@@ -5,10 +5,10 @@ import Pagination from "@/components/Pagination";
 
 // System wallets mapping
 const SYSTEM_WALLETS = {
-  1: { code: "ESCROW", label: "Giữ Tiền Escrow", desc: "Giữ tiền booking đang hoạt động", icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>, color: "#f97316", bg: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)", border: "#fed7aa", accent: "#ea580c" },
-  2: { code: "PLATFORM_REVENUE", label: "Doanh Thu Sàn", desc: "Lợi nhuận sàn (5% phí giao dịch)", icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>, color: "#8b5cf6", bg: "linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)", border: "#ddd6fe", accent: "#7c3aed" },
-  3: { code: "CLEARING", label: "Cổng Thanh Toán", desc: "Gateway SePay", icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>, color: "#0ea5e9", bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)", border: "#bae6fd", accent: "#0284c7" },
-  99: { code: "TAX_HOLD", label: "Giữ Thuế GTGT", desc: "Thuế 8% giữ hộ cơ quan thuế", icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-4 0h.01M15 14h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>, color: "#10b981", bg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "#bbf7d0", accent: "#059669" },
+  1: { code: "ESCROW", label: "Giữ Tiền Escrow", desc: "Giữ tiền booking đang hoạt động", icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>, color: "#f97316", bg: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)", border: "#fed7aa", accent: "#ea580c" },
+  2: { code: "PLATFORM_REVENUE", label: "Doanh Thu Sàn", desc: "Lợi nhuận sàn (5% phí giao dịch)", icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>, color: "#8b5cf6", bg: "linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)", border: "#ddd6fe", accent: "#7c3aed" },
+  3: { code: "CLEARING", label: "Cổng Thanh Toán", desc: "Gateway SePay", icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>, color: "#0ea5e9", bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)", border: "#bae6fd", accent: "#0284c7" },
+  99: { code: "TAX_HOLD", label: "Giữ Thuế GTGT", desc: "Thuế 8% giữ hộ cơ quan thuế", icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-4 0h.01M15 14h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, color: "#10b981", bg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "#bbf7d0", accent: "#059669" },
 };
 
 const SYSTEM_WALLET_BY_CODE = {
@@ -37,6 +37,48 @@ function formatCurrency(value) {
   return `${(value || 0).toLocaleString("vi-VN")} đ`;
 }
 
+// Dịch loại giao dịch từ BE sang tiếng Việt
+function formatTxType(type) {
+  const map = {
+    BookingPayment: "Thanh toán đặt lịch",
+    BookingRefund: "Hoàn tiền đặt lịch",
+    BookingCancel: "Hoàn tiền hủy lịch",
+    BookingCancelCompensation: "Bồi thường hủy lịch",
+    BookingFallbackDeposit: "Nạp ví tự động (SePay Fallback)",
+    BookingPenalty: "Phí phạt hủy lịch",
+    PlatformFeeDeduction: "Phí nền tảng (5%)",
+    PlatformFee: "Phí nền tảng",
+    OwnerPayout: "Thanh toán cho chủ trạm",
+    Settlement: "Quyết toán cho chủ trạm",
+    AutoSettlement: "Tự động quyết toán",
+    AutoComplete: "Tự động hoàn thành phiên",
+    WithdrawRequest: "Yêu cầu rút tiền",
+    WithdrawalRequest: "Yêu cầu rút tiền",
+    WithdrawApproved: "Duyệt rút tiền",
+    WithdrawalApproved: "Duyệt rút tiền",
+    WithdrawCompleted: "Rút tiền thành công",
+    WithdrawalCompleted: "Rút tiền thành công",
+    WithdrawRejected: "Từ chối rút tiền",
+    WithdrawalRejected: "Từ chối rút tiền",
+    WithdrawRefund: "Hoàn tiền rút thất bại",
+    WithdrawalRefund: "Hoàn tiền rút thất bại",
+    VatCollection: "Thu thuế VAT (8%)",
+    VatHold: "Giữ thuế VAT",
+    TaxHold: "Giữ thuế VAT",
+    EscrowRelease: "Giải phóng tiền giữ",
+    EscrowLock: "Khóa tiền Escrow",
+    Deposit: "Nạp tiền",
+    TopUp: "Nạp tiền vào ví",
+    DisputeRefund: "Hoàn tiền khiếu nại",
+    DisputePayout: "Thanh toán khiếu nại",
+    TransferCompleted: "Chuyển khoản thành công",
+    LoyaltyReward: "Thưởng điểm tích lũy",
+    Credit: "Tiền vào",
+    Debit: "Tiền ra",
+  };
+  return map[type] || type || "—";
+}
+
 //  Transaction Detail Modal 
 function TransactionDetailModal({ transactionId, onClose }) {
   const { data: tx, isLoading, error } = useQuery({
@@ -56,11 +98,11 @@ function TransactionDetailModal({ transactionId, onClose }) {
         <div className="csw-modal__header">
           <div className="csw-modal__header-left">
             <span className="csw-modal__icon">
-              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
             </span>
             <div>
               <h2 className="csw-modal__title">Chi Tiết Sổ Cái</h2>
-              {tx && <p className="csw-modal__subtitle">TX_{tx.id} — {tx.referenceType}</p>}
+              {tx && <p className="csw-modal__subtitle">#{tx.id} — {formatTxType(tx.referenceType)}</p>}
             </div>
           </div>
           <button onClick={onClose} className="csw-icon-btn">✕</button>
@@ -79,11 +121,11 @@ function TransactionDetailModal({ transactionId, onClose }) {
               <div className="csw-meta-grid">
                 <div className="csw-meta-item">
                   <span className="csw-meta-label">Mã Giao Dịch</span>
-                  <span className="csw-meta-value csw-mono">TX_{tx.id}</span>
+                  <span className="csw-meta-value csw-mono">#{tx.id}</span>
                 </div>
                 <div className="csw-meta-item">
                   <span className="csw-meta-label">Loại</span>
-                  <span className="csw-badge csw-badge--blue">{tx.referenceType}</span>
+                  <span className="csw-badge csw-badge--blue">{formatTxType(tx.referenceType)}</span>
                 </div>
                 <div className="csw-meta-item">
                   <span className="csw-meta-label">Tham chiếu</span>
@@ -111,7 +153,7 @@ function TransactionDetailModal({ transactionId, onClose }) {
               </div>
 
               {/* Double-entry */}
-              <h3 className="csw-section-title"> Bút Toán Kép (Double-Entry)</h3>
+              <h3 className="csw-section-title"> Bút Toán Kép</h3>
               <div className="csw-entry-grid">
                 <div className="csw-entry-col csw-entry-col--debit">
                   <div className="csw-entry-col__header"> Ghi Nợ (Chi Ra)</div>
@@ -187,7 +229,7 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
         <div className="csw-drawer__header">
           <div className="csw-drawer__header-left">
             <div className="csw-drawer__icon-wrap">
-              <svg width="20" height="20" fill="none" stroke="#ea580c" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <svg width="20" height="20" fill="none" stroke="#ea580c" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             </div>
             <div>
               <h2 className="csw-drawer__title">Lịch Sử Giao Dịch</h2>
@@ -207,8 +249,8 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
               className="csw-select"
             >
               <option value="ALL">Tất cả</option>
-              <option value="Credit"> Credit (Vào)</option>
-              <option value="Debit"> Debit (Ra)</option>
+              <option value="Credit"> Tiền vào (Credit)</option>
+              <option value="Debit"> Tiền ra (Debit)</option>
             </select>
           </div>
           <div className="csw-filter-item">
@@ -223,7 +265,7 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
             onClick={() => { setTxTypeFilter("ALL"); setFromDate(""); setToDate(""); setPage(1); }}
             className="csw-reset-btn"
           >
-            ↺ Reset
+            ↺ Đặt lại
           </button>
         </div>
 
@@ -248,13 +290,13 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
                     </div>
                     <div className="csw-tx-item__info">
                       <div className="csw-tx-item__top">
-                        <span className="csw-tx-item__type">{tx.type || tx.transactionType || "—"}</span>
+                        <span className="csw-tx-item__type">{formatTxType(tx.type || tx.transactionType)}</span>
                         <span className={`csw-tx-item__amount ${tx.direction === "Credit" ? "csw-tx-item__amount--credit" : "csw-tx-item__amount--debit"}`}>
                           {tx.direction === "Credit" ? "+" : "−"}{formatCurrency(tx.amount)}
                         </span>
                       </div>
                       <div className="csw-tx-item__bottom">
-                        <span className="csw-tx-item__id">TX_{tx.id}</span>
+                        <span className="csw-tx-item__id">#{tx.id}</span>
                         <span className="csw-tx-item__memo">{tx.memo || "—"}</span>
                         <span className="csw-tx-item__date">{formatDate(tx.createdAt)}</span>
                       </div>
@@ -415,11 +457,11 @@ export default function AdminWallets() {
       <div className="csw-page__header">
         <div className="csw-page__header-left">
           <h1 className="csw-page__title"> Giám Sát Vốn & Ví Hệ Thống</h1>
-          <p className="csw-page__subtitle">Theo dõi dòng tiền toàn hệ thống — Escrow · Platform Revenue · Clearing · Tax Hold</p>
+          <p className="csw-page__subtitle">Theo dõi dòng tiền toàn hệ thống — Giữ Tiền · Doanh Thu Sàn · Cổng Thanh Toán · Giữ Thuế</p>
         </div>
         <div className="csw-page__header-badge">
           <span className="csw-live-dot" />
-          Live · cập nhật mỗi 30s
+          Trực tiếp · cập nhật mỗi 30s
         </div>
       </div>
 
@@ -467,7 +509,7 @@ export default function AdminWallets() {
           </div>
         </div>
         <button onClick={() => { setSearch(""); setTypeFilter("ALL"); setFromDate(""); setToDate(""); setPage(1); }} className="csw-reset-btn">
-          ↺ Reset
+          ↺ Đặt lại
         </button>
       </div>
 

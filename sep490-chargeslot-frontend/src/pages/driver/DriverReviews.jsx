@@ -129,7 +129,7 @@ export default function DriverReviews() {
                     {b.stationName || "Trạm sạc"}
                   </div>
                   <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-                    Slot: {b.slotName} · {toVN(b.startTime)} → {toVN(b.endTime)}
+                    Cổng sạc: {b.slotName} · {toVN(b.startTime)} → {toVN(b.endTime)}
                   </div>
                 </div>
                 <span style={{

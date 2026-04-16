@@ -7,7 +7,7 @@ const STATUS_MAP = {
   Open: { label: "Mở", color: "#f59e0b", bg: "#fffbeb", icon: "" },
   WaitingOwnerEvidence: { label: "Chờ bạn phản hồi", color: "#f97316", bg: "#fff7ed", icon: "" },
   PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "" },
-  ResolvedRefund: { label: "Driver thắng — Hoàn tiền", color: "#dc2626", bg: "#fef2f2", icon: "" },
+  ResolvedRefund: { label: "Tài xế thắng — Hoàn tiền", color: "#dc2626", bg: "#fef2f2", icon: "" },
   ResolvedPayout: { label: "Bạn thắng — Đã thanh toán", color: "#16a34a", bg: "#f0fdf4", icon: "" },
 };
 

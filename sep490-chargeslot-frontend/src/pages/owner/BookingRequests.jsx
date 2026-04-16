@@ -198,7 +198,7 @@ export default function BookingRequests() {
                   </span>
                 </div>
                 <div style={{ fontSize: 13, color: "#64748b", marginBottom: 4 }}>
-                  Driver: {b.driverName} | Slot: {b.slotName}
+                  Tài xế: {b.driverName} | Cổng: {b.slotName}
                 </div>
                 <div style={{ display: "flex", gap: 16, fontSize: 13, color: "#64748b" }}>
                   <span> {toLocal(b.startTime)} — {Math.round(b.durationHours * 60)} phút</span>

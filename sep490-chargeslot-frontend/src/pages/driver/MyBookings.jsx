@@ -321,7 +321,7 @@ export default function MyBookings() {
                         }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                             <span style={{ fontSize: 14 }}></span>
-                            <span>Slot: <strong style={{ color: "#374151" }}>{b.slotName}</strong></span>
+                            <span>Cổng sạc: <strong style={{ color: "#374151" }}>{b.slotName}</strong></span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                             <span style={{ fontSize: 14 }}></span>

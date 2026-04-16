@@ -315,7 +315,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             {booking?.stationName && (
               <div style={{ fontSize: 13, color: "#475569", marginBottom: 24, lineHeight: 1.6 }}>
                 <div> <strong>{booking.stationName}</strong></div>
-                {booking.slotName && <div> Slot: {booking.slotName}</div>}
+                {booking.slotName && <div> Cổng sạc: {booking.slotName}</div>}
               </div>
             )}
 
@@ -334,7 +334,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
                   boxShadow: "0 4px 14px rgba(34,197,94,0.35)",
                 }}
               >
-                Xem danh sách booking
+                Xem danh sách đặt lịch
               </button>
               <button
                 onClick={() => setShowPaymentSuccess(false)}

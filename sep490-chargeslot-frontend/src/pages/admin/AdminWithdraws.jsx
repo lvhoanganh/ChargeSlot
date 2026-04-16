@@ -166,7 +166,7 @@ export default function AdminWithdraws() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
                   <div>
                     <div style={{ fontWeight: 800, fontSize: 22, color: "#1e293b" }}>{(w.amount || 0).toLocaleString("vi-VN")}đ</div>
-                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>User: {w.driverName || w.ownerName || w.fullName || `ID #${w.userId}`}</div>
+                    <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Người dùng: {w.driverName || w.ownerName || w.fullName || `ID #${w.userId}`}</div>
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 700, padding: "6px 16px", borderRadius: 20, background: st.bg, color: st.color }}>{st.label}</span>
                 </div>

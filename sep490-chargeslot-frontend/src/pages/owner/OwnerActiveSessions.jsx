@@ -109,17 +109,17 @@ export default function OwnerActiveSessions() {
                      Đang sạc
                   </span>
                 </div>
-                <span style={{ fontSize: 13, color: "#6b7280" }}>Booking #{s.bookingId}</span>
+                <span style={{ fontSize: 13, color: "#6b7280" }}>Mã đặt lịch #{s.bookingId}</span>
               </div>
 
               {/* Info */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-                <InfoItem label="Driver" value={s.driverName || "—"} />
+                <InfoItem label="Tài xế" value={s.driverName || "—"} />
                 <InfoItem label="Trạm" value={s.stationName || "—"} />
-                <InfoItem label="Cổng sạc" value={s.slotName || `Slot ${s.slotId}`} />
+                <InfoItem label="Cổng sạc" value={s.slotName || `Cổng ${s.slotId}`} />
                 <InfoItem label="Đã sạc" value={formatElapsed(effectiveStartMs)} highlight />
                 <InfoItem label="Bắt đầu" value={toLocal(effectiveStartMs)} />
-                <InfoItem label="Booking kết thúc" value={toLocal(s.bookingEndTime)} />
+                <InfoItem label="Giờ kết thúc" value={toLocal(s.bookingEndTime)} />
                 <InfoItem label="Tổng tiền" value={`${(s.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
               </div>
 
