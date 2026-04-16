@@ -5,6 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { publicStationApi, reviewApi, favoriteApi, chargingApi, stationApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
+import { showToast } from "@/components/Toast";
 
 /*  Inject pulse animation (same as StationMap)  */
 if (!document.getElementById("station-marker-pulse")) {
@@ -228,11 +229,15 @@ export default function StationDetailDriver() {
       if (isFavorite) {
         await favoriteApi.remove(Number(id));
         setIsFavorite(false);
+        showToast.info("Đã xóa khỏi danh sách yêu thích");
       } else {
         await favoriteApi.add(Number(id));
         setIsFavorite(true);
+        showToast.success(`Đã thêm "${station?.name}" vào yêu thích ❤️`);
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      showToast.error(err?.message || "Không thể cập nhật yêu thích, thử lại sau");
+    }
     setFavLoading(false);
   }
 

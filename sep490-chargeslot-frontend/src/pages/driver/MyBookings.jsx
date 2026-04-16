@@ -369,6 +369,26 @@ export default function MyBookings() {
                             </div>
                           </div>
                         )}
+                        {b.status === "Completed" && (
+                          <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid #f0fdf4" }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate("/driver/reviews", { state: { highlightBookingId: b.id } });
+                              }}
+                              style={{
+                                width: "100%", padding: "8px 0", borderRadius: 10,
+                                border: "2px solid #f97316", background: "#fff7ed",
+                                color: "#ea580c", fontWeight: 700, fontSize: 12,
+                                cursor: "pointer", transition: "all 0.2s",
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = "#f97316"; e.currentTarget.style.color = "#fff"; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = "#fff7ed"; e.currentTarget.style.color = "#ea580c"; }}
+                            >
+                              ⭐ Đánh giá trạm sạc
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

@@ -162,8 +162,8 @@ export default function ScanQR() {
           // Step 1 ✅, Step 2 ✅, Step 3 ❌
           setSteps(prev => prev.map((s, i) =>
             i === 0 ? { ...s, status: "done" } :
-            i === 1 ? { ...s, status: "done" } :
-            i === 2 ? { ...s, status: "fail" } : s
+              i === 1 ? { ...s, status: "done" } :
+                i === 2 ? { ...s, status: "fail" } : s
           ));
         } else if (
           msg.includes("thanh toán") ||
@@ -174,13 +174,13 @@ export default function ScanQR() {
           // Step 1 ✅, Step 2 ❌ (lỗi xác thực booking/payment)
           setSteps(prev => prev.map((s, i) =>
             i === 0 ? { ...s, status: "done" } :
-            i === 1 ? { ...s, status: "fail" } : s
+              i === 1 ? { ...s, status: "fail" } : s
           ));
         } else {
           // Default: Step 2 ❌
           setSteps(prev => prev.map((s, i) =>
             i === 0 ? { ...s, status: "done" } :
-            i === 1 ? { ...s, status: "fail" } : s
+              i === 1 ? { ...s, status: "fail" } : s
           ));
         }
 
@@ -374,7 +374,7 @@ export default function ScanQR() {
           <div className="p-5 space-y-2 text-sm text-gray-600">
             <p>1. Đảm bảo booking đã được <strong>thanh toán (Paid)</strong></p>
             <p>2. Đến trạm sạc <strong>đúng khung giờ</strong> đã đặt</p>
-            <p>3. Quét mã <strong>QR trên cổng sạc</strong> hoặc nhập token thủ công</p>
+            <p>3. Quét mã <strong>QR trên cổng sạc</strong></p>
             <p>4. Hệ thống tự xác thực và bắt đầu sạc</p>
           </div>
         </div>

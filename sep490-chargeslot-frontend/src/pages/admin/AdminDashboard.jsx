@@ -184,9 +184,9 @@ export default function AdminDashboard() {
                         if (val >= 1000) return (val / 1000) + "k";
                         return val;
                       }} tick={{ fontSize: 11 }} />
-                      <YAxis dataKey="stationName" type="category" width={80} tick={{ fontSize: 11, fill: "#475569" }} />
+                      <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11, fill: "#475569" }} />
                       <RechartsTooltip formatter={(val) => [val.toLocaleString('vi-VN') + "đ", "Doanh thu"]} />
-                      <Bar dataKey={topStations[0]?.revenue !== undefined ? "revenue" : topStations[0]?.totalRevenue !== undefined ? "totalRevenue" : "revenue"} fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={24} />
+                      <Bar dataKey="revenue" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={24} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (

@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { bookingApi, reviewApi } from "@/services/api";
 
 const STARS = [1, 2, 3, 4, 5];
 
 export default function DriverReviews() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const highlightBookingId = location.state?.highlightBookingId;
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviewForm, setReviewForm] = useState(null); // { bookingId, rating, comment, isAnonymous }
@@ -20,6 +23,13 @@ export default function DriverReviews() {
       .then((data) => {
         const list = Array.isArray(data) ? data : data?.items || [];
         setBookings(list);
+        // Auto-mở form cho booking vừa hoàn thành nếu có highlightBookingId
+        if (highlightBookingId) {
+          const found = list.find(b => b.id === highlightBookingId && !b.hasReview);
+          if (found) {
+            setReviewForm({ bookingId: found.id, rating: 5, comment: "", isAnonymous: false });
+          }
+        }
       })
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
@@ -218,18 +228,31 @@ export default function DriverReviews() {
                     </button>
                   </div>
                 </div>
+              ) : b.hasReview ? (
+                <div style={{
+                  width: "100%", padding: "10px 0", borderRadius: 10,
+                  background: "#f0fdf4", border: "2px solid #86efac",
+                  color: "#16a34a", fontWeight: 700, fontSize: 13, textAlign: "center",
+                }}>
+                  ✅ Đã đánh giá
+                </div>
               ) : (
                 <button
                   onClick={() => handleOpenReview(b.id)}
                   style={{
                     width: "100%", padding: "10px 0", borderRadius: 10, border: "2px solid #f97316",
-                    background: "#fff7ed", color: "#ea580c", fontWeight: 700, fontSize: 13,
+                    background: b.id === highlightBookingId ? "#f97316" : "#fff7ed",
+                    color: b.id === highlightBookingId ? "#fff" : "#ea580c",
+                    fontWeight: 700, fontSize: 13,
                     cursor: "pointer", transition: "all 0.2s",
                   }}
                   onMouseEnter={(e) => { e.target.style.background = "#f97316"; e.target.style.color = "#fff"; }}
-                  onMouseLeave={(e) => { e.target.style.background = "#fff7ed"; e.target.style.color = "#ea580c"; }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = b.id === highlightBookingId ? "#f97316" : "#fff7ed";
+                    e.target.style.color = b.id === highlightBookingId ? "#fff" : "#ea580c";
+                  }}
                 >
-                   Viết đánh giá
+                  ⭐ Viết đánh giá
                 </button>
               )}
             </div>
