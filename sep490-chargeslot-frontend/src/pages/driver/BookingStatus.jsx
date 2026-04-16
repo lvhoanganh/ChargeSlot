@@ -15,7 +15,7 @@ const statusStyles = {
   InProgress: { label: "Đang sạc", color: "#06b6d4", bg: "#ecfeff", bgGrad: "linear-gradient(135deg, #cffafe, #a5f3fc)", icon: "" },
   Completed: { label: "Hoàn thành", color: "#8b5cf6", bg: "#f5f3ff", bgGrad: "linear-gradient(135deg, #ede9fe, #ddd6fe)", icon: "" },
   NoShow: { label: "Không đến", color: "#9ca3af", bg: "#f3f4f6", bgGrad: "linear-gradient(135deg, #f3f4f6, #e5e7eb)", icon: "" },
-  Disputed: { label: "Tranh chấp", color: "#dc2626", bg: "#fef2f2", bgGrad: "linear-gradient(135deg, #fecaca, #fca5a5)", icon: "️" },
+  Disputed: { label: "Tranh chấp", color: "#dc2626", bg: "#fef2f2", bgGrad: "linear-gradient(135deg, #fecaca, #fca5a5)", icon: "" },
   CompletedPendingInvoice: { label: "Chờ xác nhận hóa đơn", color: "#f97316", bg: "#fff7ed", bgGrad: "linear-gradient(135deg, #fed7aa, #fdba74)", icon: "" },
 };
 

@@ -5,6 +5,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "@/components/Toast";
+import { ShieldCheck, Phone, Mail, Building2, Receipt } from "lucide-react";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
@@ -171,11 +172,11 @@ export default function OwnerProfile() {
 
             {!loading && !error && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <InfoCard icon="️" label="Vai trò" value="Chủ trạm" />
-                <InfoCard icon="" label="Số điện thoại" value={maskPhone(phoneNumber) || "—"} />
-                <InfoCard icon="️" label="Email" value={email || "—"} />
-                <InfoCard icon="" label="Tên doanh nghiệp" value={hasBusinessInfo ? businessName : "—"} />
-                <InfoCard icon="" label="Mã số thuế" value={hasBusinessInfo ? maskTaxCode(taxCode) : "—"} />
+                <InfoCard icon={<ShieldCheck className="text-gray-500" size={20} />} label="Vai trò" value="Chủ trạm" />
+                <InfoCard icon={<Phone className="text-gray-500" size={20} />} label="Số điện thoại" value={maskPhone(phoneNumber) || "—"} />
+                <InfoCard icon={<Mail className="text-gray-500" size={20} />} label="Email" value={email || "—"} />
+                <InfoCard icon={<Building2 className="text-gray-500" size={20} />} label="Tên doanh nghiệp" value={hasBusinessInfo ? businessName : "—"} />
+                <InfoCard icon={<Receipt className="text-gray-500" size={20} />} label="Mã số thuế" value={hasBusinessInfo ? maskTaxCode(taxCode) : "—"} />
               </div>
             )}
 

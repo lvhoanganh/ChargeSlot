@@ -8,6 +8,7 @@ import { instance } from "@/lib/httpRequest";
 import { useEffect, useState, forwardRef } from "react";
 import { ownerProfileApi, authApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+import { ShieldCheck, Phone, Mail, Building2, Receipt } from "lucide-react";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
@@ -235,25 +236,25 @@ export default function EditOwnerProfile() {
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <ReadOnlyField icon="️" label="Vai trò" value="Chủ trạm" />
-                <ReadOnlyField icon="" label="Số điện thoại" value={phoneNumber || "—"} />
+                <ReadOnlyField icon={<ShieldCheck className="text-gray-500" size={20} />} label="Vai trò" value="Chủ trạm" />
+                <ReadOnlyField icon={<Phone className="text-gray-500" size={20} />} label="Số điện thoại" value={phoneNumber || "—"} />
 
                 <InputField
-                  icon="️"
+                  icon={<Mail className="text-gray-500" size={20} />}
                   label="Email"
                   placeholder="Nhập email"
                   error={errors.email?.message}
                   {...register("email")}
                 />
                 <InputField
-                  icon=""
+                  icon={<Building2 className="text-gray-500" size={20} />}
                   label="Tên doanh nghiệp"
                   placeholder="Nhập tên doanh nghiệp"
                   error={errors.businessName?.message}
                   {...register("businessName")}
                 />
                 <InputField
-                  icon=""
+                  icon={<Receipt className="text-gray-500" size={20} />}
                   label="Mã số thuế (10 chữ số)"
                   placeholder="Nhập mã số thuế"
                   inputMode="numeric"

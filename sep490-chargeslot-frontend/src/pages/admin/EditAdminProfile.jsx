@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { useState } from "react";
 import { adminProfileApi } from "@/services/api";
+import { ShieldCheck, Phone } from "lucide-react";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
@@ -128,8 +129,8 @@ export default function EditAdminProfile() {
           </div>
           <div className="px-8 py-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <ReadOnlyField icon="️" label="Vai trò" value="Quản trị viên" />
-              <ReadOnlyField icon="" label="Số điện thoại" value={phoneNumber || "—"} />
+              <ReadOnlyField icon={<ShieldCheck className="text-gray-500" size={20} />} label="Vai trò" value="Quản trị viên" />
+              <ReadOnlyField icon={<Phone className="text-gray-500" size={20} />} label="Số điện thoại" value={phoneNumber || "—"} />
             </div>
           </div>
           <div className="px-8 py-5 bg-gray-50/50 border-t border-gray-100 flex flex-col sm:flex-row gap-3">

@@ -5,19 +5,20 @@ import { showToast } from "@/components/Toast";
 import { showConfirm } from "@/components/ConfirmDialog";
 import BankCombobox from "@/components/BankCombobox";
 import Pagination from "@/components/Pagination";
+import { ArrowDownLeft, ArrowUpRight, Undo2, ReceiptText, Landmark, SendHorizontal } from "lucide-react";
 
 const txTypeLabels = {
-  TopUp: { label: "Nạp tiền", icon: "", color: "#22c55e" },
-  BookingPayment: { label: "Thanh toán booking", icon: "", color: "#3b82f6" },
-  BookingCancel: { label: "Hoàn tiền hủy booking", icon: "↩️", color: "#f59e0b" },
-  Payment: { label: "Thanh toán", icon: "", color: "#3b82f6" },
-  Refund: { label: "Hoàn tiền", icon: "↩️", color: "#f59e0b" },
-  Withdraw: { label: "Rút tiền", icon: "", color: "#ef4444" },
-  WithdrawRequest: { label: "Yêu cầu rút tiền", icon: "", color: "#f59e0b" },
-  WithdrawRejected: { label: "Hoàn tiền huỷ lệnh rút", icon: "↩️", color: "#3b82f6" },
-  Earning: { label: "Thu nhập", icon: "", color: "#22c55e" },
-  OwnerPayout: { label: "Nhận thanh toán", icon: "", color: "#22c55e" },
-  ChargingPayout: { label: "Thanh toán phiên sạc", icon: "", color: "#22c55e" },
+  TopUp: { label: "Nạp tiền", icon: <ArrowDownLeft size={22} />, color: "#22c55e" },
+  BookingPayment: { label: "Thanh toán booking", icon: <ArrowUpRight size={22} />, color: "#3b82f6" },
+  BookingCancel: { label: "Hoàn tiền hủy booking", icon: <Undo2 size={22} />, color: "#f59e0b" },
+  Payment: { label: "Thanh toán", icon: <ArrowUpRight size={22} />, color: "#3b82f6" },
+  Refund: { label: "Hoàn tiền", icon: <Undo2 size={22} />, color: "#f59e0b" },
+  Withdraw: { label: "Rút tiền", icon: <ArrowUpRight size={22} />, color: "#ef4444" },
+  WithdrawRequest: { label: "Yêu cầu rút tiền", icon: <ArrowUpRight size={22} />, color: "#f59e0b" },
+  WithdrawRejected: { label: "Hoàn tiền huỷ lệnh rút", icon: <Undo2 size={22} />, color: "#3b82f6" },
+  Earning: { label: "Thu nhập", icon: <ArrowDownLeft size={22} />, color: "#22c55e" },
+  OwnerPayout: { label: "Nhận thanh toán", icon: <ArrowDownLeft size={22} />, color: "#22c55e" },
+  ChargingPayout: { label: "Thanh toán phiên sạc", icon: <ArrowDownLeft size={22} />, color: "#22c55e" },
 };
 
 const withdrawStatusLabels = {
@@ -407,7 +408,7 @@ export default function OwnerWallet() {
               </div>
             </div>
             {transactions.length === 0 ? (
-              <EmptyState icon="" text="Chưa có giao dịch nào" />
+              <EmptyState icon={<ReceiptText size={48} color="#94a3b8" />} text="Chưa có giao dịch nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {transactions.filter(tx => {
@@ -474,7 +475,7 @@ export default function OwnerWallet() {
             <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", marginBottom: 16 }}>Lịch sử rút tiền</h2>
 
             {withdraws.length === 0 ? (
-              <EmptyState icon="" text="Chưa có yêu cầu rút tiền nào" />
+              <EmptyState icon={<SendHorizontal size={48} color="#94a3b8" />} text="Chưa có yêu cầu rút tiền nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {withdraws.map((p) => {
@@ -570,7 +571,7 @@ export default function OwnerWallet() {
               >+ Thêm mới</button>
             </div>
             {bankAccounts.length === 0 ? (
-              <EmptyState icon="" text="Chưa có tài khoản ngân hàng nào" />
+              <EmptyState icon={<Landmark size={48} color="#94a3b8" />} text="Chưa có tài khoản ngân hàng nào" />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {bankAccounts.map((ba) => (

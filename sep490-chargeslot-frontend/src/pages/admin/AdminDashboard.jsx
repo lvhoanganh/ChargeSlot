@@ -3,6 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, Cell, AreaChart, Area, PieChart, Pie
 } from "recharts";
+import { Banknote, Lock, CalendarDays, XCircle, Ghost, Scale, AlertTriangle, Landmark, AlertOctagon, Users } from "lucide-react";
 import { instance } from "@/lib/httpRequest";
 
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString("vi-VN") + "đ" : "—");
@@ -88,35 +89,35 @@ export default function AdminDashboard() {
           </div>
         ) : error ? (
            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 14, padding: 20, marginBottom: 24, color: "#dc2626", fontSize: 14 }}>
-            ⚠️ {error}
+            <AlertTriangle size={18} className="inline mr-2" /> {error}
           </div>
         ) : (
           <>
             {/* Row 1: 6 Stat Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
               <MetricCard
-                icon="💰"
+                icon={<Banknote size={24} color="#16a34a" />}
                 label="Doanh thu Sàn"
                 value={fmt(metrics?.totalPlatformRevenue)}
                 color="#16a34a"
                 bg="linear-gradient(135deg, #f0fdf4, #dcfce7)"
               />
               <MetricCard
-                icon="🔒"
+                icon={<Lock size={24} color="#7c3aed" />}
                 label="Tiền cọc Escrow"
                 value={fmt(metrics?.totalEscrowBalance)}
                 color="#7c3aed"
                 bg="linear-gradient(135deg, #f5f3ff, #ede9fe)"
               />
               <MetricCard
-                icon="📅"
+                icon={<CalendarDays size={24} color="#2563eb" />}
                 label="Tổng đơn (30 ngày)"
                 value={fmtNum(metrics?.bookingsLast30Days)}
                 color="#2563eb"
                 bg="linear-gradient(135deg, #eff6ff, #dbeafe)"
               />
               <MetricCard
-                icon="❌"
+                icon={<XCircle size={24} color={isHighCancel ? "#dc2626" : "#16a34a"} />}
                 label="Tỷ lệ hủy (30 ngày)"
                 value={fmtPct(cancelRate)}
                 color={isHighCancel ? "#dc2626" : "#16a34a"}
@@ -124,14 +125,14 @@ export default function AdminDashboard() {
                 highlight={isHighCancel}
               />
               <MetricCard
-                icon="👻"
+                icon={<Ghost size={24} color="#dc2626" />}
                 label="NoShow (30 ngày)"
                 value={fmtNum(metrics?.noShowLast30Days)}
                 color="#dc2626"
                 bg="linear-gradient(135deg, #fef2f2, #fee2e2)"
               />
               <MetricCard
-                icon="⚖️"
+                icon={<Scale size={24} color="#9333ea" />}
                 label="Khiếu nại (30 ngày)"
                 value={fmtNum(metrics?.disputesLast30Days)}
                 color="#9333ea"
@@ -188,7 +189,7 @@ export default function AdminDashboard() {
             {/* Row 3: Pending Withdraws / High Risk Drivers */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24, alignItems: "start" }} className="dashboard-grid">
               <div style={{ background: "white", borderRadius: 20, padding: "24px 28px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)", height: "100%" }}>
-                <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: "0 0 16px" }}>💸 Rút tiền đang chờ</h3>
+                <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 8 }}><Landmark size={20} color="#16a34a" /> Rút tiền đang chờ</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   <div style={{ padding: 16, background: "#fffbeb", borderRadius: 12, border: "1px solid #fef3c7" }}>
                     <p style={{ margin: 0, fontSize: 14, color: "#b45309" }}>Số lượng yêu cầu</p>
@@ -208,8 +209,8 @@ export default function AdminDashboard() {
               <div style={{ background: "white", borderRadius: 20, padding: "24px 28px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)", height: "100%" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
                   <div>
-                    <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0 }}>
-                      🚨 Tài xế rủi ro cao
+                    <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                      <AlertOctagon size={20} color="#dc2626" /> Tài xế rủi ro cao
                     </h3>
                     <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 0" }}>
                       Tài xế hủy đơn nhiều {'>'} 50%
@@ -244,7 +245,7 @@ export default function AdminDashboard() {
             {/* Row 4: User Allocation / Summary Stats */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }} className="dashboard-grid">
               <div style={{ background: "white", borderRadius: 20, padding: "24px 28px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)" }}>
-                <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: "0 0 16px" }}>👥 Phân bổ người dùng</h3>
+                <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 8 }}><Users size={20} color="#3b82f6" /> Phân bổ người dùng</h3>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">

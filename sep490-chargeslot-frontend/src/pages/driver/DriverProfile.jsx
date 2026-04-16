@@ -5,6 +5,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "@/components/Toast";
+import { ShieldCheck, Phone, Mail, CarFront, Hash, FileText } from "lucide-react";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
@@ -165,12 +166,12 @@ export default function DriverProfile() {
 
             {!loading && !error && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <InfoCard icon="️" label="Vai trò" value="Tài xế" />
-                <InfoCard icon="" label="Số điện thoại" value={maskPhone(phoneNumber) || "—"} />
-                <InfoCard icon="️" label="Email" value={email || "—"} />
-                <InfoCard icon="" label="Loại xe" value={profile?.vehicleType || "—"} />
-                <InfoCard icon="" label="Biển số" value={profile?.licensePlate || "—"} />
-                <InfoCard icon="" label="Số giấy phép" value={maskLicense(profile?.licenseNumber) || "—"} />
+                <InfoCard icon={<ShieldCheck className="text-gray-500" size={20} />} label="Vai trò" value="Tài xế" />
+                <InfoCard icon={<Phone className="text-gray-500" size={20} />} label="Số điện thoại" value={maskPhone(phoneNumber) || "—"} />
+                <InfoCard icon={<Mail className="text-gray-500" size={20} />} label="Email" value={email || "—"} />
+                <InfoCard icon={<CarFront className="text-gray-500" size={20} />} label="Loại xe" value={profile?.vehicleType || "—"} />
+                <InfoCard icon={<Hash className="text-gray-500" size={20} />} label="Biển số" value={profile?.licensePlate || "—"} />
+                <InfoCard icon={<FileText className="text-gray-500" size={20} />} label="Số giấy phép" value={maskLicense(profile?.licenseNumber) || "—"} />
               </div>
             )}
 

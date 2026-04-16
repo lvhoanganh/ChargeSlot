@@ -3,6 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell
 } from "recharts";
+import { Banknote, Zap, CheckCircle, XCircle, Star, BarChart3 } from "lucide-react";
 import { instance } from "@/lib/httpRequest";
 import { ownerAnalyticsApi } from "@/services/api";
 
@@ -152,19 +153,19 @@ function TabOverview() {
       {/* Metrics Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 16, marginBottom: 24 }}>
         <MetricCard
-          icon="" label="Doanh thu 30 ngày"
+          icon={<Banknote size={24} color="#16a34a" />} label="Doanh thu 30 ngày"
           value={fmt(metrics?.revenueLast30Days)}
           sub="Tổng tiền đã thu từ tất cả trạm"
           color="#16a34a" bg="linear-gradient(135deg, #f0fdf4, #dcfce7)"
         />
         <MetricCard
-          icon="" label="Đánh giá trung bình"
+          icon={<Star size={24} color="#d97706" />} label="Đánh giá trung bình"
           value={starDisplay}
           sub="Trung bình rating từ tất cả trạm"
           color="#d97706" bg="linear-gradient(135deg, #fffbeb, #fef3c7)"
         />
         <MetricCard
-          icon="" label="Đơn đặt 30 ngày"
+          icon={<Zap size={24} color="#2563eb" />} label="Đơn đặt 30 ngày"
           value={fmtNum(metrics?.bookingsLast30Days)}
           sub="Tổng booking trong 30 ngày qua"
           color="#2563eb" bg="linear-gradient(135deg, #eff6ff, #dbeafe)"
@@ -174,7 +175,8 @@ function TabOverview() {
       {/* Station Performance Chart */}
       <div style={{ background: "white", borderRadius: 20, padding: "24px 28px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)", marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <BarChart3 size={20} color="#0f172a" />
             <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0 }}>
                So sánh doanh thu các trạm
             </h3>
@@ -278,19 +280,19 @@ function TabAnalytics() {
         <>
           {/* Stat Cards */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 12 }}>
-            <StatCard icon="💰" label="Doanh thu" color="#f97316" bg="#fff7ed"
+            <StatCard icon={<Banknote size={24} />} label="Doanh thu" color="#f97316" bg="#fff7ed"
               value={`${(m.revenueLast30Days ?? 0).toLocaleString("vi-VN")}đ`}
               sub={`Số dư ví: ${(m.walletBalance ?? 0).toLocaleString("vi-VN")}đ`}
             />
-            <StatCard icon="⚡" label="Lượt booking" color="#3b82f6" bg="#eff6ff"
+            <StatCard icon={<Zap size={24} />} label="Lượt booking" color="#3b82f6" bg="#eff6ff"
               value={m.bookingsLast30Days ?? 0}
               sub={`${m.totalStations ?? 0} trạm đang quản lý`}
             />
-            <StatCard icon="✅" label="Hoàn thành" color="#22c55e" bg="#f0fdf4"
+            <StatCard icon={<CheckCircle size={24} />} label="Hoàn thành" color="#22c55e" bg="#f0fdf4"
               value={m.completedBookingsLast30Days ?? 0}
               sub="Số đơn sạc thành công"
             />
-            <StatCard icon="❌" label="Tỷ lệ hủy" color="#ef4444" bg="#fef2f2"
+            <StatCard icon={<XCircle size={24} />} label="Tỷ lệ hủy" color="#ef4444" bg="#fef2f2"
               value={m.cancelRateLast30Days != null
                 ? `${(m.cancelRateLast30Days * 100).toFixed(1)}%`
                 : "—"}

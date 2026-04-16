@@ -8,6 +8,7 @@ import { instance } from "@/lib/httpRequest";
 import { useEffect, useState } from "react";
 import { driverProfileApi, authApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+import { ShieldCheck, Phone, Mail, CarFront, Hash, FileText } from "lucide-react";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
@@ -236,32 +237,32 @@ export default function EditDriverProfile() {
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <ReadOnlyField icon="️" label="Vai trò" value="Tài xế" />
-                <ReadOnlyField icon="" label="Số điện thoại" value={phoneNumber || "—"} />
+                <ReadOnlyField icon={<ShieldCheck className="text-gray-500" size={20} />} label="Vai trò" value="Tài xế" />
+                <ReadOnlyField icon={<Phone className="text-gray-500" size={20} />} label="Số điện thoại" value={phoneNumber || "—"} />
 
                 <InputField
-                  icon="️"
+                  icon={<Mail className="text-gray-500" size={20} />}
                   label="Email"
                   placeholder="Nhập email"
                   error={errors.email?.message}
                   {...register("email")}
                 />
                 <InputField
-                  icon=""
+                  icon={<CarFront className="text-gray-500" size={20} />}
                   label="Loại xe"
                   placeholder="Ví dụ: Xe máy, Ô tô..."
                   error={errors.vehicleType?.message}
                   {...register("vehicleType")}
                 />
                 <InputField
-                  icon=""
+                  icon={<Hash className="text-gray-500" size={20} />}
                   label="Biển số"
                   placeholder="Nhập biển số"
                   error={errors.licensePlate?.message}
                   {...register("licensePlate")}
                 />
                 <InputField
-                  icon=""
+                  icon={<FileText className="text-gray-500" size={20} />}
                   label="Số giấy phép (12 số)"
                   placeholder="Nhập số giấy phép"
                   inputMode="numeric"

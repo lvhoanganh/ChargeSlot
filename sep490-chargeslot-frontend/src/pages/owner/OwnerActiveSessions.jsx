@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { chargingApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+import { PowerOff, AlertTriangle } from "lucide-react";
 
 const toLocal = (dt) => {
   if (!dt) return "—";
@@ -131,9 +132,10 @@ export default function OwnerActiveSessions() {
                   background: stoppingId === s.id ? "#d1d5db" : "linear-gradient(135deg, #ef4444, #dc2626)",
                   color: "#fff", fontWeight: 700, fontSize: 15, cursor: stoppingId === s.id ? "not-allowed" : "pointer",
                   boxShadow: "0 4px 14px rgba(239,68,68,0.25)",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8
                 }}
               >
-                {stoppingId === s.id ? "Đang xử lý..." : "️ Dừng phiên sạc & Tạo hóa đơn"}
+                {stoppingId === s.id ? "Đang xử lý..." : <><PowerOff size={18} /> Dừng phiên sạc & Tạo hóa đơn</>}
               </button>
             </div>
           );
@@ -145,13 +147,16 @@ export default function OwnerActiveSessions() {
       {confirmStop && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
           <div style={{ background: "#fff", borderRadius: 16, padding: 24, width: 420, maxWidth: "90vw" }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>️ Xác nhận dừng phiên sạc</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+              <AlertTriangle size={20} color="#ef4444" /> Xác nhận dừng phiên sạc
+            </h2>
             <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 8 }}>
               Bạn có chắc muốn dừng phiên sạc <strong>#{confirmStop.id}</strong> của driver <strong>{confirmStop.driverName}</strong>?
             </p>
             <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: 12, marginBottom: 16 }}>
-              <p style={{ fontSize: 13, color: "#92400e", margin: 0 }}>
-                ️ Sau khi dừng, hệ thống sẽ tạo hóa đơn và gửi cho driver xác nhận hoặc khiếu nại.
+              <p style={{ fontSize: 13, color: "#92400e", margin: 0, display: "flex", alignItems: "flex-start", gap: 6 }}>
+                <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> 
+                <span>Sau khi dừng, hệ thống sẽ tạo hóa đơn và gửi cho driver xác nhận hoặc khiếu nại.</span>
               </p>
             </div>
             <div style={{ display: "flex", gap: 8 }}>

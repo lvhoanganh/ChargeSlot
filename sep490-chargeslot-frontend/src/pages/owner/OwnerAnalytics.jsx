@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ownerAnalyticsApi } from "@/services/api";
+import { Banknote, Zap, BarChart3, XCircle } from "lucide-react";
 
 const PERIODS = [
   { label: "7 ngày", days: 7 },
@@ -148,21 +149,21 @@ export default function OwnerAnalytics() {
           <>
             {/* Stat Cards — dùng đúng field từ OwnerDashboardMetricsDto */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
-              <StatCard icon="" label="Doanh thu" color="#f97316" bg="#fff7ed"
+              <StatCard icon={<Banknote size={24} color="#f97316" />} label="Doanh thu" color="#f97316" bg="#fff7ed"
                 value={`${(m.revenueLast30Days ?? 0).toLocaleString("vi-VN")}đ`}
                 sub={`Số dư ví: ${(m.walletBalance ?? 0).toLocaleString("vi-VN")}đ`}
               />
-              <StatCard icon="" label="Lượt booking" color="#3b82f6" bg="#eff6ff"
+              <StatCard icon={<Zap size={24} color="#3b82f6" />} label="Lượt booking" color="#3b82f6" bg="#eff6ff"
                 value={m.bookingsLast30Days ?? 0}
                 sub={`${m.totalStations ?? 0} trạm đang quản lý`}
               />
-              <StatCard icon="" label="Hiệu suất hoạt động" color="#22c55e" bg="#f0fdf4"
+              <StatCard icon={<BarChart3 size={24} color="#22c55e" />} label="Hiệu suất hoạt động" color="#22c55e" bg="#f0fdf4"
                 value={m.activeTimeUtilizationRate != null
                   ? `${(m.activeTimeUtilizationRate * 100).toFixed(1)}%`
                   : "—"}
                 sub="Tỷ lệ giờ slot được đặt"
               />
-              <StatCard icon="" label="Tỷ lệ hủy" color="#ef4444" bg="#fef2f2"
+              <StatCard icon={<XCircle size={24} color="#ef4444" />} label="Tỷ lệ hủy" color="#ef4444" bg="#fef2f2"
                 value={m.cancelRateLast30Days != null
                   ? `${(m.cancelRateLast30Days * 100).toFixed(1)}%`
                   : "—"}
