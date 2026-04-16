@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { bookingApi, reviewApi } from "@/services/api";
+import Pagination from "@/components/Pagination";
 
 const STARS = [1, 2, 3, 4, 5];
 
@@ -15,11 +16,13 @@ export default function DriverReviews() {
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   useEffect(() => {
     // Dùng history endpoint: trả về booking Completed/Cancelled/Rejected/Expired
     // pageSize=200 để tránh bị mất booking cũ
-    bookingApi.getDriverHistory(1, 200)
+    bookingApi.getDriverHistory(1, 100)
       .then((data) => {
         const list = Array.isArray(data) ? data : data?.items || [];
         setBookings(list);
@@ -101,6 +104,7 @@ export default function DriverReviews() {
       <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>
         Đánh giá các lần sạc đã hoàn thành để giúp cải thiện dịch vụ.
       </p>
+      <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 16 }}>Tổng: {latestPerStation.length} lịch sạc</p>
 
       {successMsg && (
         <div style={{ background: "#f0fdf4", color: "#16a34a", padding: "12px 16px", borderRadius: 12, marginBottom: 16, fontSize: 14, border: "1px solid #bbf7d0" }}>
@@ -122,7 +126,7 @@ export default function DriverReviews() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {latestPerStation.map((b) => (
+          {latestPerStation.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((b) => (
             <div
               key={b.id}
               style={{
@@ -257,6 +261,12 @@ export default function DriverReviews() {
               )}
             </div>
           ))}
+          <Pagination
+            page={page}
+            totalCount={latestPerStation.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={(p) => setPage(p)}
+          />
         </div>
       )}
     </div>

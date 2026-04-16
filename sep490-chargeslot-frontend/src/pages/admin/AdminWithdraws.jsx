@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { adminWithdrawApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+import Pagination from "@/components/Pagination";
 
 const statusLabels = {
   Pending: { label: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb" },
@@ -21,6 +22,8 @@ export default function AdminWithdraws() {
   const [withdraws, setWithdraws] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const [processModal, setProcessModal] = useState(null);
   const [processNote, setProcessNote] = useState("");
@@ -50,7 +53,7 @@ export default function AdminWithdraws() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { fetchData(); }, [activeTab]);
+  useEffect(() => { setPage(1); fetchData(); }, [activeTab]);
 
   async function submitProcess(e) {
     e.preventDefault();
@@ -156,7 +159,7 @@ export default function AdminWithdraws() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {withdraws.map(w => {
+          {withdraws.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(w => {
             const st = statusLabels[w.status] || statusLabels.Pending;
             return (
               <div key={w.id} style={{
@@ -205,6 +208,12 @@ export default function AdminWithdraws() {
               </div>
             );
           })}
+          <Pagination
+            page={page}
+            totalCount={withdraws.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={(p) => setPage(p)}
+          />
         </div>
       )}
 

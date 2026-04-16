@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { favoriteApi } from "@/services/api";
+import Pagination from "@/components/Pagination";
+
+const PAGE_SIZE = 10;
 
 export default function FavoriteStations() {
   const navigate = useNavigate();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [imgErrors, setImgErrors] = useState({});
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     setLoading(true);
@@ -70,7 +74,8 @@ export default function FavoriteStations() {
           </div>
         ) : (
           <div className="space-y-4">
-            {favorites.map(f => {
+            {/* Phân trang */}
+            {favorites.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(f => {
               const img = getImg(f);
               return (
                 <div key={f.stationId} className="bg-white rounded-2xl shadow-sm overflow-hidden flex hover:shadow-md transition-shadow">
@@ -135,6 +140,14 @@ export default function FavoriteStations() {
                 </div>
               );
             })}
+            <div style={{ marginTop: 16 }}>
+              <Pagination
+                page={page}
+                totalCount={favorites.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={(p) => setPage(p)}
+              />
+            </div>
           </div>
         )}
       </div>

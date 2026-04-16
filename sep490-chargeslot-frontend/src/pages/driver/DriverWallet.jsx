@@ -660,6 +660,12 @@ export default function DriverWallet() {
                     </div>
                   );
                 })}
+                <Pagination
+                  page={wrPage}
+                  totalCount={wrTotal}
+                  pageSize={20}
+                  onPageChange={(p) => setWrPage(p)}
+                />
               </div>
             )}
           </>

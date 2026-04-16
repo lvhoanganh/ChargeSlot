@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminKycApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 import { formatDateVN } from "@/utils/dateVN";
+import Pagination from "@/components/Pagination";
 
 function formatDate(dateStr) {
   return formatDateVN(dateStr) || "—";
@@ -18,6 +19,8 @@ export default function AdminKycRequests() {
   const [selectedKyc, setSelectedKyc] = useState(null);
   const [adminNote, setAdminNote] = useState("");
   const [reviewAction, setReviewAction] = useState(null); // true = approve, false = reject
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const { data: kycs = [], isLoading, error } = useQuery({
     queryKey: ["admin-kyc-pending", statusFilter],
@@ -118,22 +121,22 @@ export default function AdminKycRequests() {
         </div>
       </div>
 
-      <div className="cs-admin-filter" style={{ flexWrap: "wrap", gap: 10 }}>
-        <div className="cs-admin-filter__search">
+        <div className="cs-admin-filter" style={{ flexWrap: "wrap", gap: 10 }}>
+          <div className="cs-admin-filter__search">
           <svg className="cs-admin-filter__search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
             placeholder="Tìm theo tên doanh nghiệp, CCCD, Mã số thuế..."
-            className="cs-admin-filter__input"
+              className="cs-admin-filter__input"
           />
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả trạng thái</option>
@@ -148,13 +151,13 @@ export default function AdminKycRequests() {
           <svg width="15" height="15" fill="none" stroke="#64748b" strokeWidth={2} viewBox="0 0 24 24">
             <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
           </svg>
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+          <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
             className="cs-admin-filter__select" style={{ width: 140, cursor: "pointer" }} title="Từ ngày gửi" />
           <span style={{ color: "#94a3b8", fontSize: 12 }}>—</span>
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+          <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
             className="cs-admin-filter__select" style={{ width: 140, cursor: "pointer" }} title="Đến ngày gửi" />
         </div>
-        <button onClick={() => { setSearch(""); setStatusFilter("ALL"); setDateFrom(""); setDateTo(""); }} className="cs-admin-filter__reset">
+        <button onClick={() => { setSearch(""); setStatusFilter("ALL"); setDateFrom(""); setDateTo(""); setPage(1); }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
@@ -184,9 +187,9 @@ export default function AdminKycRequests() {
                 </td>
               </tr>
             ) : (
-              filtered.map((k, idx) => (
+              filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((k, idx) => (
                 <tr key={k.ownerUserId}>
-                  <td className="cs-admin-table__id" style={{ fontWeight: 700, color: "#64748b" }}>{idx + 1}</td>
+                  <td className="cs-admin-table__id" style={{ fontWeight: 700, color: "#64748b" }}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                   <td className="cs-admin-table__name">{k.businessName}</td>
                   <td><span style={{ fontWeight: 600, color: "#f59e0b" }}>{k.taxCode}</span></td>
                   <td>{k.idCardNumber}</td>
@@ -222,6 +225,15 @@ export default function AdminKycRequests() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <Pagination
+          page={page}
+          totalCount={filtered.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={(p) => setPage(p)}
+        />
       </div>
 
       {/* KYC Review Drawer / Modal */}
