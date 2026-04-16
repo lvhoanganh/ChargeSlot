@@ -348,8 +348,8 @@ export default function ChargingActive() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <StatCard icon="️" label="Cổng sạc" value={sessionData.slotName || `Slot ${sessionData.slotId}`} />
-          <StatCard icon="" label="Trạm" value={sessionData.stationName || "—"} />
+          <StatCard icon="🔌" label="Cổng sạc" value={sessionData.slotName || `Slot ${sessionData.slotId}`} />
+          <StatCard icon="📍" label="Trạm" value={sessionData.stationName || "—"} />
         </div>
 
         {error && (
@@ -378,7 +378,7 @@ export default function ChargingActive() {
           >
             {requestingEarlyEnd ? (
               <div className="w-4 h-4 border-2 border-amber-400 border-t-amber-700 rounded-full animate-spin" />
-            ) : "️"}
+            ) : "⏹️"}
             {requestingEarlyEnd ? "Đang gửi..." : "Kết thúc sớm"}
           </button>
         )}

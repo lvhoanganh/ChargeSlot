@@ -4,7 +4,6 @@ import {
   ResponsiveContainer, Cell
 } from "recharts";
 import { instance } from "@/lib/httpRequest";
-import { AiAdvisorPanel } from "@/components/AiAdvisorPanel";
 import { ownerAnalyticsApi } from "@/services/api";
 
 //  Helpers 
@@ -215,9 +214,6 @@ function TabOverview() {
           </ResponsiveContainer>
         )}
       </div>
-
-      {/* AI Advisor Panel */}
-      <AiAdvisorPanel role="owner" />
     </div>
   );
 }
@@ -226,9 +222,7 @@ function TabOverview() {
 function TabAnalytics() {
   const [periodIdx, setPeriodIdx] = useState(1);
   const [metrics, setMetrics] = useState(null);
-  const [aiInsight, setAiInsight] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -236,27 +230,12 @@ function TabAnalytics() {
     setLoading(true);
     setError("");
     setMetrics(null);
-    setAiInsight(null);
 
     ownerAnalyticsApi.getMetrics(fromDate, toDate)
       .then((data) => setMetrics(data))
       .catch((err) => setError(err.message || "Không tải được dữ liệu"))
       .finally(() => setLoading(false));
   }, [periodIdx]);
-
-  async function handleLoadAI() {
-    const { fromDate, toDate } = getDateRange(PERIODS[periodIdx].days);
-    setAiLoading(true);
-    setAiInsight(null);
-    try {
-      const data = await ownerAnalyticsApi.getAiInsights(fromDate, toDate);
-      setAiInsight(data);
-    } catch (err) {
-      setAiInsight({ error: err.message || "Không lấy được gợi ý AI" });
-    } finally {
-      setAiLoading(false);
-    }
-  }
 
   const m = metrics;
   const stationPerfs = m?.stationPerformances || [];
@@ -298,27 +277,30 @@ function TabAnalytics() {
       {!loading && m && (
         <>
           {/* Stat Cards */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
-            <StatCard icon="" label="Doanh thu" color="#f97316" bg="#fff7ed"
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 12 }}>
+            <StatCard icon="💰" label="Doanh thu" color="#f97316" bg="#fff7ed"
               value={`${(m.revenueLast30Days ?? 0).toLocaleString("vi-VN")}đ`}
               sub={`Số dư ví: ${(m.walletBalance ?? 0).toLocaleString("vi-VN")}đ`}
             />
-            <StatCard icon="" label="Lượt booking" color="#3b82f6" bg="#eff6ff"
+            <StatCard icon="⚡" label="Lượt booking" color="#3b82f6" bg="#eff6ff"
               value={m.bookingsLast30Days ?? 0}
               sub={`${m.totalStations ?? 0} trạm đang quản lý`}
             />
-            <StatCard icon="" label="Hiệu suất hoạt động" color="#22c55e" bg="#f0fdf4"
-              value={m.activeTimeUtilizationRate != null
-                ? `${(m.activeTimeUtilizationRate * 100).toFixed(1)}%`
-                : "—"}
-              sub="Tỷ lệ giờ slot được đặt"
+            <StatCard icon="✅" label="Hoàn thành" color="#22c55e" bg="#f0fdf4"
+              value={m.completedBookingsLast30Days ?? 0}
+              sub="Số đơn sạc thành công"
             />
-            <StatCard icon="" label="Tỷ lệ hủy" color="#ef4444" bg="#fef2f2"
+            <StatCard icon="❌" label="Tỷ lệ hủy" color="#ef4444" bg="#fef2f2"
               value={m.cancelRateLast30Days != null
                 ? `${(m.cancelRateLast30Days * 100).toFixed(1)}%`
                 : "—"}
               sub="Driver + Owner hủy"
             />
+          </div>
+          <div style={{ marginBottom: 24 }}>
+            <span style={{ fontSize: 12, background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", padding: "4px 10px", borderRadius: 20, fontWeight: 600 }}>
+              NoShow: {m.noShowLast30Days ?? 0} đơn
+            </span>
           </div>
 
           {/* Station mini bars */}
@@ -386,47 +368,7 @@ function TabAnalytics() {
             </div>
           )}
 
-          {/* AI Insights */}
-          <div style={{ background: "linear-gradient(135deg,#1e293b,#334155)", borderRadius: 20, padding: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
-              <div>
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0 }}> AI Cố vấn kinh doanh</h3>
-                <p style={{ fontSize: 12, color: "#94a3b8", margin: "4px 0 0" }}>Phân tích dựa trên số liệu thực tế của bạn</p>
-              </div>
-              <button onClick={handleLoadAI} disabled={aiLoading} style={{
-                padding: "10px 20px", borderRadius: 12, border: "none", cursor: aiLoading ? "not-allowed" : "pointer",
-                background: aiLoading ? "#475569" : "linear-gradient(135deg,#f97316,#ea580c)",
-                color: "#fff", fontSize: 13, fontWeight: 700, transition: "all 0.15s",
-                boxShadow: aiLoading ? "none" : "0 2px 8px rgba(249,115,22,0.4)",
-              }}>
-                {aiLoading ? " Đang phân tích..." : " Lấy gợi ý AI"}
-              </button>
-            </div>
-
-            {!aiInsight && !aiLoading && (
-              <p style={{ fontSize: 13, color: "#64748b", fontStyle: "italic", margin: 0 }}>
-                Nhấn "Lấy gợi ý AI" để nhận phân tích chuyên sâu từ AI về tình hình kinh doanh.
-              </p>
-            )}
-            {aiInsight?.error && (
-              <p style={{ fontSize: 13, color: "#fca5a5", margin: 0 }}>️ {aiInsight.error}</p>
-            )}
-            {aiInsight && !aiInsight.error && aiInsight.insightMarkdown && (
-              <div style={{ background: "#0f172a", borderRadius: 14, padding: 18, marginTop: 4 }}>
-                <pre style={{
-                  fontSize: 13, color: "#cbd5e1", lineHeight: 1.7, margin: 0,
-                  whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "inherit",
-                }}>
-                  {aiInsight.insightMarkdown}
-                </pre>
-                {aiInsight.generatedAt && (
-                  <p style={{ fontSize: 11, color: "#475569", margin: "12px 0 0", textAlign: "right" }}>
-                    Tạo lúc: {new Date(aiInsight.generatedAt).toLocaleString("vi-VN")}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
+          {/* AI Insights block removed */}
         </>
       )}
     </div>

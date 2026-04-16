@@ -169,6 +169,7 @@ export default function ManageUser() {
 
       {/* Stats Cards */}
       <div className="cs-admin-stats">
+        {/* Row 1 */}
         <div className="cs-admin-stat-card">
           <div className="cs-admin-stat-card__icon cs-admin-stat-card__icon--total">
             <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,7 +178,7 @@ export default function ManageUser() {
           </div>
           <div>
             <p className="cs-admin-stat-card__label">Tổng số tài khoản</p>
-            <p className="cs-admin-stat-card__value">{summary.total}</p>
+            <p className="cs-admin-stat-card__value">{summary.total || 0}</p>
           </div>
         </div>
         <div className="cs-admin-stat-card">
@@ -188,7 +189,7 @@ export default function ManageUser() {
           </div>
           <div>
             <p className="cs-admin-stat-card__label">Hoạt động</p>
-            <p className="cs-admin-stat-card__value" style={{ color: "#16a34a" }}>{summary.active}</p>
+            <p className="cs-admin-stat-card__value" style={{ color: "#16a34a" }}>{summary.active || 0}</p>
           </div>
         </div>
         <div className="cs-admin-stat-card">
@@ -199,7 +200,42 @@ export default function ManageUser() {
           </div>
           <div>
             <p className="cs-admin-stat-card__label">Vô hiệu hóa</p>
-            <p className="cs-admin-stat-card__value" style={{ color: "#dc2626" }}>{summary.banned}</p>
+            <p className="cs-admin-stat-card__value" style={{ color: "#dc2626" }}>{summary.banned || 0}</p>
+          </div>
+        </div>
+        
+        {/* Row 2: Roles */}
+        <div className="cs-admin-stat-card">
+          <div className="cs-admin-stat-card__icon" style={{ background: "#eff6ff", color: "#2563eb" }}>
+            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <div>
+            <p className="cs-admin-stat-card__label">Chủ trạm</p>
+            <p className="cs-admin-stat-card__value" style={{ color: "#2563eb" }}>{summary.totalOwners || 0}</p>
+          </div>
+        </div>
+        <div className="cs-admin-stat-card">
+          <div className="cs-admin-stat-card__icon" style={{ background: "#fff7ed", color: "#ea580c" }}>
+            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+          </div>
+          <div>
+            <p className="cs-admin-stat-card__label">Tài xế</p>
+            <p className="cs-admin-stat-card__value" style={{ color: "#ea580c" }}>{summary.totalDrivers || 0}</p>
+          </div>
+        </div>
+        <div className="cs-admin-stat-card">
+          <div className="cs-admin-stat-card__icon" style={{ background: "#f5f3ff", color: "#7c3aed" }}>
+            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <div>
+            <p className="cs-admin-stat-card__label">Admin</p>
+            <p className="cs-admin-stat-card__value" style={{ color: "#7c3aed" }}>{summary.totalAdmins || 0}</p>
           </div>
         </div>
       </div>

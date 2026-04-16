@@ -336,15 +336,6 @@ export const ownerAnalyticsApi = {
         const qs = params.toString();
         return apiFetch(`/owner/analytics/metrics${qs ? "?" + qs : ""}`);
     },
-
-    /** GET /api/owner/analytics/ai-insights?fromDate=&toDate= */
-    getAiInsights: (fromDate, toDate) => {
-        const params = new URLSearchParams();
-        if (fromDate) params.set("fromDate", fromDate);
-        if (toDate) params.set("toDate", toDate);
-        const qs = params.toString();
-        return apiFetch(`/owner/analytics/ai-insights${qs ? "?" + qs : ""}`);
-    },
 };
 
 // ============================
@@ -462,9 +453,13 @@ export const adminKycApi = {
 // ============================
 
 export const adminContractApi = {
-    getAll: (status, page = 1, pageSize = 20) => {
+    getAll: ({ status, search, ownerUserId, fromDate, toDate, page = 1, pageSize = 20 } = {}) => {
         const params = new URLSearchParams();
         if (status && status !== "ALL") params.set("status", status);
+        if (search) params.set("search", search);
+        if (ownerUserId) params.set("ownerUserId", ownerUserId);
+        if (fromDate) params.set("fromDate", fromDate);
+        if (toDate) params.set("toDate", toDate);
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
         return apiFetch(`/admin/contracts?${params.toString()}`);

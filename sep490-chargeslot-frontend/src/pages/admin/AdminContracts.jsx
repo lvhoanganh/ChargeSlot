@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminContractApi } from "@/services/api";
 import { showToast as toast } from "@/components/Toast";
@@ -15,17 +15,36 @@ const STATUS_LABELS = {
 export default function AdminContracts() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [terminateModal, setTerminateModal] = useState({ open: false, ownerUserId: null, reason: "" });
   const [viewProfileTarget, setViewProfileTarget] = useState(null);
   const queryClient = useQueryClient();
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["adminContracts", page, statusFilter],
+    queryKey: ["adminContracts", page, statusFilter, debouncedSearch, fromDate, toDate],
     queryFn: async () => {
-      const res = await adminContractApi.getAll(statusFilter, page, 20);
+      const res = await adminContractApi.getAll({
+         status: statusFilter,
+         search: debouncedSearch,
+         fromDate,
+         toDate,
+         page,
+         pageSize: 20
+      });
       return {
         items: res.items || res.data || [],
-        total: res.totalCount || 0
+        total: res.totalCount || res.totalItems || 0
       };
     },
     keepPreviousData: true,
@@ -77,11 +96,39 @@ export default function AdminContracts() {
 
       {/* Filter Bar */}
       <div className="cs-admin-filter">
+        <div style={{ position: "relative", flex: 1, minWidth: "220px" }}>
+          <svg style={{ position: "absolute", left: 14, top: 12, color: "#9ca3af" }} width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            className="cs-admin-filter__input"
+            style={{ width: "100%", paddingLeft: 40 }}
+            placeholder="Tìm theo chủ trạm, mã HĐ..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        
+        <input 
+          type="date"
+          className="cs-admin-filter__select"
+          value={fromDate}
+          onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+          title="Từ ngày"
+        />
+        <input 
+          type="date"
+          className="cs-admin-filter__select"
+          value={toDate}
+          onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+          title="Đến ngày"
+        />
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           className="cs-admin-filter__select"
-          style={{ width: "200px" }}
+          style={{ width: "160px" }}
         >
           <option value="ALL">Tất cả trạng thái</option>
           <option value="Pending">Chờ ký</option>
@@ -89,11 +136,17 @@ export default function AdminContracts() {
           <option value="Terminated">Đã chấm dứt</option>
           <option value="Expired">Hết hạn</option>
         </select>
-        <button onClick={() => { setStatusFilter("ALL"); setPage(1); }} className="cs-admin-filter__reset">
+        <button onClick={() => { 
+          setStatusFilter("ALL"); 
+          setSearch(""); 
+          setFromDate(""); 
+          setToDate(""); 
+          setPage(1); 
+        }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Xóa bộ lọc
+          Xóa
         </button>
       </div>
 
@@ -238,6 +291,8 @@ export default function AdminContracts() {
         .cs-admin-page__title { font-size: 26px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px; margin: 0; }
         .cs-admin-page__subtitle { font-size: 14px; color: #64748b; margin-top: 4px; }
         .cs-admin-filter { background: white; border: 1px solid rgba(0,0,0,0.06); border-radius: 16px; padding: 16px 20px; margin-bottom: 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .cs-admin-filter__input { height: 42px; border: 1.5px solid #e5e7eb; border-radius: 12px; padding: 0 14px; font-size: 14px; background: #f9fafb; outline: none; transition: border-color 0.2s; box-sizing: border-box; }
+        .cs-admin-filter__input:focus { border-color: #f97316; background: white; box-shadow: 0 0 0 3px rgba(249,115,22,0.1); }
         .cs-admin-filter__select { height: 42px; border: 1.5px solid #e5e7eb; border-radius: 12px; padding: 0 14px; font-size: 14px; background: #f9fafb; cursor: pointer; outline: none; transition: border-color 0.2s; }
         .cs-admin-filter__select:focus { border-color: #f97316; }
         .cs-admin-filter__reset { height: 42px; padding: 0 18px; border: 1.5px solid #e5e7eb; border-radius: 12px; background: white; font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }

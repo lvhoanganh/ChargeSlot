@@ -4,7 +4,7 @@ import { create } from "zustand";
 export const useAdminAccountStore = create((set, get) => ({
   users: [],
   totalItems: 0,
-  summary: { total: 0, active: 0, banned: 0 },
+  summary: { total: 0, active: 0, banned: 0, totalOwners: 0, totalDrivers: 0, totalAdmins: 0 },
   loading: false,
   error: "",
 
@@ -42,6 +42,9 @@ export const useAdminAccountStore = create((set, get) => ({
           total: data.totalAccounts,
           active: data.activeAccounts,
           banned: data.bannedAccounts,
+          totalOwners: data.totalOwners || 0,
+          totalDrivers: data.totalDrivers || 0,
+          totalAdmins: data.totalAdmins || 0,
         },
       });
     } catch {
@@ -58,7 +61,7 @@ export const useAdminAccountStore = create((set, get) => ({
   reset: () => set({
     users: [],
     totalItems: 0,
-    summary: { total: 0, active: 0, banned: 0 },
+    summary: { total: 0, active: 0, banned: 0, totalOwners: 0, totalDrivers: 0, totalAdmins: 0 },
     loading: false,
     error: "",
   }),
