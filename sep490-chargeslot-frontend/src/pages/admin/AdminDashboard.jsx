@@ -32,26 +32,33 @@ export default function AdminDashboard() {
       instance.get("/admin/revenue/top-stations?limit=5").catch(e => null),
       instance.get("/AdminAccounts/statistics").catch(e => null)
     ])
-    .then(([resMetrics, resRev, resTop, resAcc]) => {
-      if (cancelled) return;
-      if (resMetrics?.data) setMetrics(resMetrics.data);
-      if (resRev?.data) setRevenueMonthly(resRev.data);
-      if (resTop?.data) setTopStations(resTop.data);
-      if (resAcc?.data) setAccountStats(resAcc.data);
-    })
-    .catch((err) => {
-      if (!cancelled) setError("Lỗi tải dữ liệu Dashboard");
-    })
-    .finally(() => {
-      if (!cancelled) setLoading(false);
-    });
+      .then(([resMetrics, resRev, resTop, resAcc]) => {
+        if (cancelled) return;
+        if (resMetrics?.data) setMetrics(resMetrics.data);
+        if (resRev?.data) {
+          const sorted = [...(resRev.data)].sort((a, b) => {
+            const ka = a.month || a.yearMonth || "";
+            const kb = b.month || b.yearMonth || "";
+            return ka.localeCompare(kb);
+          });
+          setRevenueMonthly(sorted);
+        }
+        if (resTop?.data) setTopStations(Array.isArray(resTop.data) ? resTop.data : (resTop.data?.items ?? []));
+        if (resAcc?.data) setAccountStats(resAcc.data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError("Lỗi tải dữ liệu Dashboard");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     return () => { cancelled = true; };
   }, []);
 
   const cancelRate = metrics?.cancelRateLast30Days ?? 0;
   const isHighCancel = cancelRate > 0.3;
-  
+
   const riskDrivers = (metrics?.highRiskDrivers || []).map((d) => ({
     name: d.driverName || `ID ${d.driverUserId}`,
     value: d.cancelledBookings || 0,
@@ -71,7 +78,7 @@ export default function AdminDashboard() {
         {/* Page Header */}
         <div style={{ marginBottom: 28 }}>
           <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "#f97316", margin: 0 }}>
-          Bảng điều khiển quản trị
+            Bảng điều khiển quản trị
           </p>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", margin: "6px 0 4px", letterSpacing: "-0.5px" }}>
             Tổng quan hệ thống
@@ -84,11 +91,11 @@ export default function AdminDashboard() {
         {loading ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
             {[1, 2, 3, 4, 5, 6].map((i) => (
-               <div key={i} style={{ background: "white", borderRadius: 16, padding: 24, height: 100, animation: "dash-pulse 1.5s ease-in-out infinite" }} />
+              <div key={i} style={{ background: "white", borderRadius: 16, padding: 24, height: 100, animation: "dash-pulse 1.5s ease-in-out infinite" }} />
             ))}
           </div>
         ) : error ? (
-           <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 14, padding: 20, marginBottom: 24, color: "#dc2626", fontSize: 14 }}>
+          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 14, padding: 20, marginBottom: 24, color: "#dc2626", fontSize: 14 }}>
             <AlertTriangle size={18} className="inline mr-2" /> {error}
           </div>
         ) : (
@@ -141,23 +148,25 @@ export default function AdminDashboard() {
             </div>
 
             {/* Row 2: Monthly Rev / Top Stations */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24, alignItems: "start",
-                "@media (max-width: 768px)": { gridTemplateColumns: "1fr" } }} className="dashboard-grid">
+            <div style={{
+              display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24, alignItems: "start",
+              "@media (max-width: 768px)": { gridTemplateColumns: "1fr" }
+            }} className="dashboard-grid">
               <ChartWrapper title="Doanh thu theo tháng" subtitle="Toàn nền tảng trong năm nay">
                 <ResponsiveContainer width="100%" height={260}>
                   <AreaChart data={revenueMonthly} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#16a34a" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#16a34a" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#16a34a" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
                     <YAxis tick={{ fontSize: 12, fill: "#64748b" }} width={60} tickFormatter={(val) => {
-                         if (val >= 1000000) return (val / 1000000) + "tr";
-                         if (val >= 1000) return (val / 1000) + "k";
-                         return val;
+                      if (val >= 1000000) return (val / 1000000) + "tr";
+                      if (val >= 1000) return (val / 1000) + "k";
+                      return val;
                     }} />
                     <RechartsTooltip formatter={(val) => [val.toLocaleString('vi-VN') + "đ", "Doanh thu"]} />
                     <Area type="monotone" dataKey="revenue" stroke="#16a34a" fillOpacity={1} fill="url(#colorRev)" />
@@ -171,13 +180,13 @@ export default function AdminDashboard() {
                     <BarChart data={topStations} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                       <XAxis type="number" tickFormatter={(val) => {
-                          if (val >= 1000000) return (val / 1000000) + "tr";
-                          if (val >= 1000) return (val / 1000) + "k";
-                          return val;
+                        if (val >= 1000000) return (val / 1000000) + "tr";
+                        if (val >= 1000) return (val / 1000) + "k";
+                        return val;
                       }} tick={{ fontSize: 11 }} />
                       <YAxis dataKey="stationName" type="category" width={80} tick={{ fontSize: 11, fill: "#475569" }} />
                       <RechartsTooltip formatter={(val) => [val.toLocaleString('vi-VN') + "đ", "Doanh thu"]} />
-                      <Bar dataKey="revenue" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={24} />
+                      <Bar dataKey={topStations[0]?.revenue !== undefined ? "revenue" : topStations[0]?.totalRevenue !== undefined ? "totalRevenue" : "revenue"} fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={24} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -268,16 +277,16 @@ export default function AdminDashboard() {
                 <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: "0 0 16px" }}>📊 Trạng thái tài khoản</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", borderBottom: "1px solid #f1f5f9" }}>
-                     <span style={{ fontSize: 15, color: "#475569" }}>Tổng số tài khoản</span>
-                     <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>{fmtNum(accountStats?.totalAccounts)}</span>
+                    <span style={{ fontSize: 15, color: "#475569" }}>Tổng số tài khoản</span>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>{fmtNum(accountStats?.totalAccounts)}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", borderBottom: "1px solid #f1f5f9" }}>
-                     <span style={{ fontSize: 15, color: "#16a34a" }}>Đang hoạt động (Active)</span>
-                     <span style={{ fontSize: 18, fontWeight: 700, color: "#15803d" }}>{fmtNum(accountStats?.activeAccounts)}</span>
+                    <span style={{ fontSize: 15, color: "#16a34a" }}>Đang hoạt động (Active)</span>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: "#15803d" }}>{fmtNum(accountStats?.activeAccounts)}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", borderBottom: "1px solid #f1f5f9" }}>
-                     <span style={{ fontSize: 15, color: "#dc2626" }}>Đã bị khóa (Banned)</span>
-                     <span style={{ fontSize: 18, fontWeight: 700, color: "#b91c1c" }}>{fmtNum(accountStats?.bannedAccounts)}</span>
+                    <span style={{ fontSize: 15, color: "#dc2626" }}>Đã bị khóa (Banned)</span>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: "#b91c1c" }}>{fmtNum(accountStats?.bannedAccounts)}</span>
                   </div>
                 </div>
               </div>
@@ -332,8 +341,8 @@ function ChartWrapper({ title, subtitle, children }) {
   return (
     <div style={{ background: "white", borderRadius: 20, padding: "24px 28px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)", height: "100%" }}>
       <div style={{ marginBottom: 20 }}>
-         <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0 }}>{title}</h3>
-         {subtitle && <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 0" }}>{subtitle}</p>}
+        <h3 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0 }}>{title}</h3>
+        {subtitle && <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 0" }}>{subtitle}</p>}
       </div>
       {children}
     </div>
