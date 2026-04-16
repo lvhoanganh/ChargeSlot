@@ -115,7 +115,15 @@ export default function ChargingActive() {
       const schedMs = sessionData.bookingStartTime ? toLocal(sessionData.bookingStartTime).getTime() : actMs;
       const effectiveStartMs = Math.max(isNaN(actMs) ? Date.now() : actMs, isNaN(schedMs) ? 0 : schedMs);
       
-      setElapsed(Math.max(0, Math.floor((Date.now() - effectiveStartMs) / 1000)));
+      let endMs = Date.now();
+      if (sessionData.actualEndTime) {
+        endMs = toLocal(sessionData.actualEndTime).getTime();
+      } else if (sessionData.bookingStatus === "CompletedPendingInvoice") {
+        // Fallback: Nếu đã có trạng thái chờ thanh toán nhưng thiếu actualEndTime thì dừng chạy thời gian
+        endMs = sessionData.earlyEndRequestedAt ? toLocal(sessionData.earlyEndRequestedAt).getTime() : Date.now();
+      }
+      
+      setElapsed(Math.max(0, Math.floor((endMs - effectiveStartMs) / 1000)));
     };
     calcElapsed();
     const interval = setInterval(calcElapsed, 1000);
@@ -157,13 +165,13 @@ export default function ChargingActive() {
           setTimeout(() => {
              localStorage.removeItem(lsKey);
              navigate(`/driver/charging-complete`, { state: { session: updated } });
-          }, 1500);
+          }, 2000);
         }
       } catch { /* ignore poll errors */ }
     }
 
-    // Quyết định interval: 3s khi hết giờ (cần phản hồi nhanh), 10s bình thường
-    const speed = getIsTimeUp() ? 3000 : 10000;
+    // Quyết định interval: 2s khi hết giờ hoặc đã yêu cầu kết thúc sớm (cần phản hồi nhanh), 10s bình thường
+    const speed = getIsTimeUp() || earlyEndRequested ? 2000 : 10000;
     const interval = setInterval(pollOnce, speed);
     return () => clearInterval(interval);
   }, [sessionData?.bookingId, earlyEndRequested]);
@@ -362,12 +370,12 @@ export default function ChargingActive() {
         {earlyEndRequested ? (
           <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
             <p className="text-sm font-semibold text-amber-700">
-              {autoCompleting ? " Đang hoàn tất phiên sạc..." : " Hết thời gian sạc"}
+              {autoCompleting ? " Đang hoàn tất phiên sạc..." : "Đã gửi yêu cầu kết thúc sớm"}
             </p>
             <p className="text-xs text-amber-600 mt-1">
               {autoCompleting
                 ? "Hệ thống đang tự động xử lý hóa đơn, vui lòng chờ..."
-                : "Hệ thống đang tự động kết thúc phiên sạc..."}
+                : "Chờ chủ trạm dừng phiên sạc và tạo hóa đơn cho bạn..."}
             </p>
           </div>
         ) : !isTimeUp && (
@@ -395,9 +403,20 @@ export default function ChargingActive() {
             </div>
           </div>
         ) : autoCompleting ? (
-          <div className="w-full h-14 bg-amber-100 rounded-xl flex items-center justify-center gap-2">
-            <div className="w-5 h-5 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" />
-            <span className="text-sm text-amber-700 font-semibold">Đang chuyển sang trang xác nhận...</span>
+          <div>
+            <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
+              <p className="text-sm font-semibold text-amber-700"> Đã hoàn thành phiên sạc!</p>
+              <p className="text-xs text-amber-600 mt-0.5">{earlyEndRequested ? "Chủ trạm đã gửi xác nhận hóa đơn" : "Đã hết thời gian sạc và khởi tạo xong hóa đơn"}</p>
+            </div>
+            <div className="w-full h-14 bg-amber-100 rounded-xl flex items-center justify-center gap-2">
+              <div className="w-5 h-5 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" />
+              <span className="text-sm text-amber-700 font-semibold">Đang chuyển sang trang hóa đơn sau 2s...</span>
+            </div>
+          </div>
+        ) : !earlyEndRequested && isTimeUp ? (
+          <div className="w-full h-14 bg-amber-50 rounded-xl flex items-center justify-center gap-2 border border-amber-200">
+            <div className="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" />
+            <span className="text-sm text-amber-700 font-medium">Đã hết thời gian sạc — Chờ hệ thống tạo hóa đơn...</span>
           </div>
         ) : !earlyEndRequested ? (
           <div className="w-full h-14 bg-gray-100 rounded-xl flex items-center justify-center gap-2">
@@ -407,7 +426,7 @@ export default function ChargingActive() {
         ) : (
           <div className="w-full h-14 bg-amber-50 rounded-xl flex items-center justify-center gap-2 border border-amber-200">
             <div className="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" />
-            <span className="text-sm text-amber-700 font-medium">Đang xử lý kết thúc phiên sạc...</span>
+            <span className="text-sm text-amber-700 font-medium">Chờ chủ trạm xác nhận hóa đơn...</span>
           </div>
         )}
       </div>

@@ -39,7 +39,7 @@ export default function DriverReviews() {
       }
       return acc;
     }, {})
-  );
+  ).sort((a, b) => new Date(b.endTime) - new Date(a.endTime));
 
   const handleOpenReview = (bookingId) => {
     setReviewForm({ bookingId, rating: 5, comment: "", isAnonymous: false });

@@ -125,7 +125,7 @@ export default function BookingRequestDetail() {
   const renderActions = () => (
     <div style={{ marginTop: hasAdvancedDetail ? "auto" : 20, borderTop: "2px solid #e2e8f0", paddingTop: 20 }}>
       {/* Chat button */}
-      {booking.status !== "Cancelled" && booking.status !== "Rejected" && booking.status !== "Expired" && booking.status !== "NoShow" && (
+      {!["Cancelled", "Rejected", "Expired", "NoShow", "Completed", "CompletedPendingInvoice"].includes(booking.status) && (
         <div style={{ marginBottom: 12 }}>
           <button
             onClick={() => navigate(`/owner/chat/${booking.id}`)}
