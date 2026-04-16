@@ -163,10 +163,8 @@ export default function ChargingActive() {
         if (updated.bookingStatus === "CompletedPendingInvoice" && !autoConfirmTriggeredRef.current) {
           autoConfirmTriggeredRef.current = true;
           setAutoCompleting(true);
-          setTimeout(() => {
-             localStorage.removeItem(lsKey);
-             navigate(`/driver/charging-complete`, { state: { session: updated } });
-          }, 2000);
+          localStorage.removeItem(lsKey);
+          navigate(`/driver/charging-complete`, { state: { session: updated } });
         }
       } catch { /* ignore poll errors */ }
     }
@@ -185,7 +183,8 @@ export default function ChargingActive() {
     try {
       const result = await chargingApi.requestEarlyEnd(sessionData.id);
       setEarlyEndRequested(true);
-      autoConfirmTriggeredRef.current = true; // tránh auto-stop effect trigger lại
+      // KHÔNG set autoConfirmTriggeredRef ở đây — để poll vẫn tiếp tục chạy
+      // và phát hiện khi Owner xác nhận (CompletedPendingInvoice)
       if (result) setSessionData(result);
     } catch (err) {
       setError(err?.message || "Lỗi khi gửi yêu cầu kết thúc sớm.");
@@ -369,14 +368,17 @@ export default function ChargingActive() {
 
         {/* Trạng thái khi hết giờ / early end */}
         {earlyEndRequested ? (
-          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
-            <p className="text-sm font-semibold text-amber-700">
-              {autoCompleting ? " Đang hoàn tất phiên sạc..." : "Đã gửi yêu cầu kết thúc sớm"}
-            </p>
-            <p className="text-xs text-amber-600 mt-1">
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="w-4 h-4 border-2 border-amber-400 border-t-amber-700 rounded-full animate-spin" />
+              <p className="text-sm font-semibold text-amber-700">
+                {autoCompleting ? " Đang chuyển trang hóa đơn..." : "✅ Đã gửi yêu cầu kết thúc sớm"}
+              </p>
+            </div>
+            <p className="text-xs text-amber-600">
               {autoCompleting
-                ? "Hệ thống đang tự động xử lý hóa đơn, vui lòng chờ..."
-                : "Chờ chủ trạm dừng phiên sạc và tạo hóa đơn cho bạn..."}
+                ? "Hệ thống đang xử lý, vui lòng chờ..."
+                : "Đang chờ chủ trạm xác nhận — trang hóa đơn sẽ tự động hiện khi được duyệt"}
             </p>
           </div>
         ) : !isTimeUp && (
