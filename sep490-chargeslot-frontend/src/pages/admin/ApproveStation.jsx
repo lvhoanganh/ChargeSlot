@@ -151,6 +151,8 @@ export default function ApproveStation() {
   const [dateTo, setDateTo] = useState("");
   const [confirmAction, setConfirmAction] = useState(null);
   const [adminNote, setAdminNote] = useState("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 8;
 
   const [userPos, setUserPos] = useState(null);
   const [flyTarget, setFlyTarget] = useState([21.0285, 105.8542]);
@@ -242,12 +244,19 @@ export default function ApproveStation() {
     });
   }
 
+  // Reset về trang 1 khi filter thay đổi
+  useEffect(() => { setPage(1); }, [search, statusFilter, ownerFilter, dateFrom, dateTo]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   function resetFilter() {
     setSearch("");
     setStatusFilter("ALL");
     setOwnerFilter("");
     setDateFrom("");
     setDateTo("");
+    setPage(1);
   }
 
   if (isLoading) {
@@ -359,9 +368,9 @@ export default function ApproveStation() {
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả</option>
-          <option value="PendingApproval"> Chờ duyệt</option>
-          <option value="Approved"> Đã duyệt</option>
-          <option value="Rejected"> Từ chối</option>
+          <option value="PendingApproval">Chờ duyệt</option>
+          <option value="Approved">Đã duyệt</option>
+          <option value="Rejected">Từ chối</option>
         </select>
         {/* Date range */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
@@ -380,168 +389,239 @@ export default function ApproveStation() {
           </svg>
           Xóa bộ lọc
         </button>
-
       </div>
 
-      {/* Table and Map side-by-side */}
-      <div style={{ display: "flex", gap: "24px", alignItems: "flex-start", flexWrap: "wrap" }}>
-        <div className="cs-admin-table-wrap" style={{ flex: "1 1 min(60%, 800px)", minWidth: 0, overflowX: "auto" }}>
-          <table className="cs-admin-table">
-            <thead>
-              <tr>
-                <th>STT</th>
-                <th>Tên trạm</th>
-                <th>Chủ trạm</th>
-                <th>Địa chỉ</th>
-                <th>Số ổ sạc</th>
-                <th>Vi phạm (AI)</th>
-                <th>Ngày tạo</th>
-                <th>Trạng thái</th>
-                <th style={{ textAlign: "right" }}>Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="cs-admin-table__empty">
-                    <p>Không tìm thấy yêu cầu nào</p>
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((s, idx) => {
-                  const isPending = s.approvalStatus === "PendingApproval";
-                  // BE set bannedUntil = +100 năm khi khoá, null khi mở
-                  const isBanned = !!s.bannedUntil;
-                  const isApproved = s.approvalStatus === "Approved";
-                  const isToggleOn = isApproved && !isBanned;
-                  const isToggleDisabled = !isApproved;
+      {/* Card list + Sticky Map */}
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
 
-                  return (
-                    <tr key={s.id}>
-                      <td className="cs-admin-table__id" style={{ fontWeight: 700, color: "#64748b" }}>{idx + 1}</td>
-                      <td className="cs-admin-table__name">
-                        {s.latitude && s.longitude ? (
-                          <div
-                            onClick={() => {
-                              setFlyTarget([s.latitude, s.longitude]);
-                              setActiveStationId(s.id);
-                            }}
-                            style={{ cursor: "pointer", color: "#0ea5e9", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                            title="Xác định trên bản đồ"
-                            onMouseEnter={(e) => e.currentTarget.style.textDecoration = "underline"}
-                            onMouseLeave={(e) => e.currentTarget.style.textDecoration = "none"}
-                          >
-                            {s.name} <span style={{ fontSize: 12 }}></span>
-                          </div>
-                        ) : (
-                          s.name
-                        )}
-                      </td>
-                      <td style={{ fontSize: 13, color: "#374151" }}>{s.ownerName || s.owner?.fullName || s.owner?.phoneNumber || "—"}</td>
-                      <td>{s.address}</td>
-                      <td>{s.chargingSlots?.length || 0}</td>
-                      <td>
-                        <BanStatusBadge banCount={s.banCount ?? 0} bannedUntil={s.bannedUntil ?? null} />
-                      </td>
-                      <td>{formatDate(s.createdAt)}</td>
-                      <td>
-                        <span className={`cs-admin-status-badge cs-admin-status-badge--${s.approvalStatus === "PendingApproval" ? "pending" : s.approvalStatus === "Approved" ? "active" : s.approvalStatus === "Rejected" ? "banned" : "draft"}`}>
-                          <span className="cs-admin-status-badge__dot" />
-                          {getStatusLabel(s.approvalStatus)}
+        {/* LEFT: Station card list */}
+        <div style={{ flex: "1 1 min(55%, 700px)", minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+          {filtered.length === 0 ? (
+            <div style={{ background: "#fff", borderRadius: 16, padding: "48px 24px", textAlign: "center", border: "1px solid #f1f5f9" }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 12, opacity: 0.3 }}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              </div>
+              <p style={{ color: "#94a3b8", fontSize: 14 }}>Không tìm thấy trạm nào phù hợp</p>
+            </div>
+          ) : (
+            paged.map((s) => {
+              const isPending = s.approvalStatus === "PendingApproval";
+              const isBanned = !!s.bannedUntil;
+              const isApproved = s.approvalStatus === "Approved";
+              const isToggleOn = isApproved && !isBanned;
+              const isToggleDisabled = !isApproved;
+              const isActive = activeStationId === s.id;
+
+              const statusMap = {
+                PendingApproval: { label: "Chờ duyệt", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+                Approved:        { label: "Đã duyệt",  color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
+                Rejected:        { label: "Từ chối",   color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+                Draft:           { label: "Bản nháp",  color: "#64748b", bg: "#f8fafc", border: "#e2e8f0" },
+              };
+              const st = statusMap[s.approvalStatus] || statusMap.Draft;
+
+              return (
+                <div
+                  key={s.id}
+                  style={{
+                    background: "#fff",
+                    borderRadius: 16,
+                    border: isActive ? "2px solid #f97316" : "1px solid #f1f5f9",
+                    boxShadow: isActive ? "0 4px 20px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
+                    overflow: "hidden",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {/* Card header — click to fly on map */}
+                  <div
+                    onClick={() => {
+                      if (s.latitude && s.longitude) {
+                        setFlyTarget([s.latitude, s.longitude]);
+                        setActiveStationId(s.id);
+                      }
+                    }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 14, padding: "16px 20px",
+                      cursor: s.latitude && s.longitude ? "pointer" : "default",
+                      background: isActive ? "linear-gradient(to right, #fff7ed, #fff)" : "#fff",
+                      transition: "background 0.2s",
+                    }}
+                  >
+                    <div style={{
+                      width: 52, height: 52, borderRadius: 14, flexShrink: 0,
+                      background: "linear-gradient(135deg, #f97316, #ea580c)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: "0 4px 12px rgba(249,115,22,0.3)",
+                    }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                      </svg>
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>{s.name}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 99, color: st.color, background: st.bg, border: `1px solid ${st.border}` }}>
+                          {st.label}
                         </span>
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, flexWrap: "wrap" }}>
-                          <button
-                            disabled={!isPending}
-                            onClick={() => askReview(s, true)}
-                            className={`cs-admin-action-btn ${isPending ? "cs-admin-action-btn--activate" : "cs-admin-action-btn--disabled"}`}
-                          >
-                            Phê duyệt
-                          </button>
-                          <button
-                            disabled={!isPending}
-                            onClick={() => askReview(s, false)}
-                            className={`cs-admin-action-btn ${isPending ? "cs-admin-action-btn--ban" : "cs-admin-action-btn--disabled"}`}
-                          >
-                            Từ chối
-                          </button>
-                        </div>
-                        {/* Toggle ban trạm */}
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, marginTop: 4 }}>
-                          <label
-                            className="cs-toggle-switch"
-                            title={isToggleDisabled ? "Trạm chưa được duyệt" : (isBanned ? "Trạm đang bị khoá — nhấn để mở khoá" : "Trạm hoạt động bình thường — nhấn để khoá")}
-                            style={isToggleDisabled ? { opacity: 0.5, cursor: "not-allowed" } : {}}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isToggleOn}
-                              disabled={isToggleDisabled}
-                              onChange={async () => {
-                                const previousStations = queryClient.getQueryData(["admin-stations-all"]);
-                                const newIsBanned = !isBanned;
+                        {isBanned && (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 99, color: "#991b1b", background: "#fef2f2", border: "1px solid #fecaca", display: "flex", alignItems: "center", gap: 4 }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            Bị khóa
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.address}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#94a3b8", display: "flex", alignItems: "center", gap: 4 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        {s.ownerName || s.owner?.fullName || s.owner?.phoneNumber || "—"}
+                      </div>
+                    </div>
 
-                                // Optimistic Update
-                                queryClient.setQueryData(["admin-stations-all"], (old) => {
-                                  if (!old) return old;
-                                  return old.map(station =>
-                                    station.id === s.id
-                                      ? {
-                                        ...station,
-                                        bannedUntil: newIsBanned ? "2199-01-01T00:00:00Z" : null,
-                                        operationalStatus: newIsBanned ? "Inactive" : "Active",
-                                      }
-                                      : station
-                                  );
-                                });
-
-                                try {
-                                  await adminStationApi.toggleBan(s.id);
-                                  showToast.success(
-                                    isBanned
-                                      ? ` Đã mở khoá trạm ${s.name}`
-                                      : ` Đã khoá trạm ${s.name}`
-                                  );
-                                  queryClient.invalidateQueries({ queryKey: ["admin-stations-all"] });
-                                } catch (err) {
-                                  queryClient.setQueryData(["admin-stations-all"], previousStations);
-                                  showToast.error(err?.response?.data?.message || "Thao tác thất bại.");
-                                }
-                              }}
-                            />
-                            <span className="cs-toggle-switch__track">
-                              <span className="cs-toggle-switch__thumb" />
-                            </span>
-                            <span className="cs-toggle-switch__label">
-                              {isToggleDisabled ? "Ngừng hoạt động" : (isBanned ? "Bị khoá" : "Hoạt động")}
-                            </span>
-                          </label>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, color: "#64748b", background: "#f1f5f9", padding: "4px 10px", borderRadius: 8 }}>
+                        {s.chargingSlots?.length || 0} trụ sạc
+                      </span>
+                      {s.latitude && s.longitude && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: isActive ? "#f97316" : "#94a3b8" }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                          {isActive ? "Đang xem trên map" : "Nhấn để xem map"}
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action bar */}
+                  <div style={{ padding: "10px 20px 14px", background: "#fafafa", borderTop: "1px solid #f1f5f9", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    {isPending && (
+                      <>
+                        <button
+                          onClick={() => askReview(s, true)}
+                          style={{ padding: "7px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                          Phê duyệt
+                        </button>
+                        <button
+                          onClick={() => askReview(s, false)}
+                          style={{ padding: "7px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#ef4444,#dc2626)", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          Từ chối
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => setDetailStationId(s.id)}
+                      style={{ padding: "7px 16px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", color: "#374151", fontWeight: 600, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                      Xem chi tiết
+                    </button>
+                    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+                      <BanStatusBadge banCount={s.banCount ?? 0} bannedUntil={s.bannedUntil ?? null} />
+                      <label
+                        className="cs-toggle-switch"
+                        title={isToggleDisabled ? "Trạm chưa được duyệt" : (isBanned ? "Đang bị khoá — nhấn để mở" : "Hoạt động — nhấn để khoá")}
+                        style={isToggleDisabled ? { opacity: 0.5, cursor: "not-allowed" } : {}}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isToggleOn}
+                          disabled={isToggleDisabled}
+                          onChange={async () => {
+                            const previousStations = queryClient.getQueryData(["admin-stations-all"]);
+                            const newIsBanned = !isBanned;
+                            queryClient.setQueryData(["admin-stations-all"], (old) => {
+                              if (!old) return old;
+                              return old.map(station =>
+                                station.id === s.id
+                                  ? { ...station, bannedUntil: newIsBanned ? "2199-01-01T00:00:00Z" : null, operationalStatus: newIsBanned ? "Inactive" : "Active" }
+                                  : station
+                              );
+                            });
+                            try {
+                              await adminStationApi.toggleBan(s.id);
+                              showToast.success(isBanned ? `Đã mở khoá trạm ${s.name}` : `Đã khoá trạm ${s.name}`);
+                              queryClient.invalidateQueries({ queryKey: ["admin-stations-all"] });
+                            } catch (err) {
+                              queryClient.setQueryData(["admin-stations-all"], previousStations);
+                              showToast.error(err?.response?.data?.message || "Thao tác thất bại.");
+                            }
+                          }}
+                        />
+                        <span className="cs-toggle-switch__track"><span className="cs-toggle-switch__thumb" /></span>
+                        <span className="cs-toggle-switch__label">
+                          {isToggleDisabled ? "Chưa duyệt" : (isBanned ? "Bị khoá" : "Hoạt động")}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+
+          {/* Pagination bar */}
+          {totalPages > 1 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fff", borderRadius: 14, padding: "12px 20px", border: "1px solid #f1f5f9", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+              <span style={{ fontSize: 13, color: "#64748b" }}>
+                Hiển thị <strong>{(page - 1) * PAGE_SIZE + 1}</strong>–<strong>{Math.min(page * PAGE_SIZE, filtered.length)}</strong> / <strong>{filtered.length}</strong> trạm
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #e2e8f0", background: page === 1 ? "#f8fafc" : "#fff", color: page === 1 ? "#cbd5e1" : "#374151", cursor: page === 1 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s" }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                  .reduce((acc, p, idx, arr) => {
+                    if (idx > 0 && p - arr[idx - 1] > 1) acc.push("...");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, idx) =>
+                    p === "..." ? (
+                      <span key={`ellipsis-${idx}`} style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#94a3b8" }}>…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p)}
+                        style={{ width: 36, height: 36, borderRadius: 10, border: page === p ? "none" : "1.5px solid #e2e8f0", background: page === p ? "linear-gradient(135deg,#f97316,#ea580c)" : "#fff", color: page === p ? "#fff" : "#374151", fontWeight: page === p ? 700 : 500, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s", boxShadow: page === p ? "0 2px 8px rgba(249,115,22,0.35)" : "none" }}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #e2e8f0", background: page === totalPages ? "#f8fafc" : "#fff", color: page === totalPages ? "#cbd5e1" : "#374151", cursor: page === totalPages ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s" }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
+        {/* RIGHT: Sticky Map */}
         <div className="map-view-container" style={{ flex: "1 1 400px", position: "sticky", top: "100px", height: "calc(100vh - 120px)", minHeight: 600, borderRadius: 16, border: "1px solid #e2e8f0", overflow: "hidden", zIndex: 1, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}>
           <button
             onClick={(e) => {
               e.preventDefault();
               if (userPos) setFlyTarget(userPos);
-              else
-                navigator.geolocation?.getCurrentPosition(
-                  (pos) => {
-                    const p = [pos.coords.latitude, pos.coords.longitude];
-                    setUserPos(p);
-                    setFlyTarget(p);
-                  },
-                  () => showToast.error("Không thể lấy vị trí của bạn"),
-                  { enableHighAccuracy: true, timeout: 8000 }
-                );
+              else navigator.geolocation?.getCurrentPosition(
+                (pos) => { const p = [pos.coords.latitude, pos.coords.longitude]; setUserPos(p); setFlyTarget(p); },
+                () => showToast.error("Không thể lấy vị trí của bạn"),
+                { enableHighAccuracy: true, timeout: 8000 }
+              );
             }}
             style={{
               position: "absolute", bottom: 20, right: 20, zIndex: 1000,
@@ -552,8 +632,7 @@ export default function ApproveStation() {
             title="Vị trí của tôi"
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+              <circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
             </svg>
           </button>
           <MapContainer center={userPos || [21.0285, 105.8542]} zoom={14} style={{ width: "100%", height: "100%" }} zoomControl={false}>
@@ -575,21 +654,16 @@ export default function ApproveStation() {
                   icon={icon}
                   isActive={activeStationId === s.id}
                   getStatusLabel={getStatusLabel}
-                  onViewInList={() => {
-                    setSearch(s.name);
-                    setActiveStationId(null);
-                  }}
+                  onViewInList={() => { setSearch(s.name); setActiveStationId(null); }}
                   onViewDetail={() => setDetailStationId(s.id)}
                 />
-              )
+              );
             })}
           </MapContainer>
           <style>{`
             .custom-popup .leaflet-popup-content-wrapper {
-              border-radius: 16px;
-              padding: 0;
-              overflow: hidden;
-              box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+              border-radius: 16px; padding: 0; overflow: hidden;
+              box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
             }
             .custom-popup .leaflet-popup-content { margin: 0; width: 280px !important; }
             .custom-popup .leaflet-popup-close-button { top: 12px; right: 12px; color: #64748b; }
@@ -601,6 +675,8 @@ export default function ApproveStation() {
           `}</style>
         </div>
       </div>
+
+
 
       {/* Detail Modal */}
       {detailStationId && (

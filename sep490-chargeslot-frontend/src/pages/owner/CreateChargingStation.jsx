@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { createChargingStationSchema } from "@/schemas/createChargingStationSchema";
 import { instance } from "@/lib/httpRequest";
-// stationPricingApi not needed here — backend CreateFromFormAsync handles pricing from FormData
 import { useFieldArray, useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -21,7 +20,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-/*  Map helpers  */
 function MapFlyTo({ lat, lng }) {
   const map = useMapEvents({});
   useEffect(() => {
@@ -34,7 +32,7 @@ function LocationMarker({ pos, onSelect }) {
   useMapEvents({
     click: async (e) => {
       const { lat, lng } = e.latlng;
-      onSelect(lat, lng, null); // null = will reverse geocode below
+      onSelect(lat, lng, null);
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=vi`);
         const data = await res.json();
@@ -47,7 +45,6 @@ function LocationMarker({ pos, onSelect }) {
   return pos ? <Marker position={pos} /> : null;
 }
 
-/*  Map Picker with Search  */
 function MapPicker({ lat, lng, onSelect }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -56,12 +53,8 @@ function MapPicker({ lat, lng, onSelect }) {
   const [markerPos, setMarkerPos] = useState(null);
   const debounceRef = useRef(null);
 
-  // Get current location
   function handleGetLocation() {
-    if (!navigator.geolocation) {
-      alert("Trình duyệt không hỗ trợ lấy vị trí");
-      return;
-    }
+    if (!navigator.geolocation) { alert("Trình duyệt không hỗ trợ lấy vị trí"); return; }
     setGettingLocation(true);
     navigator.geolocation.getCurrentPosition(async (position) => {
       const cLat = position.coords.latitude;
@@ -74,18 +67,13 @@ function MapPicker({ lat, lng, onSelect }) {
         setQuery(addr);
         onSelect(cLat, cLng, addr);
       } catch {
-        const addr = "Vị trí hiện tại";
-        setQuery(addr);
-        onSelect(cLat, cLng, addr);
+        setQuery("Vị trí hiện tại");
+        onSelect(cLat, cLng, "Vị trí hiện tại");
       }
       setGettingLocation(false);
-    }, () => {
-      alert("Không thể lấy vị trí hiện tại. Vui lòng cấp quyền.");
-      setGettingLocation(false);
-    }, { timeout: 10000, enableHighAccuracy: true });
+    }, () => { alert("Không thể lấy vị trí hiện tại."); setGettingLocation(false); }, { timeout: 10000, enableHighAccuracy: true });
   }
 
-  // Debounced search
   function handleQueryChange(value) {
     setQuery(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -93,9 +81,7 @@ function MapPicker({ lat, lng, onSelect }) {
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(value)}&format=json&limit=5&accept-language=vi&countrycodes=vn`
-        );
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(value)}&format=json&limit=5&accept-language=vi&countrycodes=vn`);
         const data = await res.json();
         setResults(data);
       } catch { setResults([]); }
@@ -120,7 +106,6 @@ function MapPicker({ lat, lng, onSelect }) {
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Search box & Get Current Location */}
       <div style={{ display: "flex", gap: 8, marginBottom: 8, position: "relative" }}>
         <div style={{ position: "relative", flex: 1 }}>
           <input
@@ -128,85 +113,34 @@ function MapPicker({ lat, lng, onSelect }) {
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
             placeholder=" Tìm kiếm địa chỉ"
-            style={{
-              width: "100%", padding: "10px 14px 10px 14px", borderRadius: 12,
-              border: "1.5px solid #e2e8f0", fontSize: 14, outline: "none",
-              boxSizing: "border-box", background: "#fff",
-              transition: "border-color 0.2s",
-            }}
+            style={{ width: "100%", padding: "10px 14px", borderRadius: 12, border: "1.5px solid #e2e8f0", fontSize: 14, outline: "none", boxSizing: "border-box", background: "#fff" }}
             onFocus={(e) => (e.target.style.borderColor = "#f97316")}
             onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
           />
-          {searching && (
-            <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#94a3b8" }}>
-              Đang tìm...
-            </span>
-          )}
-          {/* Dropdown results */}
+          {searching && <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#94a3b8" }}>Đang tìm...</span>}
           {results.length > 0 && (
-            <div style={{
-              position: "absolute", top: "100%", left: 0, right: 0, zIndex: 1000,
-              background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4,
-              maxHeight: 220, overflowY: "auto",
-            }}>
+            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 1000, background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4, maxHeight: 220, overflowY: "auto" }}>
               {results.map((item, idx) => (
-                <button
-                  key={item.place_id || idx}
-                  type="button"
-                  onClick={() => handleSelectResult(item)}
-                  style={{
-                    width: "100%", textAlign: "left", padding: "10px 14px",
-                    border: "none", background: "transparent", cursor: "pointer",
-                    fontSize: 13, color: "#1e293b", borderBottom: idx < results.length - 1 ? "1px solid #f1f5f9" : "none",
-                    display: "flex", alignItems: "flex-start", gap: 8,
-                    transition: "background 0.15s",
-                  }}
+                <button key={item.place_id || idx} type="button" onClick={() => handleSelectResult(item)}
+                  style={{ width: "100%", textAlign: "left", padding: "10px 14px", border: "none", background: "transparent", cursor: "pointer", fontSize: 13, color: "#1e293b", borderBottom: idx < results.length - 1 ? "1px solid #f1f5f9" : "none", display: "flex", alignItems: "flex-start", gap: 8 }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = "#fff7ed")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
-                  <span style={{ flexShrink: 0, fontSize: 16, marginTop: 1 }}></span>
+                  <span style={{ flexShrink: 0 }}></span>
                   <span style={{ lineHeight: 1.4 }}>{item.display_name}</span>
                 </button>
               ))}
             </div>
           )}
         </div>
-        <button
-          type="button"
-          onClick={handleGetLocation}
-          disabled={gettingLocation}
-          style={{
-            flexShrink: 0, padding: "0 16px", height: 42, borderRadius: 12, border: "none",
-            background: gettingLocation ? "#e2e8f0" : "linear-gradient(135deg, #3b82f6, #2563eb)",
-            color: gettingLocation ? "#94a3b8" : "#fff", fontWeight: 600, fontSize: 13,
-            cursor: gettingLocation ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6,
-            boxShadow: gettingLocation ? "none" : "0 2px 8px rgba(59,130,246,0.25)", transition: "all 0.2s"
-          }}
-        >
-          {gettingLocation ? (
-            <>
-              <div style={{ width: 14, height: 14, border: "2px solid #94a3b8", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-              Đang lấy...
-            </>
-          ) : (
-            <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2a10 10 0 1 0 10 10H12V2z" /><path d="M12 12L2.1 12" /><path d="M12 12L12 22" /><path d="M12 12L21.9 12" /><circle cx="12" cy="12" r="3" />
-              </svg>
-              Vị trí của tôi
-            </>
-          )}
+        <button type="button" onClick={handleGetLocation} disabled={gettingLocation}
+          style={{ flexShrink: 0, padding: "0 16px", height: 42, borderRadius: 12, border: "none", background: gettingLocation ? "#e2e8f0" : "linear-gradient(135deg, #3b82f6, #2563eb)", color: gettingLocation ? "#94a3b8" : "#fff", fontWeight: 600, fontSize: 13, cursor: gettingLocation ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, boxShadow: gettingLocation ? "none" : "0 2px 8px rgba(59,130,246,0.25)" }}>
+          {gettingLocation ? "Đang lấy..." : " Vị trí của tôi"}
         </button>
       </div>
-
-      {/* Map */}
-      <div style={{ height: 300, borderRadius: 16, overflow: "hidden", border: "2px solid #e2e8f0" }}>
+      <div style={{ height: 340, borderRadius: 16, overflow: "hidden", border: "2px solid #e2e8f0" }}>
         <MapContainer center={[lat, lng]} zoom={14} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
-          <TileLayer
-            attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
-            url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-          />
+          <TileLayer attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>' url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" />
           <LocationMarker pos={markerPos} onSelect={handleMapClick} />
           {markerPos && <MapFlyTo lat={markerPos[0]} lng={markerPos[1]} />}
         </MapContainer>
@@ -216,42 +150,16 @@ function MapPicker({ lat, lng, onSelect }) {
 }
 
 const dayOptions = [
-  { value: 0, label: "Chủ nhật" },
-  { value: 1, label: "Thứ 2" },
-  { value: 2, label: "Thứ 3" },
-  { value: 3, label: "Thứ 4" },
-  { value: 4, label: "Thứ 5" },
-  { value: 5, label: "Thứ 6" },
-  { value: 6, label: "Thứ 7" },
+  { value: 0, label: "Chủ nhật" }, { value: 1, label: "Thứ 2" }, { value: 2, label: "Thứ 3" },
+  { value: 3, label: "Thứ 4" }, { value: 4, label: "Thứ 5" }, { value: 5, label: "Thứ 6" }, { value: 6, label: "Thứ 7" },
 ];
 
-const defaultOperatingHours = dayOptions.map((day) => ({
-  dayOfWeek: day.value,
-  isClosed: false,
-  openTime: "06:00:00",
-  closeTime: "23:00:00",
-}));
+const defaultOperatingHours = dayOptions.map((day) => ({ dayOfWeek: day.value, isClosed: false, openTime: "06:00:00", closeTime: "23:00:00" }));
 
 const createChargingStation = async (payload) => {
   const isFormData = payload instanceof FormData;
-  const response = await instance.post(
-    "/stations",
-    payload,
-    isFormData ? { headers: { "Content-Type": "multipart/form-data" } } : undefined,
-  );
+  const response = await instance.post("/stations", payload, isFormData ? { headers: { "Content-Type": "multipart/form-data" } } : undefined);
   return response.data;
-};
-
-const getErrorMessage = (error) => {
-  const data = error?.response?.data;
-  if (typeof data === "string") return data;
-  if (data?.error) return data.error;
-  if (data?.title) return data.title;
-  if (data?.errors) {
-    const firstEntry = Object.values(data.errors)[0];
-    if (Array.isArray(firstEntry) && firstEntry.length > 0) return firstEntry[0];
-  }
-  return "Tạo trạm sạc thất bại. Vui lòng kiểm tra lại dữ liệu.";
 };
 
 function FieldError({ message }) {
@@ -259,39 +167,93 @@ function FieldError({ message }) {
   return <p className="mt-1 text-sm text-red-600">{message}</p>;
 }
 
-/*  Slot color for the visual grid  */
 const SLOT_COLOR = "#f97316";
 const SLOT_SELECTED = "#ea580c";
 
+// ─────────────────────────────────────────
+//  STEPS CONFIG
+// ─────────────────────────────────────────
+const StepIcons = {
+  1: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>),
+  2: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>),
+  3: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>),
+  4: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>),
+};
+
+const CheckIcon = (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>);
+
+const STEPS = [
+  { id: 1, label: "Thông tin", desc: "Tên & mô tả trạm" },
+  { id: 2, label: "Vị trí", desc: "Bản đồ & địa chỉ" },
+  { id: 3, label: "Mặt bằng", desc: "Giờ hoạt động & trụ sạc" },
+  { id: 4, label: "Giá & Hoàn tất", desc: "Giá theo khung giờ" },
+];
+
+// ─────────────────────────────────────────
+//  STEP INDICATOR
+// ─────────────────────────────────────────
+function StepIndicator({ current }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, marginBottom: 40 }}>
+      {STEPS.map((step, idx) => {
+        const done = current > step.id;
+        const active = current === step.id;
+        return (
+          <div key={step.id} style={{ display: "flex", alignItems: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: "50%",
+                background: done ? "#22c55e" : active ? "linear-gradient(135deg, #f97316, #ea580c)" : "#e2e8f0",
+                color: done || active ? "#fff" : "#94a3b8",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 700,
+                boxShadow: active ? "0 4px 16px rgba(249,115,22,0.4)" : "none",
+                transition: "all 0.3s",
+                border: active ? "3px solid #fff" : "3px solid transparent",
+                outline: active ? "2px solid #f97316" : "none",
+              }}>
+                {done ? CheckIcon : StepIcons[step.id]}
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: active ? "#f97316" : done ? "#22c55e" : "#94a3b8" }}>
+                  {step.label}
+                </div>
+                <div style={{ fontSize: 10, color: "#cbd5e1", maxWidth: 72 }}>{step.desc}</div>
+              </div>
+            </div>
+            {idx < STEPS.length - 1 && (
+              <div style={{
+                width: 60, height: 2, margin: "0 4px", marginBottom: 28,
+                background: done ? "#22c55e" : "#e2e8f0",
+                transition: "background 0.3s",
+              }} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
+//  MAIN COMPONENT
+// ─────────────────────────────────────────
 export default function CreateChargingStation() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [step, setStep] = useState(1);
   const [selectedSlotIdx, setSelectedSlotIdx] = useState(null);
   const pricingRulesRef = useRef([]);
+  const [stationImages, setStationImages] = useState([]);
 
-  const {
-    control,
-    handleSubmit,
-    register,
-    reset,
-    setError,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm({
+  const { control, handleSubmit, register, reset, setError, watch, setValue, trigger, formState: { errors } } = useForm({
     resolver: zodResolver(createChargingStationSchema),
     defaultValues: {
-      name: "",
-      address: "",
-      description: "",
-      latitude: 10.7295,
-      longitude: 106.7218,
-      layoutImageUrl: "",
-      layoutWidth: 6,
-      layoutHeight: 4,
+      name: "", address: "", description: "",
+      latitude: 10.7295, longitude: 106.7218,
+      layoutImageUrl: "", layoutWidth: 6, layoutHeight: 4,
       operatingHours: defaultOperatingHours,
-      slots: [],
-      stationPricing: [],
+      slots: [], stationPricing: [],
     },
   });
 
@@ -301,30 +263,21 @@ export default function CreateChargingStation() {
   const layoutHeight = watch("layoutHeight") || 4;
   const slots = watch("slots") || [];
 
-  // Tính giờ đóng cửa sớm nhất (strictest) trong các ngày không đóng cửa
-  // closeTime format: "HH:MM:SS" hoặc "HH:MM" → lấy 5 ký tự đầu
   const latestCloseTime = (() => {
     if (!operatingHours || operatingHours.length === 0) return null;
-    const closeTimes = operatingHours
-      .filter((h) => !h.isClosed && h.closeTime)
-      .map((h) => String(h.closeTime).substring(0, 5));
+    const closeTimes = operatingHours.filter((h) => !h.isClosed && h.closeTime).map((h) => String(h.closeTime).substring(0, 5));
     return closeTimes.length > 0 ? closeTimes.reduce((min, t) => t < min ? t : min) : null;
   })();
 
   const earliestOpenTime = (() => {
     if (!operatingHours || operatingHours.length === 0) return "00:00";
-    const openTimes = operatingHours
-      .filter((h) => !h.isClosed && h.openTime)
-      .map((h) => String(h.openTime).substring(0, 5));
+    const openTimes = operatingHours.filter((h) => !h.isClosed && h.openTime).map((h) => String(h.openTime).substring(0, 5));
     return openTimes.length > 0 ? openTimes.reduce((min, t) => t < min ? t : min) : "00:00";
   })();
-
-  const [stationImages, setStationImages] = useState([]);
 
   const createStationMutation = useMutation({
     mutationFn: createChargingStation,
     onSuccess: () => {
-      // Backend CreateFromFormAsync already saves station-level pricing from FormData
       queryClient.invalidateQueries({ queryKey: ["owner-stations"] });
       showToast.success("Tạo trạm sạc thành công!");
       reset();
@@ -333,46 +286,29 @@ export default function CreateChargingStation() {
     onError: (error) => {
       const response = error?.response;
       const data = response?.data;
-      console.error(" Tạo trạm sạc lỗi:", { status: response?.status, data });
       let msg = "Tạo trạm sạc thất bại.";
       if (data) {
-        if (typeof data === "string") {
-          msg = data;
-        } else if (data.errors) {
-          // Validation errors from ASP.NET
-          const details = Object.entries(data.errors)
-            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`)
-            .join(" | ");
-          msg = `Lỗi validate: ${details}`;
-        } else if (data.title) {
-          msg = data.title + (data.detail ? ` — ${data.detail}` : "");
-        } else if (data.message) {
-          msg = data.message;
-        }
-      } else if (error?.message) {
-        msg = error.message;
-      }
+        if (typeof data === "string") msg = data;
+        else if (data.errors) msg = `Lỗi validate: ${Object.entries(data.errors).map(([f, m]) => `${f}: ${Array.isArray(m) ? m.join(", ") : m}`).join(" | ")}`;
+        else if (data.title) msg = data.title + (data.detail ? ` — ${data.detail}` : "");
+        else if (data.message) msg = data.message;
+      } else if (error?.message) msg = error.message;
       setError("root.serverError", { type: "server", message: msg });
     },
   });
 
   const onSubmit = (data) => {
     if (!data.slots || data.slots.length === 0) {
-      setError("root.serverError", { type: "manual", message: "Vui lòng thêm ít nhất 1 trụ sạc bằng cách nhấn vào ô trống trên mặt bằng." });
+      setError("root.serverError", { type: "manual", message: "Vui lòng thêm ít nhất 1 trụ sạc." });
+      setStep(3);
       return;
     }
-
-    // Validate khung giờ pricing
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     const pricing = data.stationPricing || [];
     for (let i = 0; i < pricing.length; i++) {
       const rule = pricing[i];
-      if (!rule.endTime) {
-        setError("root.serverError", { type: "manual", message: `Khung giờ ${i + 1}: Vui lòng nhập giờ kết thúc.` });
-        return;
-      }
-      if (!timeRegex.test(rule.endTime)) {
-        setError("root.serverError", { type: "manual", message: `Khung giờ ${i + 1}: Thời gian "${rule.endTime}" không hợp lệ! Giờ từ 00–23, phút từ 00–59.` });
+      if (!rule.endTime || !timeRegex.test(rule.endTime)) {
+        setError("root.serverError", { type: "manual", message: `Khung giờ ${i + 1}: Thời gian không hợp lệ!` });
         return;
       }
       const autoStart = i === 0 ? earliestOpenTime : pricing[i - 1].endTime;
@@ -386,11 +322,9 @@ export default function CreateChargingStation() {
       }
     }
 
-    // Save station-level pricing
     const stationPricing = data.stationPricing || [];
-    pricingRulesRef.current = stationPricing.length > 0 ? stationPricing : [];
+    pricingRulesRef.current = stationPricing;
 
-    // Build FormData for multipart upload
     const fd = new FormData();
     fd.append("name", data.name);
     fd.append("address", data.address || "Chưa chọn địa chỉ");
@@ -399,516 +333,486 @@ export default function CreateChargingStation() {
     if (data.longitude) fd.append("longitude", Number(data.longitude));
     fd.append("layoutWidth", Number(data.layoutWidth));
     fd.append("layoutHeight", Number(data.layoutHeight));
-
-    // Images
     stationImages.forEach((file) => fd.append("images", file));
-
-    // Operating hours
     data.operatingHours.forEach((item, i) => {
       fd.append(`operatingHours[${i}].dayOfWeek`, Number(item.dayOfWeek));
       fd.append(`operatingHours[${i}].isClosed`, item.isClosed);
       if (!item.isClosed && item.openTime) fd.append(`operatingHours[${i}].openTime`, item.openTime);
       if (!item.isClosed && item.closeTime) fd.append(`operatingHours[${i}].closeTime`, item.closeTime);
     });
-
-    // Slots
     data.slots.forEach((slot, i) => {
       fd.append(`slots[${i}].slotName`, slot.slotName);
       fd.append(`slots[${i}].positionX`, Number(slot.positionX));
       fd.append(`slots[${i}].positionY`, Number(slot.positionY));
     });
-
-    // Station-level pricing — backend CreateFromFormAsync reads these fields
     stationPricing.forEach((rule, i) => {
       fd.append(`stationPricing[${i}].startTime`, rule.startTime);
       fd.append(`stationPricing[${i}].endTime`, rule.endTime);
       fd.append(`stationPricing[${i}].pricePerHour`, Number(rule.pricePerHour));
     });
-
-    console.log(" FormData entries:");
-    for (const [k, v] of fd.entries()) console.log(`  ${k}:`, v);
     createStationMutation.mutate(fd);
   };
 
-  /*  Click empty cell to add a slot  */
+  async function handleNext() {
+    let fieldsToValidate = [];
+    if (step === 1) fieldsToValidate = ["name", "description"];
+    if (step === 2) fieldsToValidate = ["address", "latitude", "longitude"];
+    const valid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
+    if (valid) setStep((s) => Math.min(s + 1, 4));
+  }
+
   function handleCellClick(x, y) {
     const existingIdx = slots.findIndex((s) => Number(s.positionX) === x && Number(s.positionY) === y);
-    if (existingIdx >= 0) {
-      setSelectedSlotIdx(existingIdx);
-      return;
-    }
-    // Add new slot at this position
-    const slotNum = fields.length + 1;
-    append({
-      slotName: `${String.fromCharCode(64 + y)}${x}`,
-      connectorType: "CCS2",
-      powerKw: 50,
-      positionX: x,
-      positionY: y,
-    });
-    setSelectedSlotIdx(fields.length); // select the newly added one
+    if (existingIdx >= 0) { setSelectedSlotIdx(existingIdx); return; }
+    append({ slotName: `${String.fromCharCode(64 + y)}${x}`, connectorType: "CCS2", powerKw: 50, positionX: x, positionY: y });
+    setSelectedSlotIdx(fields.length);
   }
 
-  function handleRemoveSlot(idx) {
-    remove(idx);
-    setSelectedSlotIdx(null);
-  }
+  function handleRemoveSlot(idx) { remove(idx); setSelectedSlotIdx(null); }
+
+  // ── Shared card style
+  const card = { background: "#fff", borderRadius: 20, padding: "28px 32px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #f1f5f9" };
+  const label = { fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 };
+  const input = { height: 44, width: "100%", borderRadius: 12, border: "1.5px solid #e2e8f0", paddingLeft: 14, paddingRight: 14, fontSize: 14, outline: "none", boxSizing: "border-box", background: "#f8fafc", transition: "border-color 0.2s" };
 
   return (
-    <div className="min-h-screen bg-slate-100 px-6 pt-20 pb-8 text-slate-900">
-      <div className="mx-auto max-w-6xl">
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #fff7ed 0%, #f8fafc 60%)", paddingTop: 88, paddingBottom: 60, fontFamily: "'Inter', -apple-system, sans-serif" }}>
+      <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 20px" }}>
+
         {/* Header */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-6 py-5 shadow-sm ring-1 ring-slate-200">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-orange-500">Owner Dashboard</p>
-            <h1 className="mt-2 text-3xl font-bold">Tạo trạm sạc mới</h1>
-            <p className="mt-2 text-sm text-slate-600">Khai báo thông tin, mặt bằng và nhấn vào ô trống để đặt trụ sạc.</p>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "#f97316", textTransform: "uppercase", letterSpacing: 2, margin: 0 }}>Owner Dashboard</p>
+            <h1 style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", margin: "6px 0 4px", letterSpacing: -0.5 }}>Tạo trạm sạc mới</h1>
+            <p style={{ fontSize: 14, color: "#64748b", margin: 0 }}>Hoàn thành 4 bước để đăng ký trạm sạc của bạn</p>
           </div>
-          <Link to="/stations" className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
-            Quay lại danh sách
+          <Link to="/stations" style={{ padding: "10px 20px", borderRadius: 12, border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
+            ← Quay lại
           </Link>
         </div>
 
-        <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          {/*  ROW 1: Basic info + Layout dimensions  */}
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-xl font-semibold">Thông tin cơ bản</h2>
-              <div className="mt-5 grid gap-5">
+        {/* Step Indicator */}
+        <StepIndicator current={step} />
+
+        <form onSubmit={handleSubmit(onSubmit)}>
+
+          {/* ───────── STEP 1: Thông tin cơ bản ───────── */}
+          {step === 1 && (
+            <div style={{ ...card, animation: "fadeIn 0.3s ease" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #f97316, #ea580c)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Tên trạm</label>
-                  <input {...register("name")} className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none transition focus:border-orange-400" placeholder="Ví dụ: Trạm Sạc Xe Máy Quận 7" />
+                  <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0f172a" }}>Thông tin trạm sạc</h2>
+                  <p style={{ margin: 0, fontSize: 13, color: "#94a3b8" }}>Đặt tên và mô tả cho trạm sạc của bạn</p>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gap: 20 }}>
+                <div>
+                  <label style={label}>Tên trạm sạc <span style={{ color: "#ef4444" }}>*</span></label>
+                  <input {...register("name")} style={input} placeholder="Ví dụ: Trạm Sạc Xe Máy Quận 7" onFocus={(e) => (e.target.style.borderColor = "#f97316")} onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")} />
                   <FieldError message={errors.name?.message} />
                 </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Mô tả</label>
-                  <textarea {...register("description")} rows={2} className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-orange-400" placeholder="Mô tả vị trí, tiện ích..." />
-                </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700"> Chọn vị trí trên bản đồ</label>
-                  <MapPicker
-                    lat={watch("latitude") || 10.7295}
-                    lng={watch("longitude") || 106.7218}
-                    onSelect={(lat, lng, addr) => {
-                      setValue("latitude", lat);
-                      setValue("longitude", lng);
-                      if (addr) setValue("address", addr);
-                    }}
-                  />
-                  <div className="mt-4">
-                    <label className="mb-2 block text-sm font-medium text-slate-700">Địa chỉ cụ thể (có thể chỉnh sửa)</label>
-                    <input {...register("address")} className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none transition focus:border-orange-400" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố..." />
+                  <label style={label}>Mô tả trạm</label>
+                  <textarea {...register("description")} rows={3} style={{ ...input, height: "auto", paddingTop: 12, paddingBottom: 12, resize: "vertical" }} placeholder="Mô tả vị trí, tiện ích, ghi chú thêm..." onFocus={(e) => (e.target.style.borderColor = "#f97316")} onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")} />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div>
+                    <label style={label}>Số cột (chiều rộng)</label>
+                    <input type="number" min="1" max="20" {...register("layoutWidth", { valueAsNumber: true })} style={input} onFocus={(e) => (e.target.style.borderColor = "#f97316")} onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")} />
                   </div>
-                  <input type="hidden" {...register("latitude")} />
-                  <input type="hidden" {...register("longitude")} />
-                  <FieldError message={errors.address?.message} />
+                  <div>
+                    <label style={label}>Số hàng (chiều cao)</label>
+                    <input type="number" min="1" max="20" {...register("layoutHeight", { valueAsNumber: true })} style={input} onFocus={(e) => (e.target.style.borderColor = "#f97316")} onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")} />
+                  </div>
                 </div>
-              </div>
-            </section>
 
-            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-xl font-semibold">Kích thước mặt bằng</h2>
-              <p className="mt-1 text-sm text-slate-500">Chọn số cột × số hàng cho bản đồ trụ sạc</p>
-              <div className="mt-5 grid gap-5 grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Số cột (chiều rộng)</label>
-                  <input type="number" min="1" max="20" {...register("layoutWidth", { valueAsNumber: true })} className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none transition focus:border-orange-400" />
+                <div style={{ background: "#fff7ed", borderRadius: 12, padding: "12px 16px", border: "1px solid #fed7aa", fontSize: 13, color: "#92400e", display: "flex", alignItems: "center", gap: 8 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                  Mặt bằng: <strong>{layoutWidth} cột × {layoutHeight} hàng</strong> = {layoutWidth * layoutHeight} ô
                 </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Số hàng (chiều cao)</label>
-                  <input type="number" min="1" max="20" {...register("layoutHeight", { valueAsNumber: true })} className="h-11 w-full rounded-xl border border-slate-300 px-4 outline-none transition focus:border-orange-400" />
-                </div>
-              </div>
-              <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-600">
-                 Mặt bằng hiện tại: <strong>{layoutWidth} cột × {layoutHeight} hàng</strong> = {layoutWidth * layoutHeight} ô
-                <br />Đã đặt: <strong className="text-orange-600">{slots.length}</strong> trụ sạc
-              </div>
 
-              <div className="mt-5">
-                <label className="mb-2 block text-sm font-medium text-slate-700"> Ảnh trạm sạc</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    setStationImages((prev) => [...prev, ...files]);
-                    e.target.value = "";
-                  }}
-                  className="h-11 w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none transition focus:border-orange-400 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-50 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-orange-600"
-                />
-                {stationImages.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {stationImages.map((file, i) => (
-                      <div key={i} className="relative group">
-                        <img
-                          src={URL.createObjectURL(file)}
-                          alt={`Preview ${i + 1}`}
-                          className="h-16 w-16 rounded-lg object-cover border border-slate-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setStationImages((prev) => prev.filter((_, idx) => idx !== i))}
-                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer"
-                        >
-                          
-                        </button>
+                <div>
+                  <label style={label}>Ảnh trạm sạc</label>
+                  <div style={{ border: "2px dashed #e2e8f0", borderRadius: 12, padding: 16, background: "#f8fafc", textAlign: "center" }}>
+                    <input type="file" accept="image/*" multiple id="station-images-input"
+                      onChange={(e) => { const files = Array.from(e.target.files || []); setStationImages((prev) => [...prev, ...files]); e.target.value = ""; }}
+                      style={{ display: "none" }}
+                    />
+                    <label htmlFor="station-images-input" style={{ cursor: "pointer", display: "block" }}>
+                      <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                       </div>
-                    ))}
+                      <div style={{ fontSize: 13, color: "#64748b", fontWeight: 600 }}>Nhấn để chọn ảnh</div>
+                      <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>PNG, JPG, WEBP (tối đa 5 ảnh)</div>
+                    </label>
+                    {stationImages.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14, justifyContent: "center" }}>
+                        {stationImages.map((file, i) => (
+                          <div key={i} style={{ position: "relative" }}>
+                            <img src={URL.createObjectURL(file)} alt={`Preview ${i + 1}`} style={{ width: 72, height: 72, borderRadius: 10, objectFit: "cover", border: "2px solid #e2e8f0" }} />
+                            <button type="button" onClick={() => setStationImages((prev) => prev.filter((_, idx) => idx !== i))}
+                              style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </section>
-          </div>
-
-          {/*  ROW 2: Operating Hours  */}
-          <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <h2 className="text-xl font-semibold">Giờ hoạt động</h2>
-            <p className="mt-1 text-sm text-slate-600">Cấu hình cho từng ngày trong tuần.</p>
-            <div className="mt-5 space-y-3">
-              {dayOptions.map((day, index) => {
-                const isClosed = operatingHours?.[index]?.isClosed;
-                return (
-                  <div key={day.value} className="grid gap-4 rounded-xl border border-slate-200 p-3 md:grid-cols-[1.2fr_1fr_1fr_auto] md:items-center">
-                    <div>
-                      <p className="font-medium text-slate-800 text-sm">{day.label}</p>
-                      <label className="mt-1 inline-flex items-center gap-2 text-xs text-slate-600">
-                        <input type="checkbox" {...register(`operatingHours.${index}.isClosed`)} />
-                        Đóng cửa
-                      </label>
-                    </div>
-                    <div>
-                      <TimePicker24h
-                        value={(operatingHours?.[index]?.openTime || "06:00").substring(0,5)}
-                        disabled={isClosed}
-                        onChange={(v) => setValue(`operatingHours.${index}.openTime`, v)}
-                      />
-                    </div>
-                    <div>
-                      <TimePicker24h
-                        value={(operatingHours?.[index]?.closeTime || "23:00").substring(0,5)}
-                        disabled={isClosed}
-                        minAfter={isClosed ? undefined : (operatingHours?.[index]?.openTime || "06:00").substring(0,5)}
-                        onChange={(v) => setValue(`operatingHours.${index}.closeTime`, v)}
-                      />
-                    </div>
-                    <input type="hidden" {...register(`operatingHours.${index}.dayOfWeek`)} />
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/*  ROW 3: Visual Slot Grid (Cinema-style)  */}
-          <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <div>
-                <h2 className="text-xl font-semibold">Mặt bằng trụ sạc</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  Nhấn vào ô trống để đặt trụ sạc • Nhấn vào trụ để chỉnh sửa • {slots.length} trụ đã đặt
-                </p>
+                </div>
               </div>
             </div>
+          )}
 
-            <div className="flex gap-6 flex-col lg:flex-row">
-              {/* Grid */}
-              <div className="flex-1">
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: `40px repeat(${layoutWidth}, 1fr)`,
-                    gap: 4,
-                    background: "#f1f5f9",
-                    borderRadius: 16,
-                    padding: 12,
-                    border: "2px solid #e2e8f0",
-                    maxWidth: 700,
-                  }}
-                >
-                  {/* Column headers */}
-                  <div />
-                  {Array.from({ length: layoutWidth }).map((_, col) => (
-                    <div key={`h-${col}`} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: "#94a3b8", padding: "4px 0" }}>
-                      {col + 1}
-                    </div>
-                  ))}
-
-                  {/* Grid rows */}
-                  {Array.from({ length: layoutHeight }).map((_, row) => (
-                    <>
-                      {/* Row label */}
-                      <div key={`r-${row}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>
-                        {String.fromCharCode(65 + row)}
-                      </div>
-
-                      {/* Cells */}
-                      {Array.from({ length: layoutWidth }).map((_, col) => {
-                        const x = col + 1;
-                        const y = row + 1;
-                        const slotIdx = slots.findIndex((s) => Number(s.positionX) === x && Number(s.positionY) === y);
-                        const slot = slotIdx >= 0 ? slots[slotIdx] : null;
-                        const isSelected = selectedSlotIdx === slotIdx && slot;
-
-                        if (slot) {
-                          return (
-                            <button
-                              type="button"
-                              key={`${x}-${y}`}
-                              onClick={() => setSelectedSlotIdx(slotIdx)}
-                              style={{
-                                background: isSelected ? SLOT_SELECTED : SLOT_COLOR,
-                                color: "#fff",
-                                borderRadius: 10,
-                                border: isSelected ? "3px solid #1e293b" : "2px solid #c2410c",
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                cursor: "pointer",
-                                transition: "all .15s",
-                                transform: isSelected ? "scale(1.08)" : "scale(1)",
-                                boxShadow: isSelected ? "0 4px 12px rgba(0,0,0,0.25)" : "0 1px 4px rgba(0,0,0,0.1)",
-                                minHeight: 56,
-                                padding: "4px 2px",
-                              }}
-                              title={slot.slotName}
-                            >
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                              </svg>
-                              <span style={{ fontSize: 10, fontWeight: 700, marginTop: 2, lineHeight: 1 }}>
-                                {slot.slotName}
-                              </span>
-                            </button>
-                          );
-                        }
-
-                        // Empty cell — clickable to add
-                        return (
-                          <button
-                            type="button"
-                            key={`${x}-${y}`}
-                            onClick={() => handleCellClick(x, y)}
-                            style={{
-                              background: "#e8ecf1",
-                              borderRadius: 10,
-                              border: "2px dashed #cbd5e1",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              cursor: "pointer",
-                              minHeight: 56,
-                              transition: "all .15s",
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = "#fed7aa"; e.currentTarget.style.borderColor = "#f97316"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = "#e8ecf1"; e.currentTarget.style.borderColor = "#cbd5e1"; }}
-                            title={`Nhấn để thêm trụ sạc tại ${String.fromCharCode(65 + row)}${col + 1}`}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
-                              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                            </svg>
-                          </button>
-                        );
-                      })}
-                    </>
-                  ))}
+          {/* ───────── STEP 2: Vị trí bản đồ ───────── */}
+          {step === 2 && (
+            <div style={{ ...card, animation: "fadeIn 0.3s ease" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #3b82f6, #2563eb)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 </div>
-
-                {/* Legend */}
-                <div className="flex gap-4 mt-3 flex-wrap text-xs text-slate-500">
-                  <div className="flex items-center gap-1.5">
-                    <div style={{ width: 12, height: 12, borderRadius: 4, background: SLOT_COLOR }} />
-                    Trụ sạc đã đặt
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div style={{ width: 12, height: 12, borderRadius: 4, background: "#e8ecf1", border: "1.5px dashed #cbd5e1" }} />
-                    Ô trống (nhấn để thêm)
-                  </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0f172a" }}>Vị trí trạm sạc</h2>
+                  <p style={{ margin: 0, fontSize: 13, color: "#94a3b8" }}>Chọn vị trí trên bản đồ hoặc nhập địa chỉ</p>
                 </div>
               </div>
 
-              {/* Slot detail — just show position + delete */}
-              <div className="lg:w-[260px] flex-shrink-0">
-                <h4 className="text-base font-bold text-slate-800 mb-3">Ổ sạc đã chọn</h4>
-                {selectedSlotIdx !== null && slots[selectedSlotIdx] ? (
-                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: SLOT_COLOR, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
-                        </div>
-                        <span className="font-bold text-slate-900">
-                          {String.fromCharCode(64 + Number(slots[selectedSlotIdx].positionY))}{slots[selectedSlotIdx].positionX}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSlot(selectedSlotIdx)}
-                        className="text-xs font-semibold text-red-500 hover:text-red-700 cursor-pointer"
-                      >
-                        ️ Xóa
-                      </button>
-                    </div>
-                    <p className="text-xs text-slate-400">
-                      Tọa độ: Hàng {String.fromCharCode(64 + Number(slots[selectedSlotIdx].positionY))}, Cột {slots[selectedSlotIdx].positionX}
-                    </p>
-
-                    <input type="hidden" {...register(`slots.${selectedSlotIdx}.positionX`)} />
-                    <input type="hidden" {...register(`slots.${selectedSlotIdx}.positionY`)} />
-                  </div>
-                ) : (
-                  <div className="bg-slate-50 rounded-xl p-6 border border-dashed border-slate-300 text-center">
-                    <div className="text-3xl mb-2 opacity-40"></div>
-                    <p className="text-sm text-slate-400">
-                      {slots.length === 0
-                        ? "Nhấn vào ô trống để đặt ổ sạc"
-                        : "Chọn ổ sạc để xem vị trí"}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <FieldError message={errors.slots?.message} />
-          </section>
-
-          {/*  STATION-LEVEL PRICING  */}
-          <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-semibold"> Giá theo khung giờ</h2>
-                <p className="text-sm text-slate-500 mt-1">Áp dụng chung cho tất cả ổ sạc của trạm</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const current = watch("stationPricing") || [];
-                  const lastEnd = current.length > 0 ? current[current.length - 1].endTime : earliestOpenTime;
-                  setValue("stationPricing", [
-                    ...current,
-                    { startTime: lastEnd, endTime: "", pricePerHour: "" },
-                  ]);
+              <MapPicker
+                lat={watch("latitude") || 10.7295}
+                lng={watch("longitude") || 106.7218}
+                onSelect={(lat, lng, addr) => {
+                  setValue("latitude", lat);
+                  setValue("longitude", lng);
+                  if (addr) setValue("address", addr);
                 }}
-                className="text-sm font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
-              >
-                + Thêm khung giờ
-              </button>
-            </div>
+              />
 
-            {(() => {
-              const pricing = watch("stationPricing") || [];
-              if (pricing.length === 0) return (
-                <p className="text-sm text-slate-400 italic py-4 text-center">
-                  Chưa có khung giờ. Nhấn "+ Thêm khung giờ" để bắt đầu.
-                </p>
-              );
-              return (
-                <div className="space-y-2">
-                  {pricing.map((rule, rIdx) => {
-                    const autoStart = rIdx === 0 ? earliestOpenTime : (pricing[rIdx - 1]?.endTime || "");
-                    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-                    const isValidFormat = !rule.endTime || timeRegex.test(rule.endTime);
-                    const isAfterStart = !rule.endTime || !autoStart || rule.endTime > autoStart;
-                    const exceedsClose = isValidFormat && rule.endTime && latestCloseTime && latestCloseTime !== "00:00" && rule.endTime > latestCloseTime;
-                    const hasError = rule.endTime && (!isValidFormat || !isAfterStart || exceedsClose);
+              <div style={{ marginTop: 20 }}>
+                <label style={label}>Địa chỉ cụ thể <span style={{ color: "#ef4444" }}>*</span></label>
+                <input {...register("address")} style={input} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố..." onFocus={(e) => (e.target.style.borderColor = "#3b82f6")} onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")} />
+                <FieldError message={errors.address?.message} />
+              </div>
+              <input type="hidden" {...register("latitude")} />
+              <input type="hidden" {...register("longitude")} />
+
+              {watch("latitude") && watch("longitude") && (
+                <div style={{ marginTop: 12, background: "#eff6ff", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#1d4ed8", border: "1px solid #bfdbfe", display: "flex", alignItems: "center", gap: 6 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+                  Đã chọn tọa độ: {Number(watch("latitude")).toFixed(5)}, {Number(watch("longitude")).toFixed(5)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ───────── STEP 3: Giờ hoạt động + Mặt bằng ───────── */}
+          {step === 3 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 24, animation: "fadeIn 0.3s ease" }}>
+              {/* Giờ hoạt động */}
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0f172a" }}>Giờ hoạt động</h2>
+                    <p style={{ margin: 0, fontSize: 13, color: "#94a3b8" }}>Cấu hình cho từng ngày trong tuần</p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {dayOptions.map((day, index) => {
+                    const isClosed = operatingHours?.[index]?.isClosed;
                     return (
-                      <div key={rIdx} className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-                        <div className="flex items-center gap-2">
-                          <div className="text-center">
-                            <div className="text-[10px] text-slate-400 mb-1">Từ</div>
-                            <div className="h-9 w-[64px] rounded-lg bg-white border border-slate-200 text-sm flex items-center justify-center font-bold text-slate-700">
-                              {autoStart || "--:--"}
-                            </div>
-                          </div>
-                          <span className="text-slate-300 mt-4 text-lg">→</span>
-                          <div className="text-center">
-                            <div className="text-[10px] text-slate-400 mb-1">Đến</div>
-                            <input
-                              type="text"
-                              value={rule.endTime || ""}
-                              placeholder="HH:mm"
-                              maxLength={5}
-                              onChange={(e) => {
-                                let val = e.target.value.replace(/[^0-9:]/g, "");
-                                if (val.length === 2 && !val.includes(":")) val += ":";
-                                if (val.length > 5) val = val.slice(0, 5);
-                                const updated = [...pricing];
-                                updated[rIdx] = { ...updated[rIdx], endTime: val, startTime: autoStart };
-                                if (val.length === 5 && rIdx + 1 < updated.length) {
-                                  updated[rIdx + 1] = { ...updated[rIdx + 1], startTime: val };
-                                }
-                                setValue("stationPricing", updated);
-                              }}
-                              className={`h-9 w-[64px] rounded-lg border px-2 text-sm font-semibold text-center outline-none ${hasError ? "border-red-400 text-red-600 bg-red-50" : "border-slate-200 focus:border-orange-400"}`}
-                            />
-                          </div>
-                          <div className="flex-1 text-center">
-                            <div className="text-[10px] text-slate-400 mb-1">Giá / giờ (VND)</div>
-                            <div className="relative">
-                              <input
-                                type="number"
-                                value={rule.pricePerHour}
-                                placeholder="10000"
-                                onChange={(e) => {
-                                  const updated = [...pricing];
-                                  updated[rIdx] = { ...updated[rIdx], pricePerHour: Number(e.target.value), startTime: autoStart };
-                                  setValue("stationPricing", updated);
-                                }}
-                                className="h-9 w-full rounded-lg border border-slate-200 px-3 pr-6 text-sm outline-none focus:border-orange-400"
-                              />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">đ</span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = [...pricing];
-                              updated.splice(rIdx, 1);
-                              setValue("stationPricing", updated);
-                            }}
-                            className="text-red-400 hover:text-red-600 cursor-pointer mt-4"
-                            title="Xóa"
-                          >
-                            
-                          </button>
+                      <div key={day.value} style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr auto", gap: 12, alignItems: "center", background: isClosed ? "#f8fafc" : "#fff", borderRadius: 12, padding: "12px 16px", border: "1.5px solid #e2e8f0" }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: isClosed ? "#94a3b8" : "#1e293b" }}>{day.label}</div>
+                          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#94a3b8", marginTop: 4, cursor: "pointer" }}>
+                            <input type="checkbox" {...register(`operatingHours.${index}.isClosed`)} />
+                            Đóng cửa
+                          </label>
                         </div>
-                        {hasError && (
-                          <p className="text-xs text-red-500 mt-1 font-medium">
-                            {!isValidFormat
-                              ? " Thời gian không hợp lệ! Giờ từ 00–23, phút từ 00–59."
-                              : exceedsClose
-                              ? ` Giờ kết thúc vượt giờ đóng cửa (${latestCloseTime})!`
-                              : ` Giờ kết thúc phải sau ${autoStart}`
-                            }
-                          </p>
-                        )}
+                        <TimePicker24h value={(operatingHours?.[index]?.openTime || "06:00").substring(0, 5)} disabled={isClosed} onChange={(v) => setValue(`operatingHours.${index}.openTime`, v)} />
+                        <TimePicker24h value={(operatingHours?.[index]?.closeTime || "23:00").substring(0, 5)} disabled={isClosed} minAfter={isClosed ? undefined : (operatingHours?.[index]?.openTime || "06:00").substring(0, 5)} onChange={(v) => setValue(`operatingHours.${index}.closeTime`, v)} />
+                        <input type="hidden" {...register(`operatingHours.${index}.dayOfWeek`)} />
                       </div>
                     );
                   })}
                 </div>
-              );
-            })()}
-          </section>
-
-          {/*  Submit  */}
-          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            {errors.root?.serverError?.message && (
-              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {errors.root.serverError.message}
               </div>
-            )}
-            <div className="flex flex-wrap items-center justify-end gap-3">
-              <Link to="/stations" className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
-                Hủy
-              </Link>
-              <Button type="submit" className="h-11 bg-orange-500 px-6 text-white hover:bg-orange-600" disabled={createStationMutation.isPending}>
-                {createStationMutation.isPending ? "Đang tạo trạm..." : `Tạo trạm sạc (${slots.length} trụ)`}
-              </Button>
+
+              {/* Mặt bằng trụ sạc */}
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #f97316, #ea580c)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                  </div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0f172a" }}>Mặt bằng trụ sạc</h2>
+                    <p style={{ margin: 0, fontSize: 13, color: "#94a3b8" }}>Nhấn vào ô trống để đặt trụ sạc • {slots.length} trụ đã đặt</p>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+                  {/* Grid */}
+                  <div style={{ flex: 1, minWidth: 300 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: `36px repeat(${layoutWidth}, 1fr)`, gap: 4, background: "#f1f5f9", borderRadius: 16, padding: 12, border: "2px solid #e2e8f0", maxWidth: 640 }}>
+                      <div />
+                      {Array.from({ length: layoutWidth }).map((_, col) => (
+                        <div key={`h-${col}`} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: "#94a3b8", padding: "4px 0" }}>{col + 1}</div>
+                      ))}
+                      {Array.from({ length: layoutHeight }).map((_, row) => (
+                        <>
+                          <div key={`r-${row}`} style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>
+                            {String.fromCharCode(65 + row)}
+                          </div>
+                          {Array.from({ length: layoutWidth }).map((_, col) => {
+                            const x = col + 1; const y = row + 1;
+                            const slotIdx = slots.findIndex((s) => Number(s.positionX) === x && Number(s.positionY) === y);
+                            const slot = slotIdx >= 0 ? slots[slotIdx] : null;
+                            const isSelected = selectedSlotIdx === slotIdx && slot;
+                            if (slot) return (
+                              <button type="button" key={`${x}-${y}`} onClick={() => setSelectedSlotIdx(slotIdx)}
+                                style={{ background: isSelected ? SLOT_SELECTED : SLOT_COLOR, color: "#fff", borderRadius: 10, border: isSelected ? "3px solid #1e293b" : "2px solid #c2410c", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", minHeight: 52, padding: "4px 2px", transition: "all .15s", transform: isSelected ? "scale(1.08)" : "scale(1)", boxShadow: isSelected ? "0 4px 12px rgba(0,0,0,0.25)" : "0 1px 4px rgba(0,0,0,0.1)" }} title={slot.slotName}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+                                <span style={{ fontSize: 9, fontWeight: 700, marginTop: 2, lineHeight: 1 }}>{slot.slotName}</span>
+                              </button>
+                            );
+                            return (
+                              <button type="button" key={`${x}-${y}`} onClick={() => handleCellClick(x, y)}
+                                style={{ background: "#e8ecf1", borderRadius: 10, border: "2px dashed #cbd5e1", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", minHeight: 52, transition: "all .15s" }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = "#fed7aa"; e.currentTarget.style.borderColor = "#f97316"; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = "#e8ecf1"; e.currentTarget.style.borderColor = "#cbd5e1"; }}
+                                title={`Thêm trụ tại ${String.fromCharCode(65 + row)}${col + 1}`}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                              </button>
+                            );
+                          })}
+                        </>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: 11, color: "#94a3b8" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: SLOT_COLOR }} />Trụ đã đặt</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: "#e8ecf1", border: "1.5px dashed #cbd5e1" }} />Ô trống</div>
+                    </div>
+                  </div>
+
+                  {/* Slot detail */}
+                  <div style={{ width: 220, flexShrink: 0 }}>
+                    <h4 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", marginBottom: 12 }}>Ổ sạc đã chọn</h4>
+                    {selectedSlotIdx !== null && slots[selectedSlotIdx] ? (
+                      <div style={{ background: "#f8fafc", borderRadius: 14, padding: 16, border: "1.5px solid #e2e8f0" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: SLOT_COLOR, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+                            </div>
+                            <span style={{ fontWeight: 700, fontSize: 16, color: "#0f172a" }}>
+                              {String.fromCharCode(64 + Number(slots[selectedSlotIdx].positionY))}{slots[selectedSlotIdx].positionX}
+                            </span>
+                          </div>
+                          <button type="button" onClick={() => handleRemoveSlot(selectedSlotIdx)} style={{ fontSize: 11, fontWeight: 600, color: "#ef4444", border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                            Xóa
+                          </button>
+                        </div>
+                        <div style={{ fontSize: 12, color: "#94a3b8" }}>Hàng {String.fromCharCode(64 + Number(slots[selectedSlotIdx].positionY))}, Cột {slots[selectedSlotIdx].positionX}</div>
+                        <input type="hidden" {...register(`slots.${selectedSlotIdx}.positionX`)} />
+                        <input type="hidden" {...register(`slots.${selectedSlotIdx}.positionY`)} />
+                      </div>
+                    ) : (
+                      <div style={{ background: "#f8fafc", borderRadius: 14, padding: 24, border: "2px dashed #e2e8f0", textAlign: "center" }}>
+                        <div style={{ display: "flex", justifyContent: "center", marginBottom: 8, opacity: 0.3 }}>
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                        </div>
+                        <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>{slots.length === 0 ? "Nhấn vào ô trống để đặt ổ sạc" : "Chọn ổ sạc để xem"}</p>
+                      </div>
+                    )}
+                    {slots.length > 0 && (
+                      <div style={{ marginTop: 12, background: "#f0fdf4", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#15803d", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", gap: 6 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        Đã đặt <strong>{slots.length}</strong> trụ sạc
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <FieldError message={errors.slots?.message} />
+              </div>
             </div>
+          )}
+
+          {/* ───────── STEP 4: Giá + Xác nhận ───────── */}
+          {step === 4 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 24, animation: "fadeIn 0.3s ease" }}>
+              {/* Giá theo khung giờ */}
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    </div>
+                    <div>
+                      <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0f172a" }}>Giá theo khung giờ</h2>
+                      <p style={{ margin: 0, fontSize: 13, color: "#94a3b8" }}>Áp dụng chung cho tất cả ổ sạc</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => {
+                    const current = watch("stationPricing") || [];
+                    const lastEnd = current.length > 0 ? current[current.length - 1].endTime : earliestOpenTime;
+                    setValue("stationPricing", [...current, { startTime: lastEnd, endTime: "", pricePerHour: "" }]);
+                  }} style={{ padding: "8px 16px", borderRadius: 10, border: "1.5px solid #f97316", background: "#fff7ed", color: "#ea580c", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                    + Thêm khung giờ
+                  </button>
+                </div>
+
+                {(() => {
+                  const pricing = watch("stationPricing") || [];
+                  if (pricing.length === 0) return (
+                    <div style={{ textAlign: "center", padding: "32px 0", color: "#94a3b8", fontSize: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      </div>
+                      <p>Chưa có khung giờ. Nhấn "+ Thêm khung giờ" để bắt đầu.</p>
+                    </div>
+                  );
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {pricing.map((rule, rIdx) => {
+                        const autoStart = rIdx === 0 ? earliestOpenTime : (pricing[rIdx - 1]?.endTime || "");
+                        const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+                        const isValidFormat = !rule.endTime || timeRegex.test(rule.endTime);
+                        const isAfterStart = !rule.endTime || !autoStart || rule.endTime > autoStart;
+                        const exceedsClose = isValidFormat && rule.endTime && latestCloseTime && latestCloseTime !== "00:00" && rule.endTime > latestCloseTime;
+                        const hasError = rule.endTime && (!isValidFormat || !isAfterStart || exceedsClose);
+                        return (
+                          <div key={rIdx} style={{ background: "#f8fafc", borderRadius: 14, padding: "14px 16px", border: hasError ? "1.5px solid #fca5a5" : "1.5px solid #e2e8f0" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4 }}>Từ</div>
+                                <div style={{ height: 38, width: 68, background: "#e2e8f0", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#475569" }}>{autoStart || "--:--"}</div>
+                              </div>
+                              <span style={{ color: "#cbd5e1", fontSize: 18, marginTop: 14 }}>→</span>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4 }}>Đến</div>
+                                <input type="text" value={rule.endTime || ""} placeholder="HH:mm" maxLength={5}
+                                  onChange={(e) => {
+                                    let val = e.target.value.replace(/[^0-9:]/g, "");
+                                    if (val.length === 2 && !val.includes(":")) val += ":";
+                                    if (val.length > 5) val = val.slice(0, 5);
+                                    const updated = [...pricing];
+                                    updated[rIdx] = { ...updated[rIdx], endTime: val, startTime: autoStart };
+                                    if (val.length === 5 && rIdx + 1 < updated.length) updated[rIdx + 1] = { ...updated[rIdx + 1], startTime: val };
+                                    setValue("stationPricing", updated);
+                                  }}
+                                  style={{ height: 38, width: 68, borderRadius: 10, border: hasError ? "1.5px solid #ef4444" : "1.5px solid #e2e8f0", textAlign: "center", fontWeight: 700, fontSize: 14, outline: "none", background: hasError ? "#fef2f2" : "#fff", color: hasError ? "#ef4444" : "#1e293b" }}
+                                />
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 4 }}>Giá / giờ (VND)</div>
+                                <div style={{ position: "relative" }}>
+                                  <input type="number" value={rule.pricePerHour} placeholder="10000"
+                                    onChange={(e) => {
+                                      const updated = [...pricing];
+                                      updated[rIdx] = { ...updated[rIdx], pricePerHour: Number(e.target.value), startTime: autoStart };
+                                      setValue("stationPricing", updated);
+                                    }}
+                                    style={{ height: 38, width: "100%", borderRadius: 10, border: "1.5px solid #e2e8f0", paddingLeft: 12, paddingRight: 28, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                                  />
+                                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#94a3b8" }}>đ</span>
+                                </div>
+                              </div>
+                              <button type="button" onClick={() => { const updated = [...pricing]; updated.splice(rIdx, 1); setValue("stationPricing", updated); }}
+                                style={{ marginTop: 16, color: "#ef4444", border: "none", background: "none", cursor: "pointer", fontSize: 18, lineHeight: 1 }} title="Xóa">×</button>
+                            </div>
+                            {hasError && (
+                              <p style={{ margin: "6px 0 0", fontSize: 11, color: "#ef4444", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                {!isValidFormat ? "Thời gian không hợp lệ!" : exceedsClose ? `Vượt giờ đóng cửa (${latestCloseTime})!` : `Phải sau ${autoStart}`}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Summary */}
+              <div style={{ ...card, background: "linear-gradient(135deg, #fff7ed, #fffbeb)", border: "1.5px solid #fed7aa" }}>
+                <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 800, color: "#92400e", display: "flex", alignItems: "center", gap: 8 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  Tóm tắt trạm sạc
+                </h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 13 }}>
+                  <div style={{ background: "rgba(255,255,255,0.6)", borderRadius: 10, padding: "10px 14px" }}>
+                    <div style={{ color: "#92400e", fontWeight: 600, marginBottom: 2 }}>Tên trạm</div>
+                    <div style={{ color: "#1e293b", fontWeight: 700 }}>{watch("name") || "—"}</div>
+                  </div>
+                  <div style={{ background: "rgba(255,255,255,0.6)", borderRadius: 10, padding: "10px 14px" }}>
+                    <div style={{ color: "#92400e", fontWeight: 600, marginBottom: 2 }}>Mặt bằng</div>
+                    <div style={{ color: "#1e293b", fontWeight: 700 }}>{layoutWidth} × {layoutHeight} ({slots.length} trụ)</div>
+                  </div>
+                  <div style={{ background: "rgba(255,255,255,0.6)", borderRadius: 10, padding: "10px 14px", gridColumn: "1 / -1" }}>
+                    <div style={{ color: "#92400e", fontWeight: 600, marginBottom: 2 }}>Địa chỉ</div>
+                    <div style={{ color: "#1e293b", fontWeight: 700, fontSize: 12 }}>{watch("address") || "Chưa nhập"}</div>
+                  </div>
+                  <div style={{ background: "rgba(255,255,255,0.6)", borderRadius: 10, padding: "10px 14px" }}>
+                    <div style={{ color: "#92400e", fontWeight: 600, marginBottom: 2 }}>Ảnh</div>
+                    <div style={{ color: "#1e293b", fontWeight: 700 }}>{stationImages.length} ảnh</div>
+                  </div>
+                  <div style={{ background: "rgba(255,255,255,0.6)", borderRadius: 10, padding: "10px 14px" }}>
+                    <div style={{ color: "#92400e", fontWeight: 600, marginBottom: 2 }}>Khung giờ giá</div>
+                    <div style={{ color: "#1e293b", fontWeight: 700 }}>{(watch("stationPricing") || []).length} khung</div>
+                  </div>
+                </div>
+
+                {errors.root?.serverError?.message && (
+                  <div style={{ marginTop: 16, background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "#dc2626", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    {errors.root.serverError.message}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ───────── Navigation Buttons ───────── */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 28 }}>
+            <button type="button" onClick={() => setStep((s) => Math.max(s - 1, 1))} disabled={step === 1}
+              style={{ padding: "12px 24px", borderRadius: 12, border: "1.5px solid #e2e8f0", background: step === 1 ? "#f8fafc" : "#fff", color: step === 1 ? "#cbd5e1" : "#374151", fontWeight: 600, fontSize: 14, cursor: step === 1 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Bước trước
+            </button>
+
+            <div style={{ fontSize: 13, color: "#94a3b8" }}>Bước {step} / {STEPS.length}</div>
+
+            {step < 4 ? (
+              <button type="button" onClick={handleNext}
+                style={{ padding: "12px 28px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 4px 14px rgba(249,115,22,0.35)", transition: "all 0.2s" }}>
+                Bước tiếp theo
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            ) : (
+              <Button type="submit" disabled={createStationMutation.isPending}
+                style={{ padding: "12px 28px", borderRadius: 12, border: "none", background: createStationMutation.isPending ? "#d1d5db" : "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: createStationMutation.isPending ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: createStationMutation.isPending ? "none" : "0 4px 14px rgba(34,197,94,0.35)" }}>
+                {createStationMutation.isPending ? (
+                  <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Đang tạo trạm...</>
+                ) : (
+                  <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Hoàn tất tạo trạm ({slots.length} trụ)</>
+                )}
+              </Button>
+            )}
           </div>
         </form>
       </div>
+
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }

@@ -22,7 +22,6 @@ const statusStyles = {
 
 const TABS = [
   { key: "all", label: "Tất cả" },
-  { key: "done", label: "Lịch sử (Đã kết thúc)" },
 ];
 
 const toLocal = (dt) => {

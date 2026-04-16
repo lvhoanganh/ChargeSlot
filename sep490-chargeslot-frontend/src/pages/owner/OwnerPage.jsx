@@ -61,14 +61,14 @@ const statusConfig = {
 };
 
 const slotColors = {
-  Active:    { bg: "#22c55e", text: "#fff", border: "#16a34a", label: "Hoạt động" },
-  Inactive:  { bg: "#94a3b8", text: "#fff", border: "#64748b", label: "Ngưng" },
-  Maintenance:{ bg: "#f97316", text: "#fff", border: "#ea580c", label: "Bảo trì" },
+  Active: { bg: "#22c55e", text: "#fff", border: "#16a34a", label: "Hoạt động" },
+  Inactive: { bg: "#94a3b8", text: "#fff", border: "#64748b", label: "Ngưng" },
+  Maintenance: { bg: "#f97316", text: "#fff", border: "#ea580c", label: "Bảo trì" },
   Available: { bg: "#22c55e", text: "#fff", border: "#16a34a", label: "Trống" },
-  Occupied:  { bg: "#ef4444", text: "#fff", border: "#dc2626", label: "Đang dùng" },
+  Occupied: { bg: "#ef4444", text: "#fff", border: "#dc2626", label: "Đang dùng" },
   CheckedIn: { bg: "#06b6d4", text: "#fff", border: "#0891b2", label: "Đã check-in" },
-  Booked:    { bg: "#f59e0b", text: "#fff", border: "#d97706", label: "Đã đặt chỗ" },
-  Reserved:  { bg: "#3b82f6", text: "#fff", border: "#2563eb", label: "Giữ chỗ" },
+  Booked: { bg: "#f59e0b", text: "#fff", border: "#d97706", label: "Đã đặt chỗ" },
+  Reserved: { bg: "#3b82f6", text: "#fff", border: "#2563eb", label: "Giữ chỗ" },
 };
 
 export default function OwnerPage() {
@@ -83,7 +83,7 @@ export default function OwnerPage() {
   const [viewMode, setViewMode] = useState("list"); // "list" or "map"
   const [flyTarget, setFlyTarget] = useState([21.0285, 105.8542]);
   const [userPos, setUserPos] = useState(null);
-  
+
   const [occupiedSlots, setOccupiedSlots] = useState(new Set());    // Đang sạc (InProgress/Charging)
   const [checkedInSlots, setCheckedInSlots] = useState(new Set());  // Đã check-in, chưa sạc
   const [emergencyModal, setEmergencyModal] = useState(null);        // station object | null
@@ -91,7 +91,7 @@ export default function OwnerPage() {
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
       (pos) => setUserPos([pos.coords.latitude, pos.coords.longitude]),
-      () => {},
+      () => { },
       { enableHighAccuracy: true, timeout: 8000 }
     );
   }, []);
@@ -128,7 +128,7 @@ export default function OwnerPage() {
 
           const isOccupied = isInProgressRaw || (isCheckedInRaw && isTimeStarted);
           const isCheckedIn = isCheckedInRaw && !isTimeStarted;
-          
+
           if (isOccupied) {
             occupied.add(Number(session.slotId));
           } else if (isCheckedIn) {
@@ -152,7 +152,7 @@ export default function OwnerPage() {
           setOccupiedSlots(occupied);
           setCheckedInSlots(checkedIn);
         })
-        .catch(() => {});
+        .catch(() => { });
     }, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -218,9 +218,6 @@ export default function OwnerPage() {
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-6 py-5 shadow-sm ring-1 ring-slate-200">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-orange-500">
-              Owner Dashboard
-            </p>
             <h1 className="mt-2 text-3xl font-bold">Trạm sạc của tôi</h1>
             <p className="mt-1 text-sm text-slate-600">
               Quản lý trạm sạc, mặt bằng và trụ sạc.
@@ -303,11 +300,11 @@ export default function OwnerPage() {
                   </button>
                 ))}
               </div>
-              
+
               <div className="flex gap-2 w-full md:w-auto">
                 <div className="relative flex-1 md:w-64">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="18" height="18" fill="none" stroke="#9ca3af" strokeWidth="2" viewBox="0 0 24 24">
-                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
                   </svg>
                   <input
                     type="text"
@@ -322,14 +319,14 @@ export default function OwnerPage() {
                     onClick={() => setViewMode("list")}
                     className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1 border-none ${viewMode === "list" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500"}`}
                   >
-                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
                     Danh sách
                   </button>
                   <button
                     onClick={() => setViewMode("map")}
                     className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1 border-none ${viewMode === "map" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500"}`}
                   >
-                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                     Bản đồ
                   </button>
                 </div>
@@ -349,540 +346,540 @@ export default function OwnerPage() {
                   }
                   return true;
                 }).map((s) => {
-                const st = s.approvalStatus === "Approved"
-                  ? (statusConfig[s.operationalStatus] || statusConfig.Approved)
-                  : (statusConfig[s.approvalStatus] || statusConfig.Draft);
+                  const st = s.approvalStatus === "Approved"
+                    ? (statusConfig[s.operationalStatus] || statusConfig.Approved)
+                    : (statusConfig[s.approvalStatus] || statusConfig.Draft);
 
-                const isExpanded = expandedStation === s.id;
-                const slots = s.chargingSlots || [];
-                const layoutW = s.layoutWidth || 6;
-                const layoutH = s.layoutHeight || 4;
+                  const isExpanded = expandedStation === s.id;
+                  const slots = s.chargingSlots || [];
+                  const layoutW = s.layoutWidth || 6;
+                  const layoutH = s.layoutHeight || 4;
 
-                return (
-                  <div key={s.id} className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
-                    {/* Station header */}
-                    <div
-                      className="flex items-center gap-4 p-5 cursor-pointer hover:bg-slate-50 transition-colors"
-                      onClick={() => { setExpandedStation(isExpanded ? null : s.id); setSelectedSlot(null); }}
-                    >
-                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white text-2xl flex-shrink-0">
-                        
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-lg font-bold text-slate-900 truncate">{s.name}</h3>
-                          <span
-                            className="text-xs font-semibold px-2.5 py-0.5 rounded-full flex-shrink-0"
-                            style={{ color: st.color, background: st.bg }}
-                          >
-                            {st.icon} {st.label}
+                  return (
+                    <div key={s.id} className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
+                      {/* Station header */}
+                      <div
+                        className="flex items-center gap-4 p-5 cursor-pointer hover:bg-slate-50 transition-colors"
+                        onClick={() => { setExpandedStation(isExpanded ? null : s.id); setSelectedSlot(null); }}
+                      >
+                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white text-2xl flex-shrink-0">
+
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-lg font-bold text-slate-900 truncate">{s.name}</h3>
+                            <span
+                              className="text-xs font-semibold px-2.5 py-0.5 rounded-full flex-shrink-0"
+                              style={{ color: st.color, background: st.bg }}
+                            >
+                              {st.icon} {st.label}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-500 truncate">{s.address}</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-xs text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                            {slots.length} trụ sạc
                           </span>
+                          <span className="text-xs text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg">
+                            {layoutW}×{layoutH}
+                          </span>
+                          <svg
+                            width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"
+                            style={{ transform: isExpanded ? "rotate(180deg)" : "", transition: "transform .2s" }}
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
                         </div>
-                        <p className="text-sm text-slate-500 truncate">{s.address}</p>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-xs text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
-                          {slots.length} trụ sạc
-                        </span>
-                        <span className="text-xs text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg">
-                          {layoutW}×{layoutH}
-                        </span>
-                        <svg
-                          width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"
-                          style={{ transform: isExpanded ? "rotate(180deg)" : "", transition: "transform .2s" }}
-                        >
-                          <polyline points="6 9 12 15 18 9" />
-                        </svg>
-                      </div>
-                    </div>
 
-                    {/* Expanded: Visual slot grid */}
-                    {isExpanded && (
-                      <div className="border-t border-slate-100 px-5 pb-5">
-                        {/* Actions */}
-                        <div className="flex gap-2 py-4 flex-wrap">
-                          {/* Ban banner — hiện khi admin đã khóa trạm */}
-                          {s.bannedUntil && (
-                            <div style={{
-                              width: "100%", marginBottom: 8,
-                              background: "linear-gradient(135deg, #fef2f2, #fecaca)",
-                              border: "1.5px solid #f87171",
-                              borderRadius: 12, padding: "10px 14px",
-                              display: "flex", alignItems: "center", gap: 10,
-                              fontSize: 13, color: "#991b1b", fontWeight: 600,
-                            }}>
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                              </svg>
-                              Trạm đang bị khóa bởi Admin.
-                            </div>
-                          )}
+                      {/* Expanded: Visual slot grid */}
+                      {isExpanded && (
+                        <div className="border-t border-slate-100 px-5 pb-5">
+                          {/* Actions */}
+                          <div className="flex gap-2 py-4 flex-wrap">
+                            {/* Ban banner — hiện khi admin đã khóa trạm */}
+                            {s.bannedUntil && (
+                              <div style={{
+                                width: "100%", marginBottom: 8,
+                                background: "linear-gradient(135deg, #fef2f2, #fecaca)",
+                                border: "1.5px solid #f87171",
+                                borderRadius: 12, padding: "10px 14px",
+                                display: "flex", alignItems: "center", gap: 10,
+                                fontSize: 13, color: "#991b1b", fontWeight: 600,
+                              }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+                                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
+                                Trạm đang bị khóa bởi Admin.
+                              </div>
+                            )}
 
-                          {/* Edit station info button — ẩn khi bị ban */}
-                          {!s.bannedUntil && (
-                            <button
-                              onClick={() => navigate(`/stations/edit/${s.id}`)}
-                              className="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1.5"
-                            >
-                              ️ Chỉnh sửa trạm
-                            </button>
-                          )}
+                            {/* Edit station info button — ẩn khi bị ban */}
+                            {!s.bannedUntil && (
+                              <button
+                                onClick={() => navigate(`/stations/edit/${s.id}`)}
+                                className="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1.5"
+                              >
+                                ️ Chỉnh sửa trạm
+                              </button>
+                            )}
 
-                          {/* Gửi duyệt — ẩn khi bị ban */}
-                          {!s.bannedUntil && (s.approvalStatus === "Draft" || s.approvalStatus === "Rejected") && (
-                            <button
-                              onClick={() => handleSubmitForApproval(s.id)}
-                              disabled={actionLoading === s.id}
-                              className="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition disabled:opacity-50 cursor-pointer"
-                            >
-                               Gửi duyệt
-                            </button>
-                          )}
+                            {/* Gửi duyệt — ẩn khi bị ban */}
+                            {!s.bannedUntil && (s.approvalStatus === "Draft" || s.approvalStatus === "Rejected") && (
+                              <button
+                                onClick={() => handleSubmitForApproval(s.id)}
+                                disabled={actionLoading === s.id}
+                                className="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition disabled:opacity-50 cursor-pointer"
+                              >
+                                Gửi duyệt
+                              </button>
+                            )}
 
-                          {/* Bật/Tắt trạm — ẩn khi bị ban */}
-                          {!s.bannedUntil && s.approvalStatus === "Approved" && (
-                            <button
-                              onClick={async () => {
-                                const newStatus = s.operationalStatus === "Active" ? "Inactive" : "Active";
-                                if (newStatus === "Inactive") {
-                                  setEmergencyModal(s);
-                                  return;
-                                }
-                                if (!(await showConfirm(`Bật lại trạm sạc "${s.name}"?`, "Xác nhận Bật trạm"))) return;
-                                setActionLoading(s.id);
-                                try {
-                                  await stationApi.updateStatus(s.id, "Active");
-                                  fetchStations();
-                                  showToast.success("Bật trạm thành công!");
-                                } catch (err) {
-                                  showToast.error(err.message || "Lỗi bật trạm");
-                                } finally {
-                                  setActionLoading(null);
-                                }
-                              }}
-                              disabled={actionLoading === s.id}
-                              className={`px-4 py-2 text-sm font-semibold rounded-lg transition disabled:opacity-50 cursor-pointer ${s.operationalStatus === "Active"
-                                ? "bg-amber-50 text-amber-600 hover:bg-amber-100"
-                                : "bg-green-50 text-green-600 hover:bg-green-100"
-                              }`}
-                            >
-                              {s.operationalStatus === "Active" ? "️ Tắt trạm" : "️ Bật trạm"}
-                            </button>
-                          )}
-                        </div>
+                            {/* Bật/Tắt trạm — ẩn khi bị ban */}
+                            {!s.bannedUntil && s.approvalStatus === "Approved" && (
+                              <button
+                                onClick={async () => {
+                                  const newStatus = s.operationalStatus === "Active" ? "Inactive" : "Active";
+                                  if (newStatus === "Inactive") {
+                                    setEmergencyModal(s);
+                                    return;
+                                  }
+                                  if (!(await showConfirm(`Bật lại trạm sạc "${s.name}"?`, "Xác nhận Bật trạm"))) return;
+                                  setActionLoading(s.id);
+                                  try {
+                                    await stationApi.updateStatus(s.id, "Active");
+                                    fetchStations();
+                                    showToast.success("Bật trạm thành công!");
+                                  } catch (err) {
+                                    showToast.error(err.message || "Lỗi bật trạm");
+                                  } finally {
+                                    setActionLoading(null);
+                                  }
+                                }}
+                                disabled={actionLoading === s.id}
+                                className={`px-4 py-2 text-sm font-semibold rounded-lg transition disabled:opacity-50 cursor-pointer ${s.operationalStatus === "Active"
+                                  ? "bg-amber-50 text-amber-600 hover:bg-amber-100"
+                                  : "bg-green-50 text-green-600 hover:bg-green-100"
+                                  }`}
+                              >
+                                {s.operationalStatus === "Active" ? "️ Tắt trạm" : "️ Bật trạm"}
+                              </button>
+                            )}
+                          </div>
 
-                        <div className="flex gap-6 flex-col lg:flex-row">
-                          {/* LEFT: Visual grid */}
-                          <div className="flex-1">
-                            <h4 className="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
-                              Mặt bằng trạm sạc ({layoutW}×{layoutH})
-                            </h4>
+                          <div className="flex gap-6 flex-col lg:flex-row">
+                            {/* LEFT: Visual grid */}
+                            <div className="flex-1">
+                              <h4 className="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
+                                Mặt bằng trạm sạc ({layoutW}×{layoutH})
+                              </h4>
 
-                            {/* Grid */}
-                            <div
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns: `repeat(${layoutW}, 1fr)`,
-                                gridTemplateRows: `repeat(${layoutH}, 1fr)`,
-                                gap: 4,
-                                background: "#f1f5f9",
-                                borderRadius: 16,
-                                padding: 12,
-                                border: "2px solid #e2e8f0",
-                                aspectRatio: `${layoutW}/${layoutH}`,
-                                maxWidth: 600,
-                              }}
-                            >
-                              {Array.from({ length: layoutH }).map((_, row) =>
-                                Array.from({ length: layoutW }).map((_, col) => {
-                                  const x = col + 1;
-                                  const y = row + 1;
-                                  const slot = slots.find(
-                                    (sl) => sl.positionX === x && sl.positionY === y
-                                  );
+                              {/* Grid */}
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: `repeat(${layoutW}, 1fr)`,
+                                  gridTemplateRows: `repeat(${layoutH}, 1fr)`,
+                                  gap: 4,
+                                  background: "#f1f5f9",
+                                  borderRadius: 16,
+                                  padding: 12,
+                                  border: "2px solid #e2e8f0",
+                                  aspectRatio: `${layoutW}/${layoutH}`,
+                                  maxWidth: 600,
+                                }}
+                              >
+                                {Array.from({ length: layoutH }).map((_, row) =>
+                                  Array.from({ length: layoutW }).map((_, col) => {
+                                    const x = col + 1;
+                                    const y = row + 1;
+                                    const slot = slots.find(
+                                      (sl) => sl.positionX === x && sl.positionY === y
+                                    );
 
-                                  if (slot) {
-                                    const isOccupied  = occupiedSlots.has(slot.id);
-                                    const isCheckedIn = checkedInSlots.has(slot.id);
-                                    const displayStatus = isOccupied ? "Occupied" : isCheckedIn ? "CheckedIn" : slot.status;
-                                    const sc = slotColors[displayStatus] || slotColors[slot.status] || slotColors.Inactive;
-                                    const isSelected = selectedSlot === slot.id;
+                                    if (slot) {
+                                      const isOccupied = occupiedSlots.has(slot.id);
+                                      const isCheckedIn = checkedInSlots.has(slot.id);
+                                      const displayStatus = isOccupied ? "Occupied" : isCheckedIn ? "CheckedIn" : slot.status;
+                                      const sc = slotColors[displayStatus] || slotColors[slot.status] || slotColors.Inactive;
+                                      const isSelected = selectedSlot === slot.id;
+                                      return (
+                                        <button
+                                          key={`${x}-${y}`}
+                                          onClick={() => setSelectedSlot(isSelected ? null : slot.id)}
+                                          style={{
+                                            background: sc.bg,
+                                            color: sc.text,
+                                            borderRadius: 10,
+                                            border: isSelected ? "3px solid #1e293b" : `2px solid ${sc.border}`,
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            cursor: "pointer",
+                                            transition: "all .15s",
+                                            transform: isSelected ? "scale(1.08)" : "scale(1)",
+                                            boxShadow: isSelected ? "0 4px 12px rgba(0,0,0,0.2)" : "0 1px 3px rgba(0,0,0,0.1)",
+                                            minHeight: 48,
+                                            padding: "4px 2px",
+                                          }}
+                                          title={`${slot.slotName} — ${sc.label}`}
+                                        >
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                                          </svg>
+                                          <span style={{ fontSize: 9, fontWeight: 700, marginTop: 1, lineHeight: 1 }}>
+                                            {slot.slotName}
+                                          </span>
+                                        </button>
+                                      );
+                                    }
+
+                                    // Empty cell — click to add slot
                                     return (
                                       <button
                                         key={`${x}-${y}`}
-                                        onClick={() => setSelectedSlot(isSelected ? null : slot.id)}
+                                        onClick={async () => {
+                                          const slotName = `${String.fromCharCode(64 + y)}${x}`;
+                                          setActionLoading(s.id);
+                                          try {
+                                            await slotApi.create(s.id, { slotName, positionX: x, positionY: y });
+                                            fetchStations();
+                                          } catch (err) {
+                                            showToast.error("Lỗi thêm trụ: " + (err.message || "Không rõ"));
+                                          } finally {
+                                            setActionLoading(null);
+                                          }
+                                        }}
+                                        disabled={actionLoading === s.id}
                                         style={{
-                                          background: sc.bg,
-                                          color: sc.text,
-                                          borderRadius: 10,
-                                          border: isSelected ? "3px solid #1e293b" : `2px solid ${sc.border}`,
+                                          background: "#e2e8f0",
+                                          borderRadius: 8,
+                                          border: "2px dashed #cbd5e1",
                                           display: "flex",
-                                          flexDirection: "column",
                                           alignItems: "center",
                                           justifyContent: "center",
                                           cursor: "pointer",
-                                          transition: "all .15s",
-                                          transform: isSelected ? "scale(1.08)" : "scale(1)",
-                                          boxShadow: isSelected ? "0 4px 12px rgba(0,0,0,0.2)" : "0 1px 3px rgba(0,0,0,0.1)",
+                                          opacity: 0.5,
                                           minHeight: 48,
-                                          padding: "4px 2px",
+                                          transition: "all .15s",
                                         }}
-                                        title={`${slot.slotName} — ${sc.label}`}
+                                        className="hover:opacity-80 hover:border-orange-400 hover:bg-orange-50"
+                                        title={`Thêm trụ tại ${String.fromCharCode(64 + y)}${x}`}
                                       >
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                                        </svg>
-                                        <span style={{ fontSize: 9, fontWeight: 700, marginTop: 1, lineHeight: 1 }}>
-                                          {slot.slotName}
-                                        </span>
+                                        <span style={{ fontSize: 16, color: "#94a3b8" }}>+</span>
                                       </button>
                                     );
-                                  }
+                                  })
+                                )}
+                              </div>
 
-                                  // Empty cell — click to add slot
+                              {/* Legend */}
+                              <div className="flex gap-3 mt-3 flex-wrap">
+                                {Object.entries(slotColors).filter(([k]) => ["Active", "Occupied", "CheckedIn", "Booked", "Reserved", "Maintenance", "Inactive"].includes(k)).map(([key, val]) => (
+                                  <div key={key} className="flex items-center gap-1.5 text-xs text-slate-600">
+                                    <div style={{ width: 10, height: 10, borderRadius: 3, background: val.bg }} />
+                                    {val.label}
+                                  </div>
+                                ))}
+                                <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                                  <div style={{ width: 10, height: 10, borderRadius: 3, background: "#e2e8f0", border: "1px dashed #cbd5e1" }} />
+                                  Trống
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* RIGHT: Selected slot info */}
+                            <div className="lg:w-[280px] flex-shrink-0">
+                              <h4 className="text-base font-bold text-slate-800 mb-3">Thông tin trụ</h4>
+                              {selectedSlot ? (
+                                (() => {
+                                  const slot = slots.find((sl) => sl.id === selectedSlot);
+                                  if (!slot) return <p className="text-sm text-slate-400 italic">Không tìm thấy.</p>;
+                                  // Tính displayStatus: ưu tiên occupiedSlots (active session real-time)
+                                  const isCurrentlyOccupied = occupiedSlots.has(slot.id);
+                                  const isCurrentlyCheckedIn = checkedInSlots.has(slot.id);
+                                  const displayStatus = isCurrentlyOccupied ? "Occupied" : isCurrentlyCheckedIn ? "CheckedIn" : slot.status;
+                                  const sc = slotColors[displayStatus] || slotColors[slot.status] || slotColors.Inactive;
+                                  // Chỉ cho phép đổi trạng thái khi slot không bận
+                                  const isSlotBusy = displayStatus === "Occupied" || displayStatus === "CheckedIn" || slot.status === "Booked";
                                   return (
-                                    <button
-                                      key={`${x}-${y}`}
-                                      onClick={async () => {
-                                        const slotName = `${String.fromCharCode(64 + y)}${x}`;
-                                        setActionLoading(s.id);
-                                        try {
-                                          await slotApi.create(s.id, { slotName, positionX: x, positionY: y });
-                                          fetchStations();
-                                        } catch (err) {
-                                          showToast.error("Lỗi thêm trụ: " + (err.message || "Không rõ"));
-                                        } finally {
-                                          setActionLoading(null);
-                                        }
-                                      }}
-                                      disabled={actionLoading === s.id}
-                                      style={{
-                                        background: "#e2e8f0",
-                                        borderRadius: 8,
-                                        border: "2px dashed #cbd5e1",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        cursor: "pointer",
-                                        opacity: 0.5,
-                                        minHeight: 48,
-                                        transition: "all .15s",
-                                      }}
-                                      className="hover:opacity-80 hover:border-orange-400 hover:bg-orange-50"
-                                      title={`Thêm trụ tại ${String.fromCharCode(64 + y)}${x}`}
-                                    >
-                                      <span style={{ fontSize: 16, color: "#94a3b8" }}>+</span>
-                                    </button>
+                                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+                                      <div className="flex items-center gap-2">
+                                        <div style={{ width: 36, height: 36, borderRadius: 10, background: sc.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+                                        </div>
+                                        <div>
+                                          <div className="font-bold text-slate-900">{slot.slotName}</div>
+                                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: sc.border, background: `${sc.bg}44`, border: `1px solid ${sc.border}55` }}>
+                                            {sc.label}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <InfoRow label="Vị trí" value={`${String.fromCharCode(64 + Number(slot.positionY))}${slot.positionX}`} />
+                                      {slot.qrCodeToken && (
+                                        <div className="pt-1">
+                                          <p className="text-xs text-slate-500 mb-2">Mã QR check-in</p>
+                                          <div className="bg-white rounded-lg p-3 border border-slate-200 flex items-center justify-center">
+                                            <QRCodeSVG value={slot.qrCodeToken} size={140} />
+                                          </div>
+                                          <button
+                                            onClick={async () => {
+                                              if (!(await showConfirm(
+                                                "Tạo lại mã QR sẽ làm mã cũ hết hiệu lực. Driver cần quét mã mới để check-in. Tiếp tục?",
+                                                "Tạo lại mã QR"
+                                              ))) return;
+                                              setActionLoading(`qr-${slot.id}`);
+                                              try {
+                                                const res = await slotApi.regenerateQr(s.id, slot.id);
+                                                // Cập nhật qrCodeToken trong local state mà không reload toàn bộ
+                                                setStations(prev => prev.map(st => {
+                                                  if (st.id !== s.id) return st;
+                                                  return {
+                                                    ...st,
+                                                    chargingSlots: (st.chargingSlots || []).map(sl =>
+                                                      sl.id === slot.id ? { ...sl, qrCodeToken: res.qrCodeToken } : sl
+                                                    )
+                                                  };
+                                                }));
+                                                showToast.success("Mã QR mới đã được tạo thành công!");
+                                              } catch (err) {
+                                                showToast.error(err.message || "Lỗi tạo lại mã QR");
+                                              } finally {
+                                                setActionLoading(null);
+                                              }
+                                            }}
+                                            disabled={actionLoading === `qr-${slot.id}`}
+                                            style={{
+                                              marginTop: 8, width: "100%",
+                                              padding: "7px 0", borderRadius: 8,
+                                              border: "1.5px solid #f59e0b",
+                                              background: actionLoading === `qr-${slot.id}` ? "#fef9c3" : "#fffbeb",
+                                              color: "#b45309", fontWeight: 600, fontSize: 12,
+                                              cursor: actionLoading === `qr-${slot.id}` ? "not-allowed" : "pointer",
+                                              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                                              transition: "all 0.15s",
+                                            }}
+                                          >
+                                            {actionLoading === `qr-${slot.id}` ? (
+                                              <> Đang tạo lại...</>
+                                            ) : (
+                                              <> Tạo lại mã QR</>
+                                            )}
+                                          </button>
+                                        </div>
+                                      )}
+
+
+                                      {/* Slot status controls */}
+                                      {s.approvalStatus === "Approved" && (
+                                        <div className="pt-2 border-t border-slate-200">
+                                          <p className="text-xs font-medium text-slate-600 mb-2">Đổi trạng thái</p>
+                                          {isSlotBusy ? (
+                                            <div style={{ fontSize: 11, color: "#64748b", background: "#f1f5f9", borderRadius: 8, padding: "7px 10px", fontStyle: "italic" }}>
+                                              {displayStatus === "Occupied"
+                                                ? " Đang sạc — không thể đổi trạng thái"
+                                                : displayStatus === "CheckedIn"
+                                                  ? " Đã check-in, chưa sạc — không thể đổi trạng thái"
+                                                  : " Đang có lịch đặt — không thể đổi trạng thái"}
+                                            </div>
+                                          ) : (
+                                            <div className="flex gap-1.5 flex-wrap">
+                                              {["Active", "Inactive", "Maintenance"].map((key) => {
+                                                const isCurrentStatus = slot.status === key;
+                                                const labels = { Active: "Hoạt động", Inactive: "Ngưng", Maintenance: "Bảo trì" };
+                                                const colors = { Active: "#22c55e", Inactive: "#94a3b8", Maintenance: "#f97316" };
+
+                                                // BE Enum mapping
+                                                const statusValues = { Active: 0, Inactive: 1, Maintenance: 2 };
+
+                                                return (
+                                                  <button
+                                                    key={key}
+                                                    disabled={isCurrentStatus || actionLoading === slot.id}
+                                                    onClick={async () => {
+                                                      setActionLoading(slot.id);
+                                                      try {
+                                                        await slotApi.updateStatus(s.id, slot.id, { status: statusValues[key] });
+                                                        fetchStations();
+                                                      } catch (err) {
+                                                        showToast.error("Lỗi: " + (err.message || "Không rõ"));
+                                                      } finally {
+                                                        setActionLoading(null);
+                                                      }
+                                                    }}
+                                                    className="px-2.5 py-1 text-[10px] font-semibold rounded-lg border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                                    style={{
+                                                      color: isCurrentStatus ? "#fff" : colors[key],
+                                                      background: isCurrentStatus ? colors[key] : "transparent",
+                                                      borderColor: colors[key],
+                                                    }}
+                                                  >
+                                                    {labels[key]}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
                                   );
-                                })
+                                })()
+                              ) : (
+                                <div className="bg-slate-50 rounded-xl p-6 border border-dashed border-slate-300 text-center">
+                                  <div className="text-3xl mb-2 opacity-40"></div>
+                                  <p className="text-sm text-slate-400">Nhấn vào một trụ sạc trên mặt bằng để xem chi tiết</p>
+                                </div>
                               )}
                             </div>
-
-                            {/* Legend */}
-                            <div className="flex gap-3 mt-3 flex-wrap">
-                              {Object.entries(slotColors).filter(([k]) => ["Active", "Occupied", "CheckedIn", "Booked", "Reserved", "Maintenance", "Inactive"].includes(k)).map(([key, val]) => (
-                                <div key={key} className="flex items-center gap-1.5 text-xs text-slate-600">
-                                  <div style={{ width: 10, height: 10, borderRadius: 3, background: val.bg }} />
-                                  {val.label}
-                                </div>
-                              ))}
-                              <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                                <div style={{ width: 10, height: 10, borderRadius: 3, background: "#e2e8f0", border: "1px dashed #cbd5e1" }} />
-                                Trống
-                              </div>
-                            </div>
                           </div>
 
-                          {/* RIGHT: Selected slot info */}
-                          <div className="lg:w-[280px] flex-shrink-0">
-                            <h4 className="text-base font-bold text-slate-800 mb-3">Thông tin trụ</h4>
-                            {selectedSlot ? (
-                              (() => {
-                                const slot = slots.find((sl) => sl.id === selectedSlot);
-                                if (!slot) return <p className="text-sm text-slate-400 italic">Không tìm thấy.</p>;
-                                // Tính displayStatus: ưu tiên occupiedSlots (active session real-time)
-                                const isCurrentlyOccupied = occupiedSlots.has(slot.id);
-                                const isCurrentlyCheckedIn = checkedInSlots.has(slot.id);
-                                const displayStatus = isCurrentlyOccupied ? "Occupied" : isCurrentlyCheckedIn ? "CheckedIn" : slot.status;
-                                const sc = slotColors[displayStatus] || slotColors[slot.status] || slotColors.Inactive;
-                                // Chỉ cho phép đổi trạng thái khi slot không bận
-                                const isSlotBusy = displayStatus === "Occupied" || displayStatus === "CheckedIn" || slot.status === "Booked";
-                                return (
-                                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
-                                    <div className="flex items-center gap-2">
-                                      <div style={{ width: 36, height: 36, borderRadius: 10, background: sc.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
-                                      </div>
-                                      <div>
-                                        <div className="font-bold text-slate-900">{slot.slotName}</div>
-                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: sc.border, background: `${sc.bg}44`, border: `1px solid ${sc.border}55` }}>
-                                          {sc.label}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <InfoRow label="Vị trí" value={`${String.fromCharCode(64 + Number(slot.positionY))}${slot.positionX}`} />
-                                    {slot.qrCodeToken && (
-                                      <div className="pt-1">
-                                        <p className="text-xs text-slate-500 mb-2">Mã QR check-in</p>
-                                        <div className="bg-white rounded-lg p-3 border border-slate-200 flex items-center justify-center">
-                                          <QRCodeSVG value={slot.qrCodeToken} size={140} />
-                                        </div>
-                                        <button
-                                          onClick={async () => {
-                                            if (!(await showConfirm(
-                                              "Tạo lại mã QR sẽ làm mã cũ hết hiệu lực. Driver cần quét mã mới để check-in. Tiếp tục?",
-                                              "Tạo lại mã QR"
-                                            ))) return;
-                                            setActionLoading(`qr-${slot.id}`);
-                                            try {
-                                              const res = await slotApi.regenerateQr(s.id, slot.id);
-                                              // Cập nhật qrCodeToken trong local state mà không reload toàn bộ
-                                              setStations(prev => prev.map(st => {
-                                                if (st.id !== s.id) return st;
-                                                return {
-                                                  ...st,
-                                                  chargingSlots: (st.chargingSlots || []).map(sl =>
-                                                    sl.id === slot.id ? { ...sl, qrCodeToken: res.qrCodeToken } : sl
-                                                  )
-                                                };
-                                              }));
-                                              showToast.success("Mã QR mới đã được tạo thành công!");
-                                            } catch (err) {
-                                              showToast.error(err.message || "Lỗi tạo lại mã QR");
-                                            } finally {
-                                              setActionLoading(null);
-                                            }
-                                          }}
-                                          disabled={actionLoading === `qr-${slot.id}`}
-                                          style={{
-                                            marginTop: 8, width: "100%",
-                                            padding: "7px 0", borderRadius: 8,
-                                            border: "1.5px solid #f59e0b",
-                                            background: actionLoading === `qr-${slot.id}` ? "#fef9c3" : "#fffbeb",
-                                            color: "#b45309", fontWeight: 600, fontSize: 12,
-                                            cursor: actionLoading === `qr-${slot.id}` ? "not-allowed" : "pointer",
-                                            display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                                            transition: "all 0.15s",
-                                          }}
-                                        >
-                                          {actionLoading === `qr-${slot.id}` ? (
-                                            <> Đang tạo lại...</>
-                                          ) : (
-                                            <> Tạo lại mã QR</>
-                                          )}
-                                        </button>
-                                      </div>
-                                    )}
+                          {/* Station-level pricing */}
+                          <div className="mt-4 pt-4 border-t border-slate-200">
+                            <StationPricingPanel stationId={s.id} pricingTiers={s.pricingTiers || []} operatingHours={s.operatingHours || []} onSaved={fetchStations} />
+                          </div>
 
-
-                                    {/* Slot status controls */}
-                                    {s.approvalStatus === "Approved" && (
-                                      <div className="pt-2 border-t border-slate-200">
-                                        <p className="text-xs font-medium text-slate-600 mb-2">Đổi trạng thái</p>
-                                        {isSlotBusy ? (
-                                          <div style={{ fontSize: 11, color: "#64748b", background: "#f1f5f9", borderRadius: 8, padding: "7px 10px", fontStyle: "italic" }}>
-                                            {displayStatus === "Occupied"
-                                              ? " Đang sạc — không thể đổi trạng thái"
-                                              : displayStatus === "CheckedIn"
-                                              ? " Đã check-in, chưa sạc — không thể đổi trạng thái"
-                                              : " Đang có lịch đặt — không thể đổi trạng thái"}
-                                          </div>
-                                        ) : (
-                                          <div className="flex gap-1.5 flex-wrap">
-                                            {["Active", "Inactive", "Maintenance"].map((key) => {
-                                              const isCurrentStatus = slot.status === key;
-                                              const labels = { Active: "Hoạt động", Inactive: "Ngưng", Maintenance: "Bảo trì" };
-                                              const colors = { Active: "#22c55e", Inactive: "#94a3b8", Maintenance: "#f97316" };
-
-                                              // BE Enum mapping
-                                              const statusValues = { Active: 0, Inactive: 1, Maintenance: 2 };
-
-                                              return (
-                                                <button
-                                                  key={key}
-                                                  disabled={isCurrentStatus || actionLoading === slot.id}
-                                                  onClick={async () => {
-                                                    setActionLoading(slot.id);
-                                                    try {
-                                                      await slotApi.updateStatus(s.id, slot.id, { status: statusValues[key] });
-                                                      fetchStations();
-                                                    } catch (err) {
-                                                      showToast.error("Lỗi: " + (err.message || "Không rõ"));
-                                                    } finally {
-                                                      setActionLoading(null);
-                                                    }
-                                                  }}
-                                                  className="px-2.5 py-1 text-[10px] font-semibold rounded-lg border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition"
-                                                  style={{
-                                                    color: isCurrentStatus ? "#fff" : colors[key],
-                                                    background: isCurrentStatus ? colors[key] : "transparent",
-                                                    borderColor: colors[key],
-                                                  }}
-                                                >
-                                                  {labels[key]}
-                                                </button>
-                                              );
-                                            })}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })()
-                            ) : (
-                              <div className="bg-slate-50 rounded-xl p-6 border border-dashed border-slate-300 text-center">
-                                <div className="text-3xl mb-2 opacity-40"></div>
-                                <p className="text-sm text-slate-400">Nhấn vào một trụ sạc trên mặt bằng để xem chi tiết</p>
-                              </div>
-                            )}
+                          {/* Unavailable dates */}
+                          <div className="mt-4 pt-4 border-t border-slate-200">
+                            <UnavailableDatesPanel stationId={s.id} />
                           </div>
                         </div>
-
-                        {/* Station-level pricing */}
-                        <div className="mt-4 pt-4 border-t border-slate-200">
-                          <StationPricingPanel stationId={s.id} pricingTiers={s.pricingTiers || []} operatingHours={s.operatingHours || []} onSaved={fetchStations} />
-                        </div>
-
-                        {/* Unavailable dates */}
-                        <div className="mt-4 pt-4 border-t border-slate-200">
-                          <UnavailableDatesPanel stationId={s.id} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="map-view-container">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (userPos) setFlyTarget(userPos);
-                  else
-                    navigator.geolocation?.getCurrentPosition(
-                      (pos) => {
-                        const p = [pos.coords.latitude, pos.coords.longitude];
-                        setUserPos(p);
-                        setFlyTarget(p);
-                      },
-                      () => showToast.error("Không thể lấy vị trí của bạn"),
-                      { enableHighAccuracy: true, timeout: 8000 }
-                    );
-                }}
-                style={{
-                  position: "absolute", bottom: 20, right: 20, zIndex: 1000, 
-                  background: "white", width: 44, height: 44, borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 2px 10px rgba(0,0,0,0.1)", border: "none", cursor: "pointer", color: "#3b82f6"
-                }}
-                title="Vị trí của tôi"
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                </svg>
-              </button>
-              <MapContainer
-                center={userPos || [21.0285, 105.8542]}
-                zoom={14}
-                style={{ width: "100%", height: "100%" }}
-                zoomControl={false}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
-                  url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-                />
-                {flyTarget && <FlyTo center={flyTarget} zoom={15} />}
-                {userPos && <Marker position={userPos} icon={new L.DivIcon({
-                  html: `<div style="width:20px;height:20px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 0 6px rgba(59,130,246,.25),0 2px 8px rgba(0,0,0,.3);"></div>`,
-                  className: "", iconSize: [20, 20], iconAnchor: [10, 10]
-                })} />}
-
-                {stations.filter(s => {
-                  if (filter !== "all") {
-                    const dKey = s.approvalStatus === "Approved" ? (s.operationalStatus || "Approved") : s.approvalStatus;
-                    if (dKey !== filter && s.approvalStatus !== filter) return false;
-                  }
-                  if (search.trim()) {
-                    const q = search.toLowerCase();
-                    return (s.name?.toLowerCase().includes(q) || s.address?.toLowerCase().includes(q));
-                  }
-                  if (!s.latitude || !s.longitude) return false;
-                  return true;
-                }).map((s) => {
-                  const dKey = s.approvalStatus === "Approved" ? (s.operationalStatus || "Approved") : s.approvalStatus;
-                  const st = statusConfig[dKey] || statusConfig.Draft;
-                  const icon = mapIcons[dKey] || mapIcons.Draft;
-                  
-                  return (
-                    <Marker
-                      key={s.id}
-                      position={[s.latitude, s.longitude]}
-                      icon={icon}
-                    >
-                      <Popup className="custom-popup" maxWidth={280}>
-                        <div style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-                          <div style={{ padding: "16px 16px 12px", background: `linear-gradient(to right, ${st.bg}, white)` }}>
-                            <div style={{ display: "flex", gap: "10px" }}>
-                              <div style={{ flexShrink: 0, width: "36px", height: "36px", borderRadius: "10px", background: st.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <svg width="20" height="20" fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 24 24">
-                                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                                </svg>
-                              </div>
-                              <div style={{ flex: 1 }}>
-                                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1e293b", lineHeight: 1.2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                                  {s.name}
-                                </h3>
-                                <span style={{ display: "inline-block", marginTop: "4px", fontSize: "11px", fontWeight: 600, color: st.color, padding: "2px 8px", borderRadius: "99px", background: `${st.color}20` }}>
-                                  {st.label}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div style={{ padding: "12px 16px" }}>
-                            <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "12px", display: "flex", alignItems: "flex-start", gap: "4px" }}>
-                              <span style={{ fontSize: "14px" }}></span>
-                              <span style={{ flex: 1 }}>{s.address}</span>
-                            </div>
-                            
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "16px" }}>
-                              <div style={{ background: "#f8fafc", padding: "8px", borderRadius: "8px", textAlign: "center", border: "1px solid #f1f5f9" }}>
-                                <div style={{ fontSize: "16px", fontWeight: 700, color: "#3b82f6" }}>{s.chargingSlots?.length || 0}</div>
-                                <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Trụ sạc</div>
-                              </div>
-                              <div style={{ background: "#f8fafc", padding: "8px", borderRadius: "8px", textAlign: "center", border: "1px solid #f1f5f9" }}>
-                                <div style={{ fontSize: "16px", fontWeight: 700, color: "#64748b" }}>{s.layoutWidth}×{s.layoutHeight}</div>
-                                <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Kích thước</div>
-                              </div>
-                            </div>
-                            
-                            <button
-                              onClick={() => {
-                                setViewMode("list");
-                                setExpandedStation(s.id);
-                                setTimeout(() => {
-                                  window.scrollTo({ top: 300, behavior: 'smooth' });
-                                }, 300);
-                              }}
-                              style={{ width: "100%", padding: "10px 0", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "white", border: "none", borderRadius: "10px", fontWeight: 600, fontSize: "13px", cursor: "pointer", display: "flex", gap: "6px", justifyContent: "center", alignItems: "center" }}
-                            >
-                              Xem chi tiết / Chỉnh sửa
-                              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                            </button>
-                          </div>
-                        </div>
-                      </Popup>
-                    </Marker>
+                      )}
+                    </div>
                   );
                 })}
-              </MapContainer>
-            </div>
-          )}
+              </div>
+            ) : (
+              <div className="map-view-container">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (userPos) setFlyTarget(userPos);
+                    else
+                      navigator.geolocation?.getCurrentPosition(
+                        (pos) => {
+                          const p = [pos.coords.latitude, pos.coords.longitude];
+                          setUserPos(p);
+                          setFlyTarget(p);
+                        },
+                        () => showToast.error("Không thể lấy vị trí của bạn"),
+                        { enableHighAccuracy: true, timeout: 8000 }
+                      );
+                  }}
+                  style={{
+                    position: "absolute", bottom: 20, right: 20, zIndex: 1000,
+                    background: "white", width: 44, height: 44, borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.1)", border: "none", cursor: "pointer", color: "#3b82f6"
+                  }}
+                  title="Vị trí của tôi"
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                  </svg>
+                </button>
+                <MapContainer
+                  center={userPos || [21.0285, 105.8542]}
+                  zoom={14}
+                  style={{ width: "100%", height: "100%" }}
+                  zoomControl={false}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+                    url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+                  />
+                  {flyTarget && <FlyTo center={flyTarget} zoom={15} />}
+                  {userPos && <Marker position={userPos} icon={new L.DivIcon({
+                    html: `<div style="width:20px;height:20px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 0 6px rgba(59,130,246,.25),0 2px 8px rgba(0,0,0,.3);"></div>`,
+                    className: "", iconSize: [20, 20], iconAnchor: [10, 10]
+                  })} />}
+
+                  {stations.filter(s => {
+                    if (filter !== "all") {
+                      const dKey = s.approvalStatus === "Approved" ? (s.operationalStatus || "Approved") : s.approvalStatus;
+                      if (dKey !== filter && s.approvalStatus !== filter) return false;
+                    }
+                    if (search.trim()) {
+                      const q = search.toLowerCase();
+                      return (s.name?.toLowerCase().includes(q) || s.address?.toLowerCase().includes(q));
+                    }
+                    if (!s.latitude || !s.longitude) return false;
+                    return true;
+                  }).map((s) => {
+                    const dKey = s.approvalStatus === "Approved" ? (s.operationalStatus || "Approved") : s.approvalStatus;
+                    const st = statusConfig[dKey] || statusConfig.Draft;
+                    const icon = mapIcons[dKey] || mapIcons.Draft;
+
+                    return (
+                      <Marker
+                        key={s.id}
+                        position={[s.latitude, s.longitude]}
+                        icon={icon}
+                      >
+                        <Popup className="custom-popup" maxWidth={280}>
+                          <div style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+                            <div style={{ padding: "16px 16px 12px", background: `linear-gradient(to right, ${st.bg}, white)` }}>
+                              <div style={{ display: "flex", gap: "10px" }}>
+                                <div style={{ flexShrink: 0, width: "36px", height: "36px", borderRadius: "10px", background: st.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                  <svg width="20" height="20" fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                                  </svg>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1e293b", lineHeight: 1.2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                                    {s.name}
+                                  </h3>
+                                  <span style={{ display: "inline-block", marginTop: "4px", fontSize: "11px", fontWeight: 600, color: st.color, padding: "2px 8px", borderRadius: "99px", background: `${st.color}20` }}>
+                                    {st.label}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{ padding: "12px 16px" }}>
+                              <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "12px", display: "flex", alignItems: "flex-start", gap: "4px" }}>
+                                <span style={{ fontSize: "14px" }}></span>
+                                <span style={{ flex: 1 }}>{s.address}</span>
+                              </div>
+
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "16px" }}>
+                                <div style={{ background: "#f8fafc", padding: "8px", borderRadius: "8px", textAlign: "center", border: "1px solid #f1f5f9" }}>
+                                  <div style={{ fontSize: "16px", fontWeight: 700, color: "#3b82f6" }}>{s.chargingSlots?.length || 0}</div>
+                                  <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Trụ sạc</div>
+                                </div>
+                                <div style={{ background: "#f8fafc", padding: "8px", borderRadius: "8px", textAlign: "center", border: "1px solid #f1f5f9" }}>
+                                  <div style={{ fontSize: "16px", fontWeight: 700, color: "#64748b" }}>{s.layoutWidth}×{s.layoutHeight}</div>
+                                  <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>Kích thước</div>
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={() => {
+                                  setViewMode("list");
+                                  setExpandedStation(s.id);
+                                  setTimeout(() => {
+                                    window.scrollTo({ top: 300, behavior: 'smooth' });
+                                  }, 300);
+                                }}
+                                style={{ width: "100%", padding: "10px 0", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "white", border: "none", borderRadius: "10px", fontWeight: 600, fontSize: "13px", cursor: "pointer", display: "flex", gap: "6px", justifyContent: "center", alignItems: "center" }}
+                              >
+                                Xem chi tiết / Chỉnh sửa
+                                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                              </button>
+                            </div>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    );
+                  })}
+                </MapContainer>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1319,7 +1316,7 @@ function UnavailableDateCalendar({ stationId, unavailableDates, todayStr, toDate
   unavailableDates.forEach(d => { unavailableIdMap[toDateStr(d.date)] = d.id; });
 
   const DAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
-  const MONTHS = ["Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6","Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"];
+  const MONTHS = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
 
   function getDaysInMonth(year, month) {
     return new Date(year, month + 1, 0).getDate();
@@ -1508,8 +1505,8 @@ function EmergencyCancelModal({ station, onConfirm, onCancel }) {
 
   const lastUsedStr = station.lastEmergencyCancelAt
     ? new Date(station.lastEmergencyCancelAt).toLocaleDateString("vi-VN", {
-        day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-      })
+      day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+    })
     : null;
 
   return (
@@ -1554,7 +1551,7 @@ function EmergencyCancelModal({ station, onConfirm, onCancel }) {
               ⬛ Hủy bỏ
             </button>
             <button onClick={onConfirm} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: usedThisMonth ? "linear-gradient(135deg,#7f1d1d,#991b1b)" : "linear-gradient(135deg,#dc2626,#b91c1c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: "0 4px 14px rgba(220,38,38,0.4)" }}>
-               {usedThisMonth ? "Tắt (RỦI RO BỊ KHÓA!)" : "Tắt khẩn cấp & Hủy booking"}
+              {usedThisMonth ? "Tắt (RỦI RO BỊ KHÓA!)" : "Tắt khẩn cấp & Hủy booking"}
             </button>
           </div>
         </div>

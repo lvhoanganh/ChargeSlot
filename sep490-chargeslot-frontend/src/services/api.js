@@ -373,10 +373,10 @@ export const adminStationApi = {
      * PATCH /api/admin/stations/{id}/toggle-ban
      * Requires SecondaryPassword header
      */
-    toggleBan: (id, secondaryPassword) =>
+    toggleBan: (id) =>
         apiFetch(`/admin/stations/${id}/toggle-ban`, {
-            method: "PATCH",
-            headers: { "SecondaryPassword": secondaryPassword || "" },
+            method: "POST",
+            body: JSON.stringify({ reason: null }),
         }),
 };
 
