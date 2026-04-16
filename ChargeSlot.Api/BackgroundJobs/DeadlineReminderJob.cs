@@ -226,9 +226,9 @@ namespace ChargeSlot.Api.BackgroundJobs
                     {
                         await notificationService.SendAsync(
                             adminId,
-                            "⏰ Nhắc nhở: Dispute sắp tự động phán quyết",
-                            $"Khiếu nại #{dispute.Id} sẽ tự động phán quyết theo mặc định sau {minutesLeft} phút nữa. "
-                            + "Vui lòng xem xét và phán quyết ngay.",
+                            "⏰ Nhắc nhở: Dispute sắp tự động xử lý",
+                            $"Khiếu nại #{dispute.Id} sẽ tự động xử lý sau {minutesLeft} phút nữa. "
+                            + "Hệ thống sẽ hoàn tiền cho Driver và đền bù Owner từ ví nền tảng. Vui lòng phán quyết ngay để tránh chi phí nền tảng.",
                             NotificationType.System);
                     }
 

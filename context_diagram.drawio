@@ -1,0 +1,165 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36" version="29.6.0">
+  <diagram name="Context Diagram" id="context-diagram">
+    <mxGraphModel dx="1426" dy="777" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="system" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" value="&lt;b style=&quot;font-size: 16px;&quot;&gt;ChargeSlot Platform&lt;/b&gt;&lt;br&gt;(Backend System)" vertex="1">
+          <mxGeometry height="200" width="200" x="450" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="guest" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;Guest&lt;/b&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="490" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_guest_1" edge="1" parent="1" source="guest" target="system">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_guest_1_label" connectable="0" parent="edge_guest_1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Search stations, View pricing,&lt;div&gt;View reviews &amp;amp; availability&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint x="1" y="3" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="driver" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;Driver&lt;/b&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="170" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_driver_1" edge="1" parent="1" source="driver" style="exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;" target="system">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="260" y="330" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_driver_1_label" connectable="0" parent="edge_driver_1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Book slots, Scan QR, Top-up wallet,&#xa;Chat, Report disputes, Review stations" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint x="34" y="-1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_driver_2" edge="1" parent="1" source="system" target="driver">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="230" y="400" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_driver_2_label" connectable="0" parent="edge_driver_2" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Booking status, Refund info,&#xa;Loyalty points, Notifications" vertex="1">
+          <mxGeometry relative="1" x="0.1" y="-1" as="geometry">
+            <mxPoint x="63" y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="owner" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;Owner (Partner)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="140" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_owner_1" edge="1" parent="1" source="owner" style="entryX=0.04;entryY=0.735;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0.25;exitY=0;exitDx=0;exitDy=0;" target="system">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="170" y="480" />
+              <mxPoint x="170" y="450" />
+              <mxPoint x="320" y="450" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_owner_1_label" connectable="0" parent="edge_owner_1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Submit KYC, Sign contract, Manage stations/slots,&#xa;Approve bookings, Chat, Request withdrawals" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint x="83" y="-1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_owner_2" edge="1" parent="1" style="entryX=0.658;entryY=-0.033;entryDx=0;entryDy=0;exitX=0.18;exitY=0.895;exitDx=0;exitDy=0;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="224" y="521.98" />
+            </Array>
+            <mxPoint x="490" y="480.98" as="sourcePoint" />
+            <mxPoint x="222.96000000000004" y="570" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_owner_2_label" connectable="0" parent="edge_owner_2" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Revenue reports, Booking updates,&#xa;Reply reviews, Approval notifications" vertex="1">
+          <mxGeometry relative="1" x="0.1" y="2" as="geometry">
+            <mxPoint x="42" y="-9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="admin" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;Admin&lt;/b&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="790" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_admin_1" edge="1" parent="1" source="admin" style="entryX=0.98;entryY=0.34;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="system">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="850" y="368" />
+            </Array>
+            <mxPoint x="780" y="300" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_admin_1_label" connectable="0" parent="edge_admin_1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Approve KYC/Stations/Contracts,&lt;div&gt;Manage accounts, Resolve Disputes,&lt;br&gt;Process Withdrawals, Config Rules&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="1" as="geometry">
+            <mxPoint x="-20" y="-9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_admin_2" edge="1" parent="1" source="system" style="entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0;exitDx=0;exitDy=0;" target="admin">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="680" y="280" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_admin_2_label" connectable="0" parent="edge_admin_2" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Analytics, Revenue reports,&#xa;Issue flags, Logs" vertex="1">
+          <mxGeometry relative="1" x="0.1" y="-1" as="geometry">
+            <mxPoint x="-8" y="9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sepay" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;SePay Gateway&lt;/b&gt;&#xa;(Payment Webhook)" vertex="1">
+          <mxGeometry height="60" width="140" x="380" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_sepay_2" edge="1" parent="1" source="sepay" target="system">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_sepay_2_label" connectable="0" parent="edge_sepay_2" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Bank transfer webhook&lt;div&gt;(Payment confirmation)&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="2" as="geometry">
+            <mxPoint x="-4" y="-3" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="firebase" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;Firebase System&lt;/b&gt;&#xa;(Phone Auth/OTP &amp; Storage)" vertex="1">
+          <mxGeometry height="60" width="140" x="800" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_firebase_1" edge="1" parent="1" source="system" style="entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.965;exitY=0.72;exitDx=0;exitDy=0;exitPerimeter=0;" target="firebase">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="870" y="444" />
+            </Array>
+            <mxPoint x="630.0045824461764" y="463.0702944365562" as="sourcePoint" />
+            <mxPoint x="900" y="386" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_firebase_1_label" connectable="0" parent="edge_firebase_1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Upload KYC/Contracts/Images&lt;div&gt;&amp;nbsp;Validate Tokens&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" as="geometry">
+            <mxPoint x="13" y="-2" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_firebase_2" edge="1" parent="1" source="firebase" style="entryX=1;entryY=1;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" target="system">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="740" y="500" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_firebase_2_label" connectable="0" parent="edge_firebase_2" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Return Image URLs&lt;div&gt;&amp;nbsp;Auth results&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" as="geometry">
+            <mxPoint x="1" y="-5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="smtp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;SMTP Server&lt;/b&gt;&#xa;(Email Delivery)" vertex="1">
+          <mxGeometry height="60" width="140" x="580" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_smtp" edge="1" parent="1" source="system" target="smtp">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_smtp_label" connectable="0" parent="edge_smtp" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Send Email&amp;nbsp;&lt;div&gt;Verification &amp;amp; Notifications&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint y="4" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

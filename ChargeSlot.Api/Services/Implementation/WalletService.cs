@@ -234,11 +234,9 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<WithdrawRequestDto> WithdrawAsync(int userId, WithdrawDto dto)
         {
-            // BUG-7 FIX: Validate withdraw amount
+            // Validate withdraw amount
             if (dto.Amount < 50_000)
                 throw new InvalidOperationException("Số tiền rút tối thiểu là 50,000 VND.");
-            if (dto.Amount > 100_000_000)
-                throw new InvalidOperationException("Số tiền rút tối đa là 100,000,000 VND.");
 
             // Hệ thống chỉ cho Owner rút tiền, và Owner phải KYC thành công (Chống Rửa Tiền - AML).
             var owner = await _ownerRepo.GetByUserIdAsync(userId);
@@ -581,6 +579,37 @@ namespace ChargeSlot.Api.Services.Implementation
 
             _withdrawRepo.Update(request);
             await _unitOfWork.CompleteAsync();
+
+            return MapToWithdrawDto(request, request.User?.FullName);
+        }
+
+        /// <summary>
+        /// Admin ép hoàn tất rút tiền khi User spam báo lỗi giả.
+        /// Admin upload ảnh bằng chứng chuyển khoản thành công → force Completed.
+        /// </summary>
+        public async Task<WithdrawRequestDto> AdminForceCompleteAsync(int adminUserId, int requestId, IFormFile evidenceImage, string? note)
+        {
+            var request = await _withdrawRepo.GetByIdWithUserAndWalletAsync(requestId)
+                ?? throw new InvalidOperationException("Yêu cầu rút tiền không tồn tại.");
+
+            if (request.Status != WithdrawStatus.IssueReported)
+                throw new InvalidOperationException($"Chỉ có thể ép hoàn tất khi trạng thái là IssueReported. Hiện tại: {request.Status}");
+
+            // Upload ảnh bằng chứng
+            var evidenceUrl = await _fileStorageService.UploadAsync(evidenceImage, $"withdraws/{requestId}/evidence");
+
+            request.AdminNote = (request.AdminNote ?? "") + $"\n[ForceComplete] Admin đã xác minh chuyển khoản thành công. Bằng chứng: {evidenceUrl}" +
+                (string.IsNullOrEmpty(note) ? "" : $" | Ghi chú: {note}");
+
+            // Force complete: trừ frozen + ghi ledger
+            await FinalizeWithdrawCompletedAsync(request, adminUserId);
+
+            await _notificationService.SendAsync(
+                request.UserId,
+                "Rút tiền đã hoàn tất (Admin xác nhận)",
+                $"Yêu cầu rút {request.Amount:N0} VND đã được Admin xác nhận hoàn tất sau khi điều tra. " +
+                "Nếu có thắc mắc, vui lòng liên hệ hỗ trợ.",
+                NotificationType.Wallet);
 
             return MapToWithdrawDto(request, request.User?.FullName);
         }
