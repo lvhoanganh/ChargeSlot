@@ -148,34 +148,38 @@ export default function ScanQR() {
         // Backend trả lỗi — hiện message
         let msg = data?.message || `Lỗi check-in (${res.status})`;
 
-        if (res.status === 400) {
-          showToast.error(msg, 5000);
-          setSteps(prev => prev.map((s, i) =>
-            i === 1 ? { ...s, status: "fail" } : s
-          ));
-          setApiError(msg);
-          return;
-        }
-
-        // Determine which step failed based on error message
         // Time window errors: "Chưa đến giờ check-in", "Đã quá thời gian check-in", etc.
-        if (msg.includes("giờ check-in") || msg.includes("check-in") && msg.includes("giờ") || msg.includes("time window") || msg.includes("quay lại lúc") || msg.includes("đã quá thời gian")) {
-          // Step 2: Time window check failed
+        // → step 2 (Xác thực booking) đã PASS, ❌ ở step 3 (Kiểm tra khung giờ)
+        if (
+          msg.includes("giờ check-in") ||
+          (msg.includes("check-in") && msg.includes("giờ")) ||
+          msg.includes("time window") ||
+          msg.includes("quay lại lúc") ||
+          msg.includes("đã quá thời gian") ||
+          msg.includes("Chưa đến giờ") ||
+          msg.includes("khung giờ")
+        ) {
+          // Step 1 ✅, Step 2 ✅, Step 3 ❌
           setSteps(prev => prev.map((s, i) =>
-            i === 0 ? { ...s, status: "done" } : 
-            i === 1 ? { ...s, status: "done" } : 
+            i === 0 ? { ...s, status: "done" } :
+            i === 1 ? { ...s, status: "done" } :
             i === 2 ? { ...s, status: "fail" } : s
           ));
-        } else if (msg.includes("thanh toán") || msg.includes("Paid") || msg.includes("booking đã thanh toán") || msg.includes("không tìm thấy booking")) {
-          // Step 1: Booking payment verification failed
+        } else if (
+          msg.includes("thanh toán") ||
+          msg.includes("Paid") ||
+          msg.includes("booking đã thanh toán") ||
+          msg.includes("không tìm thấy booking")
+        ) {
+          // Step 1 ✅, Step 2 ❌ (lỗi xác thực booking/payment)
           setSteps(prev => prev.map((s, i) =>
-            i === 0 ? { ...s, status: "done" } : 
+            i === 0 ? { ...s, status: "done" } :
             i === 1 ? { ...s, status: "fail" } : s
           ));
         } else {
-          // Default: Step 1 failed
+          // Default: Step 2 ❌
           setSteps(prev => prev.map((s, i) =>
-            i === 0 ? { ...s, status: "done" } : 
+            i === 0 ? { ...s, status: "done" } :
             i === 1 ? { ...s, status: "fail" } : s
           ));
         }
@@ -333,15 +337,20 @@ export default function ScanQR() {
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
+                      e.target.value = "";
                       try {
                         const scanner = new Html5Qrcode("qr-reader-upload");
                         const result = await scanner.scanFile(file, true);
                         scanner.clear();
                         runCheckIn(result);
-                      } catch (err) {
-                        setCameraError("Không đọc được mã QR từ ảnh. Hãy thử ảnh rõ hơn!");
+                      } catch {
+                        // Không đọc được QR từ ảnh → hiện màn hình validating với ❌ step 1
+                        setValidating(true);
+                        setApiError("Không đọc được mã QR từ ảnh. Hãy thử ảnh rõ hơn!");
+                        setSteps(prev => prev.map((s, i) =>
+                          i === 0 ? { ...s, status: "fail" } : s
+                        ));
                       }
-                      e.target.value = "";
                     }}
                   />
                 </label>

@@ -50,7 +50,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
   const [walletReceivedAlert, setWalletReceivedAlert] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [confirmingInvoice, setConfirmingInvoice] = useState(false); // Xác nhận hóa đơn
-  const [manualCheckinLoading, setManualCheckinLoading] = useState(false); // Manual check-in
+  // const [manualCheckinLoading, setManualCheckinLoading] = useState(false); // Manual check-in — TẠM ẨN
   const [showWalletConfirm, setShowWalletConfirm] = useState(false);
   const initialWalletBalanceRef = useRef(0);
 
@@ -210,22 +210,23 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
     }
   }
 
-  async function handleRequestManualCheckin() {
-    if (!window.confirm(
-      "Bạn có chắc muốn gửi yêu cầu xác nhận thủ công?\n" +
-      "Yêu cầu sẽ gửi tới chủ trạm để họ xác nhận check-in cho bạn."
-    )) return;
-    setManualCheckinLoading(true);
-    try {
-      await chargingApi.requestManualCheckin(Number(id));
-      showToast.success("Đã gửi yêu cầu! Chủ trạm sẽ xác nhận check-in cho bạn.");
-      await fetchBooking();
-    } catch (err) {
-      showToast.error(err.message || "Lỗi gửi yêu cầu manual check-in");
-    } finally {
-      setManualCheckinLoading(false);
-    }
-  }
+  // ── Manual check-in (Driver) — TẠM ẨN ──
+  // async function handleRequestManualCheckin() {
+  //   if (!window.confirm(
+  //     "Bạn có chắc muốn gửi yêu cầu xác nhận thủ công?\n" +
+  //     "Yêu cầu sẽ gửi tới chủ trạm để họ xác nhận check-in cho bạn."
+  //   )) return;
+  //   setManualCheckinLoading(true);
+  //   try {
+  //     await chargingApi.requestManualCheckin(Number(id));
+  //     showToast.success("Đã gửi yêu cầu! Chủ trạm sẽ xác nhận check-in cho bạn.");
+  //     await fetchBooking();
+  //   } catch (err) {
+  //     showToast.error(err.message || "Lỗi gửi yêu cầu manual check-in");
+  //   } finally {
+  //     setManualCheckinLoading(false);
+  //   }
+  // }
 
   if (loading) {
     return (
@@ -656,6 +657,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
             </div>
           </div>
         )}
+        {/* ── Manual check-in card (Driver) — TẠM ẨN ──
         {booking.status === "Paid" && (() => {
           const start = booking.startTime
             ? new Date(String(booking.startTime).replace("Z", "") + "+07:00").getTime()
@@ -690,7 +692,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
               </button>
             </div>
           );
-        })()}
+        })()} */}
 
         {/* Charging session link */}
         {(booking.status === "CheckedIn" || booking.status === "InProgress") && (

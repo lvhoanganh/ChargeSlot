@@ -33,7 +33,7 @@ export default function BookingRequestDetail() {
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
-  const [manualCheckinLoading, setManualCheckinLoading] = useState(false);
+  // const [manualCheckinLoading, setManualCheckinLoading] = useState(false); // TẠM ẨN
 
   useEffect(() => {
     bookingApi.getById(Number(id))
@@ -80,23 +80,24 @@ export default function BookingRequestDetail() {
     }
   }
 
-  async function handleConfirmManualCheckin() {
-    if (!window.confirm(
-      "Xác nhận check-in thủ công cho Driver?\n" +
-      "Hành động này sẽ bắt đầu phiên sạc ngay lập tức."
-    )) return;
-    setManualCheckinLoading(true);
-    try {
-      await chargingApi.confirmManualCheckin(Number(id));
-      showToast.success(" Đã xác nhận check-in thủ công! Phiên sạc bắt đầu.");
-      const updated = await bookingApi.getById(Number(id));
-      setBooking(updated);
-    } catch (err) {
-      showToast.error(err.message || "Lỗi xác nhận check-in thủ công");
-    } finally {
-      setManualCheckinLoading(false);
-    }
-  }
+  // ── Manual check-in (Owner) — TẠM ẨN ──
+  // async function handleConfirmManualCheckin() {
+  //   if (!window.confirm(
+  //     "Xác nhận check-in thủ công cho Driver?\n" +
+  //     "Hành động này sẽ bắt đầu phiên sạc ngay lập tức."
+  //   )) return;
+  //   setManualCheckinLoading(true);
+  //   try {
+  //     await chargingApi.confirmManualCheckin(Number(id));
+  //     showToast.success(" Đã xác nhận check-in thủ công! Phiên sạc bắt đầu.");
+  //     const updated = await bookingApi.getById(Number(id));
+  //     setBooking(updated);
+  //   } catch (err) {
+  //     showToast.error(err.message || "Lỗi xác nhận check-in thủ công");
+  //   } finally {
+  //     setManualCheckinLoading(false);
+  //   }
+  // }
 
   if (loading) {
     return (
@@ -163,7 +164,7 @@ export default function BookingRequestDetail() {
         </div>
       )}
 
-      {/* Manual Check-in confirm — khi Driver yêu cầu xác nhận thủ công */}
+      {/* ── Manual check-in card (Owner) — TẠM ẨN ──
       {booking.status === "Paid" && (
         <div style={{ marginBottom: 12 }}>
           <div style={{
@@ -186,6 +187,7 @@ export default function BookingRequestDetail() {
           </button>
         </div>
       )}
+      */}
 
       {/* Owner cancel — cho booking đã Paid hoặc PendingPayment */}
       {(booking.status === "Paid" || booking.status === "PendingPayment") && (
