@@ -47,6 +47,14 @@ export default function EditDriverProfile() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [originalEmail, setOriginalEmail] = useState("");
+  const [fullName, setFullName] = useState(() => {
+    const direct = localStorage.getItem("fullName") || "";
+    if (direct) return direct;
+    try {
+      const map = JSON.parse(localStorage.getItem("userInfoByPhone") || "{}");
+      return map?.[phoneNumber]?.fullName || "";
+    } catch { return ""; }
+  });
 
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
@@ -68,6 +76,7 @@ export default function EditDriverProfile() {
         const currentEmail = meData?.email || "";
         setOriginalEmail(currentEmail);
 
+        if (p?.fullName) setFullName(p.fullName);
         reset({
           fullName: p?.fullName || "",
           email: currentEmail,
@@ -192,7 +201,7 @@ export default function EditDriverProfile() {
                 Chỉnh sửa hồ sơ
               </h1>
               <p className="text-white/80 text-sm">
-                {maskPhone(phoneNumber) || "Chưa cập nhật số điện thoại"}
+                {fullName || "Chưa cập nhật họ tên"}
               </p>
               <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
                  Tài xế

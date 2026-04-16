@@ -45,6 +45,7 @@ export default function EditOwnerProfile() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [originalEmail, setOriginalEmail] = useState("");
+  const [fullName, setFullName] = useState(() => getStoredFullName(phoneNumber));
 
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
@@ -66,6 +67,7 @@ export default function EditOwnerProfile() {
         const currentEmail = meData?.email || "";
         setOriginalEmail(currentEmail);
 
+        if (p?.fullName) setFullName(p.fullName);
         reset({
           fullName: getStoredFullName(phoneNumber),
           email: currentEmail,
@@ -191,7 +193,7 @@ export default function EditOwnerProfile() {
                 Chỉnh sửa hồ sơ
               </h1>
               <p className="text-white/80 text-sm">
-                {maskPhone(phoneNumber) || "Chưa cập nhật số điện thoại"}
+                {fullName || "Chưa cập nhật họ tên"}
               </p>
               <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
                  Chủ trạm

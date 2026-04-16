@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
-import { useState } from "react";
-import { adminProfileApi } from "@/services/api";
+import { useState, useEffect } from "react";
+import { adminProfileApi, authApi } from "@/services/api";
 import { ShieldCheck, Phone } from "lucide-react";
 
 const DEFAULT_AVATAR =
@@ -22,6 +22,22 @@ export default function EditAdminProfile() {
     () => getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR,
   );
   const [saving, setSaving] = useState(false);
+  const [fullName, setFullName] = useState(() => {
+    const direct = localStorage.getItem("fullName") || "";
+    if (direct) return direct;
+    try {
+      const map = JSON.parse(localStorage.getItem("userInfoByPhone") || "{}");
+      return map?.[phoneNumber]?.fullName || "";
+    } catch { return ""; }
+  });
+
+  useEffect(() => {
+    authApi.getMe()
+      .then(res => {
+        if (res?.name || res?.fullName) setFullName(res.name || res.fullName);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleAvatarChange = async (e) => {
     const file = e?.target?.files?.[0];
@@ -104,7 +120,7 @@ export default function EditAdminProfile() {
                 Chỉnh sửa hồ sơ
               </h1>
               <p className="text-white/80 text-sm">
-                {maskPhone(phoneNumber) || "Chưa cập nhật số điện thoại"}
+                {fullName || "Chưa cập nhật họ tên"}
               </p>
               <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
                 ️ Quản trị viên
