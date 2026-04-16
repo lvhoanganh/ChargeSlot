@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { disputeApi } from "@/services/api";
+import Pagination from "@/components/Pagination";
 
 const STATUS_MAP = {
   WaitingOwnerEvidence: { label: "Chờ Owner phản hồi", color: "#f97316", bg: "#fff7ed", icon: "" },
@@ -22,18 +23,23 @@ export default function DriverDisputeList() {
   const [filter, setFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 20;
 
   useEffect(() => {
+    setLoading(true);
     disputeApi
-      .getMyDisputes()
+      .getMyDisputes(page, PAGE_SIZE)
       .then((data) => {
         // BE trả { total, page, pageSize, items } — phải unpack .items
         const list = data?.items ?? (Array.isArray(data) ? data : []);
         setDisputes(list);
+        setTotalCount(data?.totalCount ?? data?.total ?? list.length);
       })
       .catch((e) => setError(e?.message || "Không thể tải danh sách khiếu nại."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   const filtered = disputes.filter((d) => {
     if (filter !== "all" && d.status !== filter) return false;
@@ -246,6 +252,12 @@ export default function DriverDisputeList() {
                 </div>
               );
             })}
+            <Pagination
+              page={page}
+              totalCount={totalCount}
+              pageSize={PAGE_SIZE}
+              onPageChange={(p) => { setPage(p); }}
+            />
           </div>
         )}
       </div>

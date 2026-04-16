@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { stationApi, reviewApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+import Pagination from "@/components/Pagination";
 
 const STARS = [1, 2, 3, 4, 5];
 
@@ -18,6 +19,8 @@ export default function OwnerReviews() {
   const [reviews, setReviews] = useState([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 10;
   const [replyingId, setReplyingId] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
@@ -41,10 +44,12 @@ export default function OwnerReviews() {
     setReviewLoading(true);
     Promise.all([
       reviewApi.getSummary(station.id).catch(() => null),
-      reviewApi.getByStation(station.id, 1, 20).catch(() => []),
+      reviewApi.getByStation(station.id, 1, PAGE_SIZE).catch(() => []),
     ]).then(([sum, revs]) => {
       setSummary(sum);
-      setReviews(Array.isArray(revs) ? revs : revs?.items || []);
+      const list = Array.isArray(revs) ? revs : revs?.items || [];
+      setReviews(list);
+      setTotalCount(revs?.totalCount ?? revs?.total ?? list.length);
     }).finally(() => setReviewLoading(false));
   }
 
@@ -57,8 +62,10 @@ export default function OwnerReviews() {
       setReplyingId(null);
       setReplyText("");
       // Reload reviews
-      const revs = await reviewApi.getByStation(selectedStation.id, 1, 20).catch(() => []);
-      setReviews(Array.isArray(revs) ? revs : revs?.items || []);
+      const revs = await reviewApi.getByStation(selectedStation.id, page, PAGE_SIZE).catch(() => []);
+      const list = Array.isArray(revs) ? revs : revs?.items || [];
+      setReviews(list);
+      setTotalCount(revs?.totalCount ?? revs?.total ?? list.length);
     } catch (err) {
       showToast.error(err?.message || "Lỗi gửi phản hồi");
     } finally {
@@ -283,6 +290,24 @@ export default function OwnerReviews() {
                 )}
               </div>
             ))}
+            <Pagination
+              page={page}
+              totalCount={totalCount}
+              pageSize={PAGE_SIZE}
+              onPageChange={async (p) => {
+                setPage(p);
+                if (!selectedStation) return;
+                setReviewLoading(true);
+                try {
+                  const revs = await reviewApi.getByStation(selectedStation.id, p, PAGE_SIZE);
+                  const list = Array.isArray(revs) ? revs : revs?.items || [];
+                  setReviews(list);
+                  setTotalCount(revs?.totalCount ?? revs?.total ?? list.length);
+                } finally {
+                  setReviewLoading(false);
+                }
+              }}
+            />
           </div>
         )}
       </div>
