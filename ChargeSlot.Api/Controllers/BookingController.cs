@@ -50,17 +50,8 @@ namespace ChargeSlot.Api.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
-            var result = await _bookingService.GetByOwnerAsync(GetUserId());
-            if (!string.IsNullOrEmpty(status))
-                result = result.Where(b => b.Status.Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (fromDate.HasValue)
-                result = result.Where(b => b.CreatedAt >= fromDate.Value.Date).ToList();
-            if (toDate.HasValue)
-                result = result.Where(b => b.CreatedAt < toDate.Value.Date.AddDays(1)).ToList();
-
-            var total = result.Count;
-            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            return Ok(new { total, page, pageSize, items });
+            var result = await _bookingService.GetByOwnerPagedAsync(GetUserId(), status, fromDate, toDate, page, pageSize);
+            return Ok(result);
         }
 
         /// <summary>
@@ -120,17 +111,8 @@ namespace ChargeSlot.Api.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
-            var result = await _bookingService.GetByDriverAsync(GetUserId());
-            if (!string.IsNullOrEmpty(status))
-                result = result.Where(b => b.Status.Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (fromDate.HasValue)
-                result = result.Where(b => b.CreatedAt >= fromDate.Value.Date).ToList();
-            if (toDate.HasValue)
-                result = result.Where(b => b.CreatedAt < toDate.Value.Date.AddDays(1)).ToList();
-
-            var total = result.Count;
-            var items = result.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            return Ok(new { total, page, pageSize, items });
+            var result = await _bookingService.GetByDriverPagedAsync(GetUserId(), status, fromDate, toDate, page, pageSize);
+            return Ok(result);
         }
 
         /// <summary>
@@ -145,23 +127,8 @@ namespace ChargeSlot.Api.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
-            var result = await _bookingService.GetByDriverAsync(GetUserId());
-            var history = result.Where(b =>
-                b.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase) ||
-                b.Status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase) ||
-                b.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase) ||
-                b.Status.Equals("Expired", StringComparison.OrdinalIgnoreCase) ||
-                b.Status.Equals("NoShow", StringComparison.OrdinalIgnoreCase)
-            ).ToList();
-
-            if (fromDate.HasValue)
-                history = history.Where(b => b.CreatedAt >= fromDate.Value.Date).ToList();
-            if (toDate.HasValue)
-                history = history.Where(b => b.CreatedAt < toDate.Value.Date.AddDays(1)).ToList();
-
-            var total = history.Count;
-            var items = history.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            return Ok(new { total, page, pageSize, items });
+            var result = await _bookingService.GetDriverHistoryPagedAsync(GetUserId(), fromDate, toDate, page, pageSize);
+            return Ok(result);
         }
 
         /// <summary>

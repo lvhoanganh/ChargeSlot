@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.DTOs.Booking;
+using ChargeSlot.Api.DTOs;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
@@ -948,16 +949,40 @@ namespace ChargeSlot.Api.Services.Implementation
             return result;
         }
 
-        public async Task<List<BookingDto>> GetByDriverAsync(int driverUserId)
+        public async Task<PagedResultDto<BookingDto>> GetByDriverPagedAsync(int driverUserId, string? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize)
         {
-            var bookings = await _bookingRepo.GetByDriverAsync(driverUserId);
-            return bookings.Select(MapToDto).ToList();
+            var result = await _bookingRepo.GetByDriverPagedAsync(driverUserId, status, fromDate, toDate, page, pageSize);
+            return new PagedResultDto<BookingDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
         }
 
-        public async Task<List<BookingDto>> GetByOwnerAsync(int ownerUserId)
+        public async Task<PagedResultDto<BookingDto>> GetDriverHistoryPagedAsync(int driverUserId, DateTime? fromDate, DateTime? toDate, int page, int pageSize)
         {
-            var bookings = await _bookingRepo.GetByOwnerAsync(ownerUserId);
-            return bookings.Select(MapToDto).ToList();
+            var result = await _bookingRepo.GetDriverHistoryPagedAsync(driverUserId, fromDate, toDate, page, pageSize);
+            return new PagedResultDto<BookingDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
+        }
+
+        public async Task<PagedResultDto<BookingDto>> GetByOwnerPagedAsync(int ownerUserId, string? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize)
+        {
+            var result = await _bookingRepo.GetByOwnerPagedAsync(ownerUserId, status, fromDate, toDate, page, pageSize);
+            return new PagedResultDto<BookingDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
         }
 
         private static BookingDto MapToDto(Booking b)
@@ -1196,14 +1221,14 @@ namespace ChargeSlot.Api.Services.Implementation
             return Math.Round(total, 0);
         }
 
-        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<BookingDto>> GetAdminAllBookingsAsync(ChargeSlot.Api.DTOs.Admin.Overview.BookingFilterDto filter)
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<BookingDto>> GetAdminAllBookingsAsync(ChargeSlot.Api.DTOs.Admin.Overview.BookingFilterDto filter)
         {
             var result = await _bookingRepo.GetAdminBookingsPagedAsync(filter);
             
-            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<BookingDto>
+            return new ChargeSlot.Api.DTOs.PagedResultDto<BookingDto>
             {
                 Items = result.Items.Select(MapToDto).ToList(),
-                TotalCount = result.TotalCount,
+                TotalItems = result.TotalCount,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };

@@ -17,8 +17,6 @@ namespace ChargeSlot.Api.Models
         // ─── KYC & LEGAL VERIFICATION (All Owners are Businesses) ───
         public string? IdCardNumber { get; set; }
         public string? IdCardDate { get; set; } // Ngày cấp
-        public string? FrontIdCardUrl { get; set; }
-        public string? BackIdCardUrl { get; set; }
 
         public string? BusinessLicenseNumber { get; set; }
         public string? BusinessLicenseUrl { get; set; }
@@ -35,8 +33,6 @@ namespace ChargeSlot.Api.Models
         // ─── KYC UPDATE SNAPSHOT (giữ data cũ khi Owner cập nhật, dùng để rollback nếu bị reject) ───
         public string? PrevIdCardNumber { get; set; }
         public string? PrevIdCardDate { get; set; }
-        public string? PrevFrontIdCardUrl { get; set; }
-        public string? PrevBackIdCardUrl { get; set; }
         public string? PrevBusinessName { get; set; }
         public string? PrevBusinessLicenseNumber { get; set; }
         public string? PrevBusinessLicenseUrl { get; set; }

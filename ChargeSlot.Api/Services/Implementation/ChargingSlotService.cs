@@ -48,6 +48,20 @@ namespace ChargeSlot.Api.Services.Implementation
             return slots.Select(MapToDto).ToList();
         }
 
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<ChargingSlotDto>> GetAllByStationPagedAsync(int stationId, int ownerUserId, int page, int pageSize)
+        {
+            await ValidateStationOwnershipAsync(stationId, ownerUserId);
+
+            var result = await _slotRepo.GetAllByStationPagedAsync(stationId, page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<ChargingSlotDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
+        }
+
         public async Task<ChargingSlotDto> CreateAsync(int stationId, int ownerUserId, CreateChargingSlotDto dto)
         {
             var station = await _stationRepo.GetByIdAsync(stationId, includeDetails: false);

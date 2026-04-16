@@ -65,6 +65,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                 var ledgerRepo = innerScope.ServiceProvider.GetRequiredService<ILedgerTransactionRepository>();
                 var notificationService = innerScope.ServiceProvider.GetRequiredService<INotificationService>();
                 var adminAccountRepo = innerScope.ServiceProvider.GetRequiredService<IAdminAccountRepository>();
+                var driverRepo = innerScope.ServiceProvider.GetRequiredService<IDriverRepository>();
+                var loyaltyTxRepo = innerScope.ServiceProvider.GetRequiredService<ILoyaltyTransactionRepository>();
 
                 using var transaction = await unitOfWork.BeginTransactionAsync();
                 try
@@ -94,8 +96,8 @@ namespace ChargeSlot.Api.BackgroundJobs
 
                     await unitOfWork.CompleteAsync();
 
-                    // Refund: ESCROW.FrozenBalance → Driver
-                    await RefundToDriverAsync(walletRepo, ledgerRepo, unitOfWork, dispute.Booking, dispute);
+                    // Refund: ESCROW.FrozenBalance → Driver + Hoàn Loyalty Points
+                    await RefundToDriverAsync(walletRepo, ledgerRepo, unitOfWork, driverRepo, loyaltyTxRepo, dispute.Booking, dispute);
 
                     await transaction.CommitAsync(ct);
 
@@ -237,7 +239,9 @@ namespace ChargeSlot.Api.BackgroundJobs
             }
         }
 
-        private async Task RefundToDriverAsync(IWalletRepository walletRepo, ILedgerTransactionRepository ledgerRepo, IUnitOfWork unitOfWork, Booking booking, Dispute dispute)
+        private async Task RefundToDriverAsync(IWalletRepository walletRepo, ILedgerTransactionRepository ledgerRepo, IUnitOfWork unitOfWork,
+            IDriverRepository driverRepo, ILoyaltyTransactionRepository loyaltyTxRepo,
+            Booking booking, Dispute dispute)
         {
             var now = DateTimeHelper.VietnamNow();
             var escrowWallet = await walletRepo.GetBySystemCodeAsync("ESCROW")
@@ -257,8 +261,10 @@ namespace ChargeSlot.Api.BackgroundJobs
             }
 
             var refundAmount = booking.TotalAmount;
-            escrowWallet.FrozenBalance -= refundAmount;
-            driverWallet.AvailableBalance += refundAmount;
+
+            // Unfreeze from ESCROW.FrozenBalance → refund to Driver (Atomic via Repository)
+            await walletRepo.AdjustBalanceAtomicAsync(escrowWallet.Id, 0, -refundAmount);
+            await walletRepo.AdjustBalanceAtomicAsync(driverWallet.Id, refundAmount, 0);
 
             ledgerRepo.Add(new LedgerTransaction
             {
@@ -273,6 +279,24 @@ namespace ChargeSlot.Api.BackgroundJobs
                 }
             });
             await unitOfWork.CompleteAsync();
+
+            // Hoàn Loyalty Points nếu booking đã dùng điểm
+            if (booking.PointsUsed > 0 && booking.Driver != null)
+            {
+                booking.Driver.LoyaltyPoints += booking.PointsUsed;
+                driverRepo.Update(booking.Driver);
+
+                loyaltyTxRepo.Add(new LoyaltyTransaction
+                {
+                    DriverUserId = booking.DriverUserId,
+                    BookingId = booking.Id,
+                    Type = "Refund",
+                    Points = booking.PointsUsed,
+                    Description = $"Hoàn {booking.PointsUsed:N0} điểm (thắng khiếu nại tự động #{dispute.Id})",
+                    CreatedAt = now
+                });
+                await unitOfWork.CompleteAsync();
+            }
         }
 
         private async Task SettleToOwnerAsync(IWalletRepository walletRepo, ILedgerTransactionRepository ledgerRepo, IUnitOfWork unitOfWork, Booking booking, Invoice invoice, Dispute dispute)
@@ -304,13 +328,31 @@ namespace ChargeSlot.Api.BackgroundJobs
             var platformFee = invoice.PlatformFee;
             var vatAmount = invoice.VatAmount;
 
-            // Unfreeze ALL from ESCROW.FrozenBalance
-            escrowWallet.FrozenBalance -= (ownerNet + platformFee + vatAmount);
+            // 0. Bù tiền bảo trợ Điểm thưởng vào ESCROW trước khi settle (Atomic via Repository)
+            if (booking.PointsDiscountAmount > 0)
+            {
+                await walletRepo.TransferAtomicAsync(platformWallet.Id, escrowWallet.Id, booking.PointsDiscountAmount);
 
-            // Distribute: Owner + Platform + TAX_HOLD
-            ownerWallet.AvailableBalance += ownerNet;
-            platformWallet.AvailableBalance += platformFee;
-            taxWallet.AvailableBalance += vatAmount;
+                ledgerRepo.Add(new LedgerTransaction
+                {
+                    ReferenceType = "PointsSubsidy",
+                    ReferenceId = booking.Id,
+                    Memo = $"Nền tảng bù {booking.PointsDiscountAmount:N0}đ chiết khấu điểm thưởng cho Dispute #{dispute.Id}",
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Debit, Amount = booking.PointsDiscountAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Credit, Amount = booking.PointsDiscountAmount, CreatedAt = now }
+                    }
+                });
+                await unitOfWork.CompleteAsync();
+            }
+
+            // 1. Unfreeze ALL from ESCROW.FrozenBalance (Atomic via Repository)
+            await walletRepo.UnfreezeAtomicAsync(escrowWallet.Id, ownerNet + platformFee + vatAmount);
+
+            // 2. ESCROW → Owner (Atomic via Repository)
+            await walletRepo.TransferAtomicAsync(escrowWallet.Id, ownerWallet.Id, ownerNet);
 
             ledgerRepo.Add(new LedgerTransaction
             {
@@ -324,6 +366,10 @@ namespace ChargeSlot.Api.BackgroundJobs
                     new LedgerEntry { WalletId = ownerWallet.Id, Direction = LedgerDirection.Credit, Amount = ownerNet, CreatedAt = now }
                 }
             });
+            await unitOfWork.CompleteAsync();
+
+            // 3. ESCROW → PLATFORM_REVENUE (Atomic via Repository)
+            await walletRepo.TransferAtomicAsync(escrowWallet.Id, platformWallet.Id, platformFee);
 
             ledgerRepo.Add(new LedgerTransaction
             {
@@ -337,10 +383,13 @@ namespace ChargeSlot.Api.BackgroundJobs
                     new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
                 }
             });
+            await unitOfWork.CompleteAsync();
 
-            // VAT → TAX_HOLD
+            // 4. ESCROW → TAX_HOLD (Atomic via Repository)
             if (vatAmount > 0)
             {
+                await walletRepo.TransferAtomicAsync(escrowWallet.Id, taxWallet.Id, vatAmount);
+
                 ledgerRepo.Add(new LedgerTransaction
                 {
                     ReferenceType = "TaxHold",
@@ -353,9 +402,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                         new LedgerEntry { WalletId = taxWallet.Id, Direction = LedgerDirection.Credit, Amount = vatAmount, CreatedAt = now }
                     }
                 });
+                await unitOfWork.CompleteAsync();
             }
-
-            await unitOfWork.CompleteAsync();
         }
     }
 }

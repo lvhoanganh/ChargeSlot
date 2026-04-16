@@ -100,6 +100,7 @@ namespace ChargeSlot.Api.Services.Implementation
             booking.CheckedInAt = now;
             booking.UpdatedAt = now;
             _bookingRepo.Update(booking);
+            await _unitOfWork.CompleteAsync();
 
             // 6. Create charging session
             var actualStartTime = now < booking.StartTime ? booking.StartTime : now; 
@@ -111,15 +112,17 @@ namespace ChargeSlot.Api.Services.Implementation
                 CreatedAt = now 
             };
             _sessionRepo.Add(session);
+            await _unitOfWork.CompleteAsync();
 
             // 7. Update slot status to Booked
             var slotEntity = await _slotRepo.GetByIdAsync(slot.Id, tracking: true);
             if (slotEntity != null)
             {
                 slotEntity.Status = SlotStatus.Booked;
-                slotEntity.UpdatedAt = now;           
+                slotEntity.UpdatedAt = now;
+                await _unitOfWork.CompleteAsync();
             }
-            await _unitOfWork.CompleteAsync();
+           
             // 8. Notify Owner
             await _notificationService.SendAsync(
                 slot.ChargingStation.OwnerUserId,
@@ -245,6 +248,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<ChargingSessionDto> RequestEarlyEndAsync(int driverUserId, int sessionId)
         {
+            var now = DateTimeHelper.VietnamNow();
             var session = await _sessionRepo.GetByIdWithDetailsAsync(sessionId)
                 ?? throw new InvalidOperationException("Session không tồn tại.");
 
@@ -255,6 +259,9 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (booking.Status != BookingStatus.CheckedIn)
                 throw new InvalidOperationException("Booking không ở trạng thái đang sạc.");
+
+            if (now < session.ActualStartTime)
+                throw new InvalidOperationException("Chưa đến thời gian sạc, không thể yêu cầu dừng sớm");
 
             if (booking.EarlyEndRequestedAt.HasValue)
                 throw new InvalidOperationException("Bạn đã yêu cầu kết thúc sớm rồi.");
@@ -775,27 +782,27 @@ namespace ChargeSlot.Api.Services.Implementation
             }
         }
 
-        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<ChargingSessionDto>> GetAdminAllSessionsAsync(ChargeSlot.Api.DTOs.Admin.Overview.SessionFilterDto filter)
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<ChargingSessionDto>> GetAdminAllSessionsAsync(ChargeSlot.Api.DTOs.Admin.Overview.SessionFilterDto filter)
         {
             var result = await _sessionRepo.GetAdminAllSessionsAsync(filter);
             
-            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<ChargingSessionDto>
+            return new ChargeSlot.Api.DTOs.PagedResultDto<ChargingSessionDto>
             {
                 Items = result.Items.Select(s => MapToDto(s, s.Booking)).ToList(),
-                TotalCount = result.TotalCount,
+                TotalItems = result.TotalCount,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };
         }
 
-        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<InvoiceDto>> GetAdminAllInvoicesAsync(ChargeSlot.Api.DTOs.Admin.Overview.InvoiceFilterDto filter)
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<InvoiceDto>> GetAdminAllInvoicesAsync(ChargeSlot.Api.DTOs.Admin.Overview.InvoiceFilterDto filter)
         {
             var result = await _invoiceRepo.GetAdminAllInvoicesAsync(filter);
             
-            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<InvoiceDto>
+            return new ChargeSlot.Api.DTOs.PagedResultDto<InvoiceDto>
             {
                 Items = result.Items.Select(MapToInvoiceDto).ToList(),
-                TotalCount = result.TotalCount,
+                TotalItems = result.TotalCount,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };

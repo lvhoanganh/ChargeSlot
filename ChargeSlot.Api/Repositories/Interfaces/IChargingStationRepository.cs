@@ -7,8 +7,11 @@ namespace ChargeSlot.Api.Repositories.Interfaces
     {
         Task<ChargingStation?> GetByIdAsync(int id, bool tracking = false, bool includeDetails = true);
         Task<List<ChargingStation>> GetAllByOwnerAsync(int ownerUserId);
+        Task<(List<ChargingStation> Items, int TotalCount)> GetAllByOwnerPagedAsync(int ownerUserId, int page, int pageSize);
         Task<List<ChargingStation>> GetByApprovalStatusAsync(ApprovalStatus status);
+        Task<(List<ChargingStation> Items, int TotalCount)> GetByApprovalStatusPagedAsync(ApprovalStatus status, int page, int pageSize);
         Task<List<ChargingStation>> GetPublicStationsAsync(string? keyword, decimal? minRating);
+        Task<(List<ChargingStation> Items, int TotalCount)> GetPublicStationsPagedAsync(string? keyword, decimal? minRating, int page, int pageSize);
         Task<List<ChargingStation>> GetPublicStationsWithCoordinatesAsync();
         Task AddAsync(ChargingStation station);
         void Update(ChargingStation station);

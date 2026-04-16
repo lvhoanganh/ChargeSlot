@@ -82,9 +82,9 @@ namespace ChargeSlot.Api.Controllers
             }
         }
 
-        // PATCH: api/AdminAccounts/{id}/toggle-ban
-        [HttpPatch("{id:int}/toggle-ban")]
-        public async Task<IActionResult> ToggleBan([FromRoute] int id)
+        // POST: api/AdminAccounts/{id}/toggle-ban
+        [HttpPost("{id:int}/toggle-ban")]
+        public async Task<IActionResult> ToggleBan([FromRoute] int id, [FromBody] ChargeSlot.Api.DTOs.Admin.ToggleBanDto dto)
         {
             try
             {
@@ -92,7 +92,7 @@ namespace ChargeSlot.Api.Controllers
                 if (!int.TryParse(adminIdStr, out var adminId))
                     return BadRequest(new { message = "Invalid token." });
 
-                var newStatus = await _adminAccountService.ToggleBanStatusAsync(id, adminId);
+                var newStatus = await _adminAccountService.ToggleBanStatusAsync(id, adminId, dto.Reason);
 
                 return Ok(new
                 {
@@ -194,4 +194,4 @@ namespace ChargeSlot.Api.Controllers
             }
         }
     }
-}
+}

@@ -23,17 +23,21 @@ namespace ChargeSlot.Api.Controllers
 
         /// <summary>Xem danh sách yêu cầu rút tiền đang chờ duyệt</summary>
         [HttpGet("pending")]
-        public async Task<IActionResult> GetPendingWithdraws()
+        public async Task<IActionResult> GetPendingWithdraws(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var result = await _walletService.GetAllPendingWithdrawsAsync();
+            var result = await _walletService.GetAllPendingWithdrawsPagedAsync(page, pageSize);
             return Ok(result);
         }
 
         /// <summary>Xem tất cả yêu cầu rút tiền (mọi trạng thái)</summary>
         [HttpGet]
-        public async Task<IActionResult> GetAllWithdraws()
+        public async Task<IActionResult> GetAllWithdraws(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var result = await _walletService.GetAllWithdrawsAsync();
+            var result = await _walletService.GetAllWithdrawsPagedAsync(page, pageSize);
             return Ok(result);
         }
 

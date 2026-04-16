@@ -348,6 +348,19 @@ namespace ChargeSlot.Api.Services.Implementation
             return requests.Select(r => MapToWithdrawDto(r, user?.FullName)).ToList();
         }
 
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>> GetUserWithdrawRequestsPagedAsync(int userId, int page, int pageSize)
+        {
+            var result = await _withdrawRepo.GetByUserIdPagedAsync(userId, page, pageSize);
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            return new ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(r => MapToWithdrawDto(r, user?.FullName)).ToList()
+            };
+        }
+
         /// <summary>
         /// Admin xem tất cả yêu cầu rút tiền pending
         /// </summary>
@@ -355,6 +368,18 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             var requests = await _withdrawRepo.GetPendingAsync();
             return requests.Select(r => MapToWithdrawDto(r, r.User?.FullName)).ToList();
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>> GetAllPendingWithdrawsPagedAsync(int page, int pageSize)
+        {
+            var result = await _withdrawRepo.GetPendingPagedAsync(page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(r => MapToWithdrawDto(r, r.User?.FullName)).ToList()
+            };
         }
 
         /// <summary>
@@ -387,11 +412,9 @@ namespace ChargeSlot.Api.Services.Implementation
             }
             else
             {
-                // Reject: trả lại tiền frozen → available
-                wallet.FrozenBalance -= request.Amount;
-                wallet.AvailableBalance += request.Amount;
+                // Reject: trả lại tiền frozen → available (Atomic via Repository)
+                await _walletRepo.UnfreezeAtomicAsync(wallet.Id, request.Amount);
                 request.Status = WithdrawStatus.Rejected;
-                _walletRepo.Update(wallet);
 
                 await _notificationService.SendAsync(
                     request.UserId,
@@ -416,6 +439,18 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             var requests = await _withdrawRepo.GetAllWithUserAsync();
             return requests.Select(r => MapToWithdrawDto(r, r.User?.FullName)).ToList();
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>> GetAllWithdrawsPagedAsync(int page, int pageSize)
+        {
+            var result = await _withdrawRepo.GetAllWithUserPagedAsync(page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(r => MapToWithdrawDto(r, r.User?.FullName)).ToList()
+            };
         }
 
         /// <summary>
@@ -520,12 +555,10 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (refund)
             {
-                // Hoàn tiền: frozen → available, status = Rejected
+                // Hoàn tiền: frozen → available, status = Rejected (Atomic via Repository)
                 var wallet = request.Wallet;
-                wallet.FrozenBalance -= request.Amount;
-                wallet.AvailableBalance += request.Amount;
+                await _walletRepo.UnfreezeAtomicAsync(wallet.Id, request.Amount);
                 request.Status = WithdrawStatus.Rejected;
-                _walletRepo.Update(wallet);
 
                 await _notificationService.SendAsync(
                     request.UserId,
@@ -561,7 +594,8 @@ namespace ChargeSlot.Api.Services.Implementation
             var wallet = request.Wallet ?? await _walletRepo.GetByIdAsync(request.WalletId)
                 ?? throw new InvalidOperationException("Không tìm thấy ví tương ứng để cập nhật.");
 
-            wallet.FrozenBalance -= request.Amount;
+            // Trừ frozen balance (Atomic via Repository)
+            await _walletRepo.AdjustBalanceAtomicAsync(wallet.Id, 0, -request.Amount);
             request.Status = WithdrawStatus.Completed;
             if (request.UserConfirmedAt == null)
                 request.UserConfirmedAt = DateTimeHelper.VietnamNow(); // auto-confirm
@@ -569,14 +603,14 @@ namespace ChargeSlot.Api.Services.Implementation
             // Ghi ledger: DEBIT CLEARING → out (tiền rời hệ thống)
             var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING")
                 ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
-            clearingWallet.AvailableBalance -= request.Amount;
+            await _walletRepo.AdjustBalanceAtomicAsync(clearingWallet.Id, -request.Amount, 0);
 
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "WithdrawCompleted",
                 ReferenceId = request.Id,
                 Memo = $"Rút {request.Amount:N0} VND → {request.BankName} - {request.BankAccountNumber} (hoàn tất)",
-                CreatedByUserId = confirmedByUserId ?? 0,
+                CreatedByUserId = confirmedByUserId,
                 CreatedAt = DateTimeHelper.VietnamNow(),
                 Entries = new List<LedgerEntry>
                 {
@@ -590,8 +624,6 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             };
             _ledgerRepo.Add(ledgerTx);
-            _walletRepo.Update(clearingWallet);
-            _walletRepo.Update(wallet);
             _withdrawRepo.Update(request);
             await _unitOfWork.CompleteAsync();
         }
@@ -692,20 +724,20 @@ namespace ChargeSlot.Api.Services.Implementation
             };
         }
 
-        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<WalletDto>> GetAdminAllWalletsAsync(ChargeSlot.Api.DTOs.Admin.Overview.WalletFilterDto filter)
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<WalletDto>> GetAdminAllWalletsAsync(ChargeSlot.Api.DTOs.Admin.Overview.WalletFilterDto filter)
         {
             var result = await _walletRepo.GetAdminAllWalletsAsync(filter);
             
-            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<WalletDto>
+            return new ChargeSlot.Api.DTOs.PagedResultDto<WalletDto>
             {
                 Items = result.Items.Select(MapToDto).ToList(),
-                TotalCount = result.TotalCount,
+                TotalItems = result.TotalCount,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };
         }
 
-        public async Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<TransactionHistoryDto>> GetAdminWalletTransactionsAsync(int walletId, ChargeSlot.Api.DTOs.Admin.Overview.TransactionFilterDto filter)
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<TransactionHistoryDto>> GetAdminWalletTransactionsAsync(int walletId, ChargeSlot.Api.DTOs.Admin.Overview.TransactionFilterDto filter)
         {
             var result = await _ledgerRepo.GetAdminWalletTransactionsAsync(walletId, filter);
 
@@ -719,10 +751,10 @@ namespace ChargeSlot.Api.Services.Implementation
                 CreatedAt = e.CreatedAt
             }).ToList();
 
-            return new ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<TransactionHistoryDto>
+            return new ChargeSlot.Api.DTOs.PagedResultDto<TransactionHistoryDto>
             {
                 Items = dtoList,
-                TotalCount = result.TotalCount,
+                TotalItems = result.TotalCount,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };

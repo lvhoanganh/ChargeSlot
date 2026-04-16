@@ -44,6 +44,14 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
+        public async Task<(List<WithdrawRequest> Items, int TotalCount)> GetByUserIdPagedAsync(int userId, int page, int pageSize)
+        {
+            var query = _context.WithdrawRequests.Where(r => r.UserId == userId);
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(r => r.RequestedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            return (items, totalCount);
+        }
+
         public async Task<List<WithdrawRequest>> GetPendingAsync()
         {
             return await _context.WithdrawRequests
@@ -51,6 +59,14 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Where(r => r.Status == WithdrawStatus.Pending)
                 .OrderBy(r => r.RequestedAt)
                 .ToListAsync();
+        }
+
+        public async Task<(List<WithdrawRequest> Items, int TotalCount)> GetPendingPagedAsync(int page, int pageSize)
+        {
+            var query = _context.WithdrawRequests.Include(r => r.User).Where(r => r.Status == WithdrawStatus.Pending);
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderBy(r => r.RequestedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            return (items, totalCount);
         }
 
         public async Task<WithdrawRequest?> GetByIdWithUserAndWalletAsync(int id)
@@ -74,6 +90,14 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Include(r => r.User)
                 .OrderByDescending(r => r.RequestedAt)
                 .ToListAsync();
+        }
+
+        public async Task<(List<WithdrawRequest> Items, int TotalCount)> GetAllWithUserPagedAsync(int page, int pageSize)
+        {
+            var query = _context.WithdrawRequests.Include(r => r.User);
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(r => r.RequestedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            return (items, totalCount);
         }
         public async Task<List<int>> GetExpiredTransferCompletedIdsAsync(DateTime deadline)
         {

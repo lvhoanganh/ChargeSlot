@@ -292,18 +292,9 @@ namespace ChargeSlot.Api.Services.Implementation
                         if (driverUser.Status != Constants.UserStatusConstants.Banned && driverUser.BannedUntil == null)
                         {
                             driverUser.BanCount += 1;
-                            if (driverUser.BanCount == 1)
-                            {
-                                driverUser.Status = Constants.UserStatusConstants.Suspended;
-                                driverUser.BannedUntil = now.AddDays(30);
-                                await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị đình chỉ", "Tài khoản bị đình chỉ 30 ngày do vi phạm chính sách khiếu nại (thua quá 3 lần/tháng).", NotificationType.System);
-                            }
-                            else
-                            {
-                                driverUser.Status = Constants.UserStatusConstants.Banned;
-                                driverUser.BannedUntil = null;
-                                await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị khóa vĩnh viễn", "Tài khoản bị khóa vĩnh viễn do lạm dụng bộ phận CSKH nhiều lần.", NotificationType.System);
-                            }
+                            driverUser.Status = Constants.UserStatusConstants.Suspended;
+                            driverUser.BannedUntil = now.AddDays(30);
+                            await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị đình chỉ", "Tài khoản bị đình chỉ 30 ngày do vi phạm chính sách khiếu nại (thua quá 3 lần/tháng).", NotificationType.System);
                             
                             await _userManager.UpdateAsync(driverUser);
 
@@ -333,22 +324,14 @@ namespace ChargeSlot.Api.Services.Implementation
                     {
                         var station = dispute.Booking.ChargingSlot?.ChargingStation;
                         
-                        // Đảm bảo không phạt dồn lặp lại nếu trạm đang trong thời gian phạt hoặc đã bị cấm vĩnh viễn
-                        if (station != null && station.BannedUntil == null && station.BanCount < 2)
+                        // Đảm bảo không phạt dồn lặp lại nếu trạm đang trong thời gian phạt
+                        if (station != null && station.BannedUntil == null)
                         {
                             station.BanCount += 1;
-                            if (station.BanCount == 1)
-                            {
-                                station.OperationalStatus = OperationalStatus.Inactive;
-                                station.BannedUntil = now.AddDays(30);
-                                await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị đình chỉ", $"Trạm {station.Name} bị đình chỉ 30 ngày do lượng khiếu nại quá cao (>= 5 lần/tháng).", NotificationType.System);
-                            }
-                            else
-                            {
-                                station.OperationalStatus = OperationalStatus.Inactive;
-                                station.BannedUntil = null;
-                                await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị khóa vĩnh viễn", $"Trạm {station.Name} bị khóa vĩnh viễn do chất lượng dịch vụ không đạt yêu cầu tái phạm.", NotificationType.System);
-                            }
+                            station.OperationalStatus = OperationalStatus.Inactive;
+                            station.BannedUntil = now.AddDays(30);
+                            await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị đình chỉ", $"Trạm {station.Name} bị đình chỉ 30 ngày do lượng khiếu nại quá cao (>= 5 lần/tháng).", NotificationType.System);
+                            
                             _stationRepo.Update(station);
                             await _unitOfWork.CompleteAsync();
                             
@@ -498,6 +481,26 @@ namespace ChargeSlot.Api.Services.Implementation
             var vatAmount = invoice.VatAmount;
             var totalDeduct = ownerNet + platformFee + vatAmount;
 
+            // 0. Bù tiền bảo trợ Điểm thưởng vào ESCROW trước khi settle (Atomic via Repository)
+            if (booking.PointsDiscountAmount > 0)
+            {
+                await _walletRepo.TransferAtomicAsync(platformWallet!.Id, escrowWallet!.Id, booking.PointsDiscountAmount);
+
+                _ledgerRepo.Add(new LedgerTransaction
+                {
+                    ReferenceType = "PointsSubsidy",
+                    ReferenceId = booking.Id,
+                    Memo = $"Nền tảng bù {booking.PointsDiscountAmount:N0}đ chiết khấu điểm thưởng cho Dispute #{dispute.Id}",
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Debit, Amount = booking.PointsDiscountAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Credit, Amount = booking.PointsDiscountAmount, CreatedAt = now }
+                    }
+                });
+                await _unitOfWork.CompleteAsync();
+            }
+
             // 1. Unfreeze ALL back to ESCROW.AvailableBalance (Atomic via Repository)
             await _walletRepo.UnfreezeAtomicAsync(escrowWallet!.Id, totalDeduct);
 
@@ -590,11 +593,35 @@ namespace ChargeSlot.Api.Services.Implementation
             return disputes.Select(MapToDto).ToList();
         }
 
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>> GetPendingPagedAsync(int page, int pageSize)
+        {
+            var result = await _disputeRepo.GetPendingPagedAsync(page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
+        }
+
         public async Task<List<DisputeDto>> GetAllAsync(string? status = null)
         {
             var disputes = await _disputeRepo.GetAllAsync(status);
 
             return disputes.Select(MapToDto).ToList();
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>> GetAllPagedAsync(string? status, int page, int pageSize)
+        {
+            var result = await _disputeRepo.GetAllPagedAsync(status, page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
         }
 
         public async Task<List<DisputeDto>> GetMyDisputesAsync(int driverUserId)
@@ -603,10 +630,34 @@ namespace ChargeSlot.Api.Services.Implementation
             return disputes.Select(MapToDto).ToList();
         }
 
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>> GetMyDisputesPagedAsync(int driverUserId, int page, int pageSize)
+        {
+            var result = await _disputeRepo.GetByDriverPagedAsync(driverUserId, page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
+        }
+
         public async Task<List<DisputeDto>> GetOwnerDisputesAsync(int ownerUserId)
         {
             var disputes = await _disputeRepo.GetByOwnerAsync(ownerUserId);
             return disputes.Select(MapToDto).ToList();
+        }
+
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>> GetOwnerDisputesPagedAsync(int ownerUserId, int page, int pageSize)
+        {
+            var result = await _disputeRepo.GetByOwnerPagedAsync(ownerUserId, page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
         }
 
         // ─────────────── HELPERS ───────────────
@@ -782,7 +833,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 BanThreshold = threshold,
                 RemainingBeforeBan = Math.Max(0, threshold - loseCount),
                 BanCount = station.BanCount,
-                IsBanned = station.BannedUntil.HasValue || (station.BanCount >= 2 && station.BannedUntil == null),
+                IsBanned = station.BannedUntil.HasValue,
                 BannedUntil = station.BannedUntil
             };
         }

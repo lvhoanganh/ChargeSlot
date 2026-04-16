@@ -25,9 +25,11 @@ namespace ChargeSlot.Api.Controllers
         /// Xem danh sách hồ sơ KYC đang chờ duyệt
         /// </summary>
         [HttpGet("pending")]
-        public async Task<IActionResult> GetPendingKycs()
+        public async Task<IActionResult> GetPendingKycs(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var result = await _kycService.GetPendingKycsAsync();
+            var result = await _kycService.GetPendingKycsPagedAsync(page, pageSize);
             return Ok(result);
         }
 
@@ -35,9 +37,12 @@ namespace ChargeSlot.Api.Controllers
         /// Xem toàn bộ hồ sơ KYC (hỗ trợ lọc theo trạng thái)
         /// </summary>
         [HttpGet("all")]
-        public async Task<IActionResult> GetAllKycs([FromQuery] string? status = null)
+        public async Task<IActionResult> GetAllKycs(
+            [FromQuery] string? status = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var result = await _kycService.GetAllKycsAsync(status);
+            var result = await _kycService.GetAllKycsPagedAsync(status, page, pageSize);
             return Ok(result);
         }
 

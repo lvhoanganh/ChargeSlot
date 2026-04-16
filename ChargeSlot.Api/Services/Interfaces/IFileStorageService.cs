@@ -14,9 +14,11 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<string> UploadAsync(IFormFile file, string folder);
 
         /// <summary>
-        /// Xóa file trên storage theo URL.
-        /// </summary>
-        /// <param name="fileUrl">Public URL của file cần xóa</param>
         Task DeleteAsync(string fileUrl);
+
+        /// <summary>
+        /// Upload raw bytes.
+        /// </summary>
+        Task<string> UploadBytesAsync(byte[] bytes, string folder, string fileName, string contentType);
     }
 }

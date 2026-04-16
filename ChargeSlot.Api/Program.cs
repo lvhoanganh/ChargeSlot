@@ -22,6 +22,8 @@ var builder = WebApplication.CreateBuilder(args);
 // =======================
 // CONFIGURATION
 // =======================
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var configuration = builder.Configuration;
 var jwtSection = configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"] ?? throw new Exception("Jwt:Key is missing");
@@ -232,13 +234,13 @@ builder.Services.AddScoped<IAdminRevenueService, AdminRevenueService>();
 // Reviews
 builder.Services.AddScoped<IReviewService, ReviewService>();
 
-// Analytics & AI
+// Analytics
 builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
-builder.Services.AddScoped<IAiInsightsService, GeminiInsightsService>();
 
 // Miscellaneous Refactored Services
 builder.Services.AddScoped<IBankAccountRepository, BankAccountRepository>();
+builder.Services.AddScoped<IBankAccountService, BankAccountService>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IFavoriteStationRepository, FavoriteStationRepository>();
 builder.Services.AddScoped<IFavoriteService, FavoriteService>();
@@ -251,6 +253,8 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ILedgerTransactionRepository, LedgerTransactionRepository>();
 builder.Services.AddScoped<IStationUnavailableDateRepository, StationUnavailableDateRepository>();
 builder.Services.AddScoped<ILoyaltyTransactionRepository, LoyaltyTransactionRepository>();
+builder.Services.AddScoped<IContractRepository, ContractRepository>();
+builder.Services.AddScoped<IContractService, ContractService>();
 
 // Background Jobs
 builder.Services.AddHostedService<PaymentExpiryJob>();
@@ -351,7 +355,7 @@ app.Use(async (context, next) =>
 
         var response = new 
         {
-            message = "Lỗi hệ thống ngoài ý muốn."
+            message = $"Lỗi hệ thống: {ex.Message} {(ex.InnerException != null ? ex.InnerException.Message : "")}"
         };
 
         await context.Response.WriteAsJsonAsync(response);

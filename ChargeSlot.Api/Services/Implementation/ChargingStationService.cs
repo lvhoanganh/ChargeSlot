@@ -2,6 +2,7 @@ using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.DTOs.Slot;
 using ChargeSlot.Api.DTOs.Station;
 using ChargeSlot.Api.DTOs.Admin;
+using ChargeSlot.Api.DTOs;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Models.Identity;
@@ -16,6 +17,7 @@ namespace ChargeSlot.Api.Services.Implementation
     {
         private readonly IChargingStationRepository _stationRepo;
         private readonly IOwnerRepository _ownerRepo;
+        private readonly IContractRepository _contractRepo;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IFileStorageService _fileStorageService;
         private readonly IStationPricingRepository _pricingRepo;
@@ -29,6 +31,7 @@ namespace ChargeSlot.Api.Services.Implementation
         public ChargingStationService(
             IChargingStationRepository stationRepo,
             IOwnerRepository ownerRepo,
+            IContractRepository contractRepo,
             UserManager<ApplicationUser> userManager,
             IFileStorageService fileStorageService,
             IStationPricingRepository pricingRepo,
@@ -41,6 +44,7 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             _stationRepo = stationRepo;
             _ownerRepo = ownerRepo;
+            _contractRepo = contractRepo;
             _userManager = userManager;
             _fileStorageService = fileStorageService;
             _pricingRepo = pricingRepo;
@@ -69,6 +73,18 @@ namespace ChargeSlot.Api.Services.Implementation
             return stations.Select(MapToDto).ToList();
         }
 
+        public async Task<PagedResultDto<ChargingStationDto>> GetAllByOwnerPagedAsync(int ownerUserId, int page, int pageSize)
+        {
+            var result = await _stationRepo.GetAllByOwnerPagedAsync(ownerUserId, page, pageSize);
+            return new PagedResultDto<ChargingStationDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
+        }
+
         public async Task<ChargingStationDto> CreateAsync(int ownerUserId, CreateChargingStationDto dto)
         {
             var ownerExists = await _ownerRepo.GetByUserIdAsync(ownerUserId);
@@ -80,6 +96,12 @@ namespace ChargeSlot.Api.Services.Implementation
             if (ownerExists.KycStatus != KycStatus.Approved && ownerExists.KycStatus != KycStatus.PendingUpdate)
             {
                 throw new InvalidOperationException("Hồ sơ doanh nghiệp chưa được duyệt. Vui lòng xác thực danh tính (KYC) và chờ Admin kiểm duyệt trước khi tạo trạm sạc.");
+            }
+
+            var contract = await _contractRepo.GetByOwnerAsync(ownerUserId);
+            if (contract == null || contract.Status != ContractStatus.Signed)
+            {
+                throw new InvalidOperationException("Vốn pháp lý chưa đủ: Bạn cần Đọc và Ký hợp đồng hợp tác bằng chữ ký điện tử trước khi bắt đầu tạo hệ thống trạm sạc.");
             }
             var station = new ChargingStation
             {
@@ -172,6 +194,12 @@ namespace ChargeSlot.Api.Services.Implementation
             if (ownerExists.KycStatus != KycStatus.Approved && ownerExists.KycStatus != KycStatus.PendingUpdate)
             {
                 throw new InvalidOperationException("Hồ sơ doanh nghiệp chưa được duyệt. Vui lòng xác thực danh tính (KYC) và chờ Admin kiểm duyệt trước khi tạo trạm sạc.");
+            }
+
+            var contract = await _contractRepo.GetByOwnerAsync(ownerUserId);
+            if (contract == null || contract.Status != ContractStatus.Signed)
+            {
+                throw new InvalidOperationException("Vốn pháp lý chưa đủ: Bạn cần Đọc và Ký hợp đồng hợp tác bằng chữ ký điện tử trước khi bắt đầu tạo hệ thống trạm sạc.");
             }
 
             var station = new ChargingStation
@@ -876,6 +904,18 @@ namespace ChargeSlot.Api.Services.Implementation
             return stations.Select(MapToDto).ToList();
         }
 
+        public async Task<PagedResultDto<ChargingStationDto>> GetPendingStationsPagedAsync(int page, int pageSize)
+        {
+            var result = await _stationRepo.GetByApprovalStatusPagedAsync(ApprovalStatus.PendingApproval, page, pageSize);
+            return new PagedResultDto<ChargingStationDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(MapToDto).ToList()
+            };
+        }
+
         public async Task<ChargingStationDto?> GetStationDetailForAdminAsync(int id)
         {
             var station = await _stationRepo.GetByIdAsync(id);
@@ -938,21 +978,38 @@ namespace ChargeSlot.Api.Services.Implementation
             await _unitOfWork.CompleteAsync();
         }
 
-        public async Task<string> ToggleBanStationAsync(int id, int adminUserId)
+        public async Task<string> ToggleBanStationAsync(int id, int adminUserId, string? reason)
         {
             var station = await _stationRepo.GetByIdAsync(id, tracking: true);
             if (station == null) throw new KeyNotFoundException("Trạm sạc không tồn tại.");
 
             if (station.BannedUntil == null)
             {
+                if (string.IsNullOrWhiteSpace(reason))
+                    throw new InvalidOperationException("Vui lòng cung cấp lý do khi khóa trạm.");
+
                 station.OperationalStatus = Enums.OperationalStatus.Inactive;
-                station.BannedUntil = DateTimeHelper.VietnamNow().AddYears(100);
+                // Lưu DateTime siêu xa báo hiệu khóa thủ công đến khi mở
+                station.BannedUntil = DateTimeHelper.VietnamNow().AddYears(100); 
+                station.AdminNote = string.IsNullOrEmpty(station.AdminNote) ? $"Khóa trạm: {reason}" : $"{station.AdminNote} | Khóa trạm: {reason}";
+                
+                await _notificationService.SendAsync(
+                    station.OwnerUserId, 
+                    "Trạm sạc bị khóa", 
+                    $"Trạm sạc {station.Name} đã bị Admin khóa. Lý do: {reason}", 
+                    NotificationType.System);
             }
             else
             {
                 station.OperationalStatus = Enums.OperationalStatus.Active;
                 station.BannedUntil = null;
                 station.BanCount = 0; 
+                
+                await _notificationService.SendAsync(
+                    station.OwnerUserId, 
+                    "Trạm sạc được mở khóa", 
+                    $"Trạm sạc {station.Name} đã được Admin mở khóa, có thể hoạt động trở lại.", 
+                    NotificationType.System);
             }
 
             await _unitOfWork.CompleteAsync();

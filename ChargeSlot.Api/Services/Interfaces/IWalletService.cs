@@ -12,8 +12,11 @@ namespace ChargeSlot.Api.Services.Interfaces
 
         // Withdraw requests — queries
         Task<List<WithdrawRequestDto>> GetUserWithdrawRequestsAsync(int userId);
+        Task<ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>> GetUserWithdrawRequestsPagedAsync(int userId, int page, int pageSize);
         Task<List<WithdrawRequestDto>> GetAllPendingWithdrawsAsync();
+        Task<ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>> GetAllPendingWithdrawsPagedAsync(int page, int pageSize);
         Task<List<WithdrawRequestDto>> GetAllWithdrawsAsync();
+        Task<ChargeSlot.Api.DTOs.PagedResultDto<WithdrawRequestDto>> GetAllWithdrawsPagedAsync(int page, int pageSize);
         Task<WithdrawRequestDto> ProcessWithdrawAsync(int adminUserId, int requestId, ProcessWithdrawDto dto);
 
         // Withdraw multi-step flow
@@ -26,8 +29,8 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task FinalizeWithdrawCompletedAsync(Models.WithdrawRequest request, int? confirmedByUserId = null);
 
         // Admin Overview
-        Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<WalletDto>> GetAdminAllWalletsAsync(ChargeSlot.Api.DTOs.Admin.Overview.WalletFilterDto filter);
-        Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<TransactionHistoryDto>> GetAdminWalletTransactionsAsync(int walletId, ChargeSlot.Api.DTOs.Admin.Overview.TransactionFilterDto filter);
+        Task<ChargeSlot.Api.DTOs.PagedResultDto<WalletDto>> GetAdminAllWalletsAsync(ChargeSlot.Api.DTOs.Admin.Overview.WalletFilterDto filter);
+        Task<ChargeSlot.Api.DTOs.PagedResultDto<TransactionHistoryDto>> GetAdminWalletTransactionsAsync(int walletId, ChargeSlot.Api.DTOs.Admin.Overview.TransactionFilterDto filter);
         Task<ChargeSlot.Api.DTOs.Admin.Overview.TransactionDetailDto?> GetAdminTransactionDetailAsync(long transactionId);
     }
 }

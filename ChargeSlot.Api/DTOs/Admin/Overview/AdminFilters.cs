@@ -35,12 +35,4 @@ namespace ChargeSlot.Api.DTOs.Admin.Overview
         public string? TransactionType { get; set; } // Credit, Debit
     }
 
-    public class PagedResultDto<T>
-    {
-        public List<T> Items { get; set; } = new List<T>();
-        public int TotalCount { get; set; }
-        public int Page { get; set; }
-        public int PageSize { get; set; }
-        public int TotalPages => PageSize > 0 ? (int)System.Math.Ceiling(TotalCount / (double)PageSize) : 0;
-    }
 }

@@ -25,10 +25,12 @@ namespace ChargeSlot.Api.Controllers
 
         /// <summary>Xem danh sách tài khoản ngân hàng của mình.</summary>
         [HttpGet]
-        public async Task<IActionResult> GetMyBankAccounts()
+        public async Task<IActionResult> GetMyBankAccounts(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
-            var list = await _bankAccountService.GetMyBankAccountsAsync(GetUserId());
-            return Ok(list);
+            var result = await _bankAccountService.GetMyBankAccountsPagedAsync(GetUserId(), page, pageSize);
+            return Ok(result);
         }
 
         /// <summary>Thêm tài khoản ngân hàng mới.</summary>
