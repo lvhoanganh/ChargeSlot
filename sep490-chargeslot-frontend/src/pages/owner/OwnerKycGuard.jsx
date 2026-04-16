@@ -153,7 +153,7 @@ export default function OwnerKycGuard({ children }) {
       );
     }
 
-    if (contractStatus === "Terminated" && !location.pathname.startsWith("/owner/contract") && !location.pathname.startsWith("/owner/wallet")) {
+    if ((contractStatus === "Terminated" || contractStatus === "Expired") && !location.pathname.startsWith("/owner/contract") && !location.pathname.startsWith("/owner/wallet")) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-red-50 via-rose-50 to-red-50 flex items-center justify-center pt-20 pb-12 px-4">
           <div className="max-w-lg w-full bg-white rounded-3xl shadow-xl ring-1 ring-red-100 p-8 text-center">
@@ -162,9 +162,11 @@ export default function OwnerKycGuard({ children }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Hợp đồng đã chấm dứt</h2>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">
+              {contractStatus === "Expired" ? "Hợp đồng đã hết hạn" : "Hợp đồng đã chấm dứt"}
+            </h2>
             <p className="text-slate-500 leading-relaxed mb-6">
-              Hợp đồng hợp tác của bạn đã bị chấm dứt. Toàn bộ trạm sạc đã ngừng hoạt động và bạn không thể quản lý trạm nhưng <strong className="text-slate-700">vẫn có thể rút số dư ví điện tử</strong> của mình.
+              Hợp đồng hợp tác của bạn đã {contractStatus === "Expired" ? "hết hạn" : "bị chấm dứt"}. Toàn bộ trạm sạc đã ngừng hoạt động và bạn không thể quản lý trạm nhưng <strong className="text-slate-700">vẫn có thể rút số dư ví điện tử</strong> của mình.
             </p>
             <div className="flex flex-col gap-3">
               <button

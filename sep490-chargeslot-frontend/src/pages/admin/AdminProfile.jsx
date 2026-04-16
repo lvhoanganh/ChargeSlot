@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/authStore";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { adminAccountApi } from "@/services/api";
+import { useState, useEffect } from "react";
+import { adminAccountApi, authApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 import { ShieldCheck, Phone } from "lucide-react";
 
@@ -17,10 +17,37 @@ export default function AdminProfile() {
   const { phoneNumber: storedPhoneNumber } = useAuthStore();
   const phoneNumber =
     storedPhoneNumber || localStorage.getItem("phoneNumber") || "";
-  // Admin chưa có server-side avatar API — chỉ lưu localStorage
-  const [avatarSrc] = useState(
+  // Admin chưa có server-side avatar API riêng nhưng có avatarUrl trong /auth/me
+  const [avatarSrc, setAvatarSrc] = useState(
     () => getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR
   );
+
+  const [fullName, setFullName] = useState(() => {
+    const direct = localStorage.getItem("fullName") || "";
+    if (direct) return direct;
+    try {
+      const map = JSON.parse(localStorage.getItem("userInfoByPhone") || "{}");
+      return map?.[phoneNumber]?.fullName || "";
+    } catch {
+      return "";
+    }
+  });
+
+  useEffect(() => {
+    authApi.getMe()
+      .then(res => {
+        if (res?.name || res?.fullName) {
+          setFullName(res.name || res.fullName);
+        }
+        if (res?.avatarUrl) {
+          const url = res.avatarUrl.startsWith("http")
+            ? res.avatarUrl
+            : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${res.avatarUrl.startsWith("/") ? "" : "/"}${res.avatarUrl}`;
+          setAvatarSrc(url);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const [secModal, setSecModal] = useState(null); // 'setup' | 'reset-request' | 'reset-confirm'
   const [secForm, setSecForm] = useState({ currentPass: "", newSecPass: "", otp: "" });
@@ -101,7 +128,7 @@ export default function AdminProfile() {
                 Hồ sơ quản trị viên
               </h1>
               <p className="text-white/80 text-sm">
-                {maskPhone(phoneNumber) || "Chưa cập nhật số điện thoại"}
+                {fullName || "Chưa cập nhật họ tên"}
               </p>
               <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
                 ️ Quản trị viên

@@ -2,6 +2,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { useState, useRef, useEffect } from "react";
 import NotificationBell from "@/components/NotificationBell";
+import { authApi } from "@/services/api";
 import ChargeSlotLogo from "@/components/ChargeSlotLogo";
 
 
@@ -41,10 +42,39 @@ export default function AdminNav() {
   const moreRef = useRef(null);
   const mobileMenuRef = useRef(null);
 
-  const storedAvatar = getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR;
-  const avatarSrc = storedAvatar.startsWith("http") || storedAvatar.startsWith("data:")
-    ? storedAvatar
-    : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${storedAvatar.startsWith("/") ? "" : "/"}${storedAvatar}`;
+  const [userFullName, setUserFullName] = useState(() => {
+    const direct = localStorage.getItem("fullName") || "";
+    if (direct) return direct;
+    try {
+      const map = JSON.parse(localStorage.getItem("userInfoByPhone") || "{}");
+      return map?.[phoneNumber]?.fullName || "";
+    } catch {
+      return "";
+    }
+  });
+
+  const [avatarSrc, setAvatarSrc] = useState(() => {
+    const storedAvatar = getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR;
+    return storedAvatar.startsWith("http") || storedAvatar.startsWith("data:")
+      ? storedAvatar
+      : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${storedAvatar.startsWith("/") ? "" : "/"}${storedAvatar}`;
+  });
+
+  useEffect(() => {
+    if (token) {
+      authApi.getMe().then(res => {
+        if (res?.name || res?.fullName) {
+          setUserFullName(res.name || res.fullName);
+        }
+        if (res?.avatarUrl) {
+          const url = res.avatarUrl.startsWith("http")
+            ? res.avatarUrl
+            : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${res.avatarUrl.startsWith("/") ? "" : "/"}${res.avatarUrl}`;
+          setAvatarSrc(url);
+        }
+      }).catch(() => {});
+    }
+  }, [token, phoneNumber]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -250,7 +280,7 @@ export default function AdminNav() {
                         />
                         <div className="min-w-0 flex-1">
                           <p className="text-white font-semibold text-sm truncate">
-                            {maskPhone(phoneNumber) || "Quản trị viên"}
+                            {userFullName || maskPhone(phoneNumber) || "Quản trị viên"}
                           </p>
                           <span className="inline-block mt-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-white/20 text-white">
                             Quản trị viên
@@ -377,7 +407,7 @@ export default function AdminNav() {
         <div className="cs-more-sheet__user">
           <img src={avatarSrc} alt="Avatar" className="cs-more-sheet__avatar" />
           <div>
-            <p className="cs-more-sheet__phone">{maskPhone(phoneNumber) || "Quản trị viên"}</p>
+            <p className="cs-more-sheet__phone">{userFullName || maskPhone(phoneNumber) || "Quản trị viên"}</p>
             <span className="cs-more-sheet__role">Quản trị viên</span>
           </div>
         </div>

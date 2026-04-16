@@ -23,6 +23,16 @@ export default function DriverProfile() {
 
   const [profile, setProfile] = useState(null);
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState(() => {
+    const direct = localStorage.getItem("fullName") || "";
+    if (direct) return direct;
+    try {
+      const map = JSON.parse(localStorage.getItem("userInfoByPhone") || "{}");
+      return map?.[phoneNumber]?.fullName || "";
+    } catch {
+      return "";
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [avatarSrc, setAvatarSrc] = useState(
@@ -53,12 +63,15 @@ export default function DriverProfile() {
         ]);
         if (!cancelled) {
           setProfile(data);
+          if (data?.fullName) setFullName(data.fullName);
+          else if (meData?.name || meData?.fullName) setFullName(meData.name || meData.fullName);
           if (meData?.email) setEmail(meData.email);
           if (meData?.pendingEmail) setProfile(prev => ({ ...prev, pendingEmail: meData.pendingEmail }));
-          if (data?.avatarUrl) {
-            const url = data.avatarUrl.startsWith("http")
-              ? data.avatarUrl
-              : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${data.avatarUrl.startsWith("/") ? "" : "/"}${data.avatarUrl}`;
+          const remoteAvatar = data?.avatarUrl || meData?.avatarUrl;
+          if (remoteAvatar) {
+            const url = remoteAvatar.startsWith("http")
+              ? remoteAvatar
+              : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${remoteAvatar.startsWith("/") ? "" : "/"}${remoteAvatar}`;
             setAvatarSrc(url);
           } else {
             const local = getStoredAvatarDataUrl(phoneNumber);
@@ -110,7 +123,7 @@ export default function DriverProfile() {
                 Hồ sơ tài xế
               </h1>
               <p className="text-white/80 text-sm">
-                {maskPhone(phoneNumber) || "Chưa cập nhật số điện thoại"}
+                {fullName || "Chưa cập nhật họ tên"}
               </p>
               <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
                  Tài xế

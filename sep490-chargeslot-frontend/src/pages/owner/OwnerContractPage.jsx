@@ -104,6 +104,7 @@ function ContractStatusBadge({ status }) {
     Signed:     { label: "Đã ký",      bg: "#f0fdf4", color: "#16a34a", dot: "#16a34a" },
     Pending:    { label: "Chờ ký",     bg: "#fff7ed", color: "#ea580c", dot: "#f97316" },
     Terminated: { label: "Đã chấm dứt", bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
+    Expired:    { label: "Hết hạn",    bg: "#f3f4f6", color: "#64748b", dot: "#9ca3af" },
   };
   const cfg = map[status];
   if (!cfg) return null;
@@ -124,7 +125,9 @@ function TerminateModal({ onClose, onConfirm, loading }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-4">
-          <span className="text-2xl">⚠️</span>
+          <span className="text-red-500">
+            <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+          </span>
           <h3 className="text-lg font-bold text-slate-900">Yêu cầu chấm dứt hợp đồng</h3>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 text-sm text-red-800">
@@ -274,7 +277,9 @@ export default function OwnerContractPage() {
     return (
       <div className="min-h-screen bg-slate-50 pt-24 pb-16 px-4">
         <div className="max-w-2xl mx-auto text-center py-20">
-          <div className="text-6xl mb-6">📄</div>
+          <div className="text-slate-400 mb-6 flex justify-center">
+            <svg width="68" height="68" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          </div>
           <h1 className="text-2xl font-bold text-slate-800 mb-3">Chưa có hợp đồng</h1>
           <p className="text-slate-500 leading-relaxed max-w-md mx-auto">
             Hợp đồng hợp tác sẽ được tạo tự động sau khi Admin xét duyệt và phê duyệt hồ sơ KYC của bạn.
@@ -283,7 +288,8 @@ export default function OwnerContractPage() {
             onClick={() => navigate("/owner/kyc")}
             className="mt-8 inline-flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition shadow-lg shadow-orange-500/20"
           >
-            🛡️ Kiểm tra hồ sơ KYC
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+            Kiểm tra hồ sơ KYC
           </button>
         </div>
       </div>
@@ -291,6 +297,7 @@ export default function OwnerContractPage() {
   }
 
   const isTerminated = contract.status === "Terminated";
+  const isExpired = contract.status === "Expired";
 
   return (
     <div className="min-h-screen bg-slate-50 pt-24 pb-16 px-4 sm:px-6">
@@ -313,10 +320,12 @@ export default function OwnerContractPage() {
               {contract.contractNumber && (
                 <span className="font-semibold text-slate-600 mr-2">#{contract.contractNumber}</span>
               )}
-              {contract.signedAt
+              {contract.signedAt && !isExpired && !isTerminated
                 ? `Ký ngày: ${formatDateVN(contract.signedAt)}`
                 : isTerminated
                 ? "Hợp đồng đã bị chấm dứt"
+                : isExpired
+                ? "Hợp đồng đã hết hạn"
                 : "Vui lòng đọc kỹ và ký xác nhận hợp đồng bên dưới."}
             </p>
           </div>
@@ -338,7 +347,9 @@ export default function OwnerContractPage() {
         {/* Signed success banner */}
         {signed && contract.status === "Signed" && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl flex gap-3 items-start text-green-800">
-            <span className="text-2xl flex-shrink-0">✅</span>
+            <div className="text-green-600 flex-shrink-0 mt-0.5">
+              <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
             <div>
               <strong className="block text-base mb-0.5">Hợp đồng đã được ký thành công!</strong>
               <p className="text-sm text-green-700">
@@ -349,12 +360,18 @@ export default function OwnerContractPage() {
           </div>
         )}
 
-        {/* Terminated banner */}
-        {isTerminated && (
+        {/* Terminated / Expired banner */}
+        {(isTerminated || isExpired) && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex gap-3 items-start text-red-800">
-            <span className="text-2xl flex-shrink-0">🚫</span>
+            <div className="text-red-500 flex-shrink-0 mt-0.5">
+              {isExpired ? (
+                <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              ) : (
+                <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+              )}
+            </div>
             <div>
-              <strong className="block text-base mb-0.5">Hợp đồng đã chấm dứt</strong>
+              <strong className="block text-base mb-0.5">{isExpired ? "Hợp đồng đã hết hạn" : "Hợp đồng đã chấm dứt"}</strong>
               <p className="text-sm text-red-700">
                 Toàn bộ trạm sạc đã bị đình chỉ hoạt động. Bạn vẫn có thể rút số dư ví trên hệ thống.
                 Để tiếp tục kinh doanh, vui lòng liên hệ Admin để yêu cầu tái ký hợp đồng mới.
@@ -455,7 +472,8 @@ export default function OwnerContractPage() {
               {!signed && contract.status === "Pending" && (
                 <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-5 shadow-sm">
                   <h3 className="text-sm font-bold text-slate-700 mb-1 flex items-center gap-2">
-                    ✍️ Chữ ký của bạn
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    Chữ ký của bạn
                   </h3>
                   <p className="text-xs text-slate-400 mb-3">Ký tay bằng chuột hoặc ngón tay vào ô bên dưới</p>
 
@@ -495,7 +513,10 @@ export default function OwnerContractPage() {
                           Đang ký...
                         </>
                       ) : (
-                        <>✍️ Xác nhận ký</>
+                        <>
+                          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                          Xác nhận ký
+                        </>
                       )}
                     </button>
                   </div>
@@ -509,7 +530,9 @@ export default function OwnerContractPage() {
               {/* Đã ký xong */}
               {contract.status === "Signed" && (
                 <div className="bg-green-50 rounded-2xl ring-1 ring-green-200 p-5 text-center">
-                  <div className="text-4xl mb-2">✅</div>
+                  <div className="text-green-500 flex justify-center mb-2">
+                    <svg width="44" height="44" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  </div>
                   <p className="text-sm font-bold text-green-700">Đã ký thành công</p>
                   <p className="text-xs text-green-600 mt-1">
                     Trạm sạc của bạn đã được kích hoạt đầy đủ.
@@ -527,18 +550,25 @@ export default function OwnerContractPage() {
                   </p>
                   <button
                     onClick={() => setShowTerminateModal(true)}
-                    className="w-full py-2 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition"
+                    className="w-full py-2 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition flex items-center justify-center gap-2"
                   >
-                    🚫 Yêu cầu chấm dứt
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                    Yêu cầu chấm dứt
                   </button>
                 </div>
               )}
 
-              {/* Trạng thái Terminated */}
-              {isTerminated && (
+              {/* Trạng thái Terminated / Expired */}
+              {(isTerminated || isExpired) && (
                 <div className="bg-red-50 rounded-2xl ring-1 ring-red-200 p-5 text-center">
-                  <div className="text-4xl mb-2">🚫</div>
-                  <p className="text-sm font-bold text-red-700">Hợp đồng đã chấm dứt</p>
+                  <div className="text-red-500 flex justify-center mb-2">
+                    {isExpired ? (
+                      <svg width="44" height="44" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    ) : (
+                      <svg width="44" height="44" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                    )}
+                  </div>
+                  <p className="text-sm font-bold text-red-700">{isExpired ? "Hợp đồng đã hết hạn" : "Hợp đồng đã chấm dứt"}</p>
                   <p className="text-xs text-red-600 mt-1">
                     Liên hệ Admin để tiếp tục sử dụng dịch vụ.
                   </p>
