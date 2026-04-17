@@ -626,7 +626,7 @@ export default function BookingForm() {
                       // Kiểm tra xem booking nào đang trong khung giờ hiện tại (Occupied)
                       const currentlyOccupied = bookedRanges.some(r => {
                         const rS = parseT(r.startTime), rE = parseT(r.endTime);
-                        return nowMin >= rS && nowMin < rE && (r.status === "CheckedIn" || r.status === "InProgress" || r.status === "Charging");
+                        return nowMin >= rS && nowMin < rE && (r.status === "CheckedIn" || r.status === "InProgress");
                       });
                       // Kiểm tra booking Paid (đã thanh toán, đang giữ chỗ chờ check-in)
                       const hasPaidBooking = bookedRanges.some(r => r.status === "Paid");
@@ -726,7 +726,7 @@ export default function BookingForm() {
                                 r.status === "WaitingOwner" ? "Chờ duyệt" :
                                   (r.status === "CheckedIn" && !isTimeStarted) ? "Đã check-in" :
                                     (r.status === "CheckedIn" && isTimeStarted) ? "Đang dùng" :
-                                      r.status === "InProgress" || r.status === "Charging" ? "Đang dùng" :
+                                      r.status === "InProgress" ? "Đang dùng" :
                                         r.status === "Completed" ? "Hoàn thành" : r.status;
                         return (
                           <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderRadius: 8, padding: "7px 12px", border: "1px solid #fde68a" }}>

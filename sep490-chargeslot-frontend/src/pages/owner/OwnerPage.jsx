@@ -123,7 +123,7 @@ export default function OwnerPage() {
           }
 
           const st = session.status || session.bookingStatus || "";
-          const isInProgressRaw = st === "InProgress" || st === "Charging" || session.bookingStatus === "InProgress" || session.bookingStatus === "Charging";
+          const isInProgressRaw = st === "InProgress" || session.bookingStatus === "InProgress";
           const isCheckedInRaw = st === "CheckedIn" || session.bookingStatus === "CheckedIn";
 
           const isOccupied = isInProgressRaw || (isCheckedInRaw && isTimeStarted);

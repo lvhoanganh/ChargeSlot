@@ -55,7 +55,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
   const initialWalletBalanceRef = useRef(0);
 
   // Các status có phiên sạc thực tế
-  const SESSION_STATUSES = ["CheckedIn", "InProgress", "Charging", "CompletedPendingInvoice", "Completed"];
+  const SESSION_STATUSES = ["CheckedIn", "InProgress", "CompletedPendingInvoice", "Completed"];
 
   function fetchBooking() {
     setSessionDetail(null); // Reset để tránh hiện dữ liệu cũ khi switch booking

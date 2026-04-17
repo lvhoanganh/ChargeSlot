@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { chatApi, bookingApi } from "@/services/api";
 import ChatWindow from "@/components/ChatWindow";
 
-const CLOSED_STATUSES = ["Completed", "Cancelled", "Rejected", "Expired", "NoShow", "CompletedPendingInvoice", "Disputed"];
+const CHAT_WHITELIST = ["Paid", "CheckedIn", "InProgress", "CompletedPendingInvoice", "Disputed"];
 
 export default function ChatPage() {
   const { bookingId } = useParams();
@@ -63,8 +63,8 @@ export default function ChatPage() {
     } catch { /* ignore */ }
   }, [parsedId, handleNewMessage]);
 
-  // Chat chỉ đọc nếu booking đã kết thúc
-  const isClosed = bookingStatus && CLOSED_STATUSES.includes(bookingStatus);
+  // Chat chỉ khả dụng nếu nằm trong white-list
+  const isClosed = bookingStatus && !CHAT_WHITELIST.includes(bookingStatus);
 
   if (loading) {
     return (
@@ -133,7 +133,7 @@ export default function ChatPage() {
             borderRadius: 12, padding: "10px 16px", marginBottom: 8,
             fontSize: 13, color: "#713f12", display: "flex", alignItems: "center", gap: 8,
           }}>
-             Phiên sạc đã kết thúc — không thể gửi tin nhắn mới.
+             Không thể trò chuyện. Chat chỉ khả dụng khi booking đã thanh toán và chưa kết thúc.
           </div>
         )}
 

@@ -36,6 +36,10 @@ export default function AdminWithdraws() {
   const [resolveRefund, setResolveRefund] = useState(true);
   const [resolveNote, setResolveNote] = useState("");
 
+  const [forceModal, setForceModal] = useState(null);
+  const [forceNote, setForceNote] = useState("");
+  const [forceFile, setForceFile] = useState(null);
+
   function fetchData() {
     setLoading(true);
     const apiCall = activeTab === "pending"
@@ -109,6 +113,28 @@ export default function AdminWithdraws() {
       fetchData();
     } catch (err) {
       showToast.error(err.message || "Lỗi giải quyết sự cố");
+    } finally {
+      setProcessing(null);
+    }
+  }
+
+  async function submitForceComplete(e) {
+    e.preventDefault();
+    if (!forceModal) return;
+    setProcessing(forceModal.id);
+    try {
+      const formData = new FormData();
+      if (forceFile) formData.append("ReceiptImage", forceFile);
+      if (forceNote) formData.append("AdminNote", forceNote);
+      
+      await adminWithdrawApi.forceComplete(forceModal.id, formData);
+      showToast.success("Đã ép hoàn tất rút tiền thành công!");
+      setForceModal(null);
+      setForceNote("");
+      setForceFile(null);
+      fetchData();
+    } catch (err) {
+      showToast.error(err.message || "Lỗi ép hoàn tất rút tiền");
     } finally {
       setProcessing(null);
     }
@@ -202,7 +228,10 @@ export default function AdminWithdraws() {
                     <button onClick={() => setReceiptModal({ id: w.id })} style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: "#3b82f6", color: "#fff", fontWeight: 600, cursor: "pointer" }}> Úp ảnh Biên lai & Xác nhận chuyển khoản</button>
                   )}
                   {w.status === "IssueReported" && (
-                    <button onClick={() => handleResolveIssue(w.id)} disabled={processing === w.id} style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: processing === w.id ? "#d1d5db" : "#f97316", color: "#fff", fontWeight: 600, cursor: processing === w.id ? "not-allowed" : "pointer" }}>{processing === w.id ? "..." : "️ Đã giải quyết / Đóng sự cố"}</button>
+                    <>
+                      <button onClick={() => setForceModal({ id: w.id })} disabled={processing === w.id} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: processing === w.id ? "#d1d5db" : "#3b82f6", color: "#fff", fontWeight: 600, cursor: processing === w.id ? "not-allowed" : "pointer" }}>{processing === w.id ? "..." : "Ép Hoàn Tất"}</button>
+                      <button onClick={() => handleResolveIssue(w.id)} disabled={processing === w.id} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: processing === w.id ? "#d1d5db" : "#f97316", color: "#fff", fontWeight: 600, cursor: processing === w.id ? "not-allowed" : "pointer" }}>{processing === w.id ? "..." : "Đã giải quyết"}</button>
+                    </>
                   )}
                 </div>
               </div>
@@ -292,6 +321,29 @@ export default function AdminWithdraws() {
                   {processing ? "..." : "Xác nhận"}
                 </button>
                 <button type="button" onClick={() => setResolveModal(null)} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: "#f1f5f9", color: "#64748b", fontWeight: 600, cursor: "pointer" }}>Hủy</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {forceModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "#fff", borderRadius: 20, padding: 32, maxWidth: 400, width: "100%", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#3b82f6", marginBottom: 16 }}> Ép Hoàn Tất Giao Dịch</h2>
+            <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>Tải ảnh biên lai mới lên hệ thống (tuỳ chọn) và ghi chú lý do ép hoàn tất.</p>
+            <form onSubmit={submitForceComplete} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: "block" }}>Ảnh chứng từ (tuỳ chọn)</label>
+                <input type="file" accept="image/*" onChange={e => setForceFile(e.target.files[0])} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1.5px dashed #cbd5e1" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: "block" }}>Ghi chú admin (tuỳ chọn)</label>
+                <input value={forceNote} onChange={e => setForceNote(e.target.value)} type="text" placeholder="Lý do ép hoàn tất..." style={{ width: "100%", padding: 12, borderRadius: 10, border: "1.5px solid #e2e8f0", outline: "none", boxSizing: "border-box" }} />
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                <button type="submit" disabled={processing} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: "#3b82f6", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{processing ? "..." : "Xác nhận"}</button>
+                <button type="button" onClick={() => { setForceModal(null); setForceFile(null); setForceNote(""); }} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: "#f1f5f9", color: "#64748b", fontWeight: 600, cursor: "pointer" }}>Hủy</button>
               </div>
             </form>
           </div>

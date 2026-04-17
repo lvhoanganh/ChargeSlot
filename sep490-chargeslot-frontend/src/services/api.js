@@ -1206,6 +1206,13 @@ export const adminWithdrawApi = {
         formData.append("ReceiptImage", receiptImageFile);
         return apiFetchFormData(`/admin/withdraws/${id}/confirm-transfer`, formData, "PUT");
     },
+    
+    /**
+     * Ép hoàn tất rút tiền bằng chứng từ (Admin Force Complete)
+     * PUT /api/admin/withdraws/{id}/force-complete
+     */
+    forceComplete: (id, formData) =>
+        apiFetchFormData(`/admin/withdraws/${id}/force-complete`, formData, "PUT"),
 
     // NOTE: /admin/withdraws/issue-reported không tồn tại trên BE
     // Filter IssueReported client-side từ getAll() — xem AdminWithdraws.jsx

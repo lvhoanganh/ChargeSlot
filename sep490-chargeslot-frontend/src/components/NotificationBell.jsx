@@ -60,6 +60,7 @@ function getNotificationRoute(notification, role) {
   ) {
     if (r === "owner") return "/owner/kyc";
     if (r === "admin") return "/admin/manage-kyc";
+    if (r === "driver") return "/driver/driver-profile";
   }
 
   // Trạm sạc chờ duyệt / từ chối / duyệt thành công
@@ -114,13 +115,13 @@ function getNotificationRoute(notification, role) {
     text.includes("sạc tại slot")
   ) {
     if (r === "owner") return "/owner/active-sessions";
-    if (r === "driver") return "/driver/charging";
+    if (r === "driver") return id ? `/driver/booking/${id}` : "/driver/my-bookings";
   }
 
-  // Xác nhận hoàn thành phiên sạc → owner xem active sessions / driver xem charging-complete
+  // Xác nhận hoàn thành phiên sạc → owner xem list book / driver xem detail book để ấn xác nhận HĐ
   if (text.includes("hoàn thành") && (text.includes("sạc") || text.includes("phiên"))) {
-    if (r === "owner") return "/owner/active-sessions";
-    if (r === "driver") return "/driver/charging-complete";
+    if (r === "owner") return id ? `/owner/booking/${id}` : "/owner/booking-requests";
+    if (r === "driver") return id ? `/driver/booking/${id}` : "/driver/my-bookings";
   }
 
   // Tiền chuyển vào ví / thanh toán vào ví → owner wallet
@@ -160,18 +161,13 @@ function getNotificationRoute(notification, role) {
   if (type === "booking") {
     if (r === "driver") return id ? `/driver/booking/${id}` : "/driver/my-bookings";
     if (r === "owner") return id ? `/owner/booking/${id}` : "/owner/booking-requests";
-    if (r === "admin") return "/admin/disputes";
+    if (r === "admin") return "/admin/bookings";
   }
 
   if (type === "dispute") {
     if (r === "driver") return id ? `/driver/dispute/${id}` : "/driver/disputes";
     if (r === "owner") return id ? `/owner/dispute/${id}` : "/owner/disputes";
     if (r === "admin") return id ? `/admin/disputes/${id}` : "/admin/disputes";
-  }
-
-  if (type === "charging") {
-    if (r === "driver") return "/driver/charging";
-    if (r === "owner") return "/owner/active-sessions";
   }
 
   if (type === "payment") {
@@ -183,11 +179,6 @@ function getNotificationRoute(notification, role) {
   if (type === "stationapproval") {
     if (r === "owner") return "/stations";
     if (r === "admin") return "/admin/approve-station";
-  }
-
-  if (type === "review") {
-    if (r === "owner") return "/owner/reviews";
-    if (r === "driver") return "/driver/reviews";
   }
 
   if (type === "kyc" || type === "kycapproval" || type === "kycupdate") {
@@ -206,7 +197,7 @@ function getNotificationRoute(notification, role) {
   // 
   if (r === "driver") return "/driver/my-bookings";
   if (r === "owner") return "/owner/booking-requests";
-  if (r === "admin") return "/admin/disputes";
+  if (r === "admin") return "/admin/dashboard";
   return null;
 }
 
@@ -234,14 +225,6 @@ function NotifIcon({ notification }) {
       svg: (
         <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-        </svg>
-      ),
-    },
-    charging: {
-      bg: "linear-gradient(135deg,#3b82f6,#2563eb)",
-      svg: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
         </svg>
       ),
     },

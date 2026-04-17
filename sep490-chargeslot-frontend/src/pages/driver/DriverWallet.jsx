@@ -236,8 +236,8 @@ export default function DriverWallet() {
 
   async function handleTopUp() {
     const amt = Number(topUpAmount);
-    if (!amt || amt < 10000) {
-      showToast.error("Số tiền tối thiểu là 10.000đ");
+    if (!amt || amt < 50000) {
+      showToast.error("Số tiền tối thiểu là 50.000đ");
       return;
     }
     setTopUpLoading(true);
@@ -267,8 +267,8 @@ export default function DriverWallet() {
 
   async function handleWithdraw() {
     const amt = Number(withdrawForm.amount);
-    if (!amt || amt < 10000) {
-      showToast.error("Số tiền rút tối thiểu là 10.000đ");
+    if (!amt || amt < 50000) {
+      showToast.error("Số tiền rút tối thiểu là 50.000đ");
       return;
     }
     if (!withdrawForm.bankName || !withdrawForm.bankAccountNumber || !withdrawForm.bankAccountHolder) {

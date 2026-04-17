@@ -26,7 +26,6 @@ function formatDate(dateStr) {
 
 function getStatusLabel(status) {
   switch (status) {
-    case "Open": return "Mở";
     case "WaitingOwnerEvidence": return "Chờ Owner phản hồi";
     case "PendingReview": return "Sẵn sàng xem xét";
     case "ResolvedRefund": return "Hoàn tiền Driver";
@@ -37,7 +36,6 @@ function getStatusLabel(status) {
 
 function getStatusType(status) {
   switch (status) {
-    case "Open": return "pending";
     case "WaitingOwnerEvidence": return "warning";
     case "PendingReview": return "info";
     case "ResolvedRefund": return "active";
@@ -48,7 +46,6 @@ function getStatusType(status) {
 
 function getStatusIcon(status) {
   switch (status) {
-    case "Open": return "";
     case "WaitingOwnerEvidence": return "";
     case "PendingReview": return "";
     case "ResolvedRefund": return "";
@@ -126,7 +123,7 @@ export default function AdminDisputeDetail() {
   }
 
   const statusType = getStatusType(dispute.status);
-  const canResolve = dispute.status === "PendingReview" || dispute.status === "WaitingOwnerEvidence";
+  const canResolve = dispute.status === "PendingReview";
   const isResolved = dispute.status === "ResolvedRefund" || dispute.status === "ResolvedPayout";
 
   return (

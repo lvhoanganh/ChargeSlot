@@ -154,10 +154,10 @@ export default function OwnerWallet() {
 
   async function handleWithdraw() {
     const amt = Number(withdrawForm.amount);
-    if (!amt || amt < 10000) {
-      showToast.error("Số tiền rút tối thiểu là 10.000đ");
+    if (!amt || amt < 50000) {
+      showToast.error("Số tiền rút tối thiểu là 50.000đ");
       return;
-    }
+    } d
     if (!withdrawForm.bankName || !withdrawForm.bankAccountNumber || !withdrawForm.bankAccountHolder) {
       showToast.error("Vui lòng điền đầy đủ thông tin ngân hàng");
       return;
@@ -186,14 +186,14 @@ export default function OwnerWallet() {
     const errors = {};
     if (!bankForm.bankName) errors.bankName = "Vui lòng chọn ngân hàng";
     if (!bankForm.bankAccountNumber) {
-       errors.bankAccountNumber = "Vui lòng nhập số tài khoản";
+      errors.bankAccountNumber = "Vui lòng nhập số tài khoản";
     } else if (!/^[0-9]{6,20}$/.test(bankForm.bankAccountNumber)) {
-       errors.bankAccountNumber = "Số tài khoản chỉ chứa số và từ 6-20 ký tự";
+      errors.bankAccountNumber = "Số tài khoản chỉ chứa số và từ 6-20 ký tự";
     }
     if (!bankForm.bankAccountHolder) {
-       errors.bankAccountHolder = "Vui lòng nhập tên chủ tài khoản";
+      errors.bankAccountHolder = "Vui lòng nhập tên chủ tài khoản";
     } else if (!/^[A-Z0-9 ]+$/.test(bankForm.bankAccountHolder)) {
-       errors.bankAccountHolder = "Tên chủ tài khoản phải là chữ IN HOA, không dấu";
+      errors.bankAccountHolder = "Tên chủ tài khoản phải là chữ IN HOA, không dấu";
     }
     setBankFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -264,7 +264,7 @@ export default function OwnerWallet() {
           </div>
           {frozen > 0 && (
             <div style={{ fontSize: 13, opacity: 0.75, marginTop: 6 }}>
-               Đang giữ: {frozen.toLocaleString("vi-VN")}đ
+              Đang giữ: {frozen.toLocaleString("vi-VN")}đ
             </div>
           )}
           <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
@@ -533,10 +533,10 @@ export default function OwnerWallet() {
                           ) : (
                             <div style={{ display: "flex", gap: 10 }}>
                               <button onClick={() => handleConfirmWithdraw(p.id)} style={{ flex: 1, padding: "10px", background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff", borderRadius: 10, border: "none", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 10px rgba(34,197,94,0.2)" }}>
-                                 Đã nhận tiền
+                                Đã nhận tiền
                               </button>
                               <button onClick={() => setIssueForm({ id: p.id, reason: "" })} style={{ flex: 1, padding: "10px", background: "#fff", color: "#ef4444", borderRadius: 10, border: "1.5px solid #fca5a5", fontWeight: 700, cursor: "pointer" }}>
-                                 Báo lỗi
+                                Báo lỗi
                               </button>
                             </div>
                           )}
@@ -589,19 +589,19 @@ export default function OwnerWallet() {
                           STK: {ba.bankAccountNumber}
                         </div>
                         <div style={{ fontSize: 13, color: "#64748b" }}>
-                           {ba.bankAccountHolder}
+                          {ba.bankAccountHolder}
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
                         {!ba.isDefault && (
                           <button onClick={() => handleSetDefault(ba.id)}
                             style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #e5e7eb", background: "#fff", color: "#22c55e", fontWeight: 600, fontSize: 11, cursor: "pointer" }}>
-                             Mặc định
+                            Mặc định
                           </button>
                         )}
                         <button onClick={() => handleDeleteBank(ba.id)}
                           style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #fca5a5", background: "#fff", color: "#ef4444", fontWeight: 600, fontSize: 11, cursor: "pointer" }}>
-                           Xóa
+                          Xóa
                         </button>
                       </div>
                     </div>
@@ -709,8 +709,8 @@ function FormInput({ label, type = "text", placeholder, value, onChange, error }
           width: "100%", padding: "10px 14px", borderRadius: 10,
           border: error ? "1.5px solid #ef4444" : "1.5px solid #e5e7eb", fontSize: 14, outline: "none", boxSizing: "border-box",
         }}
-        onFocus={e => { if(!error) e.target.style.borderColor = "#22c55e"; }}
-        onBlur={e => { if(!error) e.target.style.borderColor = "#e5e7eb"; }}
+        onFocus={e => { if (!error) e.target.style.borderColor = "#22c55e"; }}
+        onBlur={e => { if (!error) e.target.style.borderColor = "#e5e7eb"; }}
       />
       {error && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 4 }}>{error}</div>}
     </div>
