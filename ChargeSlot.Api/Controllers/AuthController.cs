@@ -132,7 +132,7 @@ namespace ChargeSlot.Api.Controllers
             {
                 var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
                 await _authService.RevokeTokenAsync(dto.RefreshToken, userId);
-                return Ok(new { message = "Token revoked." });
+                return Ok(new { message = "Đã thu hồi token thành công." });
             }
             catch (InvalidOperationException ex)
             {
@@ -155,7 +155,7 @@ namespace ChargeSlot.Api.Controllers
                     dto.FirebaseIdToken
                 );
 
-                return Ok(new { message = "Password reset successful" });
+                return Ok(new { message = "Đặt lại mật khẩu thành công." });
             }
             catch (InvalidOperationException ex)
             {

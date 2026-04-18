@@ -273,9 +273,7 @@ namespace ChargeSlot.Api.Services.Implementation
             _withdrawRepo.Add(request);
             await _unitOfWork.CompleteAsync();
 
-            // Ghi ledger double-entry: DEBIT từ ví user (available → frozen)
-            var clearingWallet = await _walletRepo.GetBySystemCodeAsync("CLEARING") 
-                ?? throw new InvalidOperationException("Ví hệ thống CLEARING chưa được cấu hình.");
+            // Ghi ledger: DEBIT từ ví user (available → frozen, tiền chưa rời hệ thống)
             var ledgerTx = new LedgerTransaction
             {
                 ReferenceType = "WithdrawRequest",
@@ -289,13 +287,6 @@ namespace ChargeSlot.Api.Services.Implementation
                     {
                         WalletId = wallet.Id,
                         Direction = LedgerDirection.Debit,
-                        Amount = dto.Amount,
-                        CreatedAt = DateTimeHelper.VietnamNow()
-                    },
-                    new LedgerEntry
-                    {
-                        WalletId = clearingWallet.Id,
-                        Direction = LedgerDirection.Credit,
                         Amount = dto.Amount,
                         CreatedAt = DateTimeHelper.VietnamNow()
                     }

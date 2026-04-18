@@ -107,7 +107,7 @@ namespace ChargeSlot.Api.Controllers
             try
             {
                 await _stationService.SubmitForApprovalAsync(id, userId);
-                return Ok(new { message = "Station submitted for approval." });
+                return Ok(new { message = "Trạm sạc đã được gửi để duyệt." });
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }

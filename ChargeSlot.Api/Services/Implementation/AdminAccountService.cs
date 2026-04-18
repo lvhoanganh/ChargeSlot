@@ -254,11 +254,11 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             // Không cho admin tự ban/unban chính mình
             if (targetUserId == actingAdminUserId)
-                throw new InvalidOperationException("You cannot ban/unban yourself.");
+                throw new InvalidOperationException("Bạn không thể cấm/bỏ cấm chính mình.");
 
             var user = await _adminAccountRepository.FindByIdAsync(targetUserId);
             if (user == null)
-                throw new InvalidOperationException("User not found.");
+                throw new InvalidOperationException("Không tìm thấy người dùng.");
 
             var roles = await _adminAccountRepository.GetRolesAsync(user);
 

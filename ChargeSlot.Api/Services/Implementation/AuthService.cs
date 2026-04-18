@@ -84,7 +84,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
                 else
                 {
-                    throw new InvalidOperationException("Phone number already registered.");
+                    throw new InvalidOperationException("Số điện thoại đã được đăng ký.");
                 }
             }
 
@@ -95,7 +95,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var role = string.IsNullOrWhiteSpace(dto.Role) ? RoleConstants.Driver : dto.Role.Trim();
             if (!RoleConstants.Allowed.Contains(role))
-                throw new InvalidOperationException("Invalid role.");
+                throw new InvalidOperationException("Vai trò không hợp lệ.");
 
             await EnsureRolesExistAsync();
 
@@ -154,18 +154,18 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var user = await _userManager.FindByNameAsync(phone);
             if (user == null)
-                throw new InvalidOperationException("Invalid phone number or password.");
+                throw new InvalidOperationException("Số điện thoại hoặc mật khẩu không đúng.");
 
             // Block login nếu đang chờ verify email
             if (user.Status == UserStatusConstants.PendingEmailVerification)
                 throw new InvalidOperationException("Tài khoản chưa xác thực email. Vui lòng kiểm tra hộp thư email để xác thực.");
 
             if (user.Status != UserStatusConstants.Active)
-                throw new InvalidOperationException("Account is inactive/banned.");
+                throw new InvalidOperationException("Tài khoản đã bị vô hiệu hóa hoặc bị cấm.");
 
             var signIn = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
             if (!signIn.Succeeded)
-                throw new InvalidOperationException("Invalid phone number or password.");
+                throw new InvalidOperationException("Số điện thoại hoặc mật khẩu không đúng.");
 
             var roles = await _userManager.GetRolesAsync(user);
             var role = roles.SingleOrDefault() ?? RoleConstants.Driver;
@@ -183,20 +183,20 @@ namespace ChargeSlot.Api.Services.Implementation
             var storedToken = await _refreshTokenRepo.GetByTokenAsync(refreshToken);
 
             if (storedToken == null)
-                throw new InvalidOperationException("Invalid refresh token.");
+                throw new InvalidOperationException("Refresh token không hợp lệ.");
 
             if (storedToken.IsRevoked)
-                throw new InvalidOperationException("Refresh token has been revoked.");
+                throw new InvalidOperationException("Refresh token đã bị thu hồi.");
 
             if (storedToken.IsExpired)
-                throw new InvalidOperationException("Refresh token has expired.");
+                throw new InvalidOperationException("Refresh token đã hết hạn.");
 
             // Revoke old token (rotation)
             storedToken.RevokedAt = DateTimeHelper.VietnamNow();
 
             var user = storedToken.User;
             if (user.Status != UserStatusConstants.Active)
-                throw new InvalidOperationException("Account is inactive/banned.");
+                throw new InvalidOperationException("Tài khoản đã bị vô hiệu hóa hoặc bị cấm.");
 
             var roles = await _userManager.GetRolesAsync(user);
             var role = roles.SingleOrDefault() ?? RoleConstants.Driver;
@@ -220,10 +220,10 @@ namespace ChargeSlot.Api.Services.Implementation
             var storedToken = await _refreshTokenRepo.GetByTokenAndUserAsync(refreshToken, userId);
 
             if (storedToken == null)
-                throw new InvalidOperationException("Invalid refresh token.");
+                throw new InvalidOperationException("Refresh token không hợp lệ.");
 
             if (storedToken.IsRevoked)
-                throw new InvalidOperationException("Token already revoked.");
+                throw new InvalidOperationException("Token đã được thu hồi trước đó.");
 
             storedToken.RevokedAt = DateTimeHelper.VietnamNow();
             await _unitOfWork.CompleteAsync();
@@ -338,7 +338,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var user = await _userManager.FindByNameAsync(phone);
             if (user == null)
-                throw new InvalidOperationException("User not found.");
+                throw new InvalidOperationException("Không tìm thấy người dùng.");
 
             var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
 

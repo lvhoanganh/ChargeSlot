@@ -10,7 +10,7 @@ namespace ChargeSlot.Api.Helpers
         public static string NormalizeAndValidate(string rawPhone)
         {
             if (string.IsNullOrWhiteSpace(rawPhone))
-                throw new InvalidOperationException("Phone number is required.");
+                throw new InvalidOperationException("Vui lòng nhập số điện thoại.");
 
             // Bỏ khoảng trắng
             var phone = rawPhone.Trim().Replace(" ", "");
@@ -23,15 +23,15 @@ namespace ChargeSlot.Api.Helpers
 
             // Chỉ cho phép ký tự số
             if (!phone.All(char.IsDigit))
-                throw new InvalidOperationException("Phone number must contain digits only.");
+                throw new InvalidOperationException("Số điện thoại chỉ được chứa chữ số.");
 
             // Độ dài phổ biến của số VN: 10 hoặc 11 số
             if (phone.Length is < 9 or > 11)
-                throw new InvalidOperationException("Phone number length is invalid.");
+                throw new InvalidOperationException("Độ dài số điện thoại không hợp lệ.");
 
             // Bắt buộc bắt đầu bằng 0
             if (!phone.StartsWith('0'))
-                throw new InvalidOperationException("Phone number format is invalid.");
+                throw new InvalidOperationException("Định dạng số điện thoại không hợp lệ.");
 
             return phone;
         }

@@ -179,7 +179,7 @@ namespace ChargeSlot.Api.Services.Implementation
             if (ownerExists == null)
             {
                 var user = await _userManager.FindByIdAsync(ownerUserId.ToString())
-                    ?? throw new InvalidOperationException("User not found.");
+                    ?? throw new InvalidOperationException("Không tìm thấy người dùng.");
                 ownerExists = new Owner
                 {
                     UserId = ownerUserId,
@@ -931,7 +931,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (station.ApprovalStatus != ApprovalStatus.PendingApproval)
                 throw new InvalidOperationException(
-                    $"Station is not pending approval. Current status: {station.ApprovalStatus}");
+                    $"Trạm sạc không ở trạng thái chờ duyệt. Trạng thái hiện tại: {station.ApprovalStatus}");
 
             station.ReviewedAt = DateTimeHelper.VietnamNow();
             station.ReviewedByUserId = adminUserId;

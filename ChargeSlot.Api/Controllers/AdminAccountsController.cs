@@ -90,7 +90,7 @@ namespace ChargeSlot.Api.Controllers
             {
                 var adminIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (!int.TryParse(adminIdStr, out var adminId))
-                    return BadRequest(new { message = "Invalid token." });
+                    return BadRequest(new { message = "Token không hợp lệ." });
 
                 var newStatus = await _adminAccountService.ToggleBanStatusAsync(id, adminId, dto.Reason);
 
