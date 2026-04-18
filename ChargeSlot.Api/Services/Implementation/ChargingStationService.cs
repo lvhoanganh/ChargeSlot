@@ -402,7 +402,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var activeStatuses = new[]
             {
                 BookingStatus.WaitingOwner, BookingStatus.PendingPayment,
-                BookingStatus.Paid, BookingStatus.CheckedIn, BookingStatus.InProgress
+                BookingStatus.Paid, BookingStatus.CheckedIn
             };
             var activeBookings = await _bookingRepo.GetActiveBookingsByStationIdsAsync(
                 new List<int> { id }, activeStatuses);
@@ -498,7 +498,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var activeStatuses = new[]
             {
                 BookingStatus.WaitingOwner, BookingStatus.PendingPayment,
-                BookingStatus.Paid, BookingStatus.CheckedIn, BookingStatus.InProgress
+                BookingStatus.Paid, BookingStatus.CheckedIn
             };
 
             // Only check bookings that end after VietnamNow
@@ -607,7 +607,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 var activeStatuses = new[]
                 {
                     BookingStatus.WaitingOwner, BookingStatus.PendingPayment,
-                    BookingStatus.Paid, BookingStatus.CheckedIn, BookingStatus.InProgress
+                    BookingStatus.Paid, BookingStatus.CheckedIn
                 };
                 var activeBookingsRaw = await _bookingRepo.GetActiveBookingsByStationIdsAsync(
                     new List<int> { id }, activeStatuses);
@@ -617,9 +617,9 @@ namespace ChargeSlot.Api.Services.Implementation
                 if (futureBookings.Any())
                 {
                     // Kiểm tra xem có xe đang sạc dở không
-                    var activeSessions = futureBookings.Where(b => b.Status == BookingStatus.CheckedIn || b.Status == BookingStatus.InProgress).ToList();
+                    var activeSessions = futureBookings.Where(b => b.Status == BookingStatus.CheckedIn).ToList();
                     if (activeSessions.Any())
-                        throw new InvalidOperationException("Trạm đang có xe cắm sạc (CheckedIn/InProgress). Không thể tắt trạm khẩn cấp. Vui lòng đợi xe sạc xong hoặc dừng phiên sạc thủ công.");
+                        throw new InvalidOperationException("Trạm đang có xe cắm sạc (CheckedIn). Không thể tắt trạm khẩn cấp. Vui lòng đợi xe sạc xong hoặc dừng phiên sạc thủ công.");
 
                     // Emergency Mass Cancel logic
                     var startOfMonth = new DateTime(now.Year, now.Month, 1);

@@ -130,7 +130,6 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 BookingStatus.PendingPayment,
                 BookingStatus.Paid,
                 BookingStatus.CheckedIn,
-                BookingStatus.InProgress,
                 BookingStatus.CompletedPendingInvoice,
                 BookingStatus.Completed
             };
@@ -156,8 +155,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 BookingStatus.WaitingOwner,
                 BookingStatus.PendingPayment,
                 BookingStatus.Paid,
-                BookingStatus.CheckedIn,
-                BookingStatus.InProgress
+                BookingStatus.CheckedIn
             };
 
             var query = _db.Bookings
@@ -232,7 +230,6 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 BookingStatus.PendingPayment,
                 BookingStatus.Paid,
                 BookingStatus.CheckedIn,
-                BookingStatus.InProgress,
                 BookingStatus.CompletedPendingInvoice,
                 BookingStatus.Completed
             };
@@ -254,7 +251,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
             var activeStatuses = new[]
             {
                 BookingStatus.PendingPayment, BookingStatus.Paid, BookingStatus.CheckedIn,
-                BookingStatus.InProgress, BookingStatus.CompletedPendingInvoice, BookingStatus.Completed
+                BookingStatus.CompletedPendingInvoice, BookingStatus.Completed
             };
 
             return await _db.Bookings
@@ -280,8 +277,7 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 BookingStatus.WaitingOwner,
                 BookingStatus.PendingPayment,
                 BookingStatus.Paid,
-                BookingStatus.CheckedIn,
-                BookingStatus.InProgress
+                BookingStatus.CheckedIn
             };
             return await _db.Bookings.AnyAsync(b => b.SlotId == slotId && activeStatuses.Contains(b.Status));
         }

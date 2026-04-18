@@ -231,8 +231,8 @@ namespace ChargeSlot.Api.Services.Implementation
                 var dispute = await _disputeRepo.GetByIdWithDetailsAsync(disputeId)
                     ?? throw new InvalidOperationException("Khiếu nại không tồn tại.");
 
-                if (dispute.Status != DisputeStatus.PendingReview && dispute.Status != DisputeStatus.WaitingOwnerEvidence)
-                    throw new InvalidOperationException("Khiếu nại không ở trạng thái có thể xử lý.");
+                if (dispute.Status != DisputeStatus.PendingReview)
+                    throw new InvalidOperationException("Khiếu nại chưa sẵn sàng để xử lý. Cần chờ Owner nộp bằng chứng phản hồi trước.");
 
                 var now = DateTimeHelper.VietnamNow();
 

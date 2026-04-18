@@ -112,5 +112,38 @@ namespace ChargeSlot.Api.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Admin ép hoàn tất rút tiền khi User spam báo lỗi giả (IssueReported → Completed).
+        /// Upload ảnh bằng chứng chuyển khoản thành công.
+        /// </summary>
+        [HttpPut("{id}/force-complete")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> ForceComplete(int id, IFormFile evidenceImage, [FromForm] string? note)
+        {
+            try
+            {
+                if (evidenceImage == null || evidenceImage.Length == 0)
+                    return BadRequest(new { message = "Vui lòng upload ảnh bằng chứng chuyển khoản." });
+
+                var ext = Path.GetExtension(evidenceImage.FileName).ToLowerInvariant();
+                if (ext is not (".jpg" or ".jpeg" or ".png" or ".webp"))
+                    return BadRequest(new { message = "Chỉ chấp nhận file ảnh (jpg, png, webp)." });
+
+                if (evidenceImage.Length > 5 * 1024 * 1024)
+                    return BadRequest(new { message = "File quá lớn. Tối đa 5MB." });
+
+                var result = await _walletService.AdminForceCompleteAsync(GetUserId(), id, evidenceImage, note);
+                return Ok(new
+                {
+                    message = "Đã ép hoàn tất yêu cầu rút tiền. Bằng chứng đã được lưu.",
+                    withdrawRequest = result
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }
