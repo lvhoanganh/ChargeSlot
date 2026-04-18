@@ -484,7 +484,7 @@ export default function StationDetailDriver() {
             Các slot sạc ({station.chargingSlots.length})
           </h2>
           <div className="space-y-3">
-            {station.chargingSlots.map((slot) => {
+            {[...station.chargingSlots].sort((a, b) => (a.slotName || "").localeCompare(b.slotName || "", undefined, { numeric: true, sensitivity: "base" })).map((slot) => {
               const isOccupied = occupiedSlots.has(slot.id);
               const isCheckedIn = checkedInSlots.has(slot.id);
               const displayStatus = isOccupied ? "Occupied" : isCheckedIn ? "CheckedIn" : slot.status;

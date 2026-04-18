@@ -837,7 +837,9 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
 
         {/* Dispute — chỉ trong vòng 24h sau khi kết thúc */}
         {(booking.status === "CompletedPendingInvoice" || booking.status === "Completed") && (() => {
-          const endMs = booking.endTime ? new Date(String(booking.endTime).replace("Z", "")).getTime() : 0;
+          // Ưu tiên actualEndTime (thời gian kết thúc phiên sạc thực tế) → fallback booking.endTime (lịch đặt)
+          const rawEnd = sessionDetail?.actualEndTime || booking.chargingSessionDetail?.actualEndTime || booking.endTime;
+          const endMs = rawEnd ? new Date(String(rawEnd).replace("Z", "")).getTime() : 0;
           const within24h = endMs && (Date.now() - endMs) < 24 * 60 * 60 * 1000;
           if (!within24h) return null;
           return (

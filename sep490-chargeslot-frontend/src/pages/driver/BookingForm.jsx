@@ -495,7 +495,7 @@ export default function BookingForm() {
     );
   }
 
-  const slots = station.chargingSlots || [];
+  const slots = [...(station.chargingSlots || [])].sort((a, b) => (a.slotName || "").localeCompare(b.slotName || "", undefined, { numeric: true, sensitivity: 'base' }));
 
   // Helper: check if start/end time overlaps with booked ranges
   const isTimeConflict = () => {

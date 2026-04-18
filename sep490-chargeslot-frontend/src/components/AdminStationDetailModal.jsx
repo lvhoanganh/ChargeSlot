@@ -135,7 +135,7 @@ export default function AdminStationDetailModal({ stationId, onClose }) {
                   <div style={{ background: "white", padding: "20px", borderRadius: "16px", border: "1px solid #f1f5f9" }}>
                     <h4 style={{ margin: "0 0 16px", fontSize: "15px", fontWeight: 600, color: "#1e293b" }}>Các slot sạc ({(station.chargingSlots || []).length})</h4>
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {(station.chargingSlots || []).map(slot => {
+                      {[...(station.chargingSlots || [])].sort((a, b) => (a.slotName || "").localeCompare(b.slotName || "", undefined, { numeric: true, sensitivity: "base" })).map(slot => {
                         const ss = slotStatusConfig[slot.status] || slotStatusConfig.Available;
                         return (
                           <div key={slot.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: ss.bg, borderRadius: "8px", border: "1px solid rgba(0,0,0,0.03)" }}>

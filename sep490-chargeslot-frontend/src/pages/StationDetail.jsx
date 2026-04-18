@@ -359,7 +359,7 @@ export default function StationDetail() {
                 </h2>
 
                 <div className="space-y-3">
-                  {station.chargingSlots.map((slot) => {
+                  {[...station.chargingSlots].sort((a, b) => (a.slotName || "").localeCompare(b.slotName || "", undefined, { numeric: true, sensitivity: "base" })).map((slot) => {
                     // Check if this slot has an active charging session
                     const hasActiveSession = activeSlotIds.has(slot.id);
                     const displayStatus = hasActiveSession ? "Occupied" : slot.status;

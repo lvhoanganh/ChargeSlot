@@ -121,12 +121,13 @@ export default function AdminWithdraws() {
   async function submitForceComplete(e) {
     e.preventDefault();
     if (!forceModal) return;
+    if (!forceFile) return showToast.error("Vui lòng upload ảnh bằng chứng chuyển khoản");
     setProcessing(forceModal.id);
     try {
       const formData = new FormData();
-      if (forceFile) formData.append("ReceiptImage", forceFile);
-      if (forceNote) formData.append("AdminNote", forceNote);
-      
+      if (forceFile) formData.append("evidenceImage", forceFile);
+      if (forceNote) formData.append("note", forceNote);
+
       await adminWithdrawApi.forceComplete(forceModal.id, formData);
       showToast.success("Đã ép hoàn tất rút tiền thành công!");
       setForceModal(null);
@@ -229,8 +230,8 @@ export default function AdminWithdraws() {
                   )}
                   {w.status === "IssueReported" && (
                     <>
-                      <button onClick={() => setForceModal({ id: w.id })} disabled={processing === w.id} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: processing === w.id ? "#d1d5db" : "#3b82f6", color: "#fff", fontWeight: 600, cursor: processing === w.id ? "not-allowed" : "pointer" }}>{processing === w.id ? "..." : "Ép Hoàn Tất"}</button>
-                      <button onClick={() => handleResolveIssue(w.id)} disabled={processing === w.id} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: processing === w.id ? "#d1d5db" : "#f97316", color: "#fff", fontWeight: 600, cursor: processing === w.id ? "not-allowed" : "pointer" }}>{processing === w.id ? "..." : "Đã giải quyết"}</button>
+                      <button onClick={() => setForceModal({ id: w.id })} disabled={processing === w.id} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: processing === w.id ? "#d1d5db" : "#3b82f6", color: "#fff", fontWeight: 600, cursor: processing === w.id ? "not-allowed" : "pointer" }}>{processing === w.id ? "..." : "Đã hoàn tất"}</button>
+                      <button onClick={() => handleResolveIssue(w.id)} disabled={processing === w.id} style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: processing === w.id ? "#d1d5db" : "#f97316", color: "#fff", fontWeight: 600, cursor: processing === w.id ? "not-allowed" : "pointer" }}>{processing === w.id ? "..." : "Hướng giải quyết"}</button>
                     </>
                   )}
                 </div>
@@ -334,8 +335,8 @@ export default function AdminWithdraws() {
             <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>Tải ảnh biên lai mới lên hệ thống (tuỳ chọn) và ghi chú lý do ép hoàn tất.</p>
             <form onSubmit={submitForceComplete} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: "block" }}>Ảnh chứng từ (tuỳ chọn)</label>
-                <input type="file" accept="image/*" onChange={e => setForceFile(e.target.files[0])} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1.5px dashed #cbd5e1" }} />
+                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: "block" }}>Ảnh chứng từ <span style={{ color: "#ef4444" }}>*</span></label>
+                <input type="file" accept="image/*" onChange={e => setForceFile(e.target.files[0])} required style={{ width: "100%", padding: 10, borderRadius: 10, border: "1.5px dashed #cbd5e1" }} />
               </div>
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: "block" }}>Ghi chú admin (tuỳ chọn)</label>

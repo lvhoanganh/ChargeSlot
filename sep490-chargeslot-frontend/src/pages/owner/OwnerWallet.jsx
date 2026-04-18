@@ -268,7 +268,16 @@ export default function OwnerWallet() {
             </div>
           )}
           <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
-            <WalletBtn onClick={() => { setShowWithdraw(true); setShowAddBank(false); }}> Rút tiền</WalletBtn>
+            <WalletBtn onClick={() => {
+              const defaultBank = bankAccounts.find(b => b.isDefault) || bankAccounts[0];
+              setWithdrawForm(f => ({
+                ...f,
+                bankName: defaultBank?.bankName || f.bankName,
+                bankAccountNumber: defaultBank?.bankAccountNumber || f.bankAccountNumber,
+                bankAccountHolder: defaultBank?.bankAccountHolder || f.bankAccountHolder,
+              }));
+              setShowWithdraw(true); setShowAddBank(false);
+            }}> Rút tiền</WalletBtn>
             <WalletBtn onClick={() => navigate("/owner/booking-requests")}> Quản lý Booking</WalletBtn>
             <WalletBtn onClick={() => navigate("/stations")}> Quản lý trạm</WalletBtn>
           </div>
@@ -497,7 +506,16 @@ export default function OwnerWallet() {
                       <div style={{ fontSize: 13, color: "#64748b" }}>
                         <div>Ngân hàng: <strong>{p.bankName}</strong> - {p.bankAccountNumber}</div>
                         {p.userNote && <div style={{ marginTop: 4 }}> Ghi chú: {p.userNote}</div>}
-                        {p.adminNote && <div style={{ color: "#dc2626", marginTop: 4 }}>️ Admin: {p.adminNote}</div>}
+                        {p.adminNote && (() => {
+                          const clean = p.adminNote
+                            .replace(/https?:\/\/\S+/g, "")
+                            .replace(/\[ForceComplete\]|\[Resolve\]/g, "")
+                            .replace(/Bằng chứng:\s*/g, "")
+                            .replace(/\|/g, "")
+                            .replace(/\s{2,}/g, " ")
+                            .trim();
+                          return clean ? <div style={{ color: "#dc2626", marginTop: 4 }}>️ Admin: {clean}</div> : null;
+                        })()}
                         {p.issueReason && <div style={{ color: "#ef4444", marginTop: 4, fontWeight: 600 }}> Báo lỗi: {p.issueReason}</div>}
                         <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 6 }}>{toLocal(p.requestedAt)}</div>
                       </div>

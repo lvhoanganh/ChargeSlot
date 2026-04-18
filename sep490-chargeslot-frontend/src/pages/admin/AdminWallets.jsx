@@ -144,13 +144,13 @@ function TransactionDetailModal({ transactionId, onClose }) {
               </div>
 
               {/* Balance check */}
-              <div className={`csw-balance-check ${isBalanced ? "csw-balance-check--ok" : "csw-balance-check--err"}`}>
+              {/* <div className={`csw-balance-check ${isBalanced ? "csw-balance-check--ok" : "csw-balance-check--err"}`}>
                 <span className="csw-balance-check__icon">{isBalanced ? "✓" : "⚠️"}</span>
                 <div>
                   <div className="csw-balance-check__title">{isBalanced ? "Sổ Cái Cân Bằng" : "SỔ CÁI LỆCH — Kiểm tra ngay!"}</div>
                   <div className="csw-balance-check__detail">Ghi Nợ: {formatCurrency(debitTotal)} &nbsp;|&nbsp; Ghi Có: {formatCurrency(creditTotal)}</div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Double-entry */}
               <h3 className="csw-section-title"> Bút Toán Kép</h3>
@@ -296,7 +296,6 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
                         </span>
                       </div>
                       <div className="csw-tx-item__bottom">
-                        <span className="csw-tx-item__id">#{tx.id}</span>
                         <span className="csw-tx-item__memo">{tx.memo || "—"}</span>
                         <span className="csw-tx-item__date">{formatDate(tx.createdAt)}</span>
                       </div>
@@ -411,14 +410,21 @@ export default function AdminWallets() {
   const totalCount = rawData?.totalCount ?? 0;
 
   const systemWallets = useMemo(() => {
-    const items = systemWalletsData?.items ?? [];
+    // Merge từ cả 2 nguồn: query riêng system + query chính (phòng trường hợp 1 trong 2 chưa load)
+    const sysItems = systemWalletsData?.items ?? [];
+    const mainItems = (rawData?.items ?? []).filter(w => w.walletType === "System");
+    const all = [...sysItems, ...mainItems];
+    // Deduplicate theo id
+    const map = new Map();
+    all.forEach(w => { if (w && !map.has(w.id)) map.set(w.id, w); });
+    const unique = [...map.values()];
     return [
-      items.find((w) => w.id === 1),
-      items.find((w) => w.id === 2),
-      items.find((w) => w.id === 3),
-      items.find((w) => w.id === 99),
+      unique.find((w) => w.systemCode === "ESCROW"),
+      unique.find((w) => w.systemCode === "PLATFORM_REVENUE"),
+      unique.find((w) => w.systemCode === "CLEARING"),
+      unique.find((w) => w.systemCode === "TAX_HOLD"),
     ].filter(Boolean);
-  }, [systemWalletsData]);
+  }, [systemWalletsData, rawData]);
 
   const filtered = useMemo(() => {
     const normalize = (s) => !s ? "" : String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();

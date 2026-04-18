@@ -327,7 +327,16 @@ export default function DriverWallet() {
           )}
           <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
             <WalletBtn onClick={() => { setShowTopUp(true); setShowWithdraw(false); }}> Nạp tiền</WalletBtn>
-            <WalletBtn onClick={() => { setShowWithdraw(true); setShowTopUp(false); }}> Rút tiền</WalletBtn>
+            <WalletBtn onClick={() => {
+              const defaultBank = bankAccounts.find(b => b.isDefault) || bankAccounts[0];
+              setWithdrawForm(f => ({
+                ...f,
+                bankName: defaultBank?.bankName || f.bankName,
+                bankAccountNumber: defaultBank?.bankAccountNumber || f.bankAccountNumber,
+                bankAccountHolder: defaultBank?.bankAccountHolder || f.bankAccountHolder,
+              }));
+              setShowWithdraw(true); setShowTopUp(false);
+            }}> Rút tiền</WalletBtn>
             <WalletBtn onClick={() => navigate("/driver/my-bookings")}> Booking</WalletBtn>
           </div>
         </div>
@@ -612,7 +621,16 @@ export default function DriverWallet() {
                         <div> {wr.bankName} · {wr.bankAccountNumber}</div>
                         <div> {wr.bankAccountHolder}</div>
                         {wr.userNote && <div style={{ marginTop: 4 }}> Ghi chú: {wr.userNote}</div>}
-                        {wr.adminNote && <div style={{ color: "#dc2626", marginTop: 4 }}>️ Admin: {wr.adminNote}</div>}
+                        {wr.adminNote && (() => {
+                          const clean = wr.adminNote
+                            .replace(/https?:\/\/\S+/g, "")
+                            .replace(/\[ForceComplete\]|\[Resolve\]/g, "")
+                            .replace(/Bằng chứng:\s*/g, "")
+                            .replace(/\|/g, "")
+                            .replace(/\s{2,}/g, " ")
+                            .trim();
+                          return clean ? <div style={{ color: "#dc2626", marginTop: 4 }}>️ Admin: {clean}</div> : null;
+                        })()}
                         {wr.issueReason && <div style={{ color: "#ef4444", marginTop: 4, fontWeight: 600 }}> Báo lỗi: {wr.issueReason}</div>}
                         <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 6 }}>{toLocal(wr.requestedAt)}</div>
                       </div>
