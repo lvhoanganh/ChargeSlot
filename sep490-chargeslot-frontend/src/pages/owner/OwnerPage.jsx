@@ -982,7 +982,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
   const coverageWarnings = getCoverageWarnings();
 
   function getLastEndTime() {
-    if (pricingTiers.length === 0) return earliestOpen || "00:00";
+    if (pricingTiers.length === 0) return "00:00";
     const sorted = [...pricingTiers].sort((a, b) => String(a.endTime).localeCompare(String(b.endTime)));
     return fmtTime(sorted[sorted.length - 1].endTime);
   }
@@ -1024,12 +1024,6 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
       return;
     }
 
-    // Validate không vượt quá giờ đóng cửa
-    if (openHours.length > 0 && latestClose && latestClose !== "00:00" && newTier.endTime > latestClose) {
-      setPricingError(`Giờ kết thúc vượt quá giờ đóng cửa (${latestClose})!`);
-      return;
-    }
-
     setPricingLoading(true);
     try {
       await stationPricingApi.create(stationId, {
@@ -1039,7 +1033,7 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
         priority: 0,
       });
       setShowAddPricing(false);
-      setNewTier({ startTime: earliestOpen, endTime: "", pricePerHour: "" });
+      setNewTier({ startTime: "00:00", endTime: "", pricePerHour: "" });
       setPricingError("");
       await reloadPricing();
       onSaved?.();

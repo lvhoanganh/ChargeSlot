@@ -203,7 +203,7 @@ export default function ManageUser() {
             <p className="cs-admin-stat-card__value" style={{ color: "#dc2626" }}>{summary.banned || 0}</p>
           </div>
         </div>
-        
+
         {/* Row 2: Roles */}
         <div className="cs-admin-stat-card">
           <div className="cs-admin-stat-card__icon" style={{ background: "#eff6ff", color: "#2563eb" }}>
@@ -295,7 +295,7 @@ export default function ManageUser() {
         <table className="cs-admin-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>STT</th>
               <th>Họ tên</th>
               <th>Số điện thoại</th>
               <th>Vai trò</th>
@@ -316,12 +316,13 @@ export default function ManageUser() {
                 </td>
               </tr>
             ) : (
-              users.map((u) => {
+              users.map((u, index) => {
                 const isAdmin = u.role === "Admin";
                 const isBanned = u.status === "BANNED" || !!u.bannedUntil;
                 return (
                   <tr key={u.id}>
-                    <td className="cs-admin-table__id">{u.id}</td>
+                    {/* <td className="cs-admin-table__id">{u.id}</td> */}
+                    <td className="cs-admin-table__id">{index + 1}</td>
                     <td className="cs-admin-table__name">{u.fullName}</td>
                     <td>{maskPhone(u.phoneNumber)}</td>
                     <td>
@@ -459,9 +460,9 @@ export default function ManageUser() {
 
       {/* Profile Detail Modal */}
       {viewProfileTarget && (
-        <UserProfileModal 
-          user={viewProfileTarget} 
-          onClose={() => setViewProfileTarget(null)} 
+        <UserProfileModal
+          user={viewProfileTarget}
+          onClose={() => setViewProfileTarget(null)}
         />
       )}
 

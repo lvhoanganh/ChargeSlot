@@ -121,17 +121,17 @@ export default function AdminKycRequests() {
         </div>
       </div>
 
-        <div className="cs-admin-filter" style={{ flexWrap: "wrap", gap: 10 }}>
-          <div className="cs-admin-filter__search">
+      <div className="cs-admin-filter" style={{ flexWrap: "wrap", gap: 10 }}>
+        <div className="cs-admin-filter__search">
           <svg className="cs-admin-filter__search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
             type="text"
             value={search}
-              onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder="Tìm theo tên doanh nghiệp, CCCD, Mã số thuế..."
-              className="cs-admin-filter__input"
+            className="cs-admin-filter__input"
           />
         </div>
         <select
@@ -202,7 +202,7 @@ export default function AdminKycRequests() {
                     {k.kycStatus === "Unverified" && <span className="cs-admin-status-badge" style={{ background: "#f1f5f9", color: "#64748b" }}><span className="cs-admin-status-badge__dot" style={{ background: "#94a3b8" }} />Chưa cập nhật</span>}
                     {k.kycStatus === "PendingUpdate" && <span className="cs-admin-status-badge" style={{ background: "#eff6ff", color: "#2563eb" }}><span className="cs-admin-status-badge__dot" style={{ background: "#3b82f6" }} /> Cập nhật</span>}
                   </td>
-                  <td style={{ textAlign: "right" }}>
+                  {/* <td style={{ textAlign: "right" }}>
                     {k.kycStatus === "Approved" ? (
                       <button
                         onClick={() => { setSelectedKyc(k); setReviewAction(null); setAdminNote(""); }}
@@ -217,6 +217,57 @@ export default function AdminKycRequests() {
                         className="cs-admin-action-btn" style={{ background: "#3b82f6", color: "#fff" }}
                       >
                         Xem & Xử lý
+                      </button>
+                    )}
+                  </td> */}
+                  <td style={{ textAlign: "right" }}>
+                    {k.kycStatus === "Approved" ? (
+                      <button
+                        onClick={() => {
+                          setSelectedKyc(k);
+                          setReviewAction(null);
+                          setAdminNote("");
+                        }}
+                        className="cs-admin-action-btn"
+                        style={{
+                          background: "#3b82f6",
+                          color: "#fff",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        Xem
+                      </button>
+                    ) : k.kycStatus === "Rejected" ? (
+                      <button
+                        onClick={() => {
+                          setSelectedKyc(k);
+                          setReviewAction(null);
+                          setAdminNote("");
+                        }}
+                        className="cs-admin-action-btn"
+                        style={{
+                          background: "#3b82f6",
+                          color: "#fff",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        Xem
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setSelectedKyc(k);
+                          setReviewAction(null);
+                          setAdminNote("");
+                        }}
+                        className="cs-admin-action-btn"
+                        style={{
+                          background: "#3b82f6",
+                          color: "#fff",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        Xem và xử lý
                       </button>
                     )}
                   </td>

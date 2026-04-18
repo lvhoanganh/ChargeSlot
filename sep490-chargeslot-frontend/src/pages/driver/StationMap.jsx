@@ -632,11 +632,11 @@ export default function StationMap() {
                 className="sm-select"
               >
                 <option value=""> Đánh giá</option>
-                <option value="1">≥ 1 </option>
-                <option value="2">≥ 2 </option>
-                <option value="3">≥ 3 </option>
-                <option value="4">≥ 4 </option>
-                <option value="4.5">≥ 4.5 </option>
+                <option value="1">≥ 1 ⭐</option>
+                <option value="2">≥ 2 ⭐</option>
+                <option value="3">≥ 3 ⭐</option>
+                <option value="4">≥ 4 ⭐</option>
+                <option value="4.5">≥ 4.5 ⭐</option>
               </select>
               <select
                 value={sortBy}

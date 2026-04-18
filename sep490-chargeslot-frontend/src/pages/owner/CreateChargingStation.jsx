@@ -311,13 +311,9 @@ export default function CreateChargingStation() {
         setError("root.serverError", { type: "manual", message: `Khung giờ ${i + 1}: Thời gian không hợp lệ!` });
         return;
       }
-      const autoStart = i === 0 ? earliestOpenTime : pricing[i - 1].endTime;
+      const autoStart = i === 0 ? "00:00" : pricing[i - 1].endTime;
       if (rule.endTime <= autoStart) {
         setError("root.serverError", { type: "manual", message: `Khung giờ ${i + 1}: Giờ kết thúc phải sau ${autoStart}.` });
-        return;
-      }
-      if (latestCloseTime && latestCloseTime !== "00:00" && rule.endTime > latestCloseTime) {
-        setError("root.serverError", { type: "manual", message: `Khung giờ ${i + 1}: Giờ kết thúc (${rule.endTime}) vượt giờ đóng cửa (${latestCloseTime})!` });
         return;
       }
     }
@@ -660,7 +656,7 @@ export default function CreateChargingStation() {
                   </div>
                   <button type="button" onClick={() => {
                     const current = watch("stationPricing") || [];
-                    const lastEnd = current.length > 0 ? current[current.length - 1].endTime : earliestOpenTime;
+                    const lastEnd = current.length > 0 ? current[current.length - 1].endTime : "00:00";
                     setValue("stationPricing", [...current, { startTime: lastEnd, endTime: "", pricePerHour: "" }]);
                   }} style={{ padding: "8px 16px", borderRadius: 10, border: "1.5px solid #f97316", background: "#fff7ed", color: "#ea580c", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
                     + Thêm khung giờ
@@ -680,12 +676,11 @@ export default function CreateChargingStation() {
                   return (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       {pricing.map((rule, rIdx) => {
-                        const autoStart = rIdx === 0 ? earliestOpenTime : (pricing[rIdx - 1]?.endTime || "");
+                        const autoStart = rIdx === 0 ? "00:00" : (pricing[rIdx - 1]?.endTime || "");
                         const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
                         const isValidFormat = !rule.endTime || timeRegex.test(rule.endTime);
                         const isAfterStart = !rule.endTime || !autoStart || rule.endTime > autoStart;
-                        const exceedsClose = isValidFormat && rule.endTime && latestCloseTime && latestCloseTime !== "00:00" && rule.endTime > latestCloseTime;
-                        const hasError = rule.endTime && (!isValidFormat || !isAfterStart || exceedsClose);
+                        const hasError = rule.endTime && (!isValidFormat || !isAfterStart);
                         return (
                           <div key={rIdx} style={{ background: "#f8fafc", borderRadius: 14, padding: "14px 16px", border: hasError ? "1.5px solid #fca5a5" : "1.5px solid #e2e8f0" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -729,7 +724,7 @@ export default function CreateChargingStation() {
                             {hasError && (
                               <p style={{ margin: "6px 0 0", fontSize: 11, color: "#ef4444", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                                {!isValidFormat ? "Thời gian không hợp lệ!" : exceedsClose ? `Vượt giờ đóng cửa (${latestCloseTime})!` : `Phải sau ${autoStart}`}
+                                {!isValidFormat ? "Thời gian không hợp lệ!" : `Phải sau ${autoStart}`}
                               </p>
                             )}
                           </div>

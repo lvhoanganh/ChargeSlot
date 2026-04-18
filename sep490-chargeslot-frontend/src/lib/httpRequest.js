@@ -40,7 +40,9 @@ instance.interceptors.response.use(
       }
 
       // Trường hợp token hết hạn (401 thông thường) — thử refresh nếu có
-      if (error.response.status === 401 && !_isHandlingUnauthorized) {
+      if (error.response.status === 401 && !_isHandlingUnauthorized && !error.config._retry) {
+        error.config._retry = true; // Đánh dấu đã thử refresh 1 lần
+
         const refreshToken = localStorage.getItem("refreshToken");
         const accessToken = localStorage.getItem("accessToken");
         const API_BASE = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";

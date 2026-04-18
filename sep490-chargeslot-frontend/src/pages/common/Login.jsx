@@ -39,7 +39,7 @@ export default function Login() {
   return (
     <div className="cs-auth-wrapper">
       <div className="cs-auth-left">
-        <div className="cs-auth-left__content">
+        <div className="cs-auth-left__content" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div className="cs-animate-fadeInUp" style={{ marginBottom: 24 }}>
             <ChargeSlotLogo size={56} dark />
           </div>
