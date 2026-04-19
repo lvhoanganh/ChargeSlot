@@ -39,13 +39,23 @@ export default function ChargingActive() {
 
   const lsKey = `activeChargingBooking_${localStorage.getItem("userId") || "guest"}`;
   const [sessionData, setSessionData] = useState(session || null);
-  const [bookingStartMs, setBookingStartMs] = useState(null); // giờ BẮT ĐẦU đặt lịch (ms)
+  // Khởi tạo bookingStartMs ngay từ session để tránh flash "Hết giờ sạc" do null ban đầu
+  const [bookingStartMs, setBookingStartMs] = useState(() => {
+    if (session?.bookingStartTime) {
+      const ms = toLocal(session.bookingStartTime).getTime();
+      return isNaN(ms) ? null : ms;
+    }
+    return null;
+  }); // giờ BẮT ĐẦU đặt lịch (ms)
 
-  // Khởi tạo elapsed ngay từ session để tránh hiện 00:00:00 lần đầu render
+  // Khởi tạo elapsed ngay từ session — PHẢI dùng cùng công thức với useEffect
+  // (Math.max(actualStartTime, bookingStartTime)) để tránh flash "Hết giờ sạc"
   const [elapsed, setElapsed] = useState(() => {
     if (!session?.actualStartTime) return 0;
-    const ms = toLocal(session.actualStartTime).getTime();
-    return isNaN(ms) ? 0 : Math.max(0, Math.floor((Date.now() - ms) / 1000));
+    const actMs = toLocal(session.actualStartTime).getTime();
+    const schedMs = session.bookingStartTime ? toLocal(session.bookingStartTime).getTime() : actMs;
+    const effectiveStartMs = Math.max(isNaN(actMs) ? Date.now() : actMs, isNaN(schedMs) ? 0 : schedMs);
+    return isNaN(effectiveStartMs) ? 0 : Math.max(0, Math.floor((Date.now() - effectiveStartMs) / 1000));
   });
   const [waitRemaining, setWaitRemaining] = useState(0); // giây còn lại để chờ
   const [loading, setLoading] = useState(!session);
@@ -228,10 +238,12 @@ export default function ChargingActive() {
   const isTimeUp = remaining <= 0;
 
   //  Đang chờ đến giờ bắt đầu 
-  const isWaiting = bookingStartMs != null && waitRemaining > 0;
+  // Fallback: nếu bookingStartMs chưa set (đang fetch), check trực tiếp từ sessionData
+  const effectiveBookingStartMs = bookingStartMs ?? (sessionData.bookingStartTime ? toLocal(sessionData.bookingStartTime).getTime() : null);
+  const isWaiting = effectiveBookingStartMs != null && (waitRemaining > 0 || (bookingStartMs == null && effectiveBookingStartMs > Date.now()));
 
   if (isWaiting) {
-    const scheduledTime = formatTime(bookingStartMs);
+    const scheduledTime = formatTime(effectiveBookingStartMs);
     const wH = String(Math.floor(waitRemaining / 3600)).padStart(2, "0");
     const wM = String(Math.floor((waitRemaining % 3600) / 60)).padStart(2, "0");
     const wS = String(waitRemaining % 60).padStart(2, "0");

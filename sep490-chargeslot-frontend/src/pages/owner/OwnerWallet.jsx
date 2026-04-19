@@ -157,9 +157,13 @@ export default function OwnerWallet() {
     if (!amt || amt < 50000) {
       showToast.error("Số tiền rút tối thiểu là 50.000đ");
       return;
-    } d
+    }
     if (!withdrawForm.bankName || !withdrawForm.bankAccountNumber || !withdrawForm.bankAccountHolder) {
       showToast.error("Vui lòng điền đầy đủ thông tin ngân hàng");
+      return;
+    }
+    if (!/^[A-Z ]+$/.test(withdrawForm.bankAccountHolder.trim())) {
+      showToast.error("Tên chủ tài khoản chỉ được chứa chữ IN HOA, không dấu, không số");
       return;
     }
     setWithdrawLoading(true);
@@ -192,8 +196,8 @@ export default function OwnerWallet() {
     }
     if (!bankForm.bankAccountHolder) {
       errors.bankAccountHolder = "Vui lòng nhập tên chủ tài khoản";
-    } else if (!/^[A-Z0-9 ]+$/.test(bankForm.bankAccountHolder)) {
-      errors.bankAccountHolder = "Tên chủ tài khoản phải là chữ IN HOA, không dấu";
+    } else if (!/^[A-Z ]+$/.test(bankForm.bankAccountHolder)) {
+      errors.bankAccountHolder = "Tên chủ tài khoản phải là chữ IN HOA, không dấu, không số";
     }
     setBankFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -300,9 +304,15 @@ export default function OwnerWallet() {
                 onChange={v => setWithdrawForm(f => ({ ...f, bankName: v }))}
               />
               <FormInput label="Số tài khoản" placeholder="VD: 1234567890"
-                value={withdrawForm.bankAccountNumber} onChange={v => setWithdrawForm(f => ({ ...f, bankAccountNumber: v }))} />
+                value={withdrawForm.bankAccountNumber} onChange={v => {
+                  const formatted = v.replace(/[^0-9]/g, "");
+                  setWithdrawForm(f => ({ ...f, bankAccountNumber: formatted }));
+                }} />
               <FormInput label="Chủ tài khoản" placeholder="VD: NGUYEN VAN A"
-                value={withdrawForm.bankAccountHolder} onChange={v => setWithdrawForm(f => ({ ...f, bankAccountHolder: v }))} />
+                value={withdrawForm.bankAccountHolder} onChange={v => {
+                  const formatted = (v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z ]/g, "");
+                  setWithdrawForm(f => ({ ...f, bankAccountHolder: formatted }));
+                }} />
               <FormInput label="Ghi chú (tùy chọn)" placeholder="VD: Rút tiền thanh toán"
                 value={withdrawForm.userNote} onChange={v => setWithdrawForm(f => ({ ...f, userNote: v }))} />
             </div>
@@ -343,7 +353,7 @@ export default function OwnerWallet() {
                 }} />
               <FormInput label="Chủ tài khoản" placeholder="VD: NGUYEN VAN A" error={bankFormErrors.bankAccountHolder}
                 value={bankForm.bankAccountHolder} onChange={v => {
-                  const formatted = (v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9 ]/g, "");
+                  const formatted = (v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z ]/g, "");
                   setBankForm(f => ({ ...f, bankAccountHolder: formatted }));
                   setBankFormErrors(e => ({ ...e, bankAccountHolder: "" }));
                 }} />
