@@ -12,6 +12,13 @@ export default function VerifyEmail() {
   const [status, setStatus] = useState("loading"); // loading, success, error
   const [message, setMessage] = useState("");
 
+  // Xác định trang profile theo role để redirect sau khi verify thành công
+  const role = localStorage.getItem("role");
+  const profilePath =
+    role === "Owner" ? "/owner/owner-profile" :
+    role === "Driver" ? "/driver/driver-profile" :
+    "/";
+
   useEffect(() => {
     let cancelled = false;
 
@@ -21,7 +28,6 @@ export default function VerifyEmail() {
       return;
     }
 
-    // decode token just in case (though fetch will serialize as JSON properly usually)
     authApi
       .verifyEmail(parseInt(userId, 10), token)
       .then(() => {
@@ -43,7 +49,7 @@ export default function VerifyEmail() {
   }, [userId, token]);
 
   return (
-    <div className="flex items-center justify-center min-h-[70vh] bg-gray-50 px-4">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4">
       <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-100 flex flex-col items-center text-center">
         {status === "loading" && (
           <>
@@ -63,10 +69,10 @@ export default function VerifyEmail() {
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Xác thực thành công!</h2>
             <p className="text-gray-600 mb-8">{message}</p>
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate(profilePath)}
               className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-md shadow-orange-500/30"
             >
-              Về trang chủ
+              {role === "Owner" || role === "Driver" ? "Về trang hồ sơ" : "Về trang chủ"}
             </button>
           </>
         )}
@@ -81,10 +87,10 @@ export default function VerifyEmail() {
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Xác thực thất bại</h2>
             <p className="text-red-600 font-medium mb-8 bg-red-50 py-3 px-4 rounded-xl w-full">{message}</p>
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate(profilePath)}
               className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-6 rounded-xl transition-colors"
             >
-              Về trang chủ
+              {role === "Owner" || role === "Driver" ? "Về trang hồ sơ" : "Về trang chủ"}
             </button>
           </>
         )}

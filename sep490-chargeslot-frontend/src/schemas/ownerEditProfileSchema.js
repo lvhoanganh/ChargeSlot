@@ -15,6 +15,6 @@ export const ownerEditProfileSchema = z.object({
   taxCode: z
     .string()
     .transform(trimString)
-    .refine((v) => /^\d{10}$/.test(v), "Mã số thuế phải đúng 10 chữ số"),
+    .refine((v) => /^\d{12}$/.test(v), "Mã số thuế phải đúng 12 chữ số"),
 });
 

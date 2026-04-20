@@ -169,7 +169,6 @@ export default function App() {
               <Route path="driver/map" element={<StationMap />} />
               <Route path="driver/station/:id" element={<StationDetailDriver />} />
               <Route path="forgotPassword" element={<ForgotPassword />} />
-              <Route path="verify-email" element={<VerifyEmail />} />
               <Route element={<PublicMiddleware />}>
                 <Route path="login" element={<Login />} />
                 <Route path="register" element={<Register />} />
@@ -252,6 +251,9 @@ export default function App() {
                 <Route path="contract" element={<OwnerContractPage />} />
               </Route>
             </Route>
+
+            {/* verify-email tách riêng — không nằm trong MainLayout để tránh bị redirect dashboard khi đã login */}
+            <Route path="verify-email" element={<VerifyEmail />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>

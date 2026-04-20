@@ -226,11 +226,10 @@ export default function Register() {
         firebaseIdToken: idToken,
       });
 
-      showToast.success(res?.message || "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản trước khi đăng nhập.", { duration: 6000 });
-      // Thêm chút delay để người dùng kịp đọc thông báo
+      showToast.success(res?.message || "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản trước khi đăng nhập.", { duration: 8000 });
       setTimeout(() => {
         navigate("/login");
-      }, 3000);
+      }, 8000);
     } catch (error) {
       console.error("Lỗi đăng ký backend:", error);
       showToast.error(typeof error === "string" ? error : (error.message || "Đăng ký thất bại. Vui lòng thử lại."));
