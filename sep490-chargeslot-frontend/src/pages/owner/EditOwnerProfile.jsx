@@ -63,13 +63,18 @@ export default function EditOwnerProfile() {
           authApi.getMe().catch(() => null),
         ]);
         if (cancelled) return;
-        
+
         const currentEmail = meData?.email || "";
         setOriginalEmail(currentEmail);
 
-        if (p?.fullName) setFullName(p.fullName);
+        const resolvedFullName =
+          p?.fullName ||
+          meData?.name ||
+          meData?.fullName ||
+          getStoredFullName(phoneNumber);
+        if (resolvedFullName) setFullName(resolvedFullName);
         reset({
-          fullName: getStoredFullName(phoneNumber),
+          fullName: resolvedFullName,
           email: currentEmail,
           businessName: p?.businessName || "",
           taxCode: normalizeOptionalText(p?.taxCode),
@@ -117,8 +122,8 @@ export default function EditOwnerProfile() {
       if (!bn) throw new Error("Vui lòng nhập tên doanh nghiệp");
 
       const tc = normalizeOptionalText(values?.taxCode);
-      if (!/^\d{10}$/.test(tc)) {
-        throw new Error("Mã số thuế phải đúng 10 chữ số");
+      if (!/^\d{12}$/.test(tc)) {
+        throw new Error("Mã số thuế phải đúng 12 chữ số");
       }
 
       if (avatar && avatar !== DEFAULT_AVATAR) {
@@ -196,7 +201,7 @@ export default function EditOwnerProfile() {
                 {fullName || "Chưa cập nhật họ tên"}
               </p>
               <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
-                 Chủ trạm
+                Chủ trạm
               </span>
             </div>
           </div>
@@ -257,7 +262,7 @@ export default function EditOwnerProfile() {
                 />
                 <InputField
                   icon={<Receipt className="text-gray-500" size={20} />}
-                  label="Mã số thuế (10 chữ số)"
+                  label="Mã số thuế (12 chữ số)"
                   placeholder="Nhập mã số thuế"
                   inputMode="numeric"
                   error={errors.taxCode?.message}
@@ -308,7 +313,7 @@ export default function EditOwnerProfile() {
           <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 400, overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column" }}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                 Xác thực email mới
+                Xác thực email mới
               </h3>
             </div>
             <div style={{ padding: 24 }}>
@@ -329,7 +334,7 @@ export default function EditOwnerProfile() {
             </div>
             <div style={{ padding: "16px 24px", background: "#f8fafc", display: "flex", gap: 10 }}>
               <button onClick={() => { setShowOtpModal(false); navigate("/owner/owner-profile"); }} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
-                 Đã hiểu
+                Đã hiểu
               </button>
             </div>
           </div>

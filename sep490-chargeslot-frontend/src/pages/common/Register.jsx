@@ -196,6 +196,11 @@ export default function Register() {
       showToast.error("Vui lòng nhập đầy đủ thông tin");
       return;
     }
+    const fullNameRegex = /^[a-zA-ZÀ-ỹà-ỹ\s]+$/;
+    if (!fullNameRegex.test(fullName.trim())) {
+      showToast.error("Họ và tên không được chứa số hoặc ký tự đặc biệt");
+      return;
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       showToast.error("Email không hợp lệ");
@@ -407,7 +412,11 @@ export default function Register() {
                 className="cs-auth-input"
                 placeholder="Nhập họ và tên..."
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  // Lọc bỏ số và ký tự đặc biệt ngay khi gõ
+                  const filtered = e.target.value.replace(/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/g, "");
+                  setFullName(filtered);
+                }}
                 disabled={isLoading}
                 required
               />

@@ -76,9 +76,15 @@ export default function EditDriverProfile() {
         const currentEmail = meData?.email || "";
         setOriginalEmail(currentEmail);
 
-        if (p?.fullName) setFullName(p.fullName);
+        const resolvedFullName =
+          p?.fullName ||
+          meData?.name ||
+          meData?.fullName ||
+          localStorage.getItem("fullName") ||
+          "";
+        if (resolvedFullName) setFullName(resolvedFullName);
         reset({
-          fullName: p?.fullName || "",
+          fullName: resolvedFullName,
           email: currentEmail,
           vehicleType: p?.vehicleType || "",
           licensePlate: p?.licensePlate || "",
