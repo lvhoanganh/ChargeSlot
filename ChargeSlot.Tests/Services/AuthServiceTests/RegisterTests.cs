@@ -1,88 +1,21 @@
-using Xunit;
-using Moq;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Configuration;
-using ChargeSlot.Api.Services.Implementation;
-using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.DTOs.Auth;
-using ChargeSlot.Api.Repositories.Interfaces;
-using ChargeSlot.Api.Services.Interfaces;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Constants;
-using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Identity;
+using Moq;
 
 namespace ChargeSlot.Tests.Services.AuthServiceTests
 {
-    public class RegisterTests
+    public class RegisterTests : AuthServiceTestBase
     {
-        // ===== MOCKS =====
-        private readonly Mock<UserManager<ApplicationUser>> _userManagerMock;
-        private readonly Mock<SignInManager<ApplicationUser>> _signInManagerMock;
-        private readonly Mock<RoleManager<IdentityRole<int>>> _roleManagerMock;
-        private readonly Mock<IConfiguration> _configMock;
-        private readonly Mock<IUserOtpRepository> _otpRepoMock = new();
-        private readonly Mock<IFirebaseAuthService> _firebaseMock = new();
-        private readonly Mock<IOwnerRepository> _ownerRepoMock = new();
-        private readonly Mock<IDriverRepository> _driverRepoMock = new();
-        private readonly Mock<IRefreshTokenRepository> _refreshTokenMock = new();
-        private readonly Mock<IUnitOfWork> _uowMock = new();
-        private readonly Mock<IEmailService> _emailMock = new();
-        private readonly Mock<ILogger<AuthService>> _loggerMock = new();
+        // PhoneNumberHelper.NormalizeAndValidate("0123456789")
+        //   → trả "0123456789" (giữ nguyên 0-prefixed, bỏ +84 thành 0)
+        // Firebase mock phải trả đúng "0123456789" để match
+        private const string NormalizedPhone = "0123456789";
 
-        private const string NormalizedPhone = "+84123456789";
-
-        // ===== CONSTRUCTOR =====
-        public RegisterTests()
-        {
-            var userStore = new Mock<IUserStore<ApplicationUser>>();
-            _userManagerMock = new Mock<UserManager<ApplicationUser>>(
-                userStore.Object, null, null, null, null, null, null, null, null);
-
-            var httpCtx = new Mock<Microsoft.AspNetCore.Http.IHttpContextAccessor>();
-            var claimFactory = new Mock<IUserClaimsPrincipalFactory<ApplicationUser>>();
-            _signInManagerMock = new Mock<SignInManager<ApplicationUser>>(
-                _userManagerMock.Object, httpCtx.Object, claimFactory.Object, null, null, null, null);
-
-            var roleStore = new Mock<IRoleStore<IdentityRole<int>>>();
-            _roleManagerMock = new Mock<RoleManager<IdentityRole<int>>>(roleStore.Object, null, null, null, null);
-
-            _configMock = new Mock<IConfiguration>();
-
-            _uowMock.Setup(x => x.CompleteAsync()).ReturnsAsync(1);
-            _emailMock.Setup(x => x.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-                      .Returns(Task.CompletedTask);
-
-            _roleManagerMock.Setup(x => x.RoleExistsAsync(It.IsAny<string>()))
-                            .ReturnsAsync(true);
-
-            _otpRepoMock.Setup(x => x.InvalidateAllOtpsAsync(It.IsAny<string>()))
-                        .Returns(Task.CompletedTask);
-
-            _userManagerMock.Setup(x => x.GetRolesAsync(It.IsAny<ApplicationUser>()))
-                            .ReturnsAsync(new List<string>());
-
-            _userManagerMock.Setup(x => x.AddToRoleAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
-                            .ReturnsAsync(IdentityResult.Success);
-        }
-
-        private AuthService CreateService() => new AuthService(
-            _userManagerMock.Object,
-            _roleManagerMock.Object,
-            _signInManagerMock.Object,
-            _configMock.Object,
-            _otpRepoMock.Object,
-            _firebaseMock.Object,
-            _ownerRepoMock.Object,
-            _driverRepoMock.Object,
-            _refreshTokenMock.Object,
-            _uowMock.Object,
-            _emailMock.Object,
-            _loggerMock.Object);
-
-        // ===== HELPER DTO =====
-        private RegisterDto CreateValidDto(string email = "a@test.com", string role = "Driver")
-        {
-            return new RegisterDto
+        private RegisterDto CreateValidDto(string email = "a@test.com", string role = "Driver") =>
+            new RegisterDto
             {
                 PhoneNumber = "0123456789",
                 FirebaseIdToken = "token",
@@ -91,9 +24,6 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
                 FullName = "Nguyen Van A",
                 Role = role
             };
-        }
-
-        // ================== TEST CASES ==================
 
         // TC01
         [Fact]
@@ -101,13 +31,8 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
         {
             _firebaseMock.Setup(x => x.VerifyTokenAndGetPhoneAsync(It.IsAny<string>()))
                          .ReturnsAsync(NormalizedPhone);
-
-            _userManagerMock.Setup(x => x.FindByNameAsync(It.IsAny<string>()))
-                            .ReturnsAsync((ApplicationUser?)null);
-
-            _userManagerMock.Setup(x => x.FindByEmailAsync(It.IsAny<string>()))
-                            .ReturnsAsync((ApplicationUser?)null);
-
+            _userManagerMock.Setup(x => x.FindByNameAsync(It.IsAny<string>())).ReturnsAsync((ApplicationUser?)null);
+            _userManagerMock.Setup(x => x.FindByEmailAsync(It.IsAny<string>())).ReturnsAsync((ApplicationUser?)null);
             _userManagerMock.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
                             .ReturnsAsync(IdentityResult.Success);
 
@@ -122,13 +47,8 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
         {
             _firebaseMock.Setup(x => x.VerifyTokenAndGetPhoneAsync(It.IsAny<string>()))
                          .ReturnsAsync(NormalizedPhone);
-
-            _userManagerMock.Setup(x => x.FindByNameAsync(It.IsAny<string>()))
-                            .ReturnsAsync((ApplicationUser?)null);
-
-            _userManagerMock.Setup(x => x.FindByEmailAsync(It.IsAny<string>()))
-                            .ReturnsAsync((ApplicationUser?)null);
-
+            _userManagerMock.Setup(x => x.FindByNameAsync(It.IsAny<string>())).ReturnsAsync((ApplicationUser?)null);
+            _userManagerMock.Setup(x => x.FindByEmailAsync(It.IsAny<string>())).ReturnsAsync((ApplicationUser?)null);
             _userManagerMock.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
                             .ReturnsAsync(IdentityResult.Success);
 
@@ -143,7 +63,6 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
         {
             _firebaseMock.Setup(x => x.VerifyTokenAndGetPhoneAsync(It.IsAny<string>()))
                          .ReturnsAsync(NormalizedPhone);
-
             string? role = null;
             _userManagerMock.Setup(x => x.AddToRoleAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
                 .Callback<ApplicationUser, string>((_, r) => role = r)
@@ -171,7 +90,6 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
         {
             _firebaseMock.Setup(x => x.VerifyTokenAndGetPhoneAsync(It.IsAny<string>()))
                          .ReturnsAsync(NormalizedPhone);
-
             _userManagerMock.Setup(x => x.FindByNameAsync(It.IsAny<string>()))
                             .ReturnsAsync(new ApplicationUser { Status = UserStatusConstants.Active });
 
@@ -185,7 +103,6 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
         {
             _firebaseMock.Setup(x => x.VerifyTokenAndGetPhoneAsync(It.IsAny<string>()))
                          .ReturnsAsync(NormalizedPhone);
-
             _userManagerMock.Setup(x => x.FindByNameAsync(It.IsAny<string>()))
                             .ReturnsAsync(new ApplicationUser
                             {
@@ -203,19 +120,13 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
         {
             _firebaseMock.Setup(x => x.VerifyTokenAndGetPhoneAsync(It.IsAny<string>()))
                          .ReturnsAsync(NormalizedPhone);
-
             var oldUser = new ApplicationUser
             {
                 Status = UserStatusConstants.PendingEmailVerification,
                 CreatedAt = DateTime.Now.AddDays(-2)
             };
-
-            _userManagerMock.Setup(x => x.FindByNameAsync(It.IsAny<string>()))
-                            .ReturnsAsync(oldUser);
-
-            _userManagerMock.Setup(x => x.DeleteAsync(oldUser))
-                            .ReturnsAsync(IdentityResult.Success);
-
+            _userManagerMock.Setup(x => x.FindByNameAsync(It.IsAny<string>())).ReturnsAsync(oldUser);
+            _userManagerMock.Setup(x => x.DeleteAsync(oldUser)).ReturnsAsync(IdentityResult.Success);
             _userManagerMock.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
                             .ReturnsAsync(IdentityResult.Success);
 
@@ -230,7 +141,6 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
         {
             _firebaseMock.Setup(x => x.VerifyTokenAndGetPhoneAsync(It.IsAny<string>()))
                          .ReturnsAsync(NormalizedPhone);
-
             _userManagerMock.Setup(x => x.FindByEmailAsync(It.IsAny<string>()))
                             .ReturnsAsync(new ApplicationUser());
 
@@ -255,7 +165,6 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
         {
             _firebaseMock.Setup(x => x.VerifyTokenAndGetPhoneAsync(It.IsAny<string>()))
                          .ReturnsAsync(NormalizedPhone);
-
             _userManagerMock.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
                 .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "Error" }));
 
