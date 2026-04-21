@@ -28,13 +28,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <!-- TẠM THỜI exclude các file test bị lỗi compile chưa fix -->
+
+  <!-- Exclude các file test cũ có lỗi compile — đã thay bằng file mới -->
   <ItemGroup>
     <Compile Remove="Services\BookingServiceTests\BookingServiceTests.cs" />
     <Compile Remove="Services\BookingServiceTests\CreateBookingTest.cs" />
-    <Compile Remove="Services\BookingServiceTests\AcceptBookingTests.cs" />
-    <Compile Remove="Services\ChargingSlotServiceTests.cs" />
-    <Compile Remove="Services\ChargingStationServiceTests.cs" />
   </ItemGroup>
 
 </Project>
