@@ -25,6 +25,7 @@ export default function DriverDisputeList() {
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [strike, setStrike] = useState(null);
   const PAGE_SIZE = 20;
 
   useEffect(() => {
@@ -41,6 +42,10 @@ export default function DriverDisputeList() {
       .finally(() => setLoading(false));
   }, [page]);
 
+  useEffect(() => {
+    disputeApi.getDriverStrikeStatus().then(setStrike).catch(() => {});
+  }, []);
+
   const filtered = disputes.filter((d) => {
     if (filter !== "all" && d.status !== filter) return false;
     const day = (d.createdAt || "").slice(0, 10);
@@ -51,7 +56,6 @@ export default function DriverDisputeList() {
 
   const counts = {
     all: disputes.length,
-    Open: disputes.filter((d) => d.status === "Open").length,
     WaitingOwnerEvidence: disputes.filter((d) => d.status === "WaitingOwnerEvidence").length,
     PendingReview: disputes.filter((d) => d.status === "PendingReview").length,
     resolved: disputes.filter((d) =>
@@ -90,6 +94,29 @@ export default function DriverDisputeList() {
             </div>
           </div>
         </div>
+
+        {/* Strike Warning Banner */}
+        {strike && (strike.loseCountThisMonth > 0 || strike.isBanned) && (
+          <div style={{
+            borderRadius: 16, padding: "16px 20px", marginBottom: 20,
+            background: strike.isBanned ? "linear-gradient(135deg, #fef2f2, #fee2e2)" : "linear-gradient(135deg, #fffbeb, #fef3c7)",
+            border: strike.isBanned ? "1.5px solid #fca5a5" : "1.5px solid #fde68a",
+            display: "flex", alignItems: "flex-start", gap: 12,
+          }}>
+            <span style={{ fontSize: 24, flexShrink: 0, lineHeight: 1 }}>{strike.isBanned ? "🚫" : "⚠️"}</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: strike.isBanned ? "#dc2626" : "#92400e", margin: "0 0 4px" }}>
+                {strike.isBanned ? "Tài khoản đang bị đình chỉ" : "Cảnh báo vi phạm khiếu nại"}
+              </p>
+              <p style={{ fontSize: 13, color: strike.isBanned ? "#b91c1c" : "#78350f", margin: 0, lineHeight: 1.5 }}>
+                {strike.isBanned
+                  ? `Tài khoản bị đình chỉ${strike.bannedUntil ? ` đến ${new Date(strike.bannedUntil).toLocaleDateString("vi-VN")}` : ""} do vi phạm chính sách khiếu nại. Số lần bị ban: ${strike.banCount}.`
+                  : `Bạn đã thua ${strike.loseCountThisMonth}/${strike.banThreshold} lượt khiếu nại trong tháng này. Còn ${strike.remainingBeforeBan} lượt nữa tài khoản sẽ bị đình chỉ 30 ngày.`
+                }
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Filter Tabs */}
         <div style={{ display: "flex", gap: 8, marginBottom: 20, overflowX: "auto", paddingBottom: 4 }}>
@@ -175,7 +202,7 @@ export default function DriverDisputeList() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {filtered.map((dispute) => {
-              const st = STATUS_MAP[dispute.status] || STATUS_MAP.Open;
+              const st = STATUS_MAP[dispute.status] || STATUS_MAP.WaitingOwnerEvidence;
               return (
                 <div
                   key={dispute.id}

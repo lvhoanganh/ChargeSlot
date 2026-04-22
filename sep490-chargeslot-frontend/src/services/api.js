@@ -908,6 +908,12 @@ export const disputeApi = {
      */
     getOwnerDisputes: (page = 1, pageSize = 20) =>
         apiFetch(`/dispute/owner?page=${page}&pageSize=${pageSize}`),
+
+    /** Driver xem số lượt thua dispute trong tháng / còn bao nhiêu lượt trước khi bị ban */
+    getDriverStrikeStatus: () => apiFetch("/dispute/strike-status/driver"),
+
+    /** Owner xem số lượt thua dispute trong tháng của trạm / còn bao nhiêu lượt trước khi bị đình chỉ */
+    getStationStrikeStatus: (stationId) => apiFetch(`/dispute/strike-status/station/${stationId}`),
 };
 
 // ============================

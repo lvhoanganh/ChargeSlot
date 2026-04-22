@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { instance } from "@/lib/httpRequest";
-import { authApi } from "@/services/api";
+import { authApi, disputeApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -35,6 +35,7 @@ export default function DriverProfile() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [strike, setStrike] = useState(null);
   const [avatarSrc, setAvatarSrc] = useState(
     () => getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR
   );
@@ -90,6 +91,10 @@ export default function DriverProfile() {
       cancelled = true;
     };
   }, [phoneNumber]);
+
+  useEffect(() => {
+    disputeApi.getDriverStrikeStatus().then(setStrike).catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
@@ -206,17 +211,21 @@ export default function DriverProfile() {
               </div>
             )}
 
-            {!loading && !error && (profile?.strikeCount > 0 || profile?.disputeStrikes > 0) && (
+            {!loading && !error && strike && (strike.loseCountThisMonth > 0 || strike.isBanned) && (
               <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
                 <svg className="w-6 h-6 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <div className="flex-[1]">
-                  <p className="text-sm text-red-700 font-bold tracking-tight">Cảnh cáo vi phạm (Strike Warning)</p>
+                  <p className="text-sm text-red-700 font-bold tracking-tight">
+                    {strike.isBanned ? "Tài khoản đang bị đình chỉ" : "Cảnh báo vi phạm khiếu nại"}
+                  </p>
                   <p className="text-[13px] text-red-600 mt-0.5 leading-snug">
-                    Tài khoản của bạn hiện có <strong>{profile.strikeCount || profile.disputeStrikes}</strong> vi phạm từ các khiếu nại.
-                    Nếu đạt mốc 3 vi phạm, tài khoản có thể bị khóa. Vui lòng tuân thủ quy định!
+                    {strike.isBanned
+                      ? <>{`Tài khoản bị đình chỉ${strike.bannedUntil ? ` đến ${new Date(strike.bannedUntil).toLocaleDateString("vi-VN")}` : ""} do vi phạm chính sách. Số lần bị ban: `}<strong>{strike.banCount}</strong></>
+                      : <>Bạn đã thua <strong>{strike.loseCountThisMonth}/{strike.banThreshold}</strong> lượt khiếu nại tháng này. Còn <strong>{strike.remainingBeforeBan}</strong> lượt nữa tài khoản sẽ bị đình chỉ 30 ngày.</>
+                    }
                   </p>
                 </div>
               </div>

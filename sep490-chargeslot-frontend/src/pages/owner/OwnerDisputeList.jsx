@@ -4,7 +4,6 @@ import { disputeApi } from "@/services/api";
 import Pagination from "@/components/Pagination";
 
 const STATUS_MAP = {
-  Open: { label: "Mở", color: "#f59e0b", bg: "#fffbeb", icon: "" },
   WaitingOwnerEvidence: { label: "Chờ bạn phản hồi", color: "#f97316", bg: "#fff7ed", icon: "" },
   PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "" },
   ResolvedRefund: { label: "Tài xế thắng — Hoàn tiền", color: "#dc2626", bg: "#fef2f2", icon: "" },
@@ -21,6 +20,7 @@ export default function OwnerDisputeList() {
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [strikeWarnings, setStrikeWarnings] = useState([]);
   
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -36,6 +36,20 @@ export default function OwnerDisputeList() {
         const list = data?.items ?? (Array.isArray(data) ? data : []);
         setDisputes(list);
         setTotalCount(data?.totalCount ?? data?.total ?? list.length);
+
+        // Load strike status cho tất cả station xuất hiện trong disputes
+        const stationIds = [...new Set(list.map(d => d.booking?.chargingSlot?.stationId || d.stationId).filter(Boolean))];
+        if (stationIds.length > 0) {
+          Promise.all(
+            stationIds.map(id =>
+              disputeApi.getStationStrikeStatus(id)
+                .then(s => ({ ...s, stationId: id }))
+                .catch(() => null)
+            )
+          ).then(results => {
+            setStrikeWarnings(results.filter(r => r && (r.loseCountThisMonth > 0 || r.isBanned)));
+          });
+        }
       })
       .catch((e) => setError(e?.message || "Không thể tải danh sách khiếu nại."))
       .finally(() => setLoading(false));
@@ -73,6 +87,29 @@ export default function OwnerDisputeList() {
             </div>
           </div>
         </div>
+
+        {/* Strike Warning Banners */}
+        {strikeWarnings.length > 0 && strikeWarnings.map((sw, idx) => (
+          <div key={idx} style={{
+            borderRadius: 16, padding: "14px 18px", marginBottom: 12,
+            background: sw.isBanned ? "linear-gradient(135deg, #fef2f2, #fee2e2)" : "linear-gradient(135deg, #fffbeb, #fef3c7)",
+            border: sw.isBanned ? "1.5px solid #fca5a5" : "1.5px solid #fde68a",
+            display: "flex", alignItems: "flex-start", gap: 10,
+          }}>
+            <span style={{ fontSize: 20, flexShrink: 0, lineHeight: 1 }}>{sw.isBanned ? "🚫" : "⚠️"}</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: sw.isBanned ? "#dc2626" : "#92400e", margin: "0 0 2px" }}>
+                {sw.isBanned ? "Trạm đang bị đình chỉ" : "Cảnh báo chất lượng trạm"}
+              </p>
+              <p style={{ fontSize: 12, color: sw.isBanned ? "#b91c1c" : "#78350f", margin: 0, lineHeight: 1.4 }}>
+                {sw.isBanned
+                  ? `Trạm bị đình chỉ${sw.bannedUntil ? ` đến ${new Date(sw.bannedUntil).toLocaleDateString("vi-VN")}` : ""}. Số lần bị phạt: ${sw.banCount}.`
+                  : `Trạm đã thua ${sw.loseCountThisMonth}/${sw.banThreshold} lượt khiếu nại tháng này. Còn ${sw.remainingBeforeBan} lượt nữa trạm sẽ bị đình chỉ 30 ngày.`
+                }
+              </p>
+            </div>
+          </div>
+        ))}
 
         {/* Date range filter */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
@@ -127,7 +164,7 @@ export default function OwnerDisputeList() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {filteredDisputes.map((dispute) => {
-              const st = STATUS_MAP[dispute.status] || STATUS_MAP.Open;
+              const st = STATUS_MAP[dispute.status] || STATUS_MAP.WaitingOwnerEvidence;
               const needsAction = dispute.status === "WaitingOwnerEvidence";
               return (
                 <div

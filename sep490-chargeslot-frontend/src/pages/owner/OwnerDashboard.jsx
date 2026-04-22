@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import { Banknote, Zap, CheckCircle, XCircle, Star, BarChart3 } from "lucide-react";
 import { instance } from "@/lib/httpRequest";
-import { ownerAnalyticsApi } from "@/services/api";
+import { ownerAnalyticsApi, disputeApi } from "@/services/api";
 
 //  Helpers 
 const fmt = (n) => (typeof n === "number" ? n.toLocaleString("vi-VN") + "đ" : "—");
@@ -100,13 +100,32 @@ function TabOverview() {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [strikeWarnings, setStrikeWarnings] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     instance
       .get("/owner/analytics/metrics")
-      .then((res) => { if (!cancelled) setMetrics(res.data); })
+      .then((res) => {
+        if (!cancelled) {
+          setMetrics(res.data);
+          // Load strike status cho tất cả trạm
+          const stations = res.data?.stationPerformances || res.data?.stationPerformance || [];
+          const stationIds = stations.map(s => s.stationId || s.id).filter(Boolean);
+          if (stationIds.length > 0) {
+            Promise.all(
+              stationIds.map((id, idx) =>
+                disputeApi.getStationStrikeStatus(id)
+                  .then(s => ({ ...s, stationId: id, stationName: stations[idx]?.stationName || stations[idx]?.name || `Trạm #${id}` }))
+                  .catch(() => null)
+              )
+            ).then(results => {
+              if (!cancelled) setStrikeWarnings(results.filter(r => r && (r.loseCountThisMonth > 0 || r.isBanned)));
+            });
+          }
+        }
+      })
       .catch((err) => {
         if (!cancelled)
           setError(err?.response?.data?.message || err?.message || "Lỗi tải dữ liệu");
@@ -150,6 +169,33 @@ function TabOverview() {
 
   return (
     <div>
+      {/* Strike Warning Banners */}
+      {strikeWarnings.length > 0 && (
+        <div style={{ marginBottom: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+          {strikeWarnings.map((sw, idx) => (
+            <div key={idx} style={{
+              borderRadius: 16, padding: "14px 20px",
+              background: sw.isBanned ? "linear-gradient(135deg, #fef2f2, #fee2e2)" : "linear-gradient(135deg, #fffbeb, #fef3c7)",
+              border: sw.isBanned ? "1.5px solid #fca5a5" : "1.5px solid #fde68a",
+              display: "flex", alignItems: "flex-start", gap: 12,
+            }}>
+              <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1 }}>{sw.isBanned ? "🚫" : "⚠️"}</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: sw.isBanned ? "#dc2626" : "#92400e", margin: "0 0 4px" }}>
+                  {sw.isBanned ? `Trạm ${sw.stationName} đang bị đình chỉ` : `Cảnh báo: ${sw.stationName}`}
+                </p>
+                <p style={{ fontSize: 13, color: sw.isBanned ? "#b91c1c" : "#78350f", margin: 0, lineHeight: 1.5 }}>
+                  {sw.isBanned
+                    ? `Trạm bị đình chỉ${sw.bannedUntil ? ` đến ${new Date(sw.bannedUntil).toLocaleDateString("vi-VN")}` : ""} do vi phạm chất lượng. Số lần bị phạt: ${sw.banCount}.`
+                    : `Đã thua ${sw.loseCountThisMonth}/${sw.banThreshold} lượt khiếu nại tháng này. Còn ${sw.remainingBeforeBan} lượt nữa trạm sẽ bị đình chỉ 30 ngày.`
+                  }
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Metrics Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 16, marginBottom: 24 }}>
         <MetricCard
