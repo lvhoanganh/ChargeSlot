@@ -110,8 +110,22 @@ export const createChargingStationSchema = z.object({
     emptyToUndefined,
     z.string().url("URL sơ đồ không hợp lệ").max(500).optional(),
   ),
-  layoutWidth: requiredNumber("Chiều rộng sơ đồ", 1),
-  layoutHeight: requiredNumber("Chiều cao sơ đồ", 1),
+  layoutWidth: z.preprocess(
+    emptyToUndefined,
+    z.coerce
+      .number({ invalid_type_error: "Số cột không hợp lệ" })
+      .int("Số cột phải là số nguyên")
+      .min(1, "Số cột phải lớn hơn hoặc bằng 1")
+      .max(20, "Số cột không được vượt quá 20"),
+  ),
+  layoutHeight: z.preprocess(
+    emptyToUndefined,
+    z.coerce
+      .number({ invalid_type_error: "Số hàng không hợp lệ" })
+      .int("Số hàng phải là số nguyên")
+      .min(1, "Số hàng phải lớn hơn hoặc bằng 1")
+      .max(20, "Số hàng không được vượt quá 20"),
+  ),
   operatingHours: z
     .array(operatingHourSchema)
     .min(1, "Cần ít nhất một cấu hình giờ hoạt động"),

@@ -174,13 +174,13 @@ const SLOT_SELECTED = "#ea580c";
 //  STEPS CONFIG
 // ─────────────────────────────────────────
 const StepIcons = {
-  1: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>),
-  2: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>),
-  3: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>),
-  4: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>),
+  1: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>),
+  2: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>),
+  3: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>),
+  4: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" /></svg>),
 };
 
-const CheckIcon = (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>);
+const CheckIcon = (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>);
 
 const STEPS = [
   { id: 1, label: "Thông tin", desc: "Tên & mô tả trạm" },
@@ -259,8 +259,10 @@ export default function CreateChargingStation() {
 
   const { fields, append, remove } = useFieldArray({ control, name: "slots" });
   const operatingHours = watch("operatingHours");
-  const layoutWidth = watch("layoutWidth") || 6;
-  const layoutHeight = watch("layoutHeight") || 4;
+  const rawWidth = watch("layoutWidth");
+  const rawHeight = watch("layoutHeight");
+  const layoutWidth = (typeof rawWidth === "number" && rawWidth >= 1) ? rawWidth : 6;
+  const layoutHeight = (typeof rawHeight === "number" && rawHeight >= 1) ? rawHeight : 4;
   const slots = watch("slots") || [];
 
   const latestCloseTime = (() => {
@@ -351,10 +353,20 @@ export default function CreateChargingStation() {
 
   async function handleNext() {
     let fieldsToValidate = [];
-    if (step === 1) fieldsToValidate = ["name", "description"];
+    if (step === 1) fieldsToValidate = ["name", "description", "layoutWidth", "layoutHeight"];
     if (step === 2) fieldsToValidate = ["address", "latitude", "longitude"];
+    if (step === 3) fieldsToValidate = ["operatingHours"];
+
     const valid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
-    if (valid) setStep((s) => Math.min(s + 1, 4));
+    if (!valid) return;
+
+    // Validate bổ sung cho Step 3: kiểm tra ít nhất 1 trụ sạc
+    if (step === 3 && (!slots || slots.length === 0)) {
+      showToast.error("Vui lòng đặt ít nhất 1 trụ sạc trên mặt bằng.");
+      return;
+    }
+
+    setStep((s) => Math.min(s + 1, 4));
   }
 
   function handleCellClick(x, y) {
@@ -397,7 +409,7 @@ export default function CreateChargingStation() {
             <div style={{ ...card, animation: "fadeIn 0.3s ease" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #f97316, #ea580c)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
                 </div>
                 <div>
                   <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0f172a" }}>Thông tin trạm sạc</h2>
@@ -421,18 +433,14 @@ export default function CreateChargingStation() {
                   <div>
                     <label style={label}>Số cột (chiều rộng)</label>
                     <input type="number" min="1" max="20" {...register("layoutWidth", { valueAsNumber: true })} style={input} onFocus={(e) => (e.target.style.borderColor = "#f97316")} onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")} />
+                    <FieldError message={errors.layoutWidth?.message} />
                   </div>
                   <div>
                     <label style={label}>Số hàng (chiều cao)</label>
                     <input type="number" min="1" max="20" {...register("layoutHeight", { valueAsNumber: true })} style={input} onFocus={(e) => (e.target.style.borderColor = "#f97316")} onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")} />
+                    <FieldError message={errors.layoutHeight?.message} />
                   </div>
                 </div>
-
-                <div style={{ background: "#fff7ed", borderRadius: 12, padding: "12px 16px", border: "1px solid #fed7aa", fontSize: 13, color: "#92400e", display: "flex", alignItems: "center", gap: 8 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                  Mặt bằng: <strong>{layoutWidth} cột × {layoutHeight} hàng</strong> = {layoutWidth * layoutHeight} ô
-                </div>
-
                 <div>
                   <label style={label}>Ảnh trạm sạc</label>
                   <div style={{ border: "2px dashed #e2e8f0", borderRadius: 12, padding: 16, background: "#f8fafc", textAlign: "center" }}>
@@ -442,7 +450,7 @@ export default function CreateChargingStation() {
                     />
                     <label htmlFor="station-images-input" style={{ cursor: "pointer", display: "block" }}>
                       <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
-                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
                       </div>
                       <div style={{ fontSize: 13, color: "#64748b", fontWeight: 600 }}>Nhấn để chọn ảnh</div>
                       <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>PNG, JPG, WEBP (tối đa 5 ảnh)</div>
@@ -469,7 +477,7 @@ export default function CreateChargingStation() {
             <div style={{ ...card, animation: "fadeIn 0.3s ease" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #3b82f6, #2563eb)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                 </div>
                 <div>
                   <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0f172a" }}>Vị trí trạm sạc</h2>
@@ -497,7 +505,7 @@ export default function CreateChargingStation() {
 
               {watch("latitude") && watch("longitude") && (
                 <div style={{ marginTop: 12, background: "#eff6ff", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#1d4ed8", border: "1px solid #bfdbfe", display: "flex", alignItems: "center", gap: 6 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg>
                   Đã chọn tọa độ: {Number(watch("latitude")).toFixed(5)}, {Number(watch("longitude")).toFixed(5)}
                 </div>
               )}
@@ -511,7 +519,7 @@ export default function CreateChargingStation() {
               <div style={card}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                   </div>
                   <div>
                     <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0f172a" }}>Giờ hoạt động</h2>
@@ -543,7 +551,7 @@ export default function CreateChargingStation() {
               <div style={card}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #f97316, #ea580c)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
                   </div>
                   <div>
                     <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0f172a" }}>Mặt bằng trụ sạc</h2>
@@ -610,7 +618,7 @@ export default function CreateChargingStation() {
                             </span>
                           </div>
                           <button type="button" onClick={() => handleRemoveSlot(selectedSlotIdx)} style={{ fontSize: 11, fontWeight: 600, color: "#ef4444", border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
                             Xóa
                           </button>
                         </div>
@@ -621,14 +629,14 @@ export default function CreateChargingStation() {
                     ) : (
                       <div style={{ background: "#f8fafc", borderRadius: 14, padding: 24, border: "2px dashed #e2e8f0", textAlign: "center" }}>
                         <div style={{ display: "flex", justifyContent: "center", marginBottom: 8, opacity: 0.3 }}>
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
                         </div>
                         <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>{slots.length === 0 ? "Nhấn vào ô trống để đặt ổ sạc" : "Chọn ổ sạc để xem"}</p>
                       </div>
                     )}
                     {slots.length > 0 && (
                       <div style={{ marginTop: 12, background: "#f0fdf4", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#15803d", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", gap: 6 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                         Đã đặt <strong>{slots.length}</strong> trụ sạc
                       </div>
                     )}
@@ -647,7 +655,7 @@ export default function CreateChargingStation() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" /></svg>
                     </div>
                     <div>
                       <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0f172a" }}>Giá theo khung giờ</h2>
@@ -668,7 +676,7 @@ export default function CreateChargingStation() {
                   if (pricing.length === 0) return (
                     <div style={{ textAlign: "center", padding: "32px 0", color: "#94a3b8", fontSize: 14 }}>
                       <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
-                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                       </div>
                       <p>Chưa có khung giờ. Nhấn "+ Thêm khung giờ" để bắt đầu.</p>
                     </div>
@@ -723,7 +731,7 @@ export default function CreateChargingStation() {
                             </div>
                             {hasError && (
                               <p style={{ margin: "6px 0 0", fontSize: 11, color: "#ef4444", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                                 {!isValidFormat ? "Thời gian không hợp lệ!" : `Phải sau ${autoStart}`}
                               </p>
                             )}
@@ -738,7 +746,7 @@ export default function CreateChargingStation() {
               {/* Summary */}
               <div style={{ ...card, background: "linear-gradient(135deg, #fff7ed, #fffbeb)", border: "1.5px solid #fed7aa" }}>
                 <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 800, color: "#92400e", display: "flex", alignItems: "center", gap: 8 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
                   Tóm tắt trạm sạc
                 </h3>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 13 }}>
@@ -766,7 +774,7 @@ export default function CreateChargingStation() {
 
                 {errors.root?.serverError?.message && (
                   <div style={{ marginTop: 16, background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "#dc2626", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                     {errors.root.serverError.message}
                   </div>
                 )}
@@ -778,7 +786,7 @@ export default function CreateChargingStation() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 28 }}>
             <button type="button" onClick={() => setStep((s) => Math.max(s - 1, 1))} disabled={step === 1}
               style={{ padding: "12px 24px", borderRadius: 12, border: "1.5px solid #e2e8f0", background: step === 1 ? "#f8fafc" : "#fff", color: step === 1 ? "#cbd5e1" : "#374151", fontWeight: 600, fontSize: 14, cursor: step === 1 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "all 0.2s" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
               Bước trước
             </button>
 
@@ -788,15 +796,15 @@ export default function CreateChargingStation() {
               <button type="button" onClick={handleNext}
                 style={{ padding: "12px 28px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 4px 14px rgba(249,115,22,0.35)", transition: "all 0.2s" }}>
                 Bước tiếp theo
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
               </button>
             ) : (
               <Button type="submit" disabled={createStationMutation.isPending}
                 style={{ padding: "12px 28px", borderRadius: 12, border: "none", background: createStationMutation.isPending ? "#d1d5db" : "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: createStationMutation.isPending ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: createStationMutation.isPending ? "none" : "0 4px 14px rgba(34,197,94,0.35)" }}>
                 {createStationMutation.isPending ? (
-                  <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Đang tạo trạm...</>
+                  <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg> Đang tạo trạm...</>
                 ) : (
-                  <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Hoàn tất tạo trạm ({slots.length} trụ)</>
+                  <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> Hoàn tất tạo trạm ({slots.length} trụ)</>
                 )}
               </Button>
             )}

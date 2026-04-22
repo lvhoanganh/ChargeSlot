@@ -130,7 +130,6 @@ export default function DisputeList() {
           <thead>
             <tr>
               <th>ID</th>
-              <th>Mã Đặt Lịch</th>
               <th>Tài xế</th>
               <th>Lý do</th>
               <th>Trạng thái</th>
@@ -151,7 +150,6 @@ export default function DisputeList() {
                 return (
                   <tr key={d.id}>
                     <td className="cs-admin-table__id">#{d.id}</td>
-                    <td className="cs-admin-table__name">#{d.bookingId}</td>
                     <td>{d.createdByName}</td>
                     <td style={{ maxWidth: 200 }}>
                       <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -173,12 +171,12 @@ export default function DisputeList() {
                       >
                         {["PendingReview", "WaitingOwnerEvidence"].includes(d.status) ? (
                           <>
-                            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                             Xem xét
                           </>
                         ) : (
                           <>
-                            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14"><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14"><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                             Xem
                           </>
                         )}
@@ -190,13 +188,13 @@ export default function DisputeList() {
             )}
           </tbody>
         </table>
-        
+
         <div style={{ marginTop: 20 }}>
-          <Pagination 
-            page={page} 
-            totalCount={totalCount} 
-            pageSize={20} 
-            onPageChange={(p) => setPage(p)} 
+          <Pagination
+            page={page}
+            totalCount={totalCount}
+            pageSize={20}
+            onPageChange={(p) => setPage(p)}
           />
         </div>
       </div>
