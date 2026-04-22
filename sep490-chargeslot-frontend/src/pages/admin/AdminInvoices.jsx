@@ -20,8 +20,7 @@ export default function AdminInvoices() {
     queryKey: ["admin-ops-invoices", statusFilter, page],
     queryFn: () => {
       const filter = { page, pageSize };
-      if (statusFilter === "true") filter.isPaid = true;
-      if (statusFilter === "false") filter.isPaid = false;
+      if (statusFilter !== "ALL") filter.status = statusFilter;
       return adminOperationsApi.getInvoices(filter);
     },
     refetchInterval: 30000,
@@ -102,8 +101,10 @@ export default function AdminInvoices() {
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả tình trạng</option>
-          <option value="true">Đã thanh toán</option>
-          <option value="false">Đang bị trễ nợ</option>
+          <option value="PendingConfirm">Chờ xác nhận</option>
+          <option value="Confirmed">Đã xác nhận</option>
+          <option value="UnderDispute">Đang tranh chấp</option>
+          <option value="Resolved">Đã giải quyết</option>
         </select>
         <button onClick={() => { setSearch(""); setStatusFilter("ALL"); setPage(1); }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,7 +126,7 @@ export default function AdminInvoices() {
               <th>Tiền Sạc</th>
               <th>Thuế VAT</th>
               <th>Tổng Cộng</th>
-              <th>Tình trạng (isPaid)</th>
+              <th>Tình trạng</th>
             </tr>
           </thead>
           <tbody>
@@ -150,11 +151,19 @@ export default function AdminInvoices() {
                     <td>
                       {inv.status === "Confirmed" ? (
                         <span className="cs-admin-status-badge cs-admin-status-badge--active">
-                          <span className="cs-admin-status-badge__dot" /> Đã thanh toán
+                          <span className="cs-admin-status-badge__dot" /> Đã xác nhận
+                        </span>
+                      ) : inv.status === "UnderDispute" ? (
+                        <span className="cs-admin-status-badge cs-admin-status-badge--info">
+                          <span className="cs-admin-status-badge__dot" /> Đang tranh chấp
+                        </span>
+                      ) : inv.status === "Resolved" ? (
+                        <span className="cs-admin-status-badge cs-admin-status-badge--purple">
+                          <span className="cs-admin-status-badge__dot" /> Đã giải quyết
                         </span>
                       ) : (
                         <span className="cs-admin-status-badge cs-admin-status-badge--warning">
-                          <span className="cs-admin-status-badge__dot" /> Đang bị trễ nợ
+                          <span className="cs-admin-status-badge__dot" /> Chờ xác nhận
                         </span>
                       )}
                     </td>
@@ -214,5 +223,9 @@ const styles = `
   .cs-admin-status-badge--active .cs-admin-status-badge__dot { background: #16a34a; }
   .cs-admin-status-badge--warning { background: #fff7ed; color: #f97316; }
   .cs-admin-status-badge--warning .cs-admin-status-badge__dot { background: #f97316; }
+  .cs-admin-status-badge--info { background: #eff6ff; color: #3b82f6; }
+  .cs-admin-status-badge--info .cs-admin-status-badge__dot { background: #3b82f6; }
+  .cs-admin-status-badge--purple { background: #f5f3ff; color: #7c3aed; }
+  .cs-admin-status-badge--purple .cs-admin-status-badge__dot { background: #7c3aed; }
 `;
 

@@ -13,7 +13,6 @@ function formatDate(dateStr) {
 
 function getStatusLabel(status) {
   switch (status) {
-    case "Open": return "Mở";
     case "WaitingOwnerEvidence": return "Chờ Owner phản hồi";
     case "PendingReview": return "Chờ xem xét";
     case "ResolvedRefund": return "Hoàn tiền tài xế";
@@ -24,7 +23,6 @@ function getStatusLabel(status) {
 
 function getStatusType(status) {
   switch (status) {
-    case "Open": return "pending";
     case "WaitingOwnerEvidence": return "warning";
     case "PendingReview": return "info";
     case "ResolvedRefund": return "active";
@@ -170,10 +168,10 @@ export default function DisputeList() {
                     <td style={{ textAlign: "right" }}>
                       <button
                         onClick={() => navigate(`/admin/disputes/${d.id}`)}
-                        className={`cs-admin-action-btn ${["Open", "PendingReview", "WaitingOwnerEvidence"].includes(d.status) ? "cs-admin-action-btn--review" : "cs-admin-action-btn--view"}`}
+                        className={`cs-admin-action-btn ${["PendingReview", "WaitingOwnerEvidence"].includes(d.status) ? "cs-admin-action-btn--review" : "cs-admin-action-btn--view"}`}
                         style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                       >
-                        {["Open", "PendingReview", "WaitingOwnerEvidence"].includes(d.status) ? (
+                        {["PendingReview", "WaitingOwnerEvidence"].includes(d.status) ? (
                           <>
                             <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                             Xem xét

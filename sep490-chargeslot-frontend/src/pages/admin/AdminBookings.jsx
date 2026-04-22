@@ -13,6 +13,7 @@ function formatDate(dateStr) {
 
 function getStatusLabel(status) {
   switch (status) {
+    case "WaitingOwner": return "Chờ duyệt";
     case "PendingPayment": return "Chờ thanh toán";
     case "Paid": return "Đã thanh toán";
     case "CheckedIn": return "Đang sạc";
@@ -21,12 +22,15 @@ function getStatusLabel(status) {
     case "Cancelled": return "Đã hủy";
     case "Rejected": return "Từ chối";
     case "Expired": return "Quá hạn";
+    case "NoShow": return "Không đến";
+    case "Disputed": return "Tranh chấp";
     default: return status;
   }
 }
 
 function getStatusType(status) {
   switch (status) {
+    case "WaitingOwner": return "pending";
     case "PendingPayment": return "warning";
     case "Paid": return "active";
     case "CheckedIn": return "info";
@@ -35,6 +39,8 @@ function getStatusType(status) {
     case "Cancelled": return "draft";
     case "Rejected": return "draft";
     case "Expired": return "draft";
+    case "NoShow": return "draft";
+    case "Disputed": return "danger";
     default: return "draft";
   }
 }
@@ -133,6 +139,7 @@ export default function AdminBookings() {
           className="cs-admin-filter__select"
         >
           <option value="ALL">Tất cả trạng thái</option>
+          <option value="WaitingOwner">Chờ duyệt</option>
           <option value="PendingPayment">Chờ thanh toán</option>
           <option value="Paid">Đã thanh toán</option>
           <option value="CheckedIn">Đang sạc</option>
@@ -141,6 +148,8 @@ export default function AdminBookings() {
           <option value="Cancelled">Đã hủy</option>
           <option value="Rejected">Từ chối</option>
           <option value="Expired">Quá hạn</option>
+          <option value="NoShow">Không đến</option>
+          <option value="Disputed">Tranh chấp</option>
         </select>
         {/* Date range — lọc theo ngày đặt/ngày sạc */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
@@ -273,4 +282,6 @@ const styles = `
   .cs-admin-status-badge--purple .cs-admin-status-badge__dot { background: #7c3aed; }
   .cs-admin-status-badge--draft { background: #f1f5f9; color: #64748b; }
   .cs-admin-status-badge--draft .cs-admin-status-badge__dot { background: #94a3b8; }
+  .cs-admin-status-badge--danger { background: #fef2f2; color: #dc2626; }
+  .cs-admin-status-badge--danger .cs-admin-status-badge__dot { background: #dc2626; }
 `;
