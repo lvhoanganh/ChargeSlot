@@ -59,7 +59,7 @@ export default function AdminBookings() {
   });
 
   const bookings = rawData?.items ?? [];
-  const totalCount = rawData?.totalCount ?? 0;
+  const totalCount = rawData?.totalItems ?? rawData?.totalCount ?? rawData?.total ?? 0;
 
   const filtered = useMemo(() => {
     const normalize = (str) => {
@@ -70,8 +70,7 @@ export default function AdminBookings() {
     return bookings.filter((b) => {
       const matchSearch = !keyword || (
         normalize(b.driverName).includes(keyword) ||
-        normalize(b.stationName).includes(keyword) ||
-        String(b.id).includes(keyword)
+        normalize(b.stationName).includes(keyword)
       );
       const bookingDate = (b.bookingDate || b.startTime || "").slice(0, 10);
       const matchFrom = !dateFrom || bookingDate >= dateFrom;
@@ -124,7 +123,7 @@ export default function AdminBookings() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Tìm mã Booking, Khách hàng, Trạm..."
+            placeholder="Tìm theo Khách hàng, Trạm sạc..."
             className="cs-admin-filter__input"
           />
         </div>

@@ -55,9 +55,7 @@ export default function DisputeList() {
       if (!keyword) return true;
       return (
         d.createdByName?.toLowerCase().includes(keyword) ||
-        d.reason?.toLowerCase().includes(keyword) ||
-        String(d.id).includes(keyword) ||
-        String(d.bookingId).includes(keyword)
+        d.reason?.toLowerCase().includes(keyword)
       );
     });
   }, [disputes, search]);
@@ -105,7 +103,7 @@ export default function DisputeList() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm theo ID, booking, driver, lý do..."
+            placeholder="Tìm theo tên tài xế, lý do..."
             className="cs-admin-filter__input"
           />
         </div>

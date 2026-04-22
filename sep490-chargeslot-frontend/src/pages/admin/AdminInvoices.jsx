@@ -28,7 +28,7 @@ export default function AdminInvoices() {
   });
 
   const invoices = rawData?.items ?? [];
-  const totalCount = rawData?.totalCount ?? 0;
+  const totalCount = rawData?.totalItems ?? rawData?.totalCount ?? rawData?.total ?? 0;
 
   const filtered = useMemo(() => {
     const normalize = (str) => {
@@ -39,8 +39,6 @@ export default function AdminInvoices() {
     return invoices.filter((inv) => {
       if (!keyword) return true;
       return (
-        String(inv.id).includes(keyword) ||
-        String(inv.bookingId).includes(keyword) ||
         normalize(inv.driverName || "").includes(keyword) ||
         normalize(inv.stationName || "").includes(keyword)
       );
@@ -91,7 +89,7 @@ export default function AdminInvoices() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Tìm mã Hóa Đơn, Booking, Tài xế, Trạm..."
+            placeholder="Tìm theo Tài xế, Trạm sạc..."
             className="cs-admin-filter__input"
           />
         </div>

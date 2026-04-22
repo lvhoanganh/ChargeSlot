@@ -620,7 +620,7 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
               >
                 {payLoading ? "Đang xử lý..." : " Thanh toán VietQR"}
               </ActionButton>
-              
+
               {!showWalletConfirm ? (
                 <ActionButton
                   onClick={handlePayWalletClick}
@@ -836,7 +836,8 @@ export default function BookingStatus({ bookingIdParam, onClose }) {
         )}
 
         {/* Dispute — chỉ trong vòng 24h sau khi kết thúc */}
-        {(booking.status === "CompletedPendingInvoice" || booking.status === "Completed") && (() => {
+        {/* {(booking.status === "CompletedPendingInvoice" || booking.status === "Completed") && (() => { */}
+        {(booking.status === "CompletedPendingInvoice") && (() => {
           // Ưu tiên actualEndTime (thời gian kết thúc phiên sạc thực tế) → fallback booking.endTime (lịch đặt)
           const rawEnd = sessionDetail?.actualEndTime || booking.chargingSessionDetail?.actualEndTime || booking.endTime;
           const endMs = rawEnd ? new Date(String(rawEnd).replace("Z", "")).getTime() : 0;

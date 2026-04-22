@@ -68,7 +68,7 @@ const slotColors = {
   Occupied: { bg: "#ef4444", text: "#fff", border: "#dc2626", label: "Đang dùng" },
   CheckedIn: { bg: "#06b6d4", text: "#fff", border: "#0891b2", label: "Đã check-in" },
   Booked: { bg: "#f59e0b", text: "#fff", border: "#d97706", label: "Đã đặt chỗ" },
-  Reserved: { bg: "#3b82f6", text: "#fff", border: "#2563eb", label: "Giữ chỗ" },
+  // Reserved: { bg: "#3b82f6", text: "#fff", border: "#2563eb", label: "Giữ chỗ" },
 };
 
 export default function OwnerPage() {

@@ -35,12 +35,12 @@ export default function AdminContracts() {
     queryKey: ["adminContracts", page, statusFilter, debouncedSearch, fromDate, toDate],
     queryFn: async () => {
       const res = await adminContractApi.getAll({
-         status: statusFilter,
-         search: debouncedSearch,
-         fromDate,
-         toDate,
-         page,
-         pageSize: 20
+        status: statusFilter,
+        search: debouncedSearch,
+        fromDate,
+        toDate,
+        page,
+        pageSize: 20
       });
       return {
         items: res.items || res.data || [],
@@ -104,20 +104,20 @@ export default function AdminContracts() {
             type="text"
             className="cs-admin-filter__input"
             style={{ width: "100%", paddingLeft: 40 }}
-            placeholder="Tìm theo chủ trạm, mã HĐ..."
+            placeholder="Tìm theo tên chủ trạm..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        
-        <input 
+
+        <input
           type="date"
           className="cs-admin-filter__select"
           value={fromDate}
           onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
           title="Từ ngày"
         />
-        <input 
+        <input
           type="date"
           className="cs-admin-filter__select"
           value={toDate}
@@ -136,12 +136,12 @@ export default function AdminContracts() {
           <option value="Terminated">Đã chấm dứt</option>
           <option value="Expired">Hết hạn</option>
         </select>
-        <button onClick={() => { 
-          setStatusFilter("ALL"); 
-          setSearch(""); 
-          setFromDate(""); 
-          setToDate(""); 
-          setPage(1); 
+        <button onClick={() => {
+          setStatusFilter("ALL");
+          setSearch("");
+          setFromDate("");
+          setToDate("");
+          setPage(1);
         }} className="cs-admin-filter__reset">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -185,7 +185,7 @@ export default function AdminContracts() {
                 return (
                   <tr key={c.ownerUserId}>
                     <td className="cs-admin-table__id">#{c.contractNumber}</td>
-                    <td className="cs-admin-table__name">{c.ownerName} <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 4 }}>ID: {c.ownerUserId}</span></td>
+                    <td className="cs-admin-table__name">{c.ownerName}</td>
                     <td>
                       <span className="cs-admin-status-badge" style={{ background: st.bg, color: st.color }}>
                         <span className="cs-admin-status-badge__dot" style={{ background: st.color }} />

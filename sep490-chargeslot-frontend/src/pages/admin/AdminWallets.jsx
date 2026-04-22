@@ -219,7 +219,7 @@ function WalletTransactionsDrawer({ walletId, walletLabel, onClose }) {
   });
 
   const txs = rawData?.items ?? [];
-  const totalCount = rawData?.totalCount ?? 0;
+  const totalCount = rawData?.totalItems ?? rawData?.totalCount ?? rawData?.total ?? 0;
 
   return (
     <>
@@ -407,7 +407,7 @@ export default function AdminWallets() {
   });
 
   const wallets = rawData?.items ?? [];
-  const totalCount = rawData?.totalCount ?? 0;
+  const totalCount = rawData?.totalItems ?? rawData?.totalCount ?? rawData?.total ?? 0;
 
   const systemWallets = useMemo(() => {
     // Merge từ cả 2 nguồn: query riêng system + query chính (phòng trường hợp 1 trong 2 chưa load)
@@ -432,7 +432,7 @@ export default function AdminWallets() {
     if (!kw) return wallets;
     return wallets.filter((w) => {
       const typeLabel = w.walletType === "System" ? "he thong" : w.walletType === "Owner" ? "chu tram" : "tai xe";
-      return String(w.id).includes(kw) || normalize(typeLabel).includes(kw) || normalize(w.ownerName || "").includes(kw);
+      return normalize(typeLabel).includes(kw) || normalize(w.ownerName || "").includes(kw);
     });
   }, [wallets, search]);
 
@@ -490,7 +490,7 @@ export default function AdminWallets() {
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Tìm mã ví, tên người dùng..."
+            placeholder="Tìm theo tên người dùng, loại ví..."
             className="csw-filterbar__input"
           />
         </div>
