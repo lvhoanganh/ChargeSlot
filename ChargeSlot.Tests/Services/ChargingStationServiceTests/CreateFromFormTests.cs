@@ -12,14 +12,12 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
         // Helper: setup owner (Approved) + signed contract + station reload
         private void SetupApprovedOwnerWithContract(int userId = 1)
         {
-            // Must use It.IsAny<bool>() because GetByUserIdAsync has optional tracking param
             _ownerRepoMock
                 .Setup(x => x.GetByUserIdAsync(It.IsAny<int>(), It.IsAny<bool>()))
                 .ReturnsAsync(CreateApprovedOwner(userId, KycStatus.Approved));
             _contractRepoMock
                 .Setup(x => x.GetByOwnerAsync(It.IsAny<int>()))
                 .ReturnsAsync(CreateSignedContract(userId));
-            // Must use It.IsAny for all params because GetByIdAsync has optional params
             _stationRepoMock
                 .Setup(x => x.GetByIdAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>()))
                 .ReturnsAsync(CreateStation());
@@ -38,7 +36,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
 
             // KycStatus mặc định None → ném lỗi KYC sau khi tạo owner
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().CreateFromFormAsync(1, CreateValidFormDto(), CreateFakeHttpRequest()));
+                CreateService().CreateFromFormAsync(1, CreateValidFormDto()));
 
             _ownerRepoMock.Verify(x => x.AddAsync(It.IsAny<Owner>()), Times.Once);
         }
@@ -53,7 +51,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _userManagerMock.Setup(x => x.FindByIdAsync("1")).ReturnsAsync((ApplicationUser?)null);
 
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().CreateFromFormAsync(1, CreateValidFormDto(), CreateFakeHttpRequest()));
+                CreateService().CreateFromFormAsync(1, CreateValidFormDto()));
 
             Assert.Contains("not found", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
@@ -67,7 +65,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
                 .ReturnsAsync(CreateApprovedOwner(1, KycStatus.Pending));
 
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().CreateFromFormAsync(1, CreateValidFormDto(), CreateFakeHttpRequest()));
+                CreateService().CreateFromFormAsync(1, CreateValidFormDto()));
 
             Assert.Contains("KYC", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
@@ -82,7 +80,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _contractRepoMock.Setup(x => x.GetByOwnerAsync(It.IsAny<int>())).ReturnsAsync((Contract?)null);
 
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().CreateFromFormAsync(1, CreateValidFormDto(), CreateFakeHttpRequest()));
+                CreateService().CreateFromFormAsync(1, CreateValidFormDto()));
 
             Assert.Contains("hợp đồng", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
@@ -98,7 +96,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
                 .ReturnsAsync(new Contract { OwnerUserId = 1, Status = ContractStatus.Pending });
 
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().CreateFromFormAsync(1, CreateValidFormDto(), CreateFakeHttpRequest()));
+                CreateService().CreateFromFormAsync(1, CreateValidFormDto()));
         }
 
         // TC06: Happy path tối giản — không ảnh, không slot, không pricing
@@ -107,26 +105,26 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
         {
             SetupApprovedOwnerWithContract();
 
-            var result = await CreateService().CreateFromFormAsync(1, CreateValidFormDto(withSlots: false), CreateFakeHttpRequest());
+            var result = await CreateService().CreateFromFormAsync(1, CreateValidFormDto(withSlots: false));
 
             _stationRepoMock.Verify(x => x.AddAsync(It.IsAny<ChargingStation>()), Times.Once);
             Assert.NotNull(result);
         }
 
-        // TC07: Có slots + operating hours → tạo trạm thành công
+        // TC07: Có slots + operating hours (OpenTime="08:00", CloseTime="22:00") → tạo trạm thành công
         [Fact]
         public async Task CreateFromForm_WithSlotsAndHours_CreatesSuccessfully()
         {
             SetupApprovedOwnerWithContract();
 
             var result = await CreateService().CreateFromFormAsync(1,
-                CreateValidFormDto(withSlots: true, withHours: true), CreateFakeHttpRequest());
+                CreateValidFormDto(withSlots: true, withHours: true));
 
             Assert.NotNull(result);
             _stationRepoMock.Verify(x => x.AddAsync(It.IsAny<ChargingStation>()), Times.Once);
         }
 
-        // TC08: Có ảnh upload → UploadAsync được gọi đúng số lần
+        // TC08: Có 2 ảnh upload (Length > 0) → UploadAsync được gọi đúng 2 lần
         [Fact]
         public async Task CreateFromForm_WithImages_CallsUploadForEachFile()
         {
@@ -134,27 +132,27 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             var dto = CreateValidFormDto();
             dto.Images = new IFormFile[]
             {
-                CreateMockFormFile("img1.jpg"),
-                CreateMockFormFile("img2.jpg")
+                CreateMockFormFile("img1.jpg"),  // Length = 1024 > 0
+                CreateMockFormFile("img2.jpg")   // Length = 1024 > 0
             };
 
-            await CreateService().CreateFromFormAsync(1, dto, CreateFakeHttpRequest());
+            await CreateService().CreateFromFormAsync(1, dto);
 
             _fileStorageMock.Verify(x => x.UploadAsync(It.IsAny<IFormFile>(), It.IsAny<string>()), Times.Exactly(2));
         }
 
-        // TC09: Có StationPricing hợp lệ → pricing được add vào repo
+        // TC09: Có StationPricing hợp lệ (StartTime="08:00", EndTime="22:00") → pricing được add vào repo
         [Fact]
         public async Task CreateFromForm_WithValidPricing_AddsPricingRecords()
         {
             SetupApprovedOwnerWithContract();
 
-            await CreateService().CreateFromFormAsync(1, CreateValidFormDto(withPricing: true), CreateFakeHttpRequest());
+            await CreateService().CreateFromFormAsync(1, CreateValidFormDto(withPricing: true));
 
             _pricingRepoMock.Verify(x => x.Add(It.IsAny<StationPricing>()), Times.Once);
         }
 
-        // TC10: StationPricing format sai → bị skip, không throw
+        // TC10: StationPricing format sai (StartTime="invalid", EndTime="also-bad") → bị skip, không throw
         [Fact]
         public async Task CreateFromForm_InvalidPricingFormat_SkipsAndDoesNotThrow()
         {
@@ -165,7 +163,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
                 new StationPricingFormItem { StartTime = "invalid", EndTime = "also-bad", PricePerHour = 10000 }
             };
 
-            await CreateService().CreateFromFormAsync(1, dto, CreateFakeHttpRequest());
+            await CreateService().CreateFromFormAsync(1, dto);
 
             _pricingRepoMock.Verify(x => x.Add(It.IsAny<StationPricing>()), Times.Never);
         }
@@ -183,9 +181,42 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
                 .ReturnsAsync(CreateStation());
 
             var result = await CreateService().CreateFromFormAsync(1,
-                CreateValidFormDto(withSlots: false), CreateFakeHttpRequest());
+                CreateValidFormDto(withSlots: false));
 
             Assert.NotNull(result);
+        }
+
+        // TC12 (Boundary): Images = [file với Length=0] → file bị skip, UploadAsync NOT called
+        [Fact]
+        public async Task CreateFromForm_WithZeroLengthImage_SkipsUpload()
+        {
+            SetupApprovedOwnerWithContract();
+            var dto = CreateValidFormDto();
+            // File rỗng (Length = 0) → nhánh if (file.Length > 0) trả false → không upload
+            dto.Images = new IFormFile[] { CreateMockFormFile("empty.jpg", length: 0) };
+
+            await CreateService().CreateFromFormAsync(1, dto);
+
+            _fileStorageMock.Verify(x => x.UploadAsync(It.IsAny<IFormFile>(), It.IsAny<string>()), Times.Never);
+        }
+
+        // TC13 (Boundary): OperatingHours với OpenTime="" và CloseTime="" → không throw, OpenTime/CloseTime = null
+        [Fact]
+        public async Task CreateFromForm_OperatingHoursWithEmptyTimes_ParsesAsNull()
+        {
+            SetupApprovedOwnerWithContract();
+            var dto = CreateValidFormDto(withSlots: false);
+            dto.OperatingHours = new List<OperatingHoursFormItem>
+            {
+                // OpenTime/CloseTime rỗng → IsNullOrEmpty check → parse là null, không throw
+                new OperatingHoursFormItem { DayOfWeek = 1, IsClosed = false, OpenTime = "", CloseTime = "" }
+            };
+
+            // Không throw exception
+            var result = await CreateService().CreateFromFormAsync(1, dto);
+
+            Assert.NotNull(result);
+            _stationRepoMock.Verify(x => x.AddAsync(It.IsAny<ChargingStation>()), Times.Once);
         }
     }
 }

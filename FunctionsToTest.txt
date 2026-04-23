@@ -1,0 +1,51 @@
+================================================================
+  DANH SÁCH HÀM CẦN VIẾT UNIT TEST (30 hàm - mapped từ Controller)
+  Cập nhật: 2026-04-21 | Chỉ bao gồm hàm THỰC SỰ được gọi trong Controller
+================================================================
+
+### AuthService  [Controller: AuthController]
+  1.  RegisterAsync                  → POST /api/auth/register
+  2.  LoginAsync                     → POST /api/auth/login
+  3.  RefreshTokenAsync              → POST /api/auth/refresh-token
+  4.  VerifyEmailAsync               → POST /api/auth/verify-email
+  5.  ResetPasswordAsync             → POST /api/auth/reset-password
+  6.  ChangePasswordAsync            → POST /api/auth/change-password
+  -- DONE: tất cả 6 hàm đã có test tại Services/AuthServiceTests/
+
+### ChargingStationService  [Controller: ChargingStationController]
+  7.  CreateFromFormAsync            → POST /api/stations              ✅ (NOT CreateAsync)
+  8.  UpdateFromFormAsync            → PUT  /api/stations/{id}
+  9.  SubmitForApprovalAsync         → POST /api/stations/{id}/submit
+  10. UpdateOperationalStatusAsync   → PATCH /api/stations/{id}/status
+  11. CreatePricingAsync             → POST /api/stations/{id}/pricing
+  12. CreateExtraServiceAsync        → POST /api/stations/{id}/extra-services
+  -- LƯU Ý: CreateAsync KHÔNG được dùng trong controller → BỎ QUA
+
+### BookingService  [Controller: BookingController]
+  13. CreateBookingAsync             → POST /api/booking
+  14. AcceptBookingAsync             → PUT  /api/booking/{id}/accept
+  15. RejectBookingAsync             → PUT  /api/booking/{id}/reject
+  16. DriverCancelBookingAsync       → PUT  /api/booking/{id}/driver-cancel
+  17. OwnerCancelBookingAsync        → PUT  /api/booking/{id}/owner-cancel
+  18. GetCancelPreviewAsync          → GET  /api/booking/{id}/cancel-preview
+
+### ChargingSessionService  [Controller: ChargingSessionController]
+  19. CheckInAsync                   → POST /api/charging/check-in
+  20. StopChargingAsync              → PUT  /api/charging/{sessionId}/stop
+  21. RequestEarlyEndAsync           → PUT  /api/charging/{sessionId}/request-early-end
+  22. ConfirmCompletionAsync         → PUT  /api/charging/{sessionId}/confirm
+  23. RequestManualCheckinAsync      → POST /api/charging/manual-checkin-request/{bookingId}
+  24. ConfirmManualCheckinAsync      → PUT  /api/charging/manual-checkin-confirm/{bookingId}
+
+### WalletService  [Controller: WalletController]
+  25. PayBookingByWalletAsync        → POST /api/wallet/pay-booking/{bookingId}
+  26. WithdrawAsync                  → POST /api/wallet/withdraw
+  27. UserConfirmReceivedAsync       → PUT  /api/wallet/withdraw-requests/{id}/confirm
+  28. UserReportIssueAsync           → PUT  /api/wallet/withdraw-requests/{id}/report-issue
+
+### PaymentService  [Controller: PaymentController]
+  29. CreateSePayQrUrlAsync          → GET  /api/payment/{bookingId}/sepay-qr
+  30. ProcessSePayWebhookAsync       → POST /api/payment/sepay-webhook
+
+
+CalculateTotalPrice 

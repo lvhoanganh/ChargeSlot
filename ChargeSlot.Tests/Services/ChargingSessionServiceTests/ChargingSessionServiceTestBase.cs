@@ -10,9 +10,6 @@ using ChargeSlot.Api.Services.Interfaces;
 
 namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
 {
-    /// <summary>
-    /// Base class chứa toàn bộ mock chung cho ChargingSessionService tests.
-    /// </summary>
     public abstract class ChargingSessionServiceTestBase
     {
         protected readonly Mock<IChargingSessionRepository>    _sessionRepoMock     = new();
@@ -31,18 +28,18 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
 
         protected ChargingSessionServiceTestBase()
         {
-            // ── UoW defaults ──
+            // UoW defaults
             _uowMock.Setup(x => x.CompleteAsync()).ReturnsAsync(1);
             _uowMock.Setup(x => x.BeginTransactionAsync()).ReturnsAsync(_transactionMock.Object);
             _transactionMock.Setup(x => x.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _transactionMock.Setup(x => x.RollbackAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-            // ── Notification default ──
+            // Notification defaul
             _notifyMock.Setup(x => x.SendAsync(
                 It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<NotificationType>()))
                 .Returns(Task.CompletedTask);
 
-            // ── Config: CheckIn window = 15 phút (giá trị thật production) ──
+            // Config: CheckIn window = 15 phút (giá trị thật production) 
             _configServiceMock.Setup(x => x.GetCurrentConfigsAsync())
                 .ReturnsAsync(new UpdateSystemConfigsDto
                 {
@@ -52,7 +49,7 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
                     Loyalty_Earn_Rate       = 0.05m,
                 });
 
-            // ── Wallet defaults (cho SettlePayment) ──
+            // Wallet defaults (cho SettlePayment)
             var escrowWallet   = new Wallet { Id = 100, AvailableBalance = 999_999_999m };
             var platformWallet = new Wallet { Id = 101, AvailableBalance = 999_999_999m };
             var taxWallet      = new Wallet { Id = 102, AvailableBalance = 999_999_999m };
@@ -66,7 +63,7 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
             _walletRepoMock.Setup(x => x.Add(It.IsAny<Wallet>()));
             _walletRepoMock.Setup(x => x.AddLedgerTransaction(It.IsAny<LedgerTransaction>()));
 
-            // ── Repository void-return defaults ──
+            // Repository void-return defaults
             _sessionRepoMock.Setup(x => x.Add(It.IsAny<ChargingSession>()));
             _sessionRepoMock.Setup(x => x.Update(It.IsAny<ChargingSession>()));
             _invoiceRepoMock.Setup(x => x.Add(It.IsAny<Invoice>()));
@@ -74,7 +71,7 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
             _bookingRepoMock.Setup(x => x.Update(It.IsAny<Booking>()));
             _loyaltyRepoMock.Setup(x => x.Add(It.IsAny<LoyaltyTransaction>()));
 
-            // ── Default: không tìm thấy (test override khi cần) ──
+            // Default: không tìm thấy (test override khi cần)
             _sessionRepoMock.Setup(x => x.HasSessionByBookingAsync(It.IsAny<int>()))   .ReturnsAsync(false);
             _sessionRepoMock.Setup(x => x.HasOngoingSessionBySlotAsync(It.IsAny<int>())).ReturnsAsync(false);
             _sessionRepoMock.Setup(x => x.GetByIdWithDetailsAsync(It.IsAny<int>()))    .ReturnsAsync((ChargingSession?)null);
@@ -101,12 +98,10 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
             _configServiceMock.Object,
             _extraServiceRepoMock.Object);
 
-        // ─── HELPERS ───
+        // HELPERS
 
-        /// <summary>
-        /// Tạo slot Active với station hợp lệ.
-        /// OwnerUserId = 10 (thật).
-        /// </summary>
+        // Tạo slot Active với station hợp lệ.
+        // OwnerUserId = 10 (thật).
         protected static ChargingSlot CreateActiveSlot(int slotId = 1, string qr = "QR-SLOT-001") =>
             new ChargingSlot
             {
@@ -123,10 +118,8 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
                 }
             };
 
-        /// <summary>
-        /// Tạo Booking ở trạng thái Paid, thời gian hợp lệ (sắp tới).
-        /// StartTime = now + 5 phút, EndTime = now + 2 giờ.
-        /// </summary>
+        // Tạo Booking ở trạng thái Paid, thời gian hợp lệ (sắp tới).
+        // StartTime = now + 5 phút, EndTime = now + 2 giờ.
         protected static Booking CreatePaidBooking(
             int bookingId      = 1,
             int driverUserId   = 5,
@@ -163,10 +156,8 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
             };
         }
 
-        /// <summary>
-        /// Tạo ChargingSession gắn với booking đang CheckedIn.
-        /// ActualStartTime = now - 30 phút (đang sạc thực tế).
-        /// </summary>
+        // Tạo ChargingSession gắn với booking đang CheckedIn.
+        // ActualStartTime = now - 30 phút (đang sạc thực tế).
         protected static ChargingSession CreateActiveSession(Booking booking, int sessionId = 1)
         {
             var now = DateTime.Now;

@@ -38,7 +38,7 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         [Fact]
-        public async Task TC04b_Duration_ExactBoundary24h_ShouldNotThrow()
+        public async Task TC05_Duration_ExactBoundary24h_ShouldNotThrow()
         {
             // 24h là hợp lệ (<=24)
             var slot = MakeValidSlot();
@@ -55,21 +55,19 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
             Assert.NotNull(result);
         }
 
-        // TC05-TC07: Validate StartTime block
+        // TC06-TC09: Validate StartTime block
         [Fact]
-        public async Task TC05_StartTimeInvalidMinute_ShouldThrow()
+        public async Task TC06_StartTimeInvalidMinute_ShouldThrow()
         {
-            // Phút 15 không phải 0 hoặc 30
+            // Input: dto.StartTime = VietnamNow+3h, phút=15, giây=0 (phút không phải 0 hoặc 30 → throw)
             var dto = ValidDto();
-            dto.StartTime = ValidStart().AddMinutes(-dto.StartTime.Minute).AddMinutes(15);
-            // Tạo một thời điểm với phút = 15
             var vnNow  = DateTime.UtcNow.AddHours(7).AddHours(3);
             dto.StartTime = new DateTime(vnNow.Year, vnNow.Month, vnNow.Day, vnNow.Hour, 15, 0);
             await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, dto));
         }
 
         [Fact]
-        public async Task TC06_StartTimeHasSeconds_ShouldThrow()
+        public async Task TC07_StartTimeHasSeconds_ShouldThrow()
         {
             var dto = ValidDto();
             dto.StartTime = ValidStart().AddSeconds(5);
@@ -77,7 +75,7 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         [Fact]
-        public async Task TC07_StartTimeInPast_ShouldThrow()
+        public async Task TC08_StartTimeInPast_ShouldThrow()
         {
             var dto = ValidDto();
             var pastVn = DateTime.UtcNow.AddHours(7).AddHours(-2);
@@ -86,26 +84,27 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         [Fact]
-        public async Task TC08_StartTimeTooSoon_BelowLeadTime_ShouldThrow()
+        public async Task TC09_StartTimeTooSoon_BelowLeadTime_ShouldThrow()
         {
-            // Cách hiện tại chỉ 10 phút → dưới min lead 30p
+            // Input: dto.StartTime = VietnamNow+10p, làm tròn block 30p xuống, giây=0
+            // VD: nếu now=10:25 → nearVn=10:35 → phút≥30 → StartTime=10:30 (cách now chỉ 5p < min 30p)
             var dto = ValidDto();
             var nearVn = DateTime.UtcNow.AddHours(7).AddMinutes(10);
             dto.StartTime = new DateTime(nearVn.Year, nearVn.Month, nearVn.Day, nearVn.Hour, nearVn.Minute >= 30 ? 30 : 0, 0);
             await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, dto));
         }
 
-        // TC09: Driver pending booking >= 3
+        // TC10: Driver pending booking >= 3
         [Fact]
-        public async Task TC09_PendingBookingsFull_ShouldThrow()
+        public async Task TC10_PendingBookingsFull_ShouldThrow()
         {
             _bookingRepo.Setup(x => x.GetPendingCountByDriverAsync(It.IsAny<int>())).ReturnsAsync(3);
             await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, ValidDto()));
         }
 
-        // TC10-TC11: Slot validation
+        // TC11-TC12: Slot validation
         [Fact]
-        public async Task TC10_SlotNotFound_ShouldThrow()
+        public async Task TC11_SlotNotFound_ShouldThrow()
         {
             // base default đã setup GetByIdAsync → null
             await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, ValidDto()));
@@ -114,16 +113,16 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         [Theory]
         [InlineData(SlotStatus.Inactive)]
         [InlineData(SlotStatus.Maintenance)]
-        public async Task TC11_SlotUnavailable_ShouldThrow(SlotStatus status)
+        public async Task TC12_SlotUnavailable_ShouldThrow(SlotStatus status)
         {
             var slot = MakeValidSlot(); slot.Status = status;
             SetupSlot(slot);
             await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, ValidDto()));
         }
 
-        // TC12-TC13: Station validation
+        // TC13-TC15: Station validation
         [Fact]
-        public async Task TC12_StationNotApproved_ShouldThrow()
+        public async Task TC13_StationNotApproved_ShouldThrow()
         {
             var slot = MakeValidSlot();
             slot.ChargingStation.ApprovalStatus = ApprovalStatus.PendingApproval;
@@ -132,7 +131,7 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         [Fact]
-        public async Task TC13_StationInactive_ShouldThrow()
+        public async Task TC14_StationInactive_ShouldThrow()
         {
             var slot = MakeValidSlot();
             slot.ChargingStation.OperationalStatus = OperationalStatus.Inactive;
@@ -140,9 +139,9 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
             await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, ValidDto()));
         }
 
-        // TC13b: Unavailable date
+        // TC15: Unavailable date
         [Fact]
-        public async Task TC13b_UnavailableDate_ShouldThrow()
+        public async Task TC15_UnavailableDate_ShouldThrow()
         {
             var slot = MakeValidSlot();
             SetupSlot(slot);
@@ -152,9 +151,9 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
             await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, ValidDto()));
         }
 
-        // TC14-TC15: Overlap checks
+        // TC16-TC17: Overlap checks
         [Fact]
-        public async Task TC14_SlotOverlap_ShouldThrow()
+        public async Task TC16_SlotOverlap_ShouldThrow()
         {
             var slot = MakeValidSlot();
             SetupSlot(slot);
@@ -165,7 +164,7 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         [Fact]
-        public async Task TC15_DriverOverlap_ShouldThrow()
+        public async Task TC17_DriverOverlap_ShouldThrow()
         {
             var slot = MakeValidSlot();
             SetupSlot(slot);
@@ -175,9 +174,9 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
             await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, ValidDto()));
         }
 
-        // TC16: No pricing
+        // TC18: No pricing
         [Fact]
-        public async Task TC16_NoPricingTiers_ShouldThrow()
+        public async Task TC18_NoPricingTiers_ShouldThrow()
         {
             var slot = MakeValidSlot();
             SetupSlot(slot);
@@ -186,9 +185,9 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
             await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, ValidDto()));
         }
 
-        // TC17-TC20: ExtraService validation
+        // TC19-TC22: ExtraService validation
         [Fact]
-        public async Task TC17_ExtraService_NotExist_ShouldThrow()
+        public async Task TC19_ExtraService_NotExist_ShouldThrow()
         {
             var slot = MakeValidSlot();
             SetupSlot(slot);
@@ -199,7 +198,7 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         [Fact]
-        public async Task TC18_ExtraService_WrongStation_ShouldThrow()
+        public async Task TC20_ExtraService_WrongStation_ShouldThrow()
         {
             var slot = MakeValidSlot(); // StationId = 10
             SetupSlot(slot);
@@ -214,7 +213,7 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         [Fact]
-        public async Task TC19_ExtraService_Inactive_ShouldThrow()
+        public async Task TC21_ExtraService_Inactive_ShouldThrow()
         {
             var slot = MakeValidSlot();
             SetupSlot(slot);
@@ -229,7 +228,7 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         [Fact]
-        public async Task TC20_ExtraService_OutOfStock_ShouldThrow()
+        public async Task TC22_ExtraService_OutOfStock_ShouldThrow()
         {
             var slot = MakeValidSlot();
             SetupSlot(slot);
@@ -243,9 +242,9 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
             await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, dto));
         }
 
-        // TC21-TC22: Loyalty points validation
+        // TC23-TC24: Loyalty points validation
         [Fact]
-        public async Task TC21_Points_ExceedDriverBalance_ShouldThrow()
+        public async Task TC23_Points_ExceedDriverBalance_ShouldThrow()
         {
             var slot = MakeValidSlot();
             SetupSlot(slot);
@@ -256,7 +255,7 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         [Fact]
-        public async Task TC22_Points_ExceedTotalAmount_ShouldThrow()
+        public async Task TC24_Points_ExceedTotalAmount_ShouldThrow()
         {
             // TotalAmount = 1h × 100đ = 100đ; nếu dùng 200 điểm → vượt totalAmount → throw
             var slot = MakeValidSlot();
@@ -267,9 +266,9 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
             await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, dto));
         }
 
-        // TC23-TC26: Happy path
+        // TC25-TC28: Happy path
         [Fact]
-        public async Task TC23_HappyPath_NoExtraNoPoints_ShouldSucceed()
+        public async Task TC25_HappyPath_NoExtraNoPoints_ShouldSucceed()
         {
             var slot = MakeValidSlot();
             SetupSlot(slot);
@@ -291,7 +290,7 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         [Fact]
-        public async Task TC24_HappyPath_WithExtraService_StockDeducted()
+        public async Task TC26_HappyPath_WithExtraService_StockDeducted()
         {
             var slot = MakeValidSlot();
             SetupSlot(slot);
@@ -327,7 +326,7 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         [Fact]
-        public async Task TC25_HappyPath_WithLoyaltyPoints_TotalAmountReduced()
+        public async Task TC27_HappyPath_WithLoyaltyPoints_TotalAmountReduced()
         {
             // TotalAmount gốc = 1h × 100đ = 100đ; dùng 50 điểm → 100 - 50 = 50đ
             var slot = MakeValidSlot();
@@ -351,7 +350,7 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         [Fact]
-        public async Task TC26_HappyPath_OwnerNotified()
+        public async Task TC28_HappyPath_OwnerNotified()
         {
             var slot = MakeValidSlot(ownerId: 77);
             SetupSlot(slot);

@@ -85,6 +85,12 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
             // Default Firebase mock → trả null (tests override khi cần match phone)
             _firebaseMock.Setup(x => x.VerifyTokenAndGetPhoneAsync(It.IsAny<string>()))
                 .ReturnsAsync((string?)null);
+            // Default CreateAsync → Success (tránh NullReferenceException khi gọi .Succeeded)
+            _userManagerMock.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
+                .ReturnsAsync(IdentityResult.Success);
+            // Default GenerateEmailConfirmationTokenAsync → tránh ArgumentNullException trong Uri.EscapeDataString
+            _userManagerMock.Setup(x => x.GenerateEmailConfirmationTokenAsync(It.IsAny<ApplicationUser>()))
+                .ReturnsAsync("fake-email-confirmation-token");
         }
 
         /// <summary>Tạo instance AuthService với toàn bộ mock đã cấu hình.</summary>

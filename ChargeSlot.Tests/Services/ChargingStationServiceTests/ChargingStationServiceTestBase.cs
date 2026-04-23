@@ -12,9 +12,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
 {
-    /// <summary>
-    /// Base class chứa toàn bộ mock chung cho ChargingStationService tests.
-    /// </summary>
     public abstract class ChargingStationServiceTestBase
     {
         protected readonly Mock<IChargingStationRepository> _stationRepoMock = new();
@@ -52,7 +49,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _userManagerMock.Setup(x => x.GetUsersInRoleAsync(It.IsAny<string>()))
                 .ReturnsAsync(new List<ApplicationUser>());
 
-            // NOTE: GetByUserIdAsync has optional 'tracking' param → must use It.IsAny<bool>() in Moq
+            // GetByUserIdAsync has optional 'tracking' param → must use It.IsAny<bool>() in Moq
             // Default: return null (each test overrides as needed)
             _ownerRepoMock
                 .Setup(x => x.GetByUserIdAsync(It.IsAny<int>(), It.IsAny<bool>()))
@@ -78,7 +75,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _uowMock.Object,
             _serviceProviderMock.Object);
 
-        // ─── HELPERS ───
+        //HELPERS
 
         protected static Owner CreateApprovedOwner(int userId = 1, KycStatus kyc = KycStatus.Approved)
             => new Owner { UserId = userId, KycStatus = kyc, BusinessName = "Test Biz", TaxCode = "123" };

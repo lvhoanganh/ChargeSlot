@@ -31,18 +31,18 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, true, true)).ReturnsAsync((ChargingStation?)null);
 
             await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-                CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto(), CreateFakeHttpRequest()));
+                CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto()));
         }
 
-        // TC02: Không phải owner → throw UnauthorizedAccessException
+        // TC02: Không phải owner (station.OwnerUserId=99, request userId=1) → throw UnauthorizedAccessException
         [Fact]
         public async Task UpdateFromForm_NotOwner_Throws()
         {
-            var station = CreateStation(id: 1, ownerUserId: 99); // ownerUserId = 99, request userId = 1
+            var station = CreateStation(id: 1, ownerUserId: 99);
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, true, true)).ReturnsAsync(station);
 
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-                CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto(), CreateFakeHttpRequest()));
+                CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto()));
         }
 
         // TC03: Update thành công — không ảnh mới, không đổi hours
@@ -53,13 +53,13 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, true, true)).ReturnsAsync(station);
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, false, true)).ReturnsAsync(station);
 
-            var result = await CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto(), CreateFakeHttpRequest());
+            var result = await CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto());
 
             Assert.NotNull(result);
             Assert.Equal("Updated Station", result.Name);
         }
 
-        // TC04: Có OperatingHours mới → xóa cũ, thêm mới
+        // TC04: Có OperatingHours mới [{DayOfWeek=2, Open="09:00", Close="21:00"}] → xóa cũ, thêm mới
         [Fact]
         public async Task UpdateFromForm_WithNewOperatingHours_ReplacesOldHours()
         {
@@ -71,12 +71,12 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, true, true)).ReturnsAsync(station);
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, false, true)).ReturnsAsync(station);
 
-            await CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto(withHours: true), CreateFakeHttpRequest());
+            await CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto(withHours: true));
 
             _stationRepoMock.Verify(x => x.RemoveOperatingHours(It.IsAny<IEnumerable<StationOperatingHours>>()), Times.Once);
         }
 
-        // TC05: ExistingImageUrls = empty → xóa tất cả ảnh cũ trên Firebase
+        // TC05: ExistingImageUrls = [] → xóa tất cả 2 ảnh cũ trên Firebase
         [Fact]
         public async Task UpdateFromForm_NoExistingUrls_DeletesAllOldImages()
         {
@@ -92,12 +92,12 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             var dto = CreateValidUpdateDto();
             dto.ExistingImageUrls = new List<string>(); // giữ lại 0 ảnh
 
-            await CreateService().UpdateFromFormAsync(1, 1, dto, CreateFakeHttpRequest());
+            await CreateService().UpdateFromFormAsync(1, 1, dto);
 
             _fileStorageMock.Verify(x => x.DeleteAsync(It.IsAny<string>()), Times.Exactly(2));
         }
 
-        // TC06: ExistingImageUrls giữ 1 ảnh, bỏ 1 ảnh → chỉ xóa ảnh không nằm trong list
+        // TC06: ExistingImageUrls = [keepUrl] → chỉ xóa removeUrl, giữ keepUrl
         [Fact]
         public async Task UpdateFromForm_PartialKeepImages_OnlyDeletesRemovedImages()
         {
@@ -114,15 +114,15 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, false, true)).ReturnsAsync(station);
 
             var dto = CreateValidUpdateDto();
-            dto.ExistingImageUrls = new List<string> { keepUrl }; // giữ lại keepUrl
+            dto.ExistingImageUrls = new List<string> { keepUrl };
 
-            await CreateService().UpdateFromFormAsync(1, 1, dto, CreateFakeHttpRequest());
+            await CreateService().UpdateFromFormAsync(1, 1, dto);
 
             _fileStorageMock.Verify(x => x.DeleteAsync(removeUrl), Times.Once);
             _fileStorageMock.Verify(x => x.DeleteAsync(keepUrl), Times.Never);
         }
 
-        // TC07: Có ảnh mới upload → UploadAsync được gọi đúng số lần
+        // TC07: Có 1 ảnh mới upload (new.jpg, Length=1024) → UploadAsync được gọi 1 lần
         [Fact]
         public async Task UpdateFromForm_WithNewImages_CallsUpload()
         {
@@ -133,12 +133,12 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             var dto = CreateValidUpdateDto();
             dto.Images = new IFormFile[] { CreateMockFormFile("new.jpg") };
 
-            await CreateService().UpdateFromFormAsync(1, 1, dto, CreateFakeHttpRequest());
+            await CreateService().UpdateFromFormAsync(1, 1, dto);
 
             _fileStorageMock.Verify(x => x.UploadAsync(It.IsAny<IFormFile>(), It.IsAny<string>()), Times.Once);
         }
 
-        // TC08: OperatingHours = null → giữ nguyên giờ cũ, không gọi Remove
+        // TC08: OperatingHours = null → giữ nguyên giờ cũ, RemoveOperatingHours NOT called
         [Fact]
         public async Task UpdateFromForm_NullOperatingHours_DoesNotReplaceHours()
         {
@@ -152,7 +152,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
 
             var dto = CreateValidUpdateDto(withHours: false); // null hours
 
-            await CreateService().UpdateFromFormAsync(1, 1, dto, CreateFakeHttpRequest());
+            await CreateService().UpdateFromFormAsync(1, 1, dto);
 
             _stationRepoMock.Verify(x => x.RemoveOperatingHours(It.IsAny<IEnumerable<StationOperatingHours>>()), Times.Never);
         }

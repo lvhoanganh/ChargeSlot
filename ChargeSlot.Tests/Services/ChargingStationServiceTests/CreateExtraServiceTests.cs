@@ -54,9 +54,9 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             Assert.Contains("dịch vụ", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
-        // TC03b: ServiceName chỉ có khoảng trắng → throw
+        // TC04: ServiceName chỉ có khoảng trắng → throw
         [Fact]
-        public async Task CreateExtraService_WhitespaceServiceName_Throws()
+        public async Task TC04_WhitespaceServiceName_Throws()
         {
             var station = CreateStation(id: 1, ownerUserId: 1);
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, false, true)).ReturnsAsync(station);
@@ -65,9 +65,9 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
                 CreateService().CreateExtraServiceAsync(1, 1, CreateValidDto(serviceName: "   ")));
         }
 
-        // TC04: Price âm → throw InvalidOperationException
+        // TC05: Price âm → throw InvalidOperationException
         [Fact]
-        public async Task CreateExtraService_NegativePrice_Throws()
+        public async Task TC05_NegativePrice_Throws()
         {
             var station = CreateStation(id: 1, ownerUserId: 1);
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, false, true)).ReturnsAsync(station);
@@ -78,9 +78,9 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             Assert.Contains("âm", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
-        // TC05: Happy path — IsRental = false → tạo thành công
+        // TC06: Happy path — IsRental = false → tạo thành công
         [Fact]
-        public async Task CreateExtraService_ValidData_NonRental_CreatesSuccessfully()
+        public async Task TC06_ValidData_NonRental_CreatesSuccessfully()
         {
             var station = CreateStation(id: 1, ownerUserId: 1);
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, false, true)).ReturnsAsync(station);
@@ -95,9 +95,9 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _uowMock.Verify(x => x.CompleteAsync(), Times.Once);
         }
 
-        // TC06: IsRental = true + TotalStock → tạo thành công với đúng fields
+        // TC07: IsRental = true + TotalStock → tạo thành công với đúng fields
         [Fact]
-        public async Task CreateExtraService_RentalService_CreatesSuccessfully()
+        public async Task TC07_RentalService_CreatesSuccessfully()
         {
             var station = CreateStation(id: 1, ownerUserId: 1);
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, false, true)).ReturnsAsync(station);
@@ -110,9 +110,9 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             Assert.Equal(10, result.TotalStock);
         }
 
-        // TC07: Description = null → không lỗi, Description trong kết quả là null
+        // TC08: Description = null → không lỗi, Description trong kết quả là null
         [Fact]
-        public async Task CreateExtraService_NullDescription_DoesNotThrow()
+        public async Task TC08_NullDescription_DoesNotThrow()
         {
             var station = CreateStation(id: 1, ownerUserId: 1);
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, false, true)).ReturnsAsync(station);
@@ -124,9 +124,9 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             Assert.Null(result.Description);
         }
 
-        // TC08: Price = 0 → hợp lệ (miễn phí)
+        // TC09: Price = 0 → hợp lệ (miễn phí)
         [Fact]
-        public async Task CreateExtraService_ZeroPrice_IsValid()
+        public async Task TC09_ZeroPrice_IsValid()
         {
             var station = CreateStation(id: 1, ownerUserId: 1);
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, false, true)).ReturnsAsync(station);

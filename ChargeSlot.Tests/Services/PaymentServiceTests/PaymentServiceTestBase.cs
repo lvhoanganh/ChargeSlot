@@ -32,18 +32,18 @@ namespace ChargeSlot.Tests.Services.PaymentServiceTests
 
         protected PaymentServiceTestBase()
         {
-            // ── UoW ──
+            // UoW
             _uowMock.Setup(x => x.CompleteAsync()).ReturnsAsync(1);
             _uowMock.Setup(x => x.BeginTransactionAsync()).ReturnsAsync(_transactionMock.Object);
             _transactionMock.Setup(x => x.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _transactionMock.Setup(x => x.RollbackAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-            // ── Notify ──
+            // Notify 
             _notifyMock.Setup(x => x.SendAsync(
                 It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<NotificationType>()))
                 .Returns(Task.CompletedTask);
 
-            // ── System wallets ──
+            // System wallets
             _walletRepoMock.Setup(x => x.GetBySystemCodeAsync("ESCROW"))  .ReturnsAsync(EscrowWallet);
             _walletRepoMock.Setup(x => x.GetBySystemCodeAsync("CLEARING")).ReturnsAsync(ClearingWallet);
             _walletRepoMock.Setup(x => x.AdjustBalanceAtomicAsync(
@@ -51,7 +51,7 @@ namespace ChargeSlot.Tests.Services.PaymentServiceTests
             _walletRepoMock.Setup(x => x.Add(It.IsAny<Wallet>()));
             _walletRepoMock.Setup(x => x.AddLedgerTransaction(It.IsAny<LedgerTransaction>()));
 
-            // ── Repository defaults ──
+            // Repository defaults
             _paymentRepoMock.Setup(x => x.Add(It.IsAny<Payment>()));
             _paymentRepoMock.Setup(x => x.Update(It.IsAny<Payment>()));
             _bookingRepoMock.Setup(x => x.Update(It.IsAny<Booking>()));
@@ -67,15 +67,15 @@ namespace ChargeSlot.Tests.Services.PaymentServiceTests
             _slotRepoMock.Setup(x => x.GetByIdAsync(It.IsAny<int>(), It.IsAny<bool>()))
                          .ReturnsAsync((ChargingSlot?)null);
 
-            // ── Ledger idempotency: default = chưa xử lý ──
+            // Ledger idempotency: default = chưa xử lý
             _ledgerRepoMock.Setup(x => x.HasTransactionWithMemoAsync(It.IsAny<string>()))
                            .ReturnsAsync(false);
 
-            // ── Config SePay ──
+            // Config SePay 
             _configMock.Setup(x => x["SePay:AccountNumber"]).Returns("1234567890");
             _configMock.Setup(x => x["SePay:BankCode"]).Returns("MB");
 
-            // ── SystemConfig ──
+            // SystemConfig
             _configServiceMock.Setup(x => x.GetCurrentConfigsAsync())
                 .ReturnsAsync(new Api.DTOs.Admin.UpdateSystemConfigsDto
                 {
@@ -96,9 +96,9 @@ namespace ChargeSlot.Tests.Services.PaymentServiceTests
             _configMock.Object,
             _configServiceMock.Object);
 
-        // ─── HELPERS ───
+        //  HELPERS 
 
-        /// <summary>Tạo booking PendingPayment với hạn 30 phút.</summary>
+        // Tạo booking PendingPayment với hạn 30 phút.
         protected static Booking CreatePendingBooking(
             int bookingId    = 1,
             int driverUserId = 5,
@@ -131,7 +131,7 @@ namespace ChargeSlot.Tests.Services.PaymentServiceTests
             };
         }
 
-        /// <summary>Tạo webhook SePay chuẩn với nội dung CS{bookingId}.</summary>
+        // Tạo webhook SePay chuẩn với nội dung CS{bookingId}.
         protected static SePayWebhookRequest CreateBookingWebhook(
             int bookingId      = 1,
             decimal amount     = 200_000m,
@@ -146,7 +146,7 @@ namespace ChargeSlot.Tests.Services.PaymentServiceTests
             transferType   = "in"
         };
 
-        /// <summary>Tạo webhook SePay nạp ví W{userId}.</summary>
+        // Tạo webhook SePay nạp ví W{userId}.
         protected static SePayWebhookRequest CreateTopUpWebhook(
             int userId      = 5,
             decimal amount  = 300_000m,
