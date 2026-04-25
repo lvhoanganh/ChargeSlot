@@ -121,8 +121,8 @@ const adminStationApi = {
     return data;
   },
   /** Toggle khoá/mở trạm (Admin manual ban) */
-  toggleBan: async (stationId) => {
-    const { data } = await instance.patch(`/admin/stations/${stationId}/toggle-ban`);
+  toggleBan: async (stationId, reason = "") => {
+    const { data } = await instance.post(`/admin/stations/${stationId}/toggle-ban`, { reason });
     return data; // { stationId, status: "Banned" | "Active" }
   },
 };
@@ -151,6 +151,9 @@ export default function ApproveStation() {
   const [dateTo, setDateTo] = useState("");
   const [confirmAction, setConfirmAction] = useState(null);
   const [adminNote, setAdminNote] = useState("");
+  const [banAction, setBanAction] = useState(null); // { station, isBanning: true/false }
+  const [banReason, setBanReason] = useState("");
+  const [banLoading, setBanLoading] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 8;
 
@@ -399,7 +402,7 @@ export default function ApproveStation() {
           {filtered.length === 0 ? (
             <div style={{ background: "#fff", borderRadius: 16, padding: "48px 24px", textAlign: "center", border: "1px solid #f1f5f9" }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: 12, opacity: 0.3 }}>
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
               </div>
               <p style={{ color: "#94a3b8", fontSize: 14 }}>Không tìm thấy trạm nào phù hợp</p>
             </div>
@@ -414,9 +417,9 @@ export default function ApproveStation() {
 
               const statusMap = {
                 PendingApproval: { label: "Chờ duyệt", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
-                Approved:        { label: "Đã duyệt",  color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
-                Rejected:        { label: "Từ chối",   color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
-                Draft:           { label: "Bản nháp",  color: "#64748b", bg: "#f8fafc", border: "#e2e8f0" },
+                Approved: { label: "Đã duyệt", color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
+                Rejected: { label: "Từ chối", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+                Draft: { label: "Bản nháp", color: "#64748b", bg: "#f8fafc", border: "#e2e8f0" },
               };
               const st = statusMap[s.approvalStatus] || statusMap.Draft;
 
@@ -466,17 +469,17 @@ export default function ApproveStation() {
                         </span>
                         {isBanned && (
                           <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 99, color: "#991b1b", background: "#fef2f2", border: "1px solid #fecaca", display: "flex", alignItems: "center", gap: 4 }}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                             Bị khóa
                           </span>
                         )}
                       </div>
                       <div style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.address}</span>
                       </div>
                       <div style={{ fontSize: 12, color: "#94a3b8", display: "flex", alignItems: "center", gap: 4 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                         {s.ownerName || s.owner?.fullName || s.owner?.phoneNumber || "—"}
                       </div>
                     </div>
@@ -487,7 +490,7 @@ export default function ApproveStation() {
                       </span>
                       {s.latitude && s.longitude && (
                         <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: isActive ? "#f97316" : "#94a3b8" }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                           {isActive ? "Đang xem trên map" : "Nhấn để xem map"}
                         </div>
                       )}
@@ -502,14 +505,14 @@ export default function ApproveStation() {
                           onClick={() => askReview(s, true)}
                           style={{ padding: "7px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
                         >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
                           Phê duyệt
                         </button>
                         <button
                           onClick={() => askReview(s, false)}
                           style={{ padding: "7px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#ef4444,#dc2626)", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
                         >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                           Từ chối
                         </button>
                       </>
@@ -518,7 +521,7 @@ export default function ApproveStation() {
                       onClick={() => setDetailStationId(s.id)}
                       style={{ padding: "7px 16px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", color: "#374151", fontWeight: 600, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
                     >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                       Xem chi tiết
                     </button>
                     <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
@@ -533,23 +536,30 @@ export default function ApproveStation() {
                           checked={isToggleOn}
                           disabled={isToggleDisabled}
                           onChange={async () => {
+                            if (!isBanned) {
+                              // Khóa trạm → cần nhập lý do → hiện modal
+                              setBanAction({ station: s, isBanning: true });
+                              setBanReason("");
+                              return;
+                            }
+                            // Mở khóa trạm → gọi API trực tiếp (không cần lý do)
                             const previousStations = queryClient.getQueryData(["admin-stations-all"]);
-                            const newIsBanned = !isBanned;
                             queryClient.setQueryData(["admin-stations-all"], (old) => {
                               if (!old) return old;
                               return old.map(station =>
                                 station.id === s.id
-                                  ? { ...station, bannedUntil: newIsBanned ? "2199-01-01T00:00:00Z" : null, operationalStatus: newIsBanned ? "Inactive" : "Active" }
+                                  ? { ...station, bannedUntil: null, operationalStatus: "Active" }
                                   : station
                               );
                             });
                             try {
-                              await adminStationApi.toggleBan(s.id);
-                              showToast.success(isBanned ? `Đã mở khoá trạm ${s.name}` : `Đã khoá trạm ${s.name}`);
+                              await adminStationApi.toggleBan(s.id, "");
+                              showToast.success(`Đã mở khoá trạm ${s.name}`);
                               queryClient.invalidateQueries({ queryKey: ["admin-stations-all"] });
                             } catch (err) {
                               queryClient.setQueryData(["admin-stations-all"], previousStations);
-                              showToast.error(err?.response?.data?.message || "Thao tác thất bại.");
+                              const msg = err?.response?.data?.details || err?.response?.data?.message || "Thao tác thất bại.";
+                              showToast.error(msg);
                             }
                           }}
                         />
@@ -577,7 +587,7 @@ export default function ApproveStation() {
                   disabled={page === 1}
                   style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #e2e8f0", background: page === 1 ? "#f8fafc" : "#fff", color: page === 1 ? "#cbd5e1" : "#374151", cursor: page === 1 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s" }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>
                 </button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
@@ -604,7 +614,7 @@ export default function ApproveStation() {
                   disabled={page === totalPages}
                   style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #e2e8f0", background: page === totalPages ? "#f8fafc" : "#fff", color: page === totalPages ? "#cbd5e1" : "#374151", cursor: page === totalPages ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s" }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6" /></svg>
                 </button>
               </div>
             </div>
@@ -686,7 +696,7 @@ export default function ApproveStation() {
         />
       )}
 
-      {/* Confirm Modal */}
+      {/* Confirm Modal (Phê duyệt / Từ chối) */}
       {confirmAction && (
         <div className="cs-admin-modal-overlay">
           <div className="cs-admin-modal">
@@ -734,6 +744,81 @@ export default function ApproveStation() {
                 className={`cs-admin-modal__btn ${confirmAction.isApproved ? "cs-admin-modal__btn--success" : "cs-admin-modal__btn--danger"}`}
               >
                 {reviewMutation.isPending ? "Đang xử lý..." : "Xác nhận"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {banAction && (
+        <div className="cs-admin-modal-overlay">
+          <div className="cs-admin-modal">
+            <h2 className="cs-admin-modal__title">Khóa trạm sạc</h2>
+            <p className="cs-admin-modal__desc">
+              Bạn có chắc chắn muốn <strong>khóa</strong> trạm "<strong>{banAction.station?.name}</strong>" không?
+              Trạm sẽ bị vô hiệu hóa cho đến khi Admin mở khóa.
+            </p>
+
+            <div style={{ textAlign: "left", marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+                Lý do khóa <span style={{ color: "#ef4444" }}>*</span>
+              </label>
+              <textarea
+                value={banReason}
+                onChange={(e) => setBanReason(e.target.value)}
+                placeholder="Nhập lý do khóa trạm..."
+                rows={3}
+                style={{
+                  width: "100%", padding: "10px 14px", borderRadius: 12,
+                  border: "1.5px solid #e5e7eb", fontSize: 14, outline: "none",
+                  resize: "vertical", boxSizing: "border-box",
+                  transition: "border-color 0.2s",
+                }}
+                onFocus={(e) => e.target.style.borderColor = "#ef4444"}
+                onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
+              />
+            </div>
+
+            <div className="cs-admin-modal__actions">
+              <button
+                onClick={() => { setBanAction(null); setBanReason(""); }}
+                disabled={banLoading}
+                className="cs-admin-modal__btn cs-admin-modal__btn--cancel"
+              >
+                Hủy
+              </button>
+              <button
+                disabled={banLoading || !banReason.trim()}
+                className="cs-admin-modal__btn cs-admin-modal__btn--danger"
+                onClick={async () => {
+                  setBanLoading(true);
+                  const station = banAction.station;
+                  const previousStations = queryClient.getQueryData(["admin-stations-all"]);
+                  // Optimistic update
+                  queryClient.setQueryData(["admin-stations-all"], (old) => {
+                    if (!old) return old;
+                    return old.map(st =>
+                      st.id === station.id
+                        ? { ...st, bannedUntil: "2199-01-01T00:00:00Z", operationalStatus: "Inactive" }
+                        : st
+                    );
+                  });
+                  try {
+                    await adminStationApi.toggleBan(station.id, banReason.trim());
+                    showToast.success(`Đã khoá trạm ${station.name}`);
+                    queryClient.invalidateQueries({ queryKey: ["admin-stations-all"] });
+                    setBanAction(null);
+                    setBanReason("");
+                  } catch (err) {
+                    queryClient.setQueryData(["admin-stations-all"], previousStations);
+                    const msg = err?.response?.data?.details || err?.response?.data?.message || "Thao tác thất bại.";
+                    showToast.error(msg);
+                  } finally {
+                    setBanLoading(false);
+                  }
+                }}
+              >
+                {banLoading ? "Đang xử lý..." : "Xác nhận khóa"}
               </button>
             </div>
           </div>
