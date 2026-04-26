@@ -67,7 +67,30 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
             Assert.Contains("đã yêu cầu", ex.Message);
         }
 
-        // TC04 — Happy path
+        // TC04 — Chưa đến thời gian sạc: now < session.ActualStartTime
+        [Fact]
+        public async Task RequestEarlyEnd_BeforeActualStart_ShouldThrow()
+        {
+            var now     = DateTime.Now;
+            var booking = CreatePaidBooking(
+                driverUserId: DriverUserId,
+                start: now.AddMinutes(-30),
+                end:   now.AddHours(1));
+            booking.Status = BookingStatus.CheckedIn;
+
+            var session = CreateActiveSession(booking);
+            // ActualStartTime trong tương lai → chưa bắt đầu sạc thực tế
+            session.ActualStartTime = now.AddMinutes(10);
+
+            _sessionRepoMock.Setup(x => x.GetByIdWithDetailsAsync(SessionId)).ReturnsAsync(session);
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                CreateService().RequestEarlyEndAsync(DriverUserId, SessionId));
+
+            Assert.Contains("đến thời gian sạc", ex.Message);
+        }
+
+        // TC05 — Happy path
         [Fact]
         public async Task RequestEarlyEnd_Success_ShouldSetTimestampAndNotifyOwner()
         {
@@ -84,14 +107,9 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
 
             var result = await CreateService().RequestEarlyEndAsync(DriverUserId, SessionId);
 
-            // EarlyEndRequestedAt phải được set
             Assert.NotNull(booking.EarlyEndRequestedAt);
-
-            // Booking được update
             _bookingRepoMock.Verify(x => x.Update(booking), Times.Once);
             _uowMock.Verify(x => x.CompleteAsync(), Times.Once);
-
-            // Notify owner
             _notifyMock.Verify(x => x.SendAsync(
                 booking.ChargingSlot.ChargingStation.OwnerUserId,
                 It.IsAny<string>(), It.IsAny<string>(), NotificationType.Booking), Times.Once);
