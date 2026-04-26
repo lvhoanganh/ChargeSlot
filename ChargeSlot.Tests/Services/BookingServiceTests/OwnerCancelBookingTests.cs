@@ -57,17 +57,17 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         // TC04: Completed/Cancelled/Rejected → bị chặn
-        [Theory]
-        [InlineData(BookingStatus.Completed)]
-        [InlineData(BookingStatus.Cancelled)]
-        [InlineData(BookingStatus.Rejected)]
-        public async Task TC04_TerminalStatus_ShouldThrow(BookingStatus status)
+        [Fact]
+        public async Task TC04_TerminalStatus_ShouldThrow()
         {
-            _bookingRepo.Setup(x => x.GetByIdWithDetailsAsync(1))
-                .ReturnsAsync(MakeBooking(status));
+            foreach (var status in new[] { BookingStatus.Completed, BookingStatus.Cancelled, BookingStatus.Rejected })
+            {
+                _bookingRepo.Setup(x => x.GetByIdWithDetailsAsync(1))
+                    .ReturnsAsync(MakeBooking(status));
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().OwnerCancelBookingAsync(99, 1, null));
+                await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    CreateService().OwnerCancelBookingAsync(99, 1, null));
+            }
         }
 
         // TC05: Cancel PendingPayment → Cancelled, KHÔNG refund (chưa trả)

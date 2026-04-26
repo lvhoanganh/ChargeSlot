@@ -45,18 +45,18 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         // TC03: Booking không ở WaitingOwner
-        [Theory]
-        [InlineData(BookingStatus.PendingPayment)]
-        [InlineData(BookingStatus.Paid)]
-        [InlineData(BookingStatus.Completed)]
-        public async Task TC03_WrongStatus_ShouldThrow(BookingStatus status)
+        [Fact]
+        public async Task TC03_WrongStatus_ShouldThrow()
         {
-            var booking = MakeWaitingBooking();
-            booking.Status = status;
-            _bookingRepo.Setup(x => x.GetByIdWithDetailsAsync(1)).ReturnsAsync(booking);
+            foreach (var status in new[] { BookingStatus.PendingPayment, BookingStatus.Paid, BookingStatus.Completed })
+            {
+                var booking = MakeWaitingBooking();
+                booking.Status = status;
+                _bookingRepo.Setup(x => x.GetByIdWithDetailsAsync(1)).ReturnsAsync(booking);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().RejectBookingAsync(99, 1, Dto()));
+                await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    CreateService().RejectBookingAsync(99, 1, Dto()));
+            }
         }
 
         // TC04: Booking đã dùng điểm → phải hoàn điểm sau khi reject

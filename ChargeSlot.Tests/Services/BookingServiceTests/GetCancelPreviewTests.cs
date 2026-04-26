@@ -120,16 +120,16 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         // TC08: Status Completed/Cancelled/Rejected → throw
-        [Theory]
-        [InlineData(BookingStatus.Completed)]
-        [InlineData(BookingStatus.Cancelled)]
-        [InlineData(BookingStatus.Rejected)]
-        public async Task TC08_TerminalStatus_ShouldThrow(BookingStatus status)
+        [Fact]
+        public async Task TC08_TerminalStatus_ShouldThrow()
         {
-            SetupBooking(MakeBooking(status));
+            foreach (var status in new[] { BookingStatus.Completed, BookingStatus.Cancelled, BookingStatus.Rejected })
+            {
+                SetupBooking(MakeBooking(status));
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().GetCancelPreviewAsync(10, 1));
+                await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    CreateService().GetCancelPreviewAsync(10, 1));
+            }
         }
 
         // TC09: Snapshot null → dùng fallback (-2h/-1h)

@@ -61,18 +61,17 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         // TC03: Status không cho phép cancel
-        [Theory]
-        [InlineData(BookingStatus.Completed)]
-        [InlineData(BookingStatus.Rejected)]
-        [InlineData(BookingStatus.Cancelled)]
-        [InlineData(BookingStatus.Expired)]
-        public async Task TC03_InvalidStatus_ShouldThrow(BookingStatus status)
+        [Fact]
+        public async Task TC03_InvalidStatus_ShouldThrow()
         {
-            _bookingRepo.Setup(x => x.GetByIdWithDetailsAsync(1))
-                .ReturnsAsync(MakeBooking(status));
+            foreach (var status in new[] { BookingStatus.Completed, BookingStatus.Rejected, BookingStatus.Cancelled, BookingStatus.Expired })
+            {
+                _bookingRepo.Setup(x => x.GetByIdWithDetailsAsync(1))
+                    .ReturnsAsync(MakeBooking(status));
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().DriverCancelBookingAsync(10, 1, null));
+                await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    CreateService().DriverCancelBookingAsync(10, 1, null));
+            }
         }
 
         // TC04: Cancel WaitingOwner → Cancelled, không refund

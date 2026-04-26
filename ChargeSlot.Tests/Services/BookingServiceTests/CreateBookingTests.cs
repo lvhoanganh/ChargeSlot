@@ -110,14 +110,15 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
             await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, ValidDto()));
         }
 
-        [Theory]
-        [InlineData(SlotStatus.Inactive)]
-        [InlineData(SlotStatus.Maintenance)]
-        public async Task TC12_SlotUnavailable_ShouldThrow(SlotStatus status)
+        [Fact]
+        public async Task TC12_SlotUnavailable_ShouldThrow()
         {
-            var slot = MakeValidSlot(); slot.Status = status;
-            SetupSlot(slot);
-            await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, ValidDto()));
+            foreach (var status in new[] { SlotStatus.Inactive, SlotStatus.Maintenance })
+            {
+                var slot = MakeValidSlot(); slot.Status = status;
+                SetupSlot(slot);
+                await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().CreateBookingAsync(1, ValidDto()));
+            }
         }
 
         // TC13-TC15: Station validation

@@ -45,19 +45,18 @@ namespace ChargeSlot.Tests.Services.BookingServiceTests
         }
 
         // TC03: Booking không ở WaitingOwner
-        [Theory]
-        [InlineData(BookingStatus.PendingPayment)]
-        [InlineData(BookingStatus.Paid)]
-        [InlineData(BookingStatus.Rejected)]
-        [InlineData(BookingStatus.Completed)]
-        public async Task TC03_WrongStatus_ShouldThrow(BookingStatus status)
+        [Fact]
+        public async Task TC03_WrongStatus_ShouldThrow()
         {
-            var booking = MakeWaitingBooking();
-            booking.Status = status;
-            _bookingRepo.Setup(x => x.GetByIdWithDetailsAsync(1)).ReturnsAsync(booking);
+            foreach (var status in new[] { BookingStatus.PendingPayment, BookingStatus.Paid, BookingStatus.Rejected, BookingStatus.Completed })
+            {
+                var booking = MakeWaitingBooking();
+                booking.Status = status;
+                _bookingRepo.Setup(x => x.GetByIdWithDetailsAsync(1)).ReturnsAsync(booking);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().AcceptBookingAsync(99, 1));
+                await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    CreateService().AcceptBookingAsync(99, 1));
+            }
         }
 
         // TC04: Race condition — Slot đã có booking accept trùng giờ
