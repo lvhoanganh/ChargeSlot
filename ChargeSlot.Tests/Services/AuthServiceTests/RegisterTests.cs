@@ -80,8 +80,9 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
             _firebaseMock.Setup(x => x.VerifyTokenAndGetPhoneAsync(It.IsAny<string>()))
                          .ReturnsAsync("+84999999999");
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 CreateService().RegisterAsync(CreateValidDto()));
+            Assert.Contains("không khớp", ex.Message);
         }
 
         // TC05
@@ -93,8 +94,9 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
             _userManagerMock.Setup(x => x.FindByNameAsync(It.IsAny<string>()))
                             .ReturnsAsync(new ApplicationUser { Status = UserStatusConstants.Active });
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 CreateService().RegisterAsync(CreateValidDto()));
+            Assert.Contains("already registered", ex.Message);
         }
 
         // TC06
@@ -110,8 +112,9 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
                                 CreatedAt = DateTime.Now
                             });
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 CreateService().RegisterAsync(CreateValidDto()));
+            Assert.Contains("already registered", ex.Message);
         }
 
         // TC07
@@ -144,8 +147,9 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
             _userManagerMock.Setup(x => x.FindByEmailAsync(It.IsAny<string>()))
                             .ReturnsAsync(new ApplicationUser());
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 CreateService().RegisterAsync(CreateValidDto("taken@test.com")));
+            Assert.Contains("Email đã được sử dụng", ex.Message);
         }
 
         // TC09
@@ -155,8 +159,9 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
             _firebaseMock.Setup(x => x.VerifyTokenAndGetPhoneAsync(It.IsAny<string>()))
                          .ReturnsAsync(NormalizedPhone);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 CreateService().RegisterAsync(CreateValidDto("a@test.com", "Fake")));
+            Assert.Contains("Invalid role", ex.Message);
         }
 
         // TC10
@@ -168,8 +173,9 @@ namespace ChargeSlot.Tests.Services.AuthServiceTests
             _userManagerMock.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
                 .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "Error" }));
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 CreateService().RegisterAsync(CreateValidDto()));
+            Assert.Contains("Error", ex.Message);
         }
     }
 }
