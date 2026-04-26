@@ -172,7 +172,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// <summary>
         /// Tạo trạm từ multipart/form-data: upload ảnh, tạo slots, operating hours, station-level pricing.
         /// </summary>
-        public async Task<ChargingStationDto> CreateFromFormAsync(int ownerUserId, CreateStationFormDto dto, HttpRequest request)
+        public async Task<ChargingStationDto> CreateFromFormAsync(int ownerUserId, CreateStationFormDto dto)
         {
             // Ensure Owner profile record exists
             var ownerExists = await _ownerRepo.GetByUserIdAsync(ownerUserId);
@@ -301,13 +301,17 @@ namespace ChargeSlot.Api.Services.Implementation
             return MapToDto(created);
         }
 
+        public Task<ChargingStationDto> CreateFromFormAsync(int ownerUserId, CreateStationFormDto dto, HttpRequest request)
+            => throw new NotImplementedException();
 
+        public Task<ChargingStationDto> UpdateFromFormAsync(int id, int ownerUserId, UpdateStationFormDto dto, HttpRequest request)
+            => throw new NotImplementedException();
 
         /// <summary>
         /// Cập nhật trạm từ multipart/form-data: upload ảnh mới, giữ ảnh cũ, thay đổi operating hours.
         /// Cho phép sửa ở MỌI trạng thái (không hạn chế Draft/Rejected).
         /// </summary>
-        public async Task<ChargingStationDto> UpdateFromFormAsync(int id, int ownerUserId, UpdateStationFormDto dto, HttpRequest request)
+        public async Task<ChargingStationDto> UpdateFromFormAsync(int id, int ownerUserId, UpdateStationFormDto dto)
         {
             var station = await _stationRepo.GetByIdAsync(id, tracking: true, includeDetails: true);
             if (station == null)

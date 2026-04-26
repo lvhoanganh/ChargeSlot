@@ -19,7 +19,7 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 CreateService().StopChargingAsync(OwnerUserId, SessionId));
 
-            Assert.Contains("Session", ex.Message);
+            Assert.Contains("không tồn tại", ex.Message);
         }
 
         // TC02

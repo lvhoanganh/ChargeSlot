@@ -49,17 +49,27 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
 
             var result = await CreateService().RequestManualCheckinAsync(DriverUserId, BookingId);
 
-            // ManualCheckinRequestedAt phải được set
             Assert.NotNull(booking.ManualCheckinRequestedAt);
-
-            // Booking được update
             _bookingRepoMock.Verify(x => x.Update(booking), Times.Once);
             _uowMock.Verify(x => x.CompleteAsync(), Times.Once);
-
-            // Notify owner
             _notifyMock.Verify(x => x.SendAsync(
                 booking.ChargingSlot.ChargingStation.OwnerUserId,
                 It.IsAny<string>(), It.IsAny<string>(), NotificationType.Booking), Times.Once);
+        }
+
+        // TC04 — Gửi yêu cầu manual checkin lần 2 (đã gửi trước đó)
+        [Fact]
+        public async Task RequestManualCheckin_AlreadyRequested_ShouldThrow()
+        {
+            var booking = CreatePaidBooking(bookingId: BookingId, driverUserId: DriverUserId);
+            booking.ManualCheckinRequestedAt = DateTime.Now.AddMinutes(-30); // đã gửi rồi
+
+            _bookingRepoMock.Setup(x => x.GetByIdWithDetailsAsync(BookingId)).ReturnsAsync(booking);
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                CreateService().RequestManualCheckinAsync(DriverUserId, BookingId));
+
+            Assert.Contains("đã gửi", ex.Message);
         }
     }
 }

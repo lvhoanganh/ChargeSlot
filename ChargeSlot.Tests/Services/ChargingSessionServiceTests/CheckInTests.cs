@@ -9,11 +9,10 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
         private const int DriverUserId = 5;
         private const string ValidQr   = "QR-SLOT-001";
 
-        // TC01
+        // TC01: QR không tìm thấy slot
         [Fact]
         public async Task CheckIn_InvalidQr_ShouldThrow()
         {
-            // QR không tìm thấy slot → null
             _slotRepoMock.Setup(x => x.GetByQrCodeTokenAsync(ValidQr))
                          .ReturnsAsync((ChargingSlot?)null);
 
@@ -23,7 +22,7 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
             Assert.Contains("QR", ex.Message);
         }
 
-        // TC02
+        // TC02: Slot đang bảo trì
         [Fact]
         public async Task CheckIn_SlotMaintenance_ShouldThrow()
         {
@@ -38,7 +37,22 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
             Assert.Contains("bảo trì", ex.Message);
         }
 
-        // TC03
+        // TC03: Trạm sạc (Station) đang Inactive
+        [Fact]
+        public async Task CheckIn_StationInactive_ShouldThrow()
+        {
+            var slot = CreateActiveSlot();
+            slot.ChargingStation.OperationalStatus = OperationalStatus.Inactive;
+
+            _slotRepoMock.Setup(x => x.GetByQrCodeTokenAsync(ValidQr)).ReturnsAsync(slot);
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                CreateService().CheckInAsync(DriverUserId, ValidQr));
+
+            Assert.Contains("ngừng hoạt động", ex.Message);
+        }
+
+        // TC04: Không có Paid booking
         [Fact]
         public async Task CheckIn_NoPaidBooking_ShouldThrow()
         {
@@ -49,10 +63,10 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 CreateService().CheckInAsync(DriverUserId, ValidQr));
 
-            Assert.Contains("booking", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("đã thanh toán", ex.Message);
         }
 
-        // TC04 — check-in quá sớm: StartTime = now + 60 phút, window = 15 phút
+        // TC05 — check-in quá sớm: StartTime = now + 60 phút, window = 15 phút
         // → earliestCheckin = now + 45 phút, nhưng now < earliestCheckin → throw
         [Fact]
         public async Task CheckIn_TooEarly_ShouldThrow()
@@ -74,7 +88,7 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
             Assert.Contains("Chưa đến giờ check-in", ex.Message);
         }
 
-        // TC05 — check-in quá muộn: EndTime đã qua
+        // TC06 — check-in quá muộn: EndTime đã qua
         [Fact]
         public async Task CheckIn_TooLate_ShouldThrow()
         {
@@ -95,7 +109,54 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
             Assert.Contains("quá thời gian", ex.Message);
         }
 
-        // TC06 — Happy path: check-in trong window (StartTime = now - 10 phút, window = 15 → mở rồi)
+        // TC07 — Double check-in: booking đã được check-in trước đó
+        [Fact]
+        public async Task CheckIn_AlreadyCheckedIn_ShouldThrow()
+        {
+            var slot    = CreateActiveSlot();
+            var now     = DateTime.Now;
+            var booking = CreatePaidBooking(
+                driverUserId: DriverUserId,
+                start: now.AddMinutes(-10),
+                end:   now.AddHours(1));
+
+            _slotRepoMock.Setup(x => x.GetByQrCodeTokenAsync(ValidQr)).ReturnsAsync(slot);
+            _bookingRepoMock.Setup(x => x.GetPaidBookingForDriverAndSlotAsync(DriverUserId, slot.Id))
+                            .ReturnsAsync(booking);
+            // Booking đã có session trước đó
+            _sessionRepoMock.Setup(x => x.HasSessionByBookingAsync(booking.Id)).ReturnsAsync(true);
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                CreateService().CheckInAsync(DriverUserId, ValidQr));
+
+            Assert.Contains("check-in trước đó", ex.Message);
+        }
+
+        // TC08 — Slot đang có xe khác cắm sạc (ongoing session)
+        [Fact]
+        public async Task CheckIn_SlotOccupied_OngoingSession_ShouldThrow()
+        {
+            var slot    = CreateActiveSlot();
+            var now     = DateTime.Now;
+            var booking = CreatePaidBooking(
+                driverUserId: DriverUserId,
+                start: now.AddMinutes(-10),
+                end:   now.AddHours(1));
+
+            _slotRepoMock.Setup(x => x.GetByQrCodeTokenAsync(ValidQr)).ReturnsAsync(slot);
+            _bookingRepoMock.Setup(x => x.GetPaidBookingForDriverAndSlotAsync(DriverUserId, slot.Id))
+                            .ReturnsAsync(booking);
+            _sessionRepoMock.Setup(x => x.HasSessionByBookingAsync(booking.Id)).ReturnsAsync(false);
+            // Slot đang có session khác đang chạy
+            _sessionRepoMock.Setup(x => x.HasOngoingSessionBySlotAsync(slot.Id)).ReturnsAsync(true);
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                CreateService().CheckInAsync(DriverUserId, ValidQr));
+
+            Assert.Contains("cắm sạc", ex.Message);
+        }
+
+        // TC09 — Happy path: check-in trong window (StartTime = now - 10 phút, window = 15 → mở rồi)
         [Fact]
         public async Task CheckIn_Success_ShouldCreateSession()
         {
@@ -116,13 +177,8 @@ namespace ChargeSlot.Tests.Services.ChargingSessionServiceTests
 
             var result = await CreateService().CheckInAsync(DriverUserId, ValidQr);
 
-            // Booking status được cập nhật
             Assert.Equal(BookingStatus.CheckedIn.ToString(), result.BookingStatus);
-
-            // Session được Add
             _sessionRepoMock.Verify(x => x.Add(It.IsAny<ChargingSession>()), Times.Once);
-
-            // Notify owner
             _notifyMock.Verify(x => x.SendAsync(
                 slot.ChargingStation.OwnerUserId,
                 It.IsAny<string>(), It.IsAny<string>(), NotificationType.Booking), Times.Once);
