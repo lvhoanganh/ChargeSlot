@@ -1005,20 +1005,16 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
     setPricingError("");
     if (!newTier.startTime || !newTier.endTime) { setPricingError("Vui lòng chọn giờ bắt đầu và kết thúc!"); return; }
     if (!newTier.pricePerHour) { setPricingError("Vui lòng nhập giá!"); return; }
-
-    // Validate định dạng giờ hợp lệ: HH:MM với giờ 00-23 và phút 00-59
+    if (Number(newTier.pricePerHour) <= 0) { setPricingError("Giá phải lớn hơn 0!"); return; }
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     if (!timeRegex.test(newTier.startTime) || !timeRegex.test(newTier.endTime)) {
       setPricingError("Thời gian không hợp lệ! Giờ từ 00–23, phút từ 00–59.");
       return;
     }
-
     if (newTier.endTime <= newTier.startTime) { setPricingError("Giờ kết thúc phải sau giờ bắt đầu!"); return; }
 
     const lastEnd = getLastEndTime();
     if (newTier.startTime < lastEnd) { setPricingError(`Giờ bắt đầu phải từ ${lastEnd} trở đi!`); return; }
-
-    // Validate end time không vượt 23:59
     if (newTier.endTime > "23:59") {
       setPricingError("Giờ kết thúc không hợp lệ (tối đa 23:59)!");
       return;
@@ -1114,7 +1110,17 @@ function StationPricingPanel({ stationId, pricingTiers: initialTiers, operatingH
                 <span className="text-slate-500">{fmtTime(tier.startTime)}–{fmtTime(tier.endTime)}</span>
                 <span className="ml-2 font-bold text-amber-600">{tier.pricePerHour?.toLocaleString("vi-VN")}đ/h</span>
               </div>
-              <button onClick={() => handleDeletePricing(tier.id)} className="text-red-400 hover:text-red-600 cursor-pointer text-xs" title="Xóa"></button>
+              <button
+                onClick={() => handleDeletePricing(tier.id)}
+                className="flex items-center gap-1 text-red-400 hover:text-red-600 hover:bg-red-50 cursor-pointer text-xs px-2 py-1 rounded-md transition"
+                title="Xóa khung giờ này"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Xóa
+              </button>
             </div>
           ))}
         </div>
