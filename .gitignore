@@ -1,4 +1,4 @@
-# Visual Studio
+ÿþ# Visual Studio
 .vs/
 *.user
 *.suo
@@ -18,3 +18,15 @@ Thumbs.db
 
 # ASP.NET
 appsettings.Development.json
+appsettings.json
+
+# Configurations and Credentials
+firebase-service-account.json
+vertex-credentials.json
+
+# Publish
+publish/
+
+# Ignored Folders
+docs/
+ChargeSlot.Tests/

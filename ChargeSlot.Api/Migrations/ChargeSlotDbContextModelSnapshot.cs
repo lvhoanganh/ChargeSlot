@@ -79,9 +79,6 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<DateTime?>("CheckedInAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("CheckinDeadlineAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -98,6 +95,12 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal>("LoyaltyEarnRateSnapshot")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ManualCheckinRequestedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Note")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -105,9 +108,30 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<DateTime?>("PaymentExpiresAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal>("PlatformFeeRateSnapshot")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PointsDiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PointsEarned")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PointsUsed")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("Refund100DeadlineAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("Refund50DeadlineAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ReminderSentAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("SlotId")
                         .HasColumnType("int");
@@ -126,6 +150,9 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<decimal>("VatRateSnapshot")
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -282,12 +309,21 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<decimal>("AverageRating")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("BanCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("BannedUntil")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("LastEmergencyCancelAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<decimal?>("Latitude")
                         .HasPrecision(9, 6)
@@ -346,6 +382,72 @@ namespace ChargeSlot.Api.Migrations
                     b.ToTable("ChargingStation", (string)null);
                 });
 
+            modelBuilder.Entity("ChargeSlot.Api.Models.ChatConversation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BookingId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DriverUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OwnerUserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId")
+                        .IsUnique();
+
+                    b.HasIndex("DriverUserId");
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.ToTable("ChatConversations");
+                });
+
+            modelBuilder.Entity("ChargeSlot.Api.Models.ChatMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("ConversationId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("SenderUserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SenderUserId");
+
+                    b.HasIndex("ConversationId", "CreatedAt");
+
+                    b.ToTable("ChatMessages");
+                });
+
             modelBuilder.Entity("ChargeSlot.Api.Models.Dispute", b =>
                 {
                     b.Property<int>("Id")
@@ -357,6 +459,12 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<string>("AdminNote")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("AdminReminderSentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("AdminReviewDeadlineAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("BookingId")
                         .HasColumnType("int");
@@ -374,6 +482,12 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<int?>("InvoiceId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("OwnerEvidenceDeadlineAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("OwnerReminderSentAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("OwnerResponse")
                         .HasMaxLength(2000)
@@ -394,6 +508,9 @@ namespace ChargeSlot.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("StatusChangedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -456,6 +573,9 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<string>("LicensePlate")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("LoyaltyPoints")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("VehicleType")
                         .HasColumnType("nvarchar(max)");
 
@@ -479,6 +599,9 @@ namespace ChargeSlot.Api.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRental")
                         .HasColumnType("bit");
 
                     b.Property<decimal>("Price")
@@ -544,6 +667,12 @@ namespace ChargeSlot.Api.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
+                    b.Property<int>("BanCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("BannedUntil")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
@@ -583,6 +712,9 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("PendingEmail")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -590,6 +722,9 @@ namespace ChargeSlot.Api.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<string>("SecondaryPasswordHash")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
@@ -646,6 +781,9 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<decimal>("PlatformFee")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ReminderSentAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<decimal>("ServiceAmount")
                         .HasPrecision(18, 2)
@@ -745,6 +883,44 @@ namespace ChargeSlot.Api.Migrations
                     b.ToTable("LedgerTransaction", (string)null);
                 });
 
+            modelBuilder.Entity("ChargeSlot.Api.Models.LoyaltyTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BookingId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("DriverUserId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Points")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId");
+
+                    b.HasIndex("DriverUserId");
+
+                    b.ToTable("LoyaltyTransactions");
+                });
+
             modelBuilder.Entity("ChargeSlot.Api.Models.Notification", b =>
                 {
                     b.Property<int>("Id")
@@ -788,6 +964,18 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BackIdCardUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BusinessLicenseNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BusinessLicenseUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("BusinessName")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -796,12 +984,65 @@ namespace ChargeSlot.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("FrontIdCardUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("IdCardDate")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("IdCardNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("KycRejectReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("KycReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("KycReviewedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("KycStatus")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("KycSubmittedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PrevAddress")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrevBackIdCardUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrevBusinessLicenseNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrevBusinessLicenseUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrevBusinessName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrevFrontIdCardUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrevIdCardDate")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrevIdCardNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrevTaxCode")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("TaxCode")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("UserId");
+
+                    b.HasIndex("KycReviewedByUserId");
 
                     b.ToTable("Owner", (string)null);
                 });
@@ -849,51 +1090,6 @@ namespace ChargeSlot.Api.Migrations
                     b.HasIndex("BookingId", "CreatedAt");
 
                     b.ToTable("Payment", (string)null);
-                });
-
-            modelBuilder.Entity("ChargeSlot.Api.Models.PayoutRequest", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("BankAccountId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<int>("OwnerUserId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("ProcessedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BankAccountId");
-
-                    b.HasIndex("OwnerUserId", "RequestedAt");
-
-                    b.ToTable("PayoutRequest", (string)null);
                 });
 
             modelBuilder.Entity("ChargeSlot.Api.Models.Rating", b =>
@@ -1079,6 +1275,72 @@ namespace ChargeSlot.Api.Migrations
                     b.ToTable("StationPricing", (string)null);
                 });
 
+            modelBuilder.Entity("ChargeSlot.Api.Models.StationUnavailableDate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StationId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StationId");
+
+                    b.ToTable("StationUnavailableDates");
+                });
+
+            modelBuilder.Entity("ChargeSlot.Api.Models.SystemConfig", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("SystemConfigs");
+
+                    b.HasData(
+                        new
+                        {
+                            Key = "LoyaltyEarnRate",
+                            Description = "Tỷ lệ tích điểm (5% = 0.05)",
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Value = "0.05"
+                        },
+                        new
+                        {
+                            Key = "LoyaltyMaxRedeemRate",
+                            Description = "Tối đa dùng bao nhiêu % booking bằng điểm (50% = 0.5)",
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Value = "0.5"
+                        });
+                });
+
             modelBuilder.Entity("ChargeSlot.Api.Models.UserOtp", b =>
                 {
                     b.Property<int>("Id")
@@ -1135,6 +1397,7 @@ namespace ChargeSlot.Api.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("AvailableBalance")
+                        .IsConcurrencyToken()
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
@@ -1198,7 +1461,102 @@ namespace ChargeSlot.Api.Migrations
                             FrozenBalance = 0m,
                             SystemCode = "CLEARING",
                             WalletType = "System"
+                        },
+                        new
+                        {
+                            Id = 99,
+                            AvailableBalance = 0m,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FrozenBalance = 0m,
+                            SystemCode = "TAX_HOLD",
+                            WalletType = "System"
                         });
+                });
+
+            modelBuilder.Entity("ChargeSlot.Api.Models.WithdrawRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("BankAccountHolder")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("BankAccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("BankName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("IssueNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("IssueReportedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ProcessedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReminderSentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TransferReceiptUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("TransferredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UserConfirmedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("WalletId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("WalletId");
+
+                    b.HasIndex("UserId", "RequestedAt");
+
+                    b.ToTable("WithdrawRequest", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<int>", b =>
@@ -1432,6 +1790,52 @@ namespace ChargeSlot.Api.Migrations
                     b.Navigation("Owner");
                 });
 
+            modelBuilder.Entity("ChargeSlot.Api.Models.ChatConversation", b =>
+                {
+                    b.HasOne("ChargeSlot.Api.Models.Booking", "Booking")
+                        .WithOne()
+                        .HasForeignKey("ChargeSlot.Api.Models.ChatConversation", "BookingId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "Driver")
+                        .WithMany()
+                        .HasForeignKey("DriverUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Driver");
+
+                    b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("ChargeSlot.Api.Models.ChatMessage", b =>
+                {
+                    b.HasOne("ChargeSlot.Api.Models.ChatConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+
+                    b.Navigation("Sender");
+                });
+
             modelBuilder.Entity("ChargeSlot.Api.Models.Dispute", b =>
                 {
                     b.HasOne("ChargeSlot.Api.Models.Booking", "Booking")
@@ -1558,6 +1962,24 @@ namespace ChargeSlot.Api.Migrations
                     b.Navigation("CreatedByUser");
                 });
 
+            modelBuilder.Entity("ChargeSlot.Api.Models.LoyaltyTransaction", b =>
+                {
+                    b.HasOne("ChargeSlot.Api.Models.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("ChargeSlot.Api.Models.Driver", "Driver")
+                        .WithMany()
+                        .HasForeignKey("DriverUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Driver");
+                });
+
             modelBuilder.Entity("ChargeSlot.Api.Models.Notification", b =>
                 {
                     b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "User")
@@ -1571,11 +1993,18 @@ namespace ChargeSlot.Api.Migrations
 
             modelBuilder.Entity("ChargeSlot.Api.Models.Owner", b =>
                 {
+                    b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "KycReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("KycReviewedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "User")
                         .WithOne("OwnerProfile")
                         .HasForeignKey("ChargeSlot.Api.Models.Owner", "UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("KycReviewedByUser");
 
                     b.Navigation("User");
                 });
@@ -1589,25 +2018,6 @@ namespace ChargeSlot.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Booking");
-                });
-
-            modelBuilder.Entity("ChargeSlot.Api.Models.PayoutRequest", b =>
-                {
-                    b.HasOne("ChargeSlot.Api.Models.BankAccount", "BankAccount")
-                        .WithMany("PayoutRequests")
-                        .HasForeignKey("BankAccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ChargeSlot.Api.Models.Owner", "Owner")
-                        .WithMany("PayoutRequests")
-                        .HasForeignKey("OwnerUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("BankAccount");
-
-                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("ChargeSlot.Api.Models.Rating", b =>
@@ -1685,6 +2095,17 @@ namespace ChargeSlot.Api.Migrations
                     b.Navigation("ChargingStation");
                 });
 
+            modelBuilder.Entity("ChargeSlot.Api.Models.StationUnavailableDate", b =>
+                {
+                    b.HasOne("ChargeSlot.Api.Models.ChargingStation", "Station")
+                        .WithMany("UnavailableDates")
+                        .HasForeignKey("StationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Station");
+                });
+
             modelBuilder.Entity("ChargeSlot.Api.Models.UserOtp", b =>
                 {
                     b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "User")
@@ -1703,6 +2124,25 @@ namespace ChargeSlot.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ChargeSlot.Api.Models.WithdrawRequest", b =>
+                {
+                    b.HasOne("ChargeSlot.Api.Models.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChargeSlot.Api.Models.Wallet", "Wallet")
+                        .WithMany()
+                        .HasForeignKey("WalletId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Wallet");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
@@ -1756,11 +2196,6 @@ namespace ChargeSlot.Api.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ChargeSlot.Api.Models.BankAccount", b =>
-                {
-                    b.Navigation("PayoutRequests");
-                });
-
             modelBuilder.Entity("ChargeSlot.Api.Models.Booking", b =>
                 {
                     b.Navigation("BookingExtraServices");
@@ -1794,6 +2229,13 @@ namespace ChargeSlot.Api.Migrations
                     b.Navigation("Ratings");
 
                     b.Navigation("StationPricings");
+
+                    b.Navigation("UnavailableDates");
+                });
+
+            modelBuilder.Entity("ChargeSlot.Api.Models.ChatConversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("ChargeSlot.Api.Models.Dispute", b =>
@@ -1831,8 +2273,6 @@ namespace ChargeSlot.Api.Migrations
             modelBuilder.Entity("ChargeSlot.Api.Models.Owner", b =>
                 {
                     b.Navigation("ChargingStations");
-
-                    b.Navigation("PayoutRequests");
                 });
 
             modelBuilder.Entity("ChargeSlot.Api.Models.Wallet", b =>

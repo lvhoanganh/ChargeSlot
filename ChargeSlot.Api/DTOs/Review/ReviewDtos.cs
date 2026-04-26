@@ -13,6 +13,8 @@ namespace ChargeSlot.Api.DTOs.Review
 
         [MaxLength(1000)]
         public string? Comment { get; set; }
+
+        public bool IsAnonymous { get; set; } = false;
     }
 
     public class OwnerReplyDto

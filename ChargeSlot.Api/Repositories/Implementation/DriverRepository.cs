@@ -27,15 +27,16 @@ namespace ChargeSlot.Api.Repositories.Implementation
             await _context.Driver.AddAsync(driver);
         }
 
+        public void Update(Driver driver)
+        {
+            _context.Driver.Update(driver);
+        }
+
         public void Remove(Driver driver)
         {
             _context.Driver.Remove(driver);
         }
-
-        public async Task SaveChangesAsync()
-        {
-            await _context.SaveChangesAsync();
-        }
     }
 }
+
 

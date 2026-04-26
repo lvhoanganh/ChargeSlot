@@ -1,12 +1,10 @@
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Slot;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
-
 using ChargeSlot.Api.Helpers;
+
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class ChargingSlotService : IChargingSlotService
@@ -14,20 +12,21 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IChargingSlotRepository _slotRepo;
         private readonly IChargingStationRepository _stationRepo;
         private readonly IBookingRepository _bookingRepo;
-        private readonly ChargeSlotDbContext _db;
-
-        private const int BufferMinutes = 15;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly ISystemConfigService _configService;
 
         public ChargingSlotService(
             IChargingSlotRepository slotRepo,
             IChargingStationRepository stationRepo,
             IBookingRepository bookingRepo,
-            ChargeSlotDbContext db)
+            IUnitOfWork unitOfWork,
+            ISystemConfigService configService)
         {
             _slotRepo = slotRepo;
             _stationRepo = stationRepo;
             _bookingRepo = bookingRepo;
-            _db = db;
+            _unitOfWork = unitOfWork;
+            _configService = configService;
         }
 
         public async Task<ChargingSlotDto?> GetByIdAsync(int stationId, int slotId, int ownerUserId)
@@ -72,7 +71,7 @@ namespace ChargeSlot.Api.Services.Implementation
             };
 
             await _slotRepo.AddAsync(slot);
-            await _slotRepo.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             return MapToDto(slot);
         }
@@ -90,19 +89,32 @@ namespace ChargeSlot.Api.Services.Implementation
             slot.PositionY = dto.PositionY;
             slot.UpdatedAt = DateTimeHelper.VietnamNow();
 
-            await _slotRepo.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         public async Task DeleteAsync(int stationId, int slotId, int ownerUserId)
         {
-            await ValidateStationOwnershipAsync(stationId, ownerUserId);
+            var station = await _stationRepo.GetByIdAsync(stationId, includeDetails: false);
+            if (station == null)
+                throw new KeyNotFoundException($"Station {stationId} not found.");
+            if (station.OwnerUserId != ownerUserId)
+                throw new UnauthorizedAccessException("You do not own this station.");
 
             var slot = await _slotRepo.GetByIdAsync(slotId, tracking: true);
             if (slot == null || slot.StationId != stationId)
                 throw new KeyNotFoundException($"Slot {slotId} not found in station {stationId}.");
 
+            if (station.ApprovalStatus != ApprovalStatus.Draft && station.ApprovalStatus != ApprovalStatus.Rejected)
+            {
+                var hasBookings = await _bookingRepo.HasAnyBookingsAsync(slotId);
+                if (hasBookings)
+                {
+                    throw new InvalidOperationException("Không thể xóa khoảng sạc/slot này vì đã từng có booking liên quan. Bạn chỉ có thể chuyển sang trạng thái ngưng hoạt động (Inactive) thay vì xóa.");
+                }
+            }
+
             _slotRepo.Remove(slot);
-            await _slotRepo.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
         }
 
         public async Task UpdateStatusAsync(int stationId, int slotId, int ownerUserId, UpdateSlotStatusDto dto)
@@ -129,8 +141,23 @@ namespace ChargeSlot.Api.Services.Implementation
             if (slot == null || slot.StationId != stationId)
                 throw new KeyNotFoundException($"Slot {slotId} not found in station {stationId}.");
 
-            if (slot.Status == SlotStatus.Booked)
+            // Check if changing to Inactive or Maintenance while there are upcoming bookings
+            if (dto.Status == SlotStatus.Inactive || dto.Status == SlotStatus.Maintenance)
             {
+                var hasActiveBookings = await _bookingRepo.HasActiveBookingsAsync(slotId);
+                                
+                if (hasActiveBookings)
+                {
+                    throw new InvalidOperationException(
+                        $"Không thể chuyển slot sang {dto.Status} vì đang có booking sắp tới hoặc đang sạc. Vui lòng hủy các booking này trước.");
+                }
+            }
+            else if (slot.Status == SlotStatus.Booked)
+            {
+                // If not changing to Inactive/Maintenance, but it is currently Booked (means currently charging or paid check-in), 
+                // we probably shouldn't allow manually turning it to Active if someone is using it.
+                // Well, if they want to override, they can if it's not Maintenance.
+                // Let's just keep the old basic lock if they try to bypass.
                 throw new InvalidOperationException(
                     "Cannot change status of a slot that is currently Booked. Wait for the booking to complete or expire.");
             }
@@ -138,7 +165,32 @@ namespace ChargeSlot.Api.Services.Implementation
             slot.Status = dto.Status;
             slot.UpdatedAt = DateTimeHelper.VietnamNow();
 
-            await _slotRepo.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
+        }
+
+        public async Task<string> RegenerateQrCodeAsync(int stationId, int slotId, int ownerUserId)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId, includeDetails: false);
+            if (station == null)
+                throw new KeyNotFoundException($"Station {stationId} not found.");
+            if (station.OwnerUserId != ownerUserId)
+                throw new UnauthorizedAccessException("You do not own this station.");
+
+            if (station.ApprovalStatus != ApprovalStatus.Approved)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot regenerate QR code when station is in '{station.ApprovalStatus}' status. Station must be Approved.");
+            }
+
+            var slot = await _slotRepo.GetByIdAsync(slotId, tracking: true);
+            if (slot == null || slot.StationId != stationId)
+                throw new KeyNotFoundException($"Slot {slotId} not found in station {stationId}.");
+
+            slot.QrCodeToken = Guid.NewGuid().ToString("N");
+            slot.UpdatedAt = DateTimeHelper.VietnamNow();
+
+            await _unitOfWork.CompleteAsync();
+            return slot.QrCodeToken;
         }
 
         /// <summary>
@@ -152,10 +204,15 @@ namespace ChargeSlot.Api.Services.Implementation
 
             var bookings = await _bookingRepo.GetActiveBookingsForSlotAsync(slotId, date);
 
+            var slotConfigs = await _configService.GetCurrentConfigsAsync();
+            var bufferMinutes = slotConfigs.Slot_Buffer_Minutes;
+
             var bookedRanges = bookings.Select(b => new BookedTimeRangeDto
             {
                 StartTime = b.StartTime,
-                EndTime = b.EndTime.AddMinutes(BufferMinutes), // Bao gồm 15 phút buffer
+                EndTime = (b.ChargingSession != null && b.ChargingSession.ActualEndTime.HasValue 
+                            ? b.ChargingSession.ActualEndTime.Value 
+                            : b.EndTime).AddMinutes(bufferMinutes), // Bao gồm buffer từ config
                 Status = b.Status.ToString()
             }).ToList();
 
@@ -228,3 +285,4 @@ namespace ChargeSlot.Api.Services.Implementation
         }
     }
 }
+

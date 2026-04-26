@@ -18,6 +18,7 @@ namespace ChargeSlot.Api.Models
         public InvoiceStatus Status { get; set; } = InvoiceStatus.PendingConfirm;
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
         public DateTime? UpdatedAt { get; set; }
+        public DateTime? ReminderSentAt { get; set; }
 
         public ICollection<Dispute> Disputes { get; set; } = new List<Dispute>();
     }

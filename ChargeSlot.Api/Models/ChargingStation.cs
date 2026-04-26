@@ -32,6 +32,13 @@ namespace ChargeSlot.Api.Models
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
         public DateTime? UpdatedAt { get; set; }
 
+        // Tracking Dispute Bans
+        public int BanCount { get; set; } = 0;
+        public DateTime? BannedUntil { get; set; }
+
+        /// <summary>Thời điểm thực hiện hủy hàng loạt khẩn cấp lần cuối (giới hạn 1 lần/tháng).</summary>
+        public DateTime? LastEmergencyCancelAt { get; set; }
+
         /// <summary>Đánh giá trung bình (denormalized for performance).</summary>
         public decimal AverageRating { get; set; } = 0;
         /// <summary>Tổng số đánh giá.</summary>
@@ -39,6 +46,7 @@ namespace ChargeSlot.Api.Models
 
         public ICollection<StationImage> Images { get; set; } = new List<StationImage>();
         public ICollection<StationOperatingHours> OperatingHours { get; set; } = new List<StationOperatingHours>();
+        public ICollection<StationUnavailableDate> UnavailableDates { get; set; } = new List<StationUnavailableDate>();
         public ICollection<ExtraService> ExtraServices { get; set; } = new List<ExtraService>();
         public ICollection<ChargingSlot> ChargingSlots { get; set; } = new List<ChargingSlot>();
         public ICollection<StationPricing> StationPricings { get; set; } = new List<StationPricing>();

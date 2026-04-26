@@ -1,0 +1,153 @@
+import { useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { chatApi, bookingApi } from "@/services/api";
+import ChatWindow from "@/components/ChatWindow";
+
+const CHAT_WHITELIST = ["Paid", "CheckedIn", "InProgress", "CompletedPendingInvoice", "Disputed"];
+
+export default function ChatPage() {
+  const { bookingId } = useParams();
+  const navigate = useNavigate();
+  const [conversationId, setConversationId] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [bookingStatus, setBookingStatus] = useState(null);
+  const [bookingNotFound, setBookingNotFound] = useState(false);
+
+  // Validate bookingId: phải là số nguyên dương
+  const parsedId = Number(bookingId);
+  const isValidId = Number.isInteger(parsedId) && parsedId > 0;
+
+  useEffect(() => {
+    // bookingId không hợp lệ → báo lỗi ngay, không fetch
+    if (!isValidId) {
+      setBookingNotFound(true);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch cả messages lẫn booking status song song
+    Promise.all([
+      chatApi.getMessages(parsedId).catch(() => null),
+      bookingApi.getById(parsedId).catch(() => null),
+    ]).then(([chatData, booking]) => {
+      // Booking không tồn tại (API trả lỗi hoặc null)
+      if (!booking) {
+        setBookingNotFound(true);
+        return;
+      }
+
+      setConversationId(chatData?.conversationId || null);
+      const fallbackList = Array.isArray(chatData) ? chatData : [];
+      const rawMessages = chatData?.items || chatData?.messages || fallbackList;
+      setMessages(Array.isArray(rawMessages) ? rawMessages : []);
+      setBookingStatus(booking?.status || null);
+    }).finally(() => setLoading(false));
+  }, [bookingId]);
+
+  const handleNewMessage = useCallback((msg) => {
+    setMessages(prev => {
+      if (prev.some(m => m.id === msg.id)) return prev;
+      return [...prev, msg];
+    });
+    if (!conversationId && msg.conversationId) {
+      setConversationId(msg.conversationId);
+    }
+  }, [conversationId]);
+
+  const handleFirstMessage = useCallback(async (msg) => {
+    handleNewMessage(msg);
+    try {
+      const data = await chatApi.getMessages(parsedId);
+      if (data?.conversationId) setConversationId(data.conversationId);
+    } catch { /* ignore */ }
+  }, [parsedId, handleNewMessage]);
+
+  // Chat chỉ khả dụng nếu nằm trong white-list
+  const isClosed = bookingStatus && !CHAT_WHITELIST.includes(bookingStatus);
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
+        <div style={{ fontSize: 40 }}></div>
+        <p style={{ color: "#6b7280" }}>Đang tải tin nhắn...</p>
+      </div>
+    );
+  }
+
+  // Booking không tồn tại hoặc bookingId không hợp lệ
+  if (bookingNotFound) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 16px" }}>
+        <div style={{ fontSize: 56, marginBottom: 12 }}></div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b", margin: "0 0 8px", textAlign: "center" }}>
+          Không tìm thấy cuộc trò chuyện
+        </h2>
+        <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24, textAlign: "center" }}>
+          Booking #{bookingId} không tồn tại hoặc bạn không có quyền truy cập.
+        </p>
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            padding: "12px 28px", borderRadius: 12, border: "none",
+            background: "#f97316", color: "#fff", fontWeight: 700,
+            fontSize: 14, cursor: "pointer",
+          }}
+        >
+          ← Quay lại
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 80 }}>
+      <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 16px 16px", height: "calc(100vh - 80px)", display: "flex", flexDirection: "column" }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0" }}>
+          <button
+            onClick={() => navigate(-1)}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", display: "flex", alignItems: "center", gap: 4, fontSize: 14 }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+            Quay lại
+          </button>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>
+             Chat — Booking #{bookingId}
+          </h2>
+          {isClosed && (
+            <span style={{
+              marginLeft: "auto", fontSize: 11, fontWeight: 600,
+              background: "#f1f5f9", color: "#64748b",
+              padding: "3px 10px", borderRadius: 20,
+            }}>
+               Đã đóng
+            </span>
+          )}
+        </div>
+
+        {/* Thông báo nếu chat bị khoá */}
+        {isClosed && (
+          <div style={{
+            background: "#fef9c3", border: "1px solid #fde047",
+            borderRadius: 12, padding: "10px 16px", marginBottom: 8,
+            fontSize: 13, color: "#713f12", display: "flex", alignItems: "center", gap: 8,
+          }}>
+             Không thể trò chuyện. Chat chỉ khả dụng khi booking đã thanh toán và chưa kết thúc.
+          </div>
+        )}
+
+        {/* Chat window */}
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <ChatWindow
+            conversationId={conversationId}
+            bookingId={parsedId}
+            messages={messages}
+            onNewMessage={conversationId ? handleNewMessage : handleFirstMessage}
+            readOnly={isClosed}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

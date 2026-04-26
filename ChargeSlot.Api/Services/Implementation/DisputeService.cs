@@ -1,24 +1,61 @@
+using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.DTOs.Dispute;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 
-using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class DisputeService : IDisputeService
     {
         private readonly INotificationService _notificationService;
-        private readonly Data.ChargeSlotDbContext _db;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IDisputeRepository _disputeRepo;
+        private readonly IBookingRepository _bookingRepo;
+        private readonly IInvoiceRepository _invoiceRepo;
+        private readonly IWalletRepository _walletRepo;
+        private readonly ILedgerTransactionRepository _ledgerRepo;
+        private readonly IChargingStationRepository _stationRepo;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IFileStorageService _fileStorageService;
+        private readonly Lazy<IBookingService> _lazyBookingService;
+        private readonly Lazy<ISystemConfigService> _lazyConfigService;
+        private readonly Lazy<IDriverRepository> _lazyDriverRepo;
+        private readonly Lazy<ILoyaltyTransactionRepository> _lazyLoyaltyRepo;
+
+        private static readonly string[] AllowedFileExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".mp4", ".avi", ".mov", ".webm", ".pdf" };
+        private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10MB
 
         public DisputeService(
             INotificationService notificationService,
-            Data.ChargeSlotDbContext db)
+            IUnitOfWork unitOfWork,
+            IDisputeRepository disputeRepo,
+            IBookingRepository bookingRepo,
+            IInvoiceRepository invoiceRepo,
+            IWalletRepository walletRepo,
+            ILedgerTransactionRepository ledgerRepo,
+            IChargingStationRepository stationRepo,
+            UserManager<ApplicationUser> userManager,
+            IFileStorageService fileStorageService,
+            IServiceProvider serviceProvider)
         {
             _notificationService = notificationService;
-            _db = db;
+            _unitOfWork = unitOfWork;
+            _disputeRepo = disputeRepo;
+            _bookingRepo = bookingRepo;
+            _invoiceRepo = invoiceRepo;
+            _walletRepo = walletRepo;
+            _ledgerRepo = ledgerRepo;
+            _stationRepo = stationRepo;
+            _userManager = userManager;
+            _fileStorageService = fileStorageService;
+            _lazyBookingService = new Lazy<IBookingService>(() => serviceProvider.GetRequiredService<IBookingService>());
+            _lazyConfigService = new Lazy<ISystemConfigService>(() => serviceProvider.GetRequiredService<ISystemConfigService>());
+            _lazyDriverRepo = new Lazy<IDriverRepository>(() => serviceProvider.GetRequiredService<IDriverRepository>());
+            _lazyLoyaltyRepo = new Lazy<ILoyaltyTransactionRepository>(() => serviceProvider.GetRequiredService<ILoyaltyTransactionRepository>());
         }
 
         /// <summary>
@@ -28,100 +65,102 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<DisputeDto> SubmitDisputeAsync(int driverUserId, CreateDisputeDto dto)
         {
-            var booking = await _db.Bookings
-                .Include(b => b.Driver).ThenInclude(d => d.User)
-                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .FirstOrDefaultAsync(b => b.Id == dto.BookingId)
-                ?? throw new InvalidOperationException("Booking không tồn tại.");
-
-            if (booking.DriverUserId != driverUserId)
-                throw new InvalidOperationException("Booking này không thuộc về bạn.");
-
-            if (booking.Status != BookingStatus.CompletedPendingInvoice)
-                throw new InvalidOperationException("Chỉ có thể khiếu nại khi booking đang chờ xác nhận hóa đơn.");
-
-            // Check if dispute already exists
-            var existing = await _db.Disputes.AnyAsync(d => d.BookingId == dto.BookingId);
-            if (existing)
-                throw new InvalidOperationException("Đã có khiếu nại cho booking này.");
-
-            // Rate limit: max 3 disputes/driver/tháng
-            var monthStart = new DateTime(DateTimeHelper.VietnamNow().Year, DateTimeHelper.VietnamNow().Month, 1);
-            var disputeCountThisMonth = await _db.Disputes
-                .CountAsync(d => d.CreatedByUserId == driverUserId && d.CreatedAt >= monthStart);
-            if (disputeCountThisMonth >= 3)
-                throw new InvalidOperationException("Bạn đã đạt giới hạn 3 khiếu nại/tháng. Vui lòng liên hệ hotline nếu cần hỗ trợ thêm.");
-
-            // Get invoice
-            var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.BookingId == dto.BookingId);
-
-            // Create dispute
-            var dispute = new Dispute
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
+            try
             {
-                BookingId = dto.BookingId,
-                InvoiceId = invoice?.Id,
-                CreatedByUserId = driverUserId,
-                Reason = dto.Reason,
-                Description = dto.Description,
-                Status = DisputeStatus.WaitingOwnerEvidence,
-                CreatedAt = DateTimeHelper.VietnamNow()
-            };
+                var booking = await _bookingRepo.GetByIdWithDetailsAsync(dto.BookingId)
+                    ?? throw new InvalidOperationException("Booking không tồn tại.");
 
-            // Evidence sẽ được upload sau khi có disputeId
+                if (booking.DriverUserId != driverUserId)
+                    throw new InvalidOperationException("Booking này không thuộc về bạn.");
 
-            _db.Disputes.Add(dispute);
+                if (booking.Status != BookingStatus.CompletedPendingInvoice)
+                    throw new InvalidOperationException("Chỉ có thể khiếu nại khi booking đang chờ xác nhận hóa đơn.");
 
-            // Freeze payment: invoice → UnderDispute
-            if (invoice != null)
-            {
-                invoice.Status = InvoiceStatus.UnderDispute;
-                invoice.UpdatedAt = DateTimeHelper.VietnamNow();
-            }
+                // Check if dispute already exists
+                var existing = await _disputeRepo.HasDisputeForBookingAsync(dto.BookingId);
+                if (existing)
+                    throw new InvalidOperationException("Đã có khiếu nại cho booking này.");
 
-            // Booking → Disputed
-            booking.Status = BookingStatus.Disputed;
-            booking.UpdatedAt = DateTimeHelper.VietnamNow();
+                // Load configs for dispute settings
+                var configs = await _lazyConfigService.Value.GetCurrentConfigsAsync();
 
-            // Freeze ESCROW balance: AvailableBalance → FrozenBalance
-            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            escrowWallet.AvailableBalance -= booking.TotalAmount;
-            escrowWallet.FrozenBalance += booking.TotalAmount;
+                // Rate limit: max disputes/driver/tháng (dùng config thay hardcode)
+                var monthStart = new DateTime(DateTimeHelper.VietnamNow().Year, DateTimeHelper.VietnamNow().Month, 1);
+                var disputeCountThisMonth = await _disputeRepo.GetDisputeCountByDriverInMonthAsync(driverUserId, monthStart);
+                if (disputeCountThisMonth >= configs.Dispute_Limit_Per_Month)
+                    throw new InvalidOperationException($"Bạn đã đạt giới hạn {configs.Dispute_Limit_Per_Month} khiếu nại/tháng. Vui lòng liên hệ hotline nếu cần hỗ trợ thêm.");
 
-            // Single SaveChanges for all mutations
-            await _db.SaveChangesAsync();
+                // Get invoice
+                var invoice = await _invoiceRepo.GetByBookingIdAsync(dto.BookingId);
 
-            // Upload evidence files
-            if (dto.Files?.Length > 0)
-            {
-                await SaveEvidenceFilesAsync(dispute, dto.Files, driverUserId);
-            }
+                // Create dispute
+                var dispute = new Dispute
+                {
+                    BookingId = dto.BookingId,
+                    InvoiceId = invoice?.Id,
+                    CreatedByUserId = driverUserId,
+                    Reason = dto.Reason,
+                    Description = dto.Description,
+                    Status = DisputeStatus.WaitingOwnerEvidence,
+                    StatusChangedAt = DateTimeHelper.VietnamNow(),
+                    OwnerEvidenceDeadlineAt = DateTimeHelper.VietnamNow().AddHours(configs.Dispute_OwnerEvidence_Hours),
+                    CreatedAt = DateTimeHelper.VietnamNow()
+                };
 
-            // Notify Owner
-            var ownerUserId = booking.ChargingSlot.ChargingStation.OwnerUserId;
-            await _notificationService.SendAsync(
-                ownerUserId,
-                "Khiếu nại mới từ Driver",
-                $"{booking.Driver?.User?.FullName ?? "Driver"} khiếu nại về phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name}. Lý do: {dto.Reason}. Bạn có 24h để nộp bằng chứng phản hồi.",
-                NotificationType.Dispute);
+                _disputeRepo.Add(dispute);
 
-            // Notify Admin
-            var adminUsers = await _db.UserRoles
-                .Where(ur => ur.RoleId == 1)
-                .Select(ur => ur.UserId)
-                .ToListAsync();
+                // Freeze payment: invoice → UnderDispute
+                if (invoice != null)
+                {
+                    invoice.Status = InvoiceStatus.UnderDispute;
+                    invoice.UpdatedAt = DateTimeHelper.VietnamNow();
+                    _invoiceRepo.Update(invoice);
+                }
 
-            foreach (var adminId in adminUsers)
-            {
+                // Booking → Disputed
+                booking.Status = BookingStatus.Disputed;
+                booking.UpdatedAt = DateTimeHelper.VietnamNow();
+                _bookingRepo.Update(booking);
+
+                // Freeze ESCROW balance (Atomic via Repository)
+                var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
+                await _walletRepo.AdjustBalanceAtomicAsync(escrowWallet!.Id, -booking.TotalAmount, booking.TotalAmount);
+
+                await _unitOfWork.CompleteAsync();
+                await transaction.CommitAsync();
+
+                // Evidence upload + notifications ngoài transaction
+                if (dto.Files?.Length > 0)
+                {
+                    await SaveEvidenceFilesAsync(dispute, dto.Files, driverUserId);
+                }
+
+                var ownerUserId = booking.ChargingSlot.ChargingStation.OwnerUserId;
                 await _notificationService.SendAsync(
-                    adminId,
-                    "Khiếu nại mới cần xử lý",
-                    $"Khiếu nại mới tại trạm {booking.ChargingSlot?.ChargingStation?.Name} từ {booking.Driver?.User?.FullName ?? "Driver"}. Chờ Owner phản hồi.",
+                    ownerUserId,
+                    "Khiếu nại mới từ Driver",
+                    $"{booking.Driver?.User?.FullName ?? "Driver"} khiếu nại về phiên sạc tại trạm {booking.ChargingSlot?.ChargingStation?.Name}. Lý do: {dto.Reason}. Bạn có {configs.Dispute_OwnerEvidence_Hours}h để nộp bằng chứng phản hồi.",
                     NotificationType.Dispute);
-            }
 
-            // Reload with details for response
-            var result = await LoadDisputeWithDetailsAsync(dispute.Id);
-            return MapToDto(result!);
+                var adminUsers = await _userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
+                foreach (var admin in adminUsers)
+                {
+                    await _notificationService.SendAsync(
+                        admin.Id,
+                        "Khiếu nại mới cần xử lý",
+                        $"Khiếu nại mới tại trạm {booking.ChargingSlot?.ChargingStation?.Name} từ {booking.Driver?.User?.FullName ?? "Driver"}. Chờ Owner phản hồi.",
+                        NotificationType.Dispute);
+                }
+
+                var result = await LoadDisputeWithDetailsAsync(dispute.Id);
+                return MapToDto(result!);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         /// <summary>
@@ -129,11 +168,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<DisputeDto> SubmitOwnerEvidenceAsync(int ownerUserId, int disputeId, OwnerEvidenceDto dto)
         {
-            var dispute = await _db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Evidences)
-                .FirstOrDefaultAsync(d => d.Id == disputeId)
+            var dispute = await _disputeRepo.GetByIdWithDetailsAsync(disputeId)
                 ?? throw new InvalidOperationException("Khiếu nại không tồn tại.");
 
             // Validate owner
@@ -145,8 +180,11 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Khiếu nại không ở trạng thái chờ bằng chứng.");
 
             // Update response
+            var configs = await _lazyConfigService.Value.GetCurrentConfigsAsync();
             dispute.OwnerResponse = dto.Response;
             dispute.Status = DisputeStatus.PendingReview;
+            dispute.StatusChangedAt = DateTimeHelper.VietnamNow();
+            dispute.AdminReviewDeadlineAt = DateTimeHelper.VietnamNow().AddHours(configs.Dispute_AdminReview_Hours);
 
             // Upload evidence files
             if (dto.Files?.Length > 0)
@@ -154,7 +192,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 await SaveEvidenceFilesAsync(dispute, dto.Files, ownerUserId);
             }
 
-            await _db.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             // Notify Driver: Owner đã phản hồi
             await _notificationService.SendAsync(
@@ -163,16 +201,13 @@ namespace ChargeSlot.Api.Services.Implementation
                 $"Chủ trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} đã nộp bằng chứng phản hồi khiếu nại của bạn. Chờ Admin xem xét.",
                 NotificationType.Dispute);
 
-            // Notify Admin
-            var adminUsers = await _db.UserRoles
-                .Where(ur => ur.RoleId == 1)
-                .Select(ur => ur.UserId)
-                .ToListAsync();
+            // Notify Admin (dùng UserManager thay vì hardcode RoleId)
+            var adminUsers2 = await _userManager.GetUsersInRoleAsync(Constants.RoleConstants.Admin);
 
-            foreach (var adminId in adminUsers)
+            foreach (var admin in adminUsers2)
             {
                 await _notificationService.SendAsync(
-                    adminId,
+                    admin.Id,
                     "Owner đã phản hồi khiếu nại",
                     $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} đã có phản hồi từ Owner. Sẵn sàng xem xét.",
                     NotificationType.Dispute);
@@ -190,82 +225,178 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<DisputeDto> ResolveDisputeAsync(int adminUserId, int disputeId, ResolveDisputeDto dto)
         {
-            var dispute = await _db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
-                .Include(d => d.Invoice)
-                .Include(d => d.CreatedByUser)
-                .Include(d => d.Evidences)
-                .FirstOrDefaultAsync(d => d.Id == disputeId)
-                ?? throw new InvalidOperationException("Khiếu nại không tồn tại.");
-
-            if (dispute.Status != DisputeStatus.PendingReview && dispute.Status != DisputeStatus.WaitingOwnerEvidence)
-                throw new InvalidOperationException("Khiếu nại không ở trạng thái có thể xử lý.");
-
-            var now = DateTimeHelper.VietnamNow();
-
-            // Resolve dispute
-            dispute.Status = dto.IsDriverWin ? DisputeStatus.ResolvedRefund : DisputeStatus.ResolvedPayout;
-            dispute.AdminNote = dto.AdminNote;
-            dispute.ResolvedByUserId = adminUserId;
-            dispute.ResolvedAt = now;
-
-            // Invoice → Resolved
-            if (dispute.Invoice != null)
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
+            try
             {
-                dispute.Invoice.Status = InvoiceStatus.Resolved;
-                dispute.Invoice.UpdatedAt = now;
-            }
+                var dispute = await _disputeRepo.GetByIdWithDetailsAsync(disputeId)
+                    ?? throw new InvalidOperationException("Khiếu nại không tồn tại.");
 
-            // Booking → Completed
-            dispute.Booking.Status = BookingStatus.Completed;
-            dispute.Booking.UpdatedAt = now;
+                if (dispute.Status != DisputeStatus.PendingReview && dispute.Status != DisputeStatus.WaitingOwnerEvidence)
+                    throw new InvalidOperationException("Khiếu nại không ở trạng thái có thể xử lý.");
 
-            await _db.SaveChangesAsync();
+                var now = DateTimeHelper.VietnamNow();
 
-            // ── WALLET SETTLEMENT ──
-            if (dto.IsDriverWin)
-            {
-                // ESCROW → Driver: full refund (toàn bộ TotalAmount driver đã trả)
-                await RefundToDriverAsync(dispute.Booking, dispute);
-            }
-            else
-            {
-                // ESCROW → Owner (net) + PLATFORM_REVENUE (fee): giống flow confirm
+                // Resolve dispute
+                dispute.Status = dto.IsDriverWin ? DisputeStatus.ResolvedRefund : DisputeStatus.ResolvedPayout;
+                dispute.AdminNote = dto.AdminNote;
+                dispute.ResolvedByUserId = adminUserId;
+                dispute.ResolvedAt = now;
+
+                // Invoice → Resolved
                 if (dispute.Invoice != null)
                 {
-                    await SettleToOwnerAsync(dispute.Booking, dispute.Invoice, dispute);
+                    dispute.Invoice.Status = InvoiceStatus.Resolved;
+                    dispute.Invoice.UpdatedAt = now;
+                    _invoiceRepo.Update(dispute.Invoice);
                 }
+
+                // Booking → Completed
+                dispute.Booking.Status = BookingStatus.Completed;
+                dispute.Booking.UpdatedAt = now;
+                _bookingRepo.Update(dispute.Booking);
+
+                _disputeRepo.Update(dispute);
+                await _unitOfWork.CompleteAsync();
+
+                // ── WALLET SETTLEMENT ──
+                if (dto.IsDriverWin)
+                {
+                    await RefundToDriverAsync(dispute.Booking, dispute);
+                }
+                else
+                {
+                    if (dispute.Invoice != null)
+                    {
+                        await SettleToOwnerAsync(dispute.Booking, dispute.Invoice, dispute);
+                    }
+                }
+
+                // ── BANNING RULES (Hardcode: lần 1 → 30 ngày, lần 2 → vĩnh viễn) ──
+                var startOfMonth = new DateTime(now.Year, now.Month, 1);
+                
+                if (!dto.IsDriverWin)
+                {
+                    // Driver thua
+                    var driverUserIdLocal = dispute.CreatedByUserId;
+                    var driverLoseCount = await _disputeRepo.GetDriverLoseCountInMonthAsync(driverUserIdLocal, startOfMonth);
+                    
+                    const int driverBanThreshold = 3;
+                    var driverRemaining = driverBanThreshold - driverLoseCount;
+                    
+                    if (driverLoseCount >= driverBanThreshold)
+                    {
+                        var driverUser = dispute.Booking.Driver!.User;
+                        
+                        // Đảm bảo không phạt dồn (tránh trường hợp Admin xử lý 4 khiếu nại liên tiếp cùng lúc khiến BanCount tăng vọt lên 2)
+                        // Chỉ phạt khi User đang ở trạng thái tự do (không bị cấm)
+                        if (driverUser.Status != Constants.UserStatusConstants.Banned && driverUser.BannedUntil == null)
+                        {
+                            driverUser.BanCount += 1;
+                            if (driverUser.BanCount == 1)
+                            {
+                                driverUser.Status = Constants.UserStatusConstants.Suspended;
+                                driverUser.BannedUntil = now.AddDays(30);
+                                await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị đình chỉ", "Tài khoản bị đình chỉ 30 ngày do vi phạm chính sách khiếu nại (thua quá 3 lần/tháng).", NotificationType.System);
+                            }
+                            else
+                            {
+                                driverUser.Status = Constants.UserStatusConstants.Banned;
+                                driverUser.BannedUntil = null;
+                                await _notificationService.SendAsync(driverUserIdLocal, "Tài khoản bị khóa vĩnh viễn", "Tài khoản bị khóa vĩnh viễn do lạm dụng bộ phận CSKH nhiều lần.", NotificationType.System);
+                            }
+                            
+                            await _userManager.UpdateAsync(driverUser);
+
+                            await CancelDriverBookingsAsync(driverUserIdLocal, "Tài xế bị hệ thống khóa tài khoản.");
+                        }
+                    }
+                    else if (driverRemaining > 0)
+                    {
+                        // Cảnh cáo: chưa đạt ngưỡng ban nhưng đang tiến gần
+                        await _notificationService.SendAsync(
+                            driverUserIdLocal,
+                            "Cảnh cáo vi phạm khiếu nại",
+                            $"Bạn đã thua {driverLoseCount}/{driverBanThreshold} lượt khiếu nại trong tháng này. Còn {driverRemaining} lượt nữa tài khoản sẽ bị đình chỉ.",
+                            NotificationType.System);
+                    }
+                }
+                else
+                {
+                    // Station thua
+                    var stationId = dispute.Booking.ChargingSlot?.StationId ?? 0;
+                    var stationLoseCount = await _disputeRepo.GetStationLoseCountInMonthAsync(stationId, startOfMonth);
+                    
+                    const int stationBanThreshold = 5;
+                    var stationRemaining = stationBanThreshold - stationLoseCount;
+                                      
+                    if (stationLoseCount >= stationBanThreshold)
+                    {
+                        var station = dispute.Booking.ChargingSlot?.ChargingStation;
+                        
+                        // Đảm bảo không phạt dồn lặp lại nếu trạm đang trong thời gian phạt hoặc đã bị cấm vĩnh viễn
+                        if (station != null && station.BannedUntil == null && station.BanCount < 2)
+                        {
+                            station.BanCount += 1;
+                            if (station.BanCount == 1)
+                            {
+                                station.OperationalStatus = OperationalStatus.Inactive;
+                                station.BannedUntil = now.AddDays(30);
+                                await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị đình chỉ", $"Trạm {station.Name} bị đình chỉ 30 ngày do lượng khiếu nại quá cao (>= 5 lần/tháng).", NotificationType.System);
+                            }
+                            else
+                            {
+                                station.OperationalStatus = OperationalStatus.Inactive;
+                                station.BannedUntil = null;
+                                await _notificationService.SendAsync(station.OwnerUserId, "Trạm sạc bị khóa vĩnh viễn", $"Trạm {station.Name} bị khóa vĩnh viễn do chất lượng dịch vụ không đạt yêu cầu tái phạm.", NotificationType.System);
+                            }
+                            _stationRepo.Update(station);
+                            await _unitOfWork.CompleteAsync();
+                            
+                            await CancelStationBookingsAsync(stationId, "Trạm sạc bị hệ thống đình chỉ do vi phạm chất lượng.");
+                        }
+                    }
+                    else if (stationRemaining > 0)
+                    {
+                        var ownerIdForWarning = dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId ?? 0;
+                        var stationNameForWarning = dispute.Booking.ChargingSlot?.ChargingStation?.Name ?? "Trạm";
+                        await _notificationService.SendAsync(
+                            ownerIdForWarning,
+                            "Cảnh cáo chất lượng trạm sạc",
+                            $"Trạm {stationNameForWarning} đã thua {stationLoseCount}/{stationBanThreshold} lượt khiếu nại trong tháng này. Còn {stationRemaining} lượt nữa trạm sẽ bị đình chỉ.",
+                            NotificationType.System);
+                    }
+                }
+
+                await transaction.CommitAsync();
+
+                // Notifications (ngoài transaction)
+                var stationName = dispute.Booking.ChargingSlot?.ChargingStation?.Name ?? "";
+                var driverName = dispute.Booking.Driver?.User?.FullName ?? "Driver";
+
+                await _notificationService.SendAsync(
+                    dispute.Booking.DriverUserId,
+                    "Kết quả khiếu nại",
+                    dto.IsDriverWin
+                        ? $"Khiếu nại của bạn tại trạm {stationName} đã được chấp nhận. {dispute.Booking.TotalAmount:N0}đ đã hoàn vào ví. {dto.AdminNote}"
+                        : $"Khiếu nại của bạn tại trạm {stationName} không được chấp nhận. Tiền đã thanh toán cho chủ trạm. {dto.AdminNote}",
+                    NotificationType.Dispute);
+
+                var ownerUserId = dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId ?? 0;
+                await _notificationService.SendAsync(
+                    ownerUserId,
+                    "Kết quả khiếu nại",
+                    dto.IsDriverWin
+                        ? $"Khiếu nại từ {driverName} tại trạm {stationName}: Driver được hoàn tiền. {dto.AdminNote}"
+                        : $"Khiếu nại từ {driverName} tại trạm {stationName}: Bạn được thanh toán. {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví. {dto.AdminNote}",
+                    NotificationType.Dispute);
+
+                return MapToDto(dispute);
             }
-
-            // Notify both parties
-            var verdict = dto.IsDriverWin ? "hoàn tiền cho Driver" : "thanh toán cho Owner";
-            var driverAmount = dto.IsDriverWin ? $" Số tiền {dispute.Booking.TotalAmount:N0}đ đã hoàn vào ví." : "";
-            var ownerAmount = !dto.IsDriverWin ? $" Số tiền {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví." : "";
-
-            var stationName = dispute.Booking.ChargingSlot?.ChargingStation?.Name ?? "";
-            var driverName = dispute.Booking.Driver?.User?.FullName ?? "Driver";
-
-            await _notificationService.SendAsync(
-                dispute.Booking.DriverUserId,
-                "Kết quả khiếu nại",
-                dto.IsDriverWin
-                    ? $"Khiếu nại của bạn tại trạm {stationName} đã được chấp nhận. {dispute.Booking.TotalAmount:N0}đ đã hoàn vào ví. {dto.AdminNote}"
-                    : $"Khiếu nại của bạn tại trạm {stationName} không được chấp nhận. Tiền đã thanh toán cho chủ trạm. {dto.AdminNote}",
-                NotificationType.Dispute);
-
-            var ownerUserId = dispute.Booking.ChargingSlot.ChargingStation.OwnerUserId;
-            await _notificationService.SendAsync(
-                ownerUserId,
-                "Kết quả khiếu nại",
-                dto.IsDriverWin
-                    ? $"Khiếu nại từ {driverName} tại trạm {stationName}: Driver được hoàn tiền. {dto.AdminNote}"
-                    : $"Khiếu nại từ {driverName} tại trạm {stationName}: Bạn được thanh toán. {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví. {dto.AdminNote}",
-                NotificationType.Dispute);
-
-            return MapToDto(dispute);
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         /// <summary>
@@ -274,10 +405,10 @@ namespace ChargeSlot.Api.Services.Implementation
         private async Task RefundToDriverAsync(Booking booking, Dispute dispute)
         {
             var now = DateTimeHelper.VietnamNow();
-            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
+            var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
 
             // Get or create Driver wallet
-            var driverWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == booking.DriverUserId);
+            var driverWallet = await _walletRepo.GetByUserIdAsync(booking.DriverUserId);
             if (driverWallet == null)
             {
                 driverWallet = new Wallet
@@ -288,15 +419,15 @@ namespace ChargeSlot.Api.Services.Implementation
                     FrozenBalance = 0,
                     CreatedAt = now
                 };
-                _db.Wallets.Add(driverWallet);
-                await _db.SaveChangesAsync();
+                _walletRepo.Add(driverWallet);
+                await _unitOfWork.CompleteAsync();
             }
 
             var refundAmount = booking.TotalAmount;
 
-            // Unfreeze from ESCROW.FrozenBalance (was frozen when dispute submitted)
-            escrowWallet.FrozenBalance -= refundAmount;
-            driverWallet.AvailableBalance += refundAmount;
+            // Unfreeze from ESCROW.FrozenBalance → refund to Driver (Atomic via Repository)
+            await _walletRepo.AdjustBalanceAtomicAsync(escrowWallet!.Id, 0, -refundAmount);
+            await _walletRepo.AdjustBalanceAtomicAsync(driverWallet.Id, refundAmount, 0);
 
             var ledger = new LedgerTransaction
             {
@@ -311,8 +442,28 @@ namespace ChargeSlot.Api.Services.Implementation
                     new LedgerEntry { WalletId = driverWallet.Id, Direction = LedgerDirection.Credit, Amount = refundAmount, CreatedAt = now }
                 }
             };
-            _db.Set<LedgerTransaction>().Add(ledger);
-            await _db.SaveChangesAsync();
+            _ledgerRepo.Add(ledger);
+
+            // Refund Loyalty Points if applicable
+            if (booking.PointsUsed > 0)
+            {
+                var driver = await _lazyDriverRepo.Value.GetByUserIdAsync(booking.DriverUserId, tracking: true);
+                if (driver != null)
+                {
+                    driver.LoyaltyPoints += booking.PointsUsed;
+                    _lazyLoyaltyRepo.Value.Add(new LoyaltyTransaction
+                    {
+                        DriverUserId = booking.DriverUserId,
+                        BookingId = booking.Id,
+                        Type = "Refund",
+                        Points = booking.PointsUsed,
+                        Description = $"Hoàn {booking.PointsUsed:N0} điểm (thắng khiếu nại #{dispute.Id})",
+                        CreatedAt = now
+                    });
+                }
+            }
+
+            await _unitOfWork.CompleteAsync();
         }
 
         /// <summary>
@@ -323,10 +474,11 @@ namespace ChargeSlot.Api.Services.Implementation
             var ownerUserId = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
             var now = DateTimeHelper.VietnamNow();
 
-            var escrowWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            var platformWallet = await _db.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");
+            var escrowWallet = await _walletRepo.GetBySystemCodeAsync("ESCROW");
+            var platformWallet = await _walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE");
+            var taxWallet = await _walletRepo.GetBySystemCodeAsync("TAX_HOLD");
 
-            var ownerWallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == ownerUserId);
+            var ownerWallet = await _walletRepo.GetByUserIdAsync(ownerUserId);
             if (ownerWallet == null)
             {
                 ownerWallet = new Wallet
@@ -337,19 +489,22 @@ namespace ChargeSlot.Api.Services.Implementation
                     FrozenBalance = 0,
                     CreatedAt = now
                 };
-                _db.Wallets.Add(ownerWallet);
-                await _db.SaveChangesAsync();
+                _walletRepo.Add(ownerWallet);
+                await _unitOfWork.CompleteAsync();
             }
 
             var ownerNet = invoice.ChargingAmount;
             var platformFee = invoice.PlatformFee;
             var vatAmount = invoice.VatAmount;
+            var totalDeduct = ownerNet + platformFee + vatAmount;
 
-            // Unfreeze from ESCROW.FrozenBalance → distribute
-            escrowWallet.FrozenBalance -= (ownerNet + platformFee + vatAmount);
-            ownerWallet.AvailableBalance += ownerNet;
+            // 1. Unfreeze ALL back to ESCROW.AvailableBalance (Atomic via Repository)
+            await _walletRepo.UnfreezeAtomicAsync(escrowWallet!.Id, totalDeduct);
 
-            _db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            // 2. ESCROW → Owner (Atomic via Repository)
+            await _walletRepo.TransferAtomicAsync(escrowWallet.Id, ownerWallet.Id, ownerNet);
+
+            _ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "DisputeSettlement",
                 ReferenceId = booking.Id,
@@ -362,11 +517,10 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             });
 
-            // ESCROW → PLATFORM_REVENUE (already unfrozen above)
-            platformWallet.AvailableBalance += platformFee;
-            // VAT stays as revenue in ESCROW for tax authority payment later
+            // 3. ESCROW → PLATFORM_REVENUE (Atomic via Repository)
+            await _walletRepo.TransferAtomicAsync(escrowWallet.Id, platformWallet!.Id, platformFee);
 
-            _db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            _ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "PlatformFee",
                 ReferenceId = booking.Id,
@@ -379,88 +533,105 @@ namespace ChargeSlot.Api.Services.Implementation
                 }
             });
 
-            await _db.SaveChangesAsync();
+            // 4. ESCROW → TAX_HOLD (Atomic via Repository)
+            if (vatAmount > 0)
+            {
+                await _walletRepo.TransferAtomicAsync(escrowWallet.Id, taxWallet!.Id, vatAmount);
+
+                _ledgerRepo.Add(new LedgerTransaction
+                {
+                    ReferenceType = "TaxHold",
+                    ReferenceId = booking.Id,
+                    Memo = $"Thuế GTGT Dispute #{dispute.Id} - {vatAmount:N0}đ",
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = vatAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = taxWallet.Id, Direction = LedgerDirection.Credit, Amount = vatAmount, CreatedAt = now }
+                    }
+                });
+            }
+
+            await _unitOfWork.CompleteAsync();
         }
 
-        public async Task<DisputeDto?> GetByIdAsync(int disputeId)
+        public async Task<DisputeDto?> GetByIdAsync(int disputeId, int currentUserId, string currentUserRole)
         {
             var dispute = await LoadDisputeWithDetailsAsync(disputeId);
-            return dispute == null ? null : MapToDto(dispute);
+            if (dispute == null) return null;
+
+            if (currentUserRole == Constants.RoleConstants.Driver && dispute.CreatedByUserId != currentUserId)
+                throw new UnauthorizedAccessException("Bạn không có quyền xem khiếu nại này.");
+            
+            if (currentUserRole == Constants.RoleConstants.Owner && dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId != currentUserId)
+                throw new UnauthorizedAccessException("Bạn không có quyền xem khiếu nại này.");
+
+            return MapToDto(dispute);
         }
 
-        public async Task<DisputeDto?> GetByBookingIdAsync(int bookingId)
+        public async Task<DisputeDto?> GetByBookingIdAsync(int bookingId, int currentUserId, string currentUserRole)
         {
-            var dispute = await _db.Disputes
-                .Include(d => d.Evidences)
-                .Include(d => d.CreatedByUser)
-                .FirstOrDefaultAsync(d => d.BookingId == bookingId);
-            return dispute == null ? null : MapToDto(dispute);
+            var dispute = await _disputeRepo.GetByBookingIdAsync(bookingId);
+            
+            if (dispute == null) return null;
+
+            if (currentUserRole == Constants.RoleConstants.Driver && dispute.CreatedByUserId != currentUserId)
+                throw new UnauthorizedAccessException("Bạn không có quyền xem khiếu nại này.");
+            
+            if (currentUserRole == Constants.RoleConstants.Owner && dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId != currentUserId)
+                throw new UnauthorizedAccessException("Bạn không có quyền xem khiếu nại này.");
+
+            return MapToDto(dispute);
         }
 
         public async Task<List<DisputeDto>> GetPendingAsync()
         {
-            var disputes = await _db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
-                .Include(d => d.Invoice)
-                .Include(d => d.CreatedByUser)
-                .Include(d => d.Evidences)
-                .Where(d => d.Status == DisputeStatus.WaitingOwnerEvidence
-                    || d.Status == DisputeStatus.PendingReview)
-                .OrderBy(d => d.CreatedAt)
-                .ToListAsync();
+            var disputes = await _disputeRepo.GetPendingAsync();
             return disputes.Select(MapToDto).ToList();
         }
 
         public async Task<List<DisputeDto>> GetAllAsync(string? status = null)
         {
-            var query = _db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
-                .Include(d => d.Invoice)
-                .Include(d => d.CreatedByUser)
-                .Include(d => d.Evidences)
-                    .ThenInclude(e => e.UploadedByUser)
-                .AsQueryable();
+            var disputes = await _disputeRepo.GetAllAsync(status);
 
-            if (!string.IsNullOrEmpty(status) && Enum.TryParse<DisputeStatus>(status, true, out var parsed))
-            {
-                query = query.Where(d => d.Status == parsed);
-            }
+            return disputes.Select(MapToDto).ToList();
+        }
 
-            var disputes = await query
-                .OrderByDescending(d => d.CreatedAt)
-                .ToListAsync();
+        public async Task<List<DisputeDto>> GetMyDisputesAsync(int driverUserId)
+        {
+            var disputes = await _disputeRepo.GetByDriverAsync(driverUserId);
+            return disputes.Select(MapToDto).ToList();
+        }
 
+        public async Task<List<DisputeDto>> GetOwnerDisputesAsync(int ownerUserId)
+        {
+            var disputes = await _disputeRepo.GetByOwnerAsync(ownerUserId);
             return disputes.Select(MapToDto).ToList();
         }
 
         // ─────────────── HELPERS ───────────────
 
         /// <summary>
-        /// Lưu files bằng chứng vào wwwroot/uploads/disputes/{disputeId}/ và tạo DisputeEvidence records.
+        /// Upload files bằng chứng lên Firebase Storage và tạo DisputeEvidence records.
         /// </summary>
         private async Task SaveEvidenceFilesAsync(Dispute dispute, IFormFile[] files, int uploadedByUserId)
         {
-            var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "disputes", dispute.Id.ToString());
-            Directory.CreateDirectory(uploadDir);
-
             foreach (var file in files)
             {
                 if (file.Length <= 0) continue;
 
-                var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-                var fileName = $"{Guid.NewGuid():N}{ext}";
-                var filePath = Path.Combine(uploadDir, fileName);
+                // Validate file size
+                if (file.Length > MaxFileSizeBytes)
+                    throw new InvalidOperationException($"File '{file.FileName}' vượt quá giới hạn {MaxFileSizeBytes / 1024 / 1024}MB.");
 
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
+                var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+                // Validate file extension
+                if (!AllowedFileExtensions.Contains(ext))
+                    throw new InvalidOperationException($"Loại file '{ext}' không được cho phép. Chỉ chấp nhận: {string.Join(", ", AllowedFileExtensions)}");
+
+                // Upload lên Firebase Storage
+                var publicUrl = await _fileStorageService.UploadAsync(file, $"disputes/{dispute.Id}");
 
                 // Detect file type from extension
                 var fileType = ext switch
@@ -470,7 +641,6 @@ namespace ChargeSlot.Api.Services.Implementation
                     _ => "document"
                 };
 
-                var publicUrl = $"/uploads/disputes/{dispute.Id}/{fileName}";
                 dispute.Evidences.Add(new DisputeEvidence
                 {
                     DisputeId = dispute.Id,
@@ -481,21 +651,62 @@ namespace ChargeSlot.Api.Services.Implementation
                 });
             }
 
-            await _db.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
+        }
+
+        private async Task CancelDriverBookingsAsync(int driverUserId, string reason)
+        {
+            var targetStatuses = new[] { 
+                BookingStatus.WaitingOwner, 
+                BookingStatus.PendingPayment, 
+                BookingStatus.Paid 
+            };
+            
+            var bookings = await _bookingRepo.GetActiveBookingsByDriverAsync(driverUserId, targetStatuses);
+                
+            var bookingService = _lazyBookingService.Value;
+            foreach (var b in bookings)
+            {
+                await bookingService.CancelSystemBookingAsync(b.Id, reason);
+                
+                var ownerId = b.ChargingSlot?.ChargingStation?.OwnerUserId;
+                if (ownerId.HasValue)
+                {
+                    await _notificationService.SendAsync(
+                        ownerId.Value, 
+                        "Lịch đặt đã bị hủy", 
+                        $"Tài xế đặt slot {b.ChargingSlot?.SlotName} tại trạm {b.ChargingSlot?.ChargingStation?.Name} vừa bị khóa tài khoản theo chính sách vi phạm. Lịch đã tự động hủy.", 
+                        NotificationType.System);
+                }
+            }
+        }
+
+        private async Task CancelStationBookingsAsync(int stationId, string reason)
+        {
+            var targetStatuses = new[] { 
+                BookingStatus.WaitingOwner, 
+                BookingStatus.PendingPayment, 
+                BookingStatus.Paid 
+            };
+
+            var bookings = await _bookingRepo.GetActiveBookingsByStationIdsAsync(new List<int> { stationId }, targetStatuses);
+                
+            var bookingService = _lazyBookingService.Value;
+            foreach (var b in bookings)
+            {
+                await bookingService.CancelSystemBookingAsync(b.Id, reason);
+                
+                await _notificationService.SendAsync(
+                    b.DriverUserId, 
+                    "Lịch đặt đã bị hủy", 
+                    $"Trạm sạc {b.ChargingSlot?.ChargingStation?.Name} do vi phạm nên đã bị hệ thống khóa. Lịch đặt của bạn tại slot {b.ChargingSlot?.SlotName} bị hủy, tiền cọc (nếu có) đã hoàn 100% vào ví.", 
+                    NotificationType.System);
+            }
         }
 
         private async Task<Dispute?> LoadDisputeWithDetailsAsync(int id)
         {
-            return await _db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.Driver).ThenInclude(dr => dr.User)
-                .Include(d => d.Invoice)
-                .Include(d => d.CreatedByUser)
-                .Include(d => d.Evidences)
-                    .ThenInclude(e => e.UploadedByUser)
-                .FirstOrDefaultAsync(d => d.Id == id);
+            return await _disputeRepo.GetByIdWithDetailsAsync(id);
         }
 
         private static DisputeDto MapToDto(Dispute d)
@@ -526,5 +737,55 @@ namespace ChargeSlot.Api.Services.Implementation
                 }).ToList()
             };
         }
+
+        // ─────────────── STRIKE STATUS ───────────────
+
+        public async Task<DisputeStrikeStatusDto> GetDriverStrikeStatusAsync(int driverUserId)
+        {
+            var now = DateTimeHelper.VietnamNow();
+            var startOfMonth = new DateTime(now.Year, now.Month, 1);
+            const int threshold = 3;
+
+            var loseCount = await _disputeRepo.GetDriverLoseCountInMonthAsync(driverUserId, startOfMonth);
+
+            // Lấy user info cho ban status
+            var user = await _userManager.FindByIdAsync(driverUserId.ToString());
+
+            return new DisputeStrikeStatusDto
+            {
+                LoseCountThisMonth = loseCount,
+                BanThreshold = threshold,
+                RemainingBeforeBan = Math.Max(0, threshold - loseCount),
+                BanCount = user?.BanCount ?? 0,
+                IsBanned = user?.Status == Constants.UserStatusConstants.Banned || user?.Status == Constants.UserStatusConstants.Suspended,
+                BannedUntil = user?.BannedUntil
+            };
+        }
+
+        public async Task<DisputeStrikeStatusDto> GetStationStrikeStatusAsync(int stationId, int ownerUserId)
+        {
+            var station = await _stationRepo.GetByIdAsync(stationId, includeDetails: false)
+                ?? throw new KeyNotFoundException($"Station {stationId} not found.");
+
+            if (station.OwnerUserId != ownerUserId)
+                throw new UnauthorizedAccessException("Bạn không có quyền xem thông tin trạm này.");
+
+            var now = DateTimeHelper.VietnamNow();
+            var startOfMonth = new DateTime(now.Year, now.Month, 1);
+            const int threshold = 5;
+
+            var loseCount = await _disputeRepo.GetStationLoseCountInMonthAsync(stationId, startOfMonth);
+
+            return new DisputeStrikeStatusDto
+            {
+                LoseCountThisMonth = loseCount,
+                BanThreshold = threshold,
+                RemainingBeforeBan = Math.Max(0, threshold - loseCount),
+                BanCount = station.BanCount,
+                IsBanned = station.BannedUntil.HasValue || (station.BanCount >= 2 && station.BannedUntil == null),
+                BannedUntil = station.BannedUntil
+            };
+        }
     }
 }
+

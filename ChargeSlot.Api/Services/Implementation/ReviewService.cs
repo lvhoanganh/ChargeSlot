@@ -1,21 +1,31 @@
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.DTOs.Review;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.Services.Implementation
 {
     public class ReviewService : IReviewService
     {
-        private readonly ChargeSlotDbContext _db;
+        private readonly IBookingRepository _bookingRepo;
+        private readonly IRatingRepository _ratingRepo;
+        private readonly IChargingStationRepository _stationRepo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly INotificationService _notificationService;
 
-        public ReviewService(ChargeSlotDbContext db, INotificationService notificationService)
+        public ReviewService(
+            IBookingRepository bookingRepo,
+            IRatingRepository ratingRepo,
+            IChargingStationRepository stationRepo,
+            IUnitOfWork unitOfWork,
+            INotificationService notificationService)
         {
-            _db = db;
+            _bookingRepo = bookingRepo;
+            _ratingRepo = ratingRepo;
+            _stationRepo = stationRepo;
+            _unitOfWork = unitOfWork;
             _notificationService = notificationService;
         }
 
@@ -24,9 +34,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<ReviewDto> CreateReviewAsync(int driverUserId, CreateReviewDto dto)
         {
-            var booking = await _db.Bookings
-                .Include(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .FirstOrDefaultAsync(b => b.Id == dto.BookingId)
+            var booking = await _bookingRepo.GetByIdWithDetailsAsync(dto.BookingId)
                 ?? throw new InvalidOperationException("Booking không tồn tại.");
 
             if (booking.DriverUserId != driverUserId)
@@ -35,7 +43,7 @@ namespace ChargeSlot.Api.Services.Implementation
             if (booking.Status != BookingStatus.Completed)
                 throw new InvalidOperationException("Chỉ có thể đánh giá sau khi booking hoàn thành.");
 
-            var exists = await _db.Ratings.AnyAsync(r => r.BookingId == dto.BookingId);
+            var exists = await _ratingRepo.HasRatingForBookingAsync(dto.BookingId);
             if (exists)
                 throw new InvalidOperationException("Bạn đã đánh giá booking này rồi.");
 
@@ -48,12 +56,12 @@ namespace ChargeSlot.Api.Services.Implementation
                 DriverUserId = driverUserId,
                 Score = dto.Rating,
                 Comment = dto.Comment,
-                IsAnonymous = false,
+                IsAnonymous = dto.IsAnonymous,
                 CreatedAt = DateTimeHelper.VietnamNow()
             };
 
-            _db.Ratings.Add(rating);
-            await _db.SaveChangesAsync();
+            _ratingRepo.Add(rating);
+            await _unitOfWork.CompleteAsync();
 
             // Recalculate station average
             await RecalculateStationRatingAsync(stationId);
@@ -75,9 +83,7 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<ReviewDto> ReplyToReviewAsync(int ownerUserId, int ratingId, OwnerReplyDto dto)
         {
-            var rating = await _db.Ratings
-                .Include(r => r.ChargingStation)
-                .FirstOrDefaultAsync(r => r.Id == ratingId)
+            var rating = await _ratingRepo.GetByIdWithStationAsync(ratingId)
                 ?? throw new InvalidOperationException("Đánh giá không tồn tại.");
 
             if (rating.ChargingStation.OwnerUserId != ownerUserId)
@@ -88,7 +94,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
             rating.OwnerReply = dto.Reply;
             rating.OwnerRepliedAt = DateTimeHelper.VietnamNow();
-            await _db.SaveChangesAsync();
+            await _unitOfWork.CompleteAsync();
 
             await _notificationService.SendAsync(
                 rating.DriverUserId,
@@ -102,17 +108,17 @@ namespace ChargeSlot.Api.Services.Implementation
         /// <summary>
         /// Danh sách đánh giá của 1 trạm (mới nhất trước, phân trang).
         /// </summary>
-        public async Task<List<ReviewDto>> GetByStationAsync(int stationId, int page = 1, int pageSize = 10)
+        public async Task<object> GetByStationAsync(int stationId, int page = 1, int pageSize = 10)
         {
-            var ratings = await _db.Ratings
-                .Include(r => r.DriverUser)
-                .Where(r => r.StationId == stationId)
-                .OrderByDescending(r => r.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
+            var (items, totalCount) = await _ratingRepo.GetRatingsByStationPagedAsync(stationId, page, pageSize);
 
-            return ratings.Select(MapToDto).ToList();
+            return new
+            {
+                items = items.Select(MapToDto).ToList(),
+                totalCount,
+                page,
+                pageSize
+            };
         }
 
         /// <summary>
@@ -120,16 +126,10 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<StationRatingSummaryDto?> GetRatingSummaryAsync(int stationId)
         {
-            var station = await _db.ChargingStations.FindAsync(stationId);
+            var station = await _stationRepo.GetByIdAsync(stationId, includeDetails: false);
             if (station == null) return null;
 
-            var groups = await _db.Ratings
-                .Where(r => r.StationId == stationId)
-                .GroupBy(r => r.Score)
-                .Select(g => new { Score = g.Key, Count = g.Count() })
-                .ToListAsync();
-
-            var lookup = groups.ToDictionary(r => r.Score, r => r.Count);
+            var lookup = await _ratingRepo.GetRatingCountsByStationAsync(stationId);
 
             return new StationRatingSummaryDto
             {
@@ -150,55 +150,42 @@ namespace ChargeSlot.Api.Services.Implementation
         /// </summary>
         public async Task<List<RankedStationDto>> GetTopRatedStationsAsync(int limit = 10)
         {
-            var stations = await _db.ChargingStations
-                .Include(s => s.Images)
-                .Where(s => s.ApprovalStatus == ApprovalStatus.Approved
-                    && s.OperationalStatus == OperationalStatus.Active
-                    && s.TotalReviews > 0)
-                .OrderByDescending(s => s.AverageRating)
-                .ThenByDescending(s => s.TotalReviews)
-                .Take(limit)
-                .Select(s => new RankedStationDto
-                {
-                    Id = s.Id,
-                    Name = s.Name,
-                    Address = s.Address,
-                    ImageUrl = s.Images.FirstOrDefault() != null ? s.Images.First().ImageUrl : null,
-                    AverageRating = s.AverageRating,
-                    TotalReviews = s.TotalReviews,
-                    TotalSlots = s.ChargingSlots.Count
-                })
-                .ToListAsync();
+            var stations = await _stationRepo.GetTopRatedStationsAsync(limit);
 
-            return stations;
+            return stations.Select(s => new RankedStationDto
+            {
+                Id = s.Id,
+                Name = s.Name,
+                Address = s.Address,
+                ImageUrl = s.Images.FirstOrDefault()?.ImageUrl,
+                AverageRating = s.AverageRating,
+                TotalReviews = s.TotalReviews,
+                TotalSlots = s.ChargingSlots.Count
+            }).ToList();
         }
 
         // ─────────────── HELPERS ───────────────
 
         private async Task RecalculateStationRatingAsync(int stationId)
         {
-            var station = await _db.ChargingStations.FindAsync(stationId);
+            var station = await _stationRepo.GetByIdAsync(stationId, tracking: true, includeDetails: false);
             if (station == null) return;
 
-            var stats = await _db.Ratings
-                .Where(r => r.StationId == stationId)
-                .GroupBy(r => r.StationId)
-                .Select(g => new { Avg = g.Average(r => (decimal)r.Score), Count = g.Count() })
-                .FirstOrDefaultAsync();
+            var stats = await _ratingRepo.GetRatingStatsAsync(stationId);
 
             if (stats != null)
             {
-                station.AverageRating = Math.Round(stats.Avg, 1);
-                station.TotalReviews = stats.Count;
-                await _db.SaveChangesAsync();
+                station.AverageRating = Math.Round(stats.Value.Average, 1);
+                station.TotalReviews = stats.Value.Count;
+                _stationRepo.Update(station);
+                await _unitOfWork.CompleteAsync();
             }
         }
 
         private async Task<ReviewDto> GetRatingDtoAsync(int ratingId)
         {
-            var rating = await _db.Ratings
-                .Include(r => r.DriverUser)
-                .FirstAsync(r => r.Id == ratingId);
+            var rating = await _ratingRepo.GetByIdWithDetailsAsync(ratingId)
+                ?? throw new InvalidOperationException("Rating not found.");
             return MapToDto(rating);
         }
 
@@ -219,16 +206,5 @@ namespace ChargeSlot.Api.Services.Implementation
                 CreatedAt = r.CreatedAt
             };
         }
-    }
-
-    public class RankedStationDto
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = null!;
-        public string Address { get; set; } = null!;
-        public string? ImageUrl { get; set; }
-        public decimal AverageRating { get; set; }
-        public int TotalReviews { get; set; }
-        public int TotalSlots { get; set; }
     }
 }

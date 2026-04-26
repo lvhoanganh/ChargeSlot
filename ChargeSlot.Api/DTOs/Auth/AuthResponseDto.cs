@@ -9,5 +9,8 @@ namespace ChargeSlot.Api.DTOs.Auth
         public int UserId { get; set; }
         public string PhoneNumber { get; set; } = null!;
         public string Role { get; set; } = null!;
+        public string? Email { get; set; }
+        /// <summary>True nếu user cũ chưa có email — frontend cần hiện popup nhập email.</summary>
+        public bool RequiresEmail { get; set; }
     }
 }

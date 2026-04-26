@@ -1,6 +1,7 @@
 using ChargeSlot.Api.Models.Identity;
-
+using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Helpers;
+
 namespace ChargeSlot.Api.Models
 {
     /// <summary>SRS 1.5 Owner - extends User, business info. Payout via BankAccount.</summary>
@@ -13,7 +14,35 @@ namespace ChargeSlot.Api.Models
         public string TaxCode { get; set; } = null!;
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 
+        // ─── KYC & LEGAL VERIFICATION (All Owners are Businesses) ───
+        public string? IdCardNumber { get; set; }
+        public string? IdCardDate { get; set; } // Ngày cấp
+        public string? FrontIdCardUrl { get; set; }
+        public string? BackIdCardUrl { get; set; }
+
+        public string? BusinessLicenseNumber { get; set; }
+        public string? BusinessLicenseUrl { get; set; }
+        public string? Address { get; set; } // Trụ sở chính
+
+        public KycStatus KycStatus { get; set; } = KycStatus.Unverified;
+        public string? KycRejectReason { get; set; }
+        public DateTime? KycSubmittedAt { get; set; }
+        public DateTime? KycReviewedAt { get; set; }
+
+        public int? KycReviewedByUserId { get; set; }
+        public ApplicationUser? KycReviewedByUser { get; set; }
+
+        // ─── KYC UPDATE SNAPSHOT (giữ data cũ khi Owner cập nhật, dùng để rollback nếu bị reject) ───
+        public string? PrevIdCardNumber { get; set; }
+        public string? PrevIdCardDate { get; set; }
+        public string? PrevFrontIdCardUrl { get; set; }
+        public string? PrevBackIdCardUrl { get; set; }
+        public string? PrevBusinessName { get; set; }
+        public string? PrevBusinessLicenseNumber { get; set; }
+        public string? PrevBusinessLicenseUrl { get; set; }
+        public string? PrevTaxCode { get; set; }
+        public string? PrevAddress { get; set; }
+
         public ICollection<ChargingStation> ChargingStations { get; set; } = new List<ChargingStation>();
-        public ICollection<PayoutRequest> PayoutRequests { get; set; } = new List<PayoutRequest>();
     }
 }

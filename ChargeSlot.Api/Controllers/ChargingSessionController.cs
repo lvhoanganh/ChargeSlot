@@ -114,5 +114,45 @@ namespace ChargeSlot.Api.Controllers
             if (result == null) return NotFound();
             return Ok(result);
         }
+
+        /// <summary>Driver gửi yêu cầu xác nhận thủ công khi không check-in được (lỗi mạng/app).</summary>
+        [HttpPost("manual-checkin-request/{bookingId}")]
+        [Authorize(Roles = "Driver")]
+        public async Task<IActionResult> RequestManualCheckin(int bookingId)
+        {
+            try
+            {
+                var result = await _sessionService.RequestManualCheckinAsync(GetUserId(), bookingId);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+        }
+
+        /// <summary>Owner xác nhận manual check-in → hoàn thành booking.</summary>
+        [HttpPut("manual-checkin-confirm/{bookingId}")]
+        [Authorize(Roles = "Owner")]
+        public async Task<IActionResult> ConfirmManualCheckin(int bookingId)
+        {
+            try
+            {
+                var result = await _sessionService.ConfirmManualCheckinAsync(GetUserId(), bookingId);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+        }
     }
 }

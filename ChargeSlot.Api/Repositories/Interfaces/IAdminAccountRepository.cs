@@ -13,5 +13,6 @@ namespace ChargeSlot.Api.Repositories.Interfaces
         Task<bool> UpdateAsync(ApplicationUser user);
 
         Task<List<ApplicationUser>> GetAllUsersForStatisticsAsync();
+        Task<List<int>> GetAdminUserIdsAsync();
     }
 }

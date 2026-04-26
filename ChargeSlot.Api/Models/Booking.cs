@@ -21,17 +21,36 @@ namespace ChargeSlot.Api.Models
         public BookingStatus Status { get; set; } = BookingStatus.Draft;
         public DateTime? PaymentExpiresAt { get; set; }
         public DateTime? CheckedInAt { get; set; }
-        public DateTime? CheckinDeadlineAt { get; set; }
         public DateTime? CancelledAt { get; set; }
         public string? CancelReason { get; set; }
         public string? RejectionReason { get; set; }
         public decimal TotalAmount { get; set; }
 
+        /// <summary>Số điểm Driver đã dùng cho booking này.</summary>
+        public decimal PointsUsed { get; set; }
+        /// <summary>Số tiền giảm tương ứng từ điểm (= PointsUsed vì 1 điểm = 1 VND).</summary>
+        public decimal PointsDiscountAmount { get; set; }
+        /// <summary>Số điểm nhận được khi booking Completed.</summary>
+        public decimal PointsEarned { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
         public DateTime? UpdatedAt { get; set; }
 
+        // Snapshot Configs for Business Rules
+        public DateTime? Refund100DeadlineAt { get; set; }
+        public DateTime? Refund50DeadlineAt { get; set; }
+        public decimal PlatformFeeRateSnapshot { get; set; } = 0.05m;
+        public decimal VatRateSnapshot { get; set; } = 0.08m;
+        public decimal LoyaltyEarnRateSnapshot { get; set; } = 0.05m;
+
         /// <summary>Driver yêu cầu kết thúc sạc sớm.</summary>
         public DateTime? EarlyEndRequestedAt { get; set; }
+
+        /// <summary>Driver gửi yêu cầu xác nhận thủ công (khi không check-in được do lỗi mạng/app).</summary>
+        public DateTime? ManualCheckinRequestedAt { get; set; }
+
+        /// <summary>Đã gửi nhắc nhở trước giờ sạc (tránh gửi trùng).</summary>
+        public DateTime? ReminderSentAt { get; set; }
 
         public ICollection<BookingExtraService> BookingExtraServices { get; set; } = new List<BookingExtraService>();
         public Payment? Payment { get; set; }

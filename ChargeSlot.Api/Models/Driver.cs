@@ -12,6 +12,7 @@ namespace ChargeSlot.Api.Models
         public string? VehicleType { get; set; }
         public string? LicensePlate { get; set; }
         public string? LicenseNumber { get; set; }
+        public decimal LoyaltyPoints { get; set; } = 0;
         public DateTime CreatedAt { get; set; } = DateTimeHelper.VietnamNow();
 
         public ICollection<Booking> Bookings { get; set; } = new List<Booking>();

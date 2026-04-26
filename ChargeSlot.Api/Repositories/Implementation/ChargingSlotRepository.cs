@@ -47,10 +47,12 @@ namespace ChargeSlot.Api.Repositories.Implementation
         {
             _context.ChargingSlots.Remove(slot);
         }
-
-        public async Task SaveChangesAsync()
+        public async Task<ChargingSlot?> GetByQrCodeTokenAsync(string qrCodeToken)
         {
-            await _context.SaveChangesAsync();
+            return await _context.ChargingSlots
+                .Include(s => s.ChargingStation)
+                .FirstOrDefaultAsync(s => s.QrCodeToken == qrCodeToken);
         }
     }
 }
+

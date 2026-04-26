@@ -7,8 +7,12 @@ namespace ChargeSlot.Api.Helpers
 
         /// <summary>
         /// Lấy thời gian hiện tại theo múi giờ Việt Nam (UTC+7).
+        /// Trả về DateTime với Kind = Local để tránh lỗi so sánh với UTC.
         /// </summary>
         public static DateTime VietnamNow()
-            => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, VietnamTimeZone);
+        {
+            var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, VietnamTimeZone);
+            return DateTime.SpecifyKind(now, DateTimeKind.Local);
+        }
     }
 }

@@ -45,6 +45,8 @@ namespace ChargeSlot.Api.Seeds
                 UserName = "0900000001",
                 FullName = "Admin Hệ Thống",
                 PhoneNumber = "0900000001",
+                Email = "laivuhoanganh.fj@gmail.com",
+                EmailConfirmed = true,
                 IsPhoneVerified = true,
                 Status = "ACTIVE",
                 CreatedAt = now
@@ -57,6 +59,8 @@ namespace ChargeSlot.Api.Seeds
                 UserName = "0911111111",
                 FullName = "Trần Văn Minh",
                 PhoneNumber = "0911111111",
+                Email = "owner1@chargeslot.demo",
+                EmailConfirmed = true,
                 IsPhoneVerified = true,
                 Status = "ACTIVE",
                 CreatedAt = now
@@ -68,6 +72,8 @@ namespace ChargeSlot.Api.Seeds
                 UserName = "0911111112",
                 FullName = "Nguyễn Thị Lan",
                 PhoneNumber = "0911111112",
+                Email = "owner2@chargeslot.demo",
+                EmailConfirmed = true,
                 IsPhoneVerified = true,
                 Status = "ACTIVE",
                 CreatedAt = now
@@ -80,6 +86,8 @@ namespace ChargeSlot.Api.Seeds
                 UserName = "0922222221",
                 FullName = "Lê Văn An",
                 PhoneNumber = "0922222221",
+                Email = "driver1@chargeslot.demo",
+                EmailConfirmed = true,
                 IsPhoneVerified = true,
                 Status = "ACTIVE",
                 CreatedAt = now
@@ -91,6 +99,8 @@ namespace ChargeSlot.Api.Seeds
                 UserName = "0922222222",
                 FullName = "Phạm Văn Bình",
                 PhoneNumber = "0922222222",
+                Email = "driver2@chargeslot.demo",
+                EmailConfirmed = true,
                 IsPhoneVerified = true,
                 Status = "ACTIVE",
                 CreatedAt = now
@@ -102,6 +112,8 @@ namespace ChargeSlot.Api.Seeds
                 UserName = "0922222223",
                 FullName = "Hoàng Thị Chi",
                 PhoneNumber = "0922222223",
+                Email = "driver3@chargeslot.demo",
+                EmailConfirmed = true,
                 IsPhoneVerified = true,
                 Status = "ACTIVE",
                 CreatedAt = now
@@ -206,13 +218,27 @@ namespace ChargeSlot.Api.Seeds
             // 6. STATION IMAGES
             // ══════════════════════════════════════════
 
-            db.StationImages.AddRange(
-                new StationImage { StationId = station1.Id, ImageUrl = "/uploads/stations/demo/station1_1.jpg" },
-                new StationImage { StationId = station1.Id, ImageUrl = "/uploads/stations/demo/station1_2.jpg" },
-                new StationImage { StationId = station2.Id, ImageUrl = "/uploads/stations/demo/station2_1.jpg" },
-                new StationImage { StationId = station3.Id, ImageUrl = "/uploads/stations/demo/station3_1.jpg" },
-                new StationImage { StationId = station3.Id, ImageUrl = "/uploads/stations/demo/station3_2.jpg" }
+            // Station Images: không seed demo nữa, ảnh sẽ được upload qua API → Firebase Storage
+
+            // ══════════════════════════════════════════
+            // 6b. EXTRA SERVICES (cho thuê sạc, nước uống...)
+            // ══════════════════════════════════════════
+
+            db.Set<ExtraService>().AddRange(
+                // Station 1: Trạm Sạc Nguyễn Huệ
+                new ExtraService { StationId = station1.Id, ServiceName = "Cho thuê củ sạc", Description = "Củ sạc 2A tiêu chuẩn", Price = 5000, TotalStock = 10, IsActive = true },
+                new ExtraService { StationId = station1.Id, ServiceName = "Nước suối", Description = "Chai 500ml", Price = 10000, TotalStock = null, IsActive = true },
+
+                // Station 2: Trạm Sạc Lê Lợi
+                new ExtraService { StationId = station2.Id, ServiceName = "Cho thuê củ sạc", Description = "Củ sạc 2A tiêu chuẩn", Price = 5000, TotalStock = 5, IsActive = true },
+                new ExtraService { StationId = station2.Id, ServiceName = "Nước suối", Description = "Chai 500ml", Price = 10000, TotalStock = null, IsActive = true },
+                new ExtraService { StationId = station2.Id, ServiceName = "Bơm lốp", Description = "Bơm lốp xe máy", Price = 15000, TotalStock = null, IsActive = true },
+
+                // Station 3: Trạm Sạc Phạm Văn Đồng
+                new ExtraService { StationId = station3.Id, ServiceName = "Cho thuê củ sạc", Description = "Củ sạc nhanh 3A", Price = 8000, TotalStock = 3, IsActive = true },
+                new ExtraService { StationId = station3.Id, ServiceName = "Nước ngọt", Description = "Lon 330ml", Price = 15000, TotalStock = null, IsActive = true }
             );
+            await db.SaveChangesAsync();
 
             // ══════════════════════════════════════════
             // 7. OPERATING HOURS (tất cả mở 6:00-22:00, CN nghỉ)
@@ -357,7 +383,7 @@ namespace ChargeSlot.Api.Seeds
                 CreatedAt = now
             };
 
-            // ★ Booking 5: PENDING PAYMENT — Chờ thanh toán 2 tiếng nữa
+            // ★ Booking 5: PENDING PAYMENT — Chờ thanh toán (deadline 30 phút)
             // (Driver Bình → Station 3, Slot C2)
             // Test: login driver_binh → PayByWallet hoặc VNPay
             var booking5 = new Booking
@@ -367,7 +393,7 @@ namespace ChargeSlot.Api.Seeds
                 EndTime = now.AddHours(6),
                 DurationHours = 2, TotalAmount = 12_000,
                 Status = BookingStatus.PendingPayment,
-                PaymentExpiresAt = now.AddHours(2),
+                PaymentExpiresAt = now.AddMinutes(30),
                 CreatedAt = now
             };
 
@@ -382,17 +408,17 @@ namespace ChargeSlot.Api.Seeds
                 CreatedAt = now.AddDays(-2)
             };
 
-            // ★ Booking 7: IN PROGRESS — đang sạc, Owner có thể Stop
+            // ★ Booking 7: CHECKED IN — đang sạc, Owner có thể Stop khi hết giờ hoặc Driver yêu cầu
             // (Driver An → Station 3, Slot C3)
             // StartTime 1h trước, EndTime 1h nữa
-            // Test: login owner_lan → StopCharging
+            // Test: login driver_an → RequestEarlyEnd, sau đó login owner_lan → StopCharging
             var booking7 = new Booking
             {
                 DriverUserId = driver1.Id, SlotId = slotC3.Id,
                 StartTime = now.AddHours(-1),
                 EndTime = now.AddHours(1),
                 DurationHours = 2, TotalAmount = 10_000,
-                Status = BookingStatus.InProgress,
+                Status = BookingStatus.CheckedIn,
                 CheckedInAt = now.AddHours(-1),
                 CreatedAt = now.AddHours(-2)
             };

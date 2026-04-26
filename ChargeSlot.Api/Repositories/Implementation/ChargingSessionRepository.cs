@@ -27,6 +27,8 @@ namespace ChargeSlot.Api.Repositories.Implementation
                     .ThenInclude(b => b.Driver).ThenInclude(d => d.User)
                 .Include(s => s.Booking)
                     .ThenInclude(b => b.ChargingSlot).ThenInclude(sl => sl.ChargingStation)
+                .Include(s => s.Booking)
+                    .ThenInclude(b => b.BookingExtraServices)
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
 
@@ -53,17 +55,65 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
-        public async Task<ChargingSession> CreateAsync(ChargingSession session)
+        public async Task<bool> HasSessionByBookingAsync(int bookingId)
         {
-            _db.ChargingSessions.Add(session);
-            await _db.SaveChangesAsync();
-            return session;
+            return await _db.ChargingSessions.AnyAsync(s => s.BookingId == bookingId);
         }
 
-        public async Task UpdateAsync(ChargingSession session)
+        public async Task<bool> HasOngoingSessionBySlotAsync(int slotId)
+        {
+            return await _db.ChargingSessions.AnyAsync(s => s.Booking.SlotId == slotId && s.ActualEndTime == null);
+        }
+
+        public async Task<(List<ChargingSession> Items, int TotalCount)> GetAdminAllSessionsAsync(ChargeSlot.Api.DTOs.Admin.Overview.SessionFilterDto filter)
+        {
+            IQueryable<ChargingSession> query = _db.ChargingSessions
+                .Include(s => s.Booking).ThenInclude(b => b.Driver).ThenInclude(u => u.User)
+                .Include(s => s.Booking).ThenInclude(b => b.ChargingSlot).ThenInclude(cs => cs.ChargingStation)
+                .AsNoTracking();
+
+            if (!string.IsNullOrEmpty(filter.Status))
+            {
+                if (System.Enum.TryParse<ChargeSlot.Api.Enums.BookingStatus>(filter.Status, true, out var statusEnum))
+                {
+                    query = query.Where(s => s.Booking.Status == statusEnum);
+                }
+            }
+
+            if (filter.BookingId.HasValue)
+            {
+                query = query.Where(s => s.BookingId == filter.BookingId.Value);
+            }
+
+            if (filter.FromDate.HasValue)
+            {
+                query = query.Where(s => s.ActualStartTime >= filter.FromDate.Value || s.CreatedAt >= filter.FromDate.Value);
+            }
+            if (filter.ToDate.HasValue)
+            {
+                query = query.Where(s => s.ActualStartTime <= filter.ToDate.Value || s.CreatedAt <= filter.ToDate.Value);
+            }
+
+            int totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(s => s.CreatedAt)
+                .Skip((filter.Page - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
+
+        public void Add(ChargingSession session)
+        {
+            _db.ChargingSessions.Add(session);
+        }
+
+        public void Update(ChargingSession session)
         {
             _db.ChargingSessions.Update(session);
-            await _db.SaveChangesAsync();
         }
     }
 }
+

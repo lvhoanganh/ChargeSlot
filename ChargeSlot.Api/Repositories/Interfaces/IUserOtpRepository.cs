@@ -17,7 +17,6 @@ namespace ChargeSlot.Api.Repositories.Interfaces
             OtpPurpose purpose,
             TimeSpan validWithin
         );
-
-        Task SaveChangesAsync();
     }
 }
+

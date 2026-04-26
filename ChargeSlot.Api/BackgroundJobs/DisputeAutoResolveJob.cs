@@ -1,8 +1,8 @@
-using ChargeSlot.Api.Data;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models.Identity;
+using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 using ChargeSlot.Api.Helpers;
 namespace ChargeSlot.Api.BackgroundJobs
@@ -18,9 +18,6 @@ namespace ChargeSlot.Api.BackgroundJobs
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<DisputeAutoResolveJob> _logger;
 
-        private static readonly TimeSpan OwnerEvidenceDeadline = TimeSpan.FromHours(24);
-        private static readonly TimeSpan AdminReviewDeadline = TimeSpan.FromHours(48);
-
         public DisputeAutoResolveJob(IServiceProvider serviceProvider, ILogger<DisputeAutoResolveJob> logger)
         {
             _serviceProvider = serviceProvider;
@@ -33,12 +30,8 @@ namespace ChargeSlot.Api.BackgroundJobs
             {
                 try
                 {
-                    using var scope = _serviceProvider.CreateScope();
-                    var db = scope.ServiceProvider.GetRequiredService<ChargeSlotDbContext>();
-                    var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
-
-                    await AutoResolveOwnerNoEvidenceAsync(db, notificationService, stoppingToken);
-                    await AutoResolveAdminNoActionAsync(db, notificationService, stoppingToken);
+                    await AutoResolveOwnerNoEvidenceAsync(_serviceProvider, stoppingToken);
+                    await AutoResolveAdminNoActionAsync(_serviceProvider, stoppingToken);
                 }
                 catch (Exception ex)
                 {
@@ -52,75 +45,95 @@ namespace ChargeSlot.Api.BackgroundJobs
         /// <summary>
         /// Owner không nộp evidence sau 24h → Driver thắng → hoàn tiền.
         /// </summary>
-        private async Task AutoResolveOwnerNoEvidenceAsync(
-            ChargeSlotDbContext db, INotificationService notificationService, CancellationToken ct)
+        private async Task AutoResolveOwnerNoEvidenceAsync(IServiceProvider serviceProvider, CancellationToken ct)
         {
-            var deadline = DateTimeHelper.VietnamNow() - OwnerEvidenceDeadline;
+            var now = DateTimeHelper.VietnamNow();
+            List<int> expiredDisputeIds;
 
-            var expiredDisputes = await db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Invoice)
-                .Where(d => d.Status == DisputeStatus.WaitingOwnerEvidence
-                    && d.CreatedAt <= deadline)
-                .ToListAsync(ct);
-
-            foreach (var dispute in expiredDisputes)
+            using (var outerScope = serviceProvider.CreateScope())
             {
-                var now = DateTimeHelper.VietnamNow();
+                var disputeRepo = outerScope.ServiceProvider.GetRequiredService<IDisputeRepository>();
+                expiredDisputeIds = await disputeRepo.GetExpiredOwnerEvidenceIdsAsync(now);
+            }
 
-                // Auto-resolve: Driver thắng
-                dispute.Status = DisputeStatus.ResolvedRefund;
-                dispute.AdminNote = "Tự động xử lý: Owner không phản hồi trong 24h. Driver được hoàn tiền.";
-                dispute.ResolvedAt = now;
+            foreach (var disputeId in expiredDisputeIds)
+            {
+                using var innerScope = serviceProvider.CreateScope();
+                var disputeRepo = innerScope.ServiceProvider.GetRequiredService<IDisputeRepository>();
+                var unitOfWork = innerScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var walletRepo = innerScope.ServiceProvider.GetRequiredService<IWalletRepository>();
+                var ledgerRepo = innerScope.ServiceProvider.GetRequiredService<ILedgerTransactionRepository>();
+                var notificationService = innerScope.ServiceProvider.GetRequiredService<INotificationService>();
+                var adminAccountRepo = innerScope.ServiceProvider.GetRequiredService<IAdminAccountRepository>();
 
-                // Invoice → Resolved
-                if (dispute.Invoice != null)
+                using var transaction = await unitOfWork.BeginTransactionAsync();
+                try
                 {
-                    dispute.Invoice.Status = InvoiceStatus.Resolved;
-                    dispute.Invoice.UpdatedAt = now;
-                }
+                    var dispute = await disputeRepo.GetByIdWithBookingAndInvoiceDetailsAsync(disputeId);
 
-                // Booking → Completed
-                dispute.Booking.Status = BookingStatus.Completed;
-                dispute.Booking.UpdatedAt = now;
+                    if (dispute == null || dispute.Status != DisputeStatus.WaitingOwnerEvidence)
+                        continue;
 
-                await db.SaveChangesAsync(ct);
+                    var currentTime = DateTimeHelper.VietnamNow();
 
-                // Refund: ESCROW.FrozenBalance → Driver
-                await RefundToDriverAsync(db, dispute.Booking, dispute);
+                    // Auto-resolve: Driver thắng
+                    dispute.Status = DisputeStatus.ResolvedRefund;
+                    dispute.AdminNote = "Tự động xử lý: Owner không phản hồi trong 24h. Driver được hoàn tiền.";
+                    dispute.ResolvedAt = currentTime;
 
-                // Notify
-                await notificationService.SendAsync(
-                    dispute.Booking.DriverUserId,
-                    "Khiếu nại được giải quyết",
-                    $"Khiếu nại của bạn tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} được chấp nhận do Owner không phản hồi trong 24h. {dispute.Booking.TotalAmount:N0}đ đã hoàn vào ví.",
-                    NotificationType.Dispute);
+                    // Invoice → Resolved
+                    if (dispute.Invoice != null)
+                    {
+                        dispute.Invoice.Status = InvoiceStatus.Resolved;
+                        dispute.Invoice.UpdatedAt = currentTime;
+                    }
 
-                var ownerUserId = dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId;
-                if (ownerUserId.HasValue)
-                {
+                    // Booking → Completed
+                    dispute.Booking.Status = BookingStatus.Completed;
+                    dispute.Booking.UpdatedAt = currentTime;
+
+                    await unitOfWork.CompleteAsync();
+
+                    // Refund: ESCROW.FrozenBalance → Driver
+                    await RefundToDriverAsync(walletRepo, ledgerRepo, unitOfWork, dispute.Booking, dispute);
+
+                    await transaction.CommitAsync(ct);
+
+                    // Notifications (ngoài transaction)
                     await notificationService.SendAsync(
-                        ownerUserId.Value,
-                        "Khiếu nại tự động xử lý",
-                        $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Bạn không phản hồi trong 24h nên tiền đã được hoàn cho Driver.",
+                        dispute.Booking.DriverUserId,
+                        "Khiếu nại được giải quyết",
+                        $"Khiếu nại của bạn tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} được chấp nhận do Owner không phản hồi trong 24h. {dispute.Booking.TotalAmount:N0}đ đã hoàn vào ví.",
                         NotificationType.Dispute);
+
+                    var ownerUserId = dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId;
+                    if (ownerUserId.HasValue)
+                    {
+                        await notificationService.SendAsync(
+                            ownerUserId.Value,
+                            "Khiếu nại tự động xử lý",
+                            $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Bạn không phản hồi trong 24h nên tiền đã được hoàn cho Driver.",
+                            NotificationType.Dispute);
+                    }
+
+                    _logger.LogInformation(
+                        "Dispute {DisputeId} auto-resolved: Owner no evidence after 24h. Driver refunded {Amount}.",
+                        dispute.Id, dispute.Booking.TotalAmount);
+
+                    var adminUserIds = await adminAccountRepo.GetAdminUserIdsAsync();
+                    foreach (var adminId in adminUserIds)
+                    {
+                        await notificationService.SendAsync(
+                            adminId,
+                            "Khiếu nại tự động xử lý",
+                            $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Owner không phản hồi 24h → Driver được hoàn tiền {dispute.Booking.TotalAmount:N0}đ.",
+                            NotificationType.Dispute);
+                    }
                 }
-
-                _logger.LogInformation(
-                    "Dispute {DisputeId} auto-resolved: Owner no evidence after 24h. Driver refunded {Amount}.",
-                    dispute.Id, dispute.Booking.TotalAmount);
-
-                // Notify Admin
-                var adminUsers = await db.UserRoles
-                    .Where(ur => ur.RoleId == 1).Select(ur => ur.UserId).ToListAsync(ct);
-                foreach (var adminId in adminUsers)
+                catch (Exception ex)
                 {
-                    await notificationService.SendAsync(
-                        adminId,
-                        "Khiếu nại tự động xử lý",
-                        $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Owner không phản hồi 24h → Driver được hoàn tiền {dispute.Booking.TotalAmount:N0}đ.",
-                        NotificationType.Dispute);
+                    await transaction.RollbackAsync(ct);
+                    _logger.LogError(ex, "Error auto-resolving dispute {DisputeId} (owner no evidence)", disputeId);
                 }
             }
         }
@@ -128,90 +141,108 @@ namespace ChargeSlot.Api.BackgroundJobs
         /// <summary>
         /// Admin không xử lý sau 48h (từ khi Owner nộp evidence) → Owner thắng → settle payment.
         /// </summary>
-        private async Task AutoResolveAdminNoActionAsync(
-            ChargeSlotDbContext db, INotificationService notificationService, CancellationToken ct)
+        private async Task AutoResolveAdminNoActionAsync(IServiceProvider serviceProvider, CancellationToken ct)
         {
-            var deadline = DateTimeHelper.VietnamNow() - AdminReviewDeadline;
+            var now = DateTimeHelper.VietnamNow();
+            List<int> expiredDisputeIds;
 
-            // PendingReview disputes: tìm theo thời gian Owner nộp evidence
-            // Vì không có trường riêng, dùng heuristic: dispute nào PendingReview quá 48h
-            // (Status chuyển sang PendingReview khi Owner nộp evidence)
-            var expiredDisputes = await db.Disputes
-                .Include(d => d.Booking)
-                    .ThenInclude(b => b.ChargingSlot).ThenInclude(s => s.ChargingStation)
-                .Include(d => d.Invoice)
-                .Where(d => d.Status == DisputeStatus.PendingReview
-                    && d.CreatedAt <= deadline)  // fallback: dùng CreatedAt + tổng thời gian (24h owner + 48h admin = 72h)
-                .ToListAsync(ct);
-
-            foreach (var dispute in expiredDisputes)
+            using (var outerScope = serviceProvider.CreateScope())
             {
-                var now = DateTimeHelper.VietnamNow();
+                var disputeRepo = outerScope.ServiceProvider.GetRequiredService<IDisputeRepository>();
+                expiredDisputeIds = await disputeRepo.GetExpiredAdminReviewIdsAsync(now);
+            }
 
-                // Auto-resolve: Owner thắng
-                dispute.Status = DisputeStatus.ResolvedPayout;
-                dispute.AdminNote = "Tự động xử lý: Admin không phân xử trong 48h. Owner nhận tiền.";
-                dispute.ResolvedAt = now;
+            foreach (var disputeId in expiredDisputeIds)
+            {
+                using var innerScope = serviceProvider.CreateScope();
+                var disputeRepo = innerScope.ServiceProvider.GetRequiredService<IDisputeRepository>();
+                var unitOfWork = innerScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var walletRepo = innerScope.ServiceProvider.GetRequiredService<IWalletRepository>();
+                var ledgerRepo = innerScope.ServiceProvider.GetRequiredService<ILedgerTransactionRepository>();
+                var notificationService = innerScope.ServiceProvider.GetRequiredService<INotificationService>();
+                var adminAccountRepo = innerScope.ServiceProvider.GetRequiredService<IAdminAccountRepository>();
 
-                // Invoice → Resolved
-                if (dispute.Invoice != null)
+                using var transaction = await unitOfWork.BeginTransactionAsync();
+                try
                 {
-                    dispute.Invoice.Status = InvoiceStatus.Resolved;
-                    dispute.Invoice.UpdatedAt = now;
-                }
+                    var dispute = await disputeRepo.GetByIdWithBookingAndInvoiceDetailsAsync(disputeId);
 
-                // Booking → Completed
-                dispute.Booking.Status = BookingStatus.Completed;
-                dispute.Booking.UpdatedAt = now;
+                    if (dispute == null || dispute.Status != DisputeStatus.PendingReview)
+                        continue;
 
-                await db.SaveChangesAsync(ct);
+                    var currentTime = DateTimeHelper.VietnamNow();
 
-                // Settle: ESCROW.FrozenBalance → Owner + PLATFORM_REVENUE
-                if (dispute.Invoice != null)
-                {
-                    await SettleToOwnerAsync(db, dispute.Booking, dispute.Invoice, dispute);
-                }
+                    // Auto-resolve: Owner thắng
+                    dispute.Status = DisputeStatus.ResolvedPayout;
+                    dispute.AdminNote = "Tự động xử lý: Admin không phân xử trong 48h. Owner nhận tiền.";
+                    dispute.ResolvedAt = currentTime;
 
-                // Notify
-                await notificationService.SendAsync(
-                    dispute.Booking.DriverUserId,
-                    "Khiếu nại được giải quyết",
-                    $"Khiếu nại của bạn tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} đã tự động giải quyết. Tiền được chuyển cho chủ trạm.",
-                    NotificationType.Dispute);
+                    // Invoice → Resolved
+                    if (dispute.Invoice != null)
+                    {
+                        dispute.Invoice.Status = InvoiceStatus.Resolved;
+                        dispute.Invoice.UpdatedAt = currentTime;
+                    }
 
-                var ownerUserId = dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId;
-                if (ownerUserId.HasValue)
-                {
+                    // Booking → Completed
+                    dispute.Booking.Status = BookingStatus.Completed;
+                    dispute.Booking.UpdatedAt = currentTime;
+
+                    await unitOfWork.CompleteAsync();
+
+                    // Settle: ESCROW.FrozenBalance → Owner + PLATFORM_REVENUE
+                    if (dispute.Invoice != null)
+                    {
+                        await SettleToOwnerAsync(walletRepo, ledgerRepo, unitOfWork, dispute.Booking, dispute.Invoice, dispute);
+                    }
+
+                    await transaction.CommitAsync(ct);
+
+                    // Notifications (ngoài transaction)
                     await notificationService.SendAsync(
-                        ownerUserId.Value,
-                        "Khiếu nại tự động xử lý",
-                        $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} đã tự động giải quyết. {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví của bạn.",
+                        dispute.Booking.DriverUserId,
+                        "Khiếu nại được giải quyết",
+                        $"Khiếu nại của bạn tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} đã tự động giải quyết. Tiền được chuyển cho chủ trạm.",
                         NotificationType.Dispute);
+
+                    var ownerUserId = dispute.Booking.ChargingSlot?.ChargingStation?.OwnerUserId;
+                    if (ownerUserId.HasValue)
+                    {
+                        await notificationService.SendAsync(
+                            ownerUserId.Value,
+                            "Khiếu nại tự động xử lý",
+                            $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name} đã tự động giải quyết. {dispute.Invoice?.ChargingAmount:N0}đ đã chuyển vào ví của bạn.",
+                            NotificationType.Dispute);
+                    }
+
+                    _logger.LogInformation(
+                        "Dispute {DisputeId} auto-resolved: Admin no action after 48h. Owner wins.",
+                        dispute.Id);
+
+                    var adminUserIds = await adminAccountRepo.GetAdminUserIdsAsync();
+                    foreach (var adminId in adminUserIds)
+                    {
+                        await notificationService.SendAsync(
+                            adminId,
+                            "Khiếu nại tự động xử lý",
+                            $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Quá hạn 48h không phân xử → Owner nhận tiền {dispute.Invoice?.ChargingAmount:N0}đ.",
+                            NotificationType.Dispute);
+                    }
                 }
-
-                _logger.LogInformation(
-                    "Dispute {DisputeId} auto-resolved: Admin no action after 48h. Owner wins.",
-                    dispute.Id);
-
-                // Notify Admin
-                var adminUsers = await db.UserRoles
-                    .Where(ur => ur.RoleId == 1).Select(ur => ur.UserId).ToListAsync(ct);
-                foreach (var adminId in adminUsers)
+                catch (Exception ex)
                 {
-                    await notificationService.SendAsync(
-                        adminId,
-                        "Khiếu nại tự động xử lý",
-                        $"Khiếu nại tại trạm {dispute.Booking.ChargingSlot?.ChargingStation?.Name}: Quá hạn 48h không phân xử → Owner nhận tiền {dispute.Invoice?.ChargingAmount:N0}đ.",
-                        NotificationType.Dispute);
+                    await transaction.RollbackAsync(ct);
+                    _logger.LogError(ex, "Error auto-resolving dispute {DisputeId} (admin no action)", disputeId);
                 }
             }
         }
 
-        private async Task RefundToDriverAsync(ChargeSlotDbContext db, Booking booking, Dispute dispute)
+        private async Task RefundToDriverAsync(IWalletRepository walletRepo, ILedgerTransactionRepository ledgerRepo, IUnitOfWork unitOfWork, Booking booking, Dispute dispute)
         {
             var now = DateTimeHelper.VietnamNow();
-            var escrowWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            var driverWallet = await db.Wallets.FirstOrDefaultAsync(w => w.UserId == booking.DriverUserId);
+            var escrowWallet = await walletRepo.GetBySystemCodeAsync("ESCROW")
+                ?? throw new InvalidOperationException("ESCROW wallet not found");
+            var driverWallet = await walletRepo.GetByUserIdAsync(booking.DriverUserId);
 
             if (driverWallet == null)
             {
@@ -221,15 +252,15 @@ namespace ChargeSlot.Api.BackgroundJobs
                     WalletType = WalletType.Driver,
                     AvailableBalance = 0, FrozenBalance = 0, CreatedAt = now
                 };
-                db.Wallets.Add(driverWallet);
-                await db.SaveChangesAsync();
+                walletRepo.Add(driverWallet);
+                await unitOfWork.CompleteAsync();
             }
 
             var refundAmount = booking.TotalAmount;
             escrowWallet.FrozenBalance -= refundAmount;
             driverWallet.AvailableBalance += refundAmount;
 
-            db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "AutoRefund",
                 ReferenceId = booking.Id,
@@ -241,17 +272,21 @@ namespace ChargeSlot.Api.BackgroundJobs
                     new LedgerEntry { WalletId = driverWallet.Id, Direction = LedgerDirection.Credit, Amount = refundAmount, CreatedAt = now }
                 }
             });
-            await db.SaveChangesAsync();
+            await unitOfWork.CompleteAsync();
         }
 
-        private async Task SettleToOwnerAsync(ChargeSlotDbContext db, Booking booking, Invoice invoice, Dispute dispute)
+        private async Task SettleToOwnerAsync(IWalletRepository walletRepo, ILedgerTransactionRepository ledgerRepo, IUnitOfWork unitOfWork, Booking booking, Invoice invoice, Dispute dispute)
         {
             var ownerUserId = booking.ChargingSlot!.ChargingStation!.OwnerUserId;
             var now = DateTimeHelper.VietnamNow();
 
-            var escrowWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "ESCROW");
-            var platformWallet = await db.Wallets.FirstAsync(w => w.SystemCode == "PLATFORM_REVENUE");
-            var ownerWallet = await db.Wallets.FirstOrDefaultAsync(w => w.UserId == ownerUserId);
+            var escrowWallet = await walletRepo.GetBySystemCodeAsync("ESCROW")
+                ?? throw new InvalidOperationException("ESCROW wallet not found");
+            var platformWallet = await walletRepo.GetBySystemCodeAsync("PLATFORM_REVENUE")
+                ?? throw new InvalidOperationException("PLATFORM_REVENUE wallet not found");
+            var taxWallet = await walletRepo.GetBySystemCodeAsync("TAX_HOLD")
+                ?? throw new InvalidOperationException("TAX_HOLD wallet not found");
+            var ownerWallet = await walletRepo.GetByUserIdAsync(ownerUserId);
 
             if (ownerWallet == null)
             {
@@ -261,19 +296,23 @@ namespace ChargeSlot.Api.BackgroundJobs
                     WalletType = WalletType.Owner,
                     AvailableBalance = 0, FrozenBalance = 0, CreatedAt = now
                 };
-                db.Wallets.Add(ownerWallet);
-                await db.SaveChangesAsync();
+                walletRepo.Add(ownerWallet);
+                await unitOfWork.CompleteAsync();
             }
 
             var ownerNet = invoice.ChargingAmount;
             var platformFee = invoice.PlatformFee;
             var vatAmount = invoice.VatAmount;
 
+            // Unfreeze ALL from ESCROW.FrozenBalance
             escrowWallet.FrozenBalance -= (ownerNet + platformFee + vatAmount);
+
+            // Distribute: Owner + Platform + TAX_HOLD
             ownerWallet.AvailableBalance += ownerNet;
             platformWallet.AvailableBalance += platformFee;
+            taxWallet.AvailableBalance += vatAmount;
 
-            db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "AutoSettlement",
                 ReferenceId = booking.Id,
@@ -286,7 +325,7 @@ namespace ChargeSlot.Api.BackgroundJobs
                 }
             });
 
-            db.Set<LedgerTransaction>().Add(new LedgerTransaction
+            ledgerRepo.Add(new LedgerTransaction
             {
                 ReferenceType = "PlatformFee",
                 ReferenceId = booking.Id,
@@ -299,7 +338,24 @@ namespace ChargeSlot.Api.BackgroundJobs
                 }
             });
 
-            await db.SaveChangesAsync();
+            // VAT → TAX_HOLD
+            if (vatAmount > 0)
+            {
+                ledgerRepo.Add(new LedgerTransaction
+                {
+                    ReferenceType = "TaxHold",
+                    ReferenceId = booking.Id,
+                    Memo = $"Thuế GTGT auto-settle Dispute #{dispute.Id} - {vatAmount:N0}đ",
+                    CreatedAt = now,
+                    Entries = new List<LedgerEntry>
+                    {
+                        new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Debit, Amount = vatAmount, CreatedAt = now },
+                        new LedgerEntry { WalletId = taxWallet.Id, Direction = LedgerDirection.Credit, Amount = vatAmount, CreatedAt = now }
+                    }
+                });
+            }
+
+            await unitOfWork.CompleteAsync();
         }
     }
 }

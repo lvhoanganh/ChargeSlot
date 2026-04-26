@@ -8,7 +8,11 @@ namespace ChargeSlot.Api.Repositories.Interfaces
         Task<ChargingSession?> GetByIdWithDetailsAsync(int id);
         Task<ChargingSession?> GetByBookingIdAsync(int bookingId);
         Task<List<ChargingSession>> GetActiveByOwnerAsync(int ownerUserId);
-        Task<ChargingSession> CreateAsync(ChargingSession session);
-        Task UpdateAsync(ChargingSession session);
+        Task<bool> HasSessionByBookingAsync(int bookingId);
+        Task<bool> HasOngoingSessionBySlotAsync(int slotId);
+        Task<(List<ChargingSession> Items, int TotalCount)> GetAdminAllSessionsAsync(ChargeSlot.Api.DTOs.Admin.Overview.SessionFilterDto filter);
+        void Add(ChargingSession session);
+        void Update(ChargingSession session);
     }
 }
+
