@@ -5,15 +5,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema } from "@/schemas/loginSchema";
 import { useAuthStore } from "@/stores/authStore";
 import { showToast } from "@/components/Toast";
+import ChargeSlotLogo from "@/components/ChargeSlotLogo";
+
 export default function Login() {
   const navigate = useNavigate();
-
   const { login } = useAuthStore();
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(loginSchema),
   });
@@ -31,65 +32,98 @@ export default function Login() {
         navigate("/");
       }
     } catch (err) {
-      // err is already a user-friendly string from authStore
       showToast.error(typeof err === "string" ? err : "Đăng nhập thất bại.");
     }
   };
+
   return (
-    <div className="min-h-screen bg-[#f3f4f5] flex justify-center items-center">
-      <form
-        className="max-w-[500px] w-full bg-white rounded-md shadow-md"
-        onSubmit={handleSubmit(onSubmit)}
-      >
-        <div className="p-8">
-          <h1 className="text-xl font-bold mb-5">
-            Đăng nhập tài khoản của bạn
+    <div className="cs-auth-wrapper">
+      <div className="cs-auth-left">
+        <div className="cs-auth-left__content" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div className="cs-animate-fadeInUp" style={{ marginBottom: 24 }}>
+            <ChargeSlotLogo size={56} dark />
+          </div>
+          <h1 className="cs-auth-left__title cs-animate-fadeInUp-delay-1">
+            Sạc xe thông minh,<br />mọi lúc mọi nơi
           </h1>
-          <div className="flex flex-col mb-5">
-            <label className="text-gray-500">Số điện thoại</label>
+          <p className="cs-auth-left__desc cs-animate-fadeInUp-delay-2">
+            Nền tảng đặt lịch sạc xe điện hàng đầu Việt Nam. Tiện lợi, nhanh chóng và tiết kiệm.
+          </p>
+          <div className="cs-auth-left__features cs-animate-fadeInUp-delay-3">
+            <div className="cs-auth-left__feature">
+              <p>Tìm trạm sạc gần bạn trên bản đồ</p>
+            </div>
+            <div className="cs-auth-left__feature">
+              <p>Đặt lịch sạc trước, không lo hàng chờ</p>
+            </div>
+            <div className="cs-auth-left__feature">
+              <p>Thanh toán tiện lợi qua ví điện tử</p>
+            </div>
+            <div className="cs-auth-left__feature">
+              <p>Tích điểm thưởng mỗi lần sạc xe</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="cs-auth-right">
+        <form className="cs-auth-form" onSubmit={handleSubmit(onSubmit)}>
+          <div className="cs-auth-form__logo">
+            <ChargeSlotLogo size={38} showText />
+          </div>
+          <h2 className="cs-auth-form__title">Đăng nhập</h2>
+          <p className="cs-auth-form__subtitle">
+            Chào mừng bạn quay trở lại! Vui lòng nhập thông tin đăng nhập.
+          </p>
+
+          <div className="cs-auth-input-group">
+            <label>Số điện thoại</label>
             <input
               type="text"
-              className="w-full h-10 px-4 border placeholder:text-gray-500 outline-none"
+              className="cs-auth-input"
               placeholder="Nhập số điện thoại..."
               {...register("phoneNumber")}
             />
             {errors.phoneNumber && (
-              <p className="text-red-500 text-sm mt-1">
+              <p className="text-red-500 text-sm mt-1.5">
                 {errors.phoneNumber.message}
               </p>
             )}
           </div>
-          <div className="flex flex-col mb-5">
-            <label className="text-gray-500">Mật khẩu</label>
+
+          <div className="cs-auth-input-group">
+            <label>Mật khẩu</label>
             <input
               type="password"
-              className="w-full h-10 px-4 border placeholder:text-gray-500 outline-none"
+              className="cs-auth-input"
               placeholder="Nhập mật khẩu..."
               {...register("password")}
             />
             {errors.password && (
-              <p className="text-red-500 text-sm mt-1">
+              <p className="text-red-500 text-sm mt-1.5">
                 {errors.password.message}
               </p>
             )}
           </div>
-          <Link
-            to="/forgotPassword"
-            className="hover:underline block text-blue-500 mb-5 "
-          >
-            Quên mật khẩu ?
-          </Link>
-          <Button className="w-full h-12 bg-orange-500 hover:bg-green-500 cursor-pointer mb-5">
-            Đăng nhập
-          </Button>
-          <div className="text-center">
-            <span>Chưa có tài khoản? </span>
-            <Link to="/register" className="hover:underline text-blue-500 mb-5">
-              Đăng ký
+
+          <div style={{ textAlign: "right", marginBottom: 20 }}>
+            <Link to="/forgotPassword" className="cs-auth-link" style={{ fontSize: 13 }}>
+              Quên mật khẩu?
             </Link>
           </div>
-        </div>
-      </form>
+
+          <button type="submit" className="cs-auth-submit" disabled={isSubmitting}>
+            {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
+          </button>
+
+          <p style={{ textAlign: "center", marginTop: 24, fontSize: 14, color: "#64748b" }}>
+            Chưa có tài khoản?{" "}
+            <Link to="/register" className="cs-auth-link">
+              Đăng ký ngay
+            </Link>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }

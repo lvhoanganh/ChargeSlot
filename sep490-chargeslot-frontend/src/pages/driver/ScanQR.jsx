@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { showToast } from "@/components/Toast";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { Html5Qrcode } from "html5-qrcode";
@@ -122,7 +123,8 @@ export default function ScanQR() {
     const timeout = setTimeout(() => controller.abort(), 15000);
 
     try {
-      const res = await fetch("http://localhost:5162/api/charging/check-in", {
+      const API_URL = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
+      const res = await fetch(`${API_URL}/charging/check-in`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -144,20 +146,41 @@ export default function ScanQR() {
 
       if (!res.ok) {
         // Backend trả lỗi — hiện message
-        const msg = data?.message || `Lỗi check-in (${res.status})`;
+        let msg = data?.message || `Lỗi check-in (${res.status})`;
 
-        // Determine which step failed based on error message
-        if (msg.includes("thanh toán") || msg.includes("Paid") || msg.includes("status")) {
+        // Time window errors: "Chưa đến giờ check-in", "Đã quá thời gian check-in", etc.
+        // → step 2 (Xác thực booking) đã PASS, ❌ ở step 3 (Kiểm tra khung giờ)
+        if (
+          msg.includes("giờ check-in") ||
+          (msg.includes("check-in") && msg.includes("giờ")) ||
+          msg.includes("time window") ||
+          msg.includes("quay lại lúc") ||
+          msg.includes("đã quá thời gian") ||
+          msg.includes("Chưa đến giờ") ||
+          msg.includes("khung giờ")
+        ) {
+          // Step 1 ✅, Step 2 ✅, Step 3 ❌
           setSteps(prev => prev.map((s, i) =>
-            i === 1 ? { ...s, status: "fail" } : i === 0 ? { ...s, status: "done" } : s
+            i === 0 ? { ...s, status: "done" } :
+              i === 1 ? { ...s, status: "done" } :
+                i === 2 ? { ...s, status: "fail" } : s
           ));
-        } else if (msg.includes("giờ") || msg.includes("time") || msg.includes("window") || msg.includes("sớm") || msg.includes("muộn")) {
+        } else if (
+          msg.includes("thanh toán") ||
+          msg.includes("Paid") ||
+          msg.includes("booking đã thanh toán") ||
+          msg.includes("không tìm thấy booking")
+        ) {
+          // Step 1 ✅, Step 2 ❌ (lỗi xác thực booking/payment)
           setSteps(prev => prev.map((s, i) =>
-            i <= 1 ? { ...s, status: "done" } : i === 2 ? { ...s, status: "fail" } : s
+            i === 0 ? { ...s, status: "done" } :
+              i === 1 ? { ...s, status: "fail" } : s
           ));
         } else {
+          // Default: Step 2 ❌
           setSteps(prev => prev.map((s, i) =>
-            i === 1 ? { ...s, status: "fail" } : s
+            i === 0 ? { ...s, status: "done" } :
+              i === 1 ? { ...s, status: "fail" } : s
           ));
         }
 
@@ -181,7 +204,8 @@ export default function ScanQR() {
 
       // Save bookingId to localStorage for persistence
       if (data?.bookingId) {
-        localStorage.setItem("activeChargingBookingId", String(data.bookingId));
+        const uId = localStorage.getItem("userId") || "guest";
+        localStorage.setItem(`activeChargingBooking_${uId}`, String(data.bookingId));
       }
 
       // Navigate to charging page with session data
@@ -190,7 +214,7 @@ export default function ScanQR() {
     } catch (err) {
       clearTimeout(timeout);
       if (err.name === "AbortError") {
-        setApiError("⏱️ Yêu cầu quá lâu, vui lòng thử lại!");
+        setApiError("️ Yêu cầu quá lâu, vui lòng thử lại!");
       } else {
         setApiError("Lỗi kết nối đến server!");
       }
@@ -269,7 +293,7 @@ export default function ScanQR() {
             {cameraActive && (
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                 <div className="absolute bottom-4 left-0 right-0 text-center">
-                  <p className="text-white/80 text-sm bg-black/40 inline-block px-4 py-1.5 rounded-full">📷 Hướng camera vào mã QR</p>
+                  <p className="text-white/80 text-sm bg-black/40 inline-block px-4 py-1.5 rounded-full"> Hướng camera vào mã QR</p>
                 </div>
               </div>
             )}
@@ -313,15 +337,20 @@ export default function ScanQR() {
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
+                      e.target.value = "";
                       try {
                         const scanner = new Html5Qrcode("qr-reader-upload");
                         const result = await scanner.scanFile(file, true);
                         scanner.clear();
                         runCheckIn(result);
-                      } catch (err) {
-                        setCameraError("Không đọc được mã QR từ ảnh. Hãy thử ảnh rõ hơn!");
+                      } catch {
+                        // Không đọc được QR từ ảnh → hiện màn hình validating với ❌ step 1
+                        setValidating(true);
+                        setApiError("Không đọc được mã QR từ ảnh. Hãy thử ảnh rõ hơn!");
+                        setSteps(prev => prev.map((s, i) =>
+                          i === 0 ? { ...s, status: "fail" } : s
+                        ));
                       }
-                      e.target.value = "";
                     }}
                   />
                 </label>
@@ -339,13 +368,13 @@ export default function ScanQR() {
         </div>
         <div className="rounded-2xl bg-white shadow-lg overflow-hidden mb-6">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-            <span className="text-sm">💡</span>
+            <span className="text-sm"></span>
             <h3 className="text-sm font-bold text-gray-700">Hướng dẫn check-in</h3>
           </div>
           <div className="p-5 space-y-2 text-sm text-gray-600">
             <p>1. Đảm bảo booking đã được <strong>thanh toán (Paid)</strong></p>
             <p>2. Đến trạm sạc <strong>đúng khung giờ</strong> đã đặt</p>
-            <p>3. Quét mã <strong>QR trên cổng sạc</strong> hoặc nhập token thủ công</p>
+            <p>3. Quét mã <strong>QR trên cổng sạc</strong></p>
             <p>4. Hệ thống tự xác thực và bắt đầu sạc</p>
           </div>
         </div>

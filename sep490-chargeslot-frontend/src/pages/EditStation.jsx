@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { stationApi } from "@/services/api";
+import TimePicker24h from "@/components/TimePicker24h";
 
 export default function EditStation() {
   const { id } = useParams();
@@ -391,17 +392,9 @@ export default function EditStation() {
                   {!hour.isClosed && (
                     <>
                       <div className="col-span-3">
-                        <input
-                          type="time"
-                          value={hour.openTime}
-                          onChange={(e) =>
-                            handleOperatingHourChange(
-                              index,
-                              "openTime",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        <TimePicker24h
+                          value={hour.openTime.substring(0, 5)}
+                          onChange={(v) => handleOperatingHourChange(index, "openTime", v)}
                         />
                       </div>
 
@@ -410,17 +403,10 @@ export default function EditStation() {
                       </div>
 
                       <div className="col-span-3">
-                        <input
-                          type="time"
-                          value={hour.closeTime}
-                          onChange={(e) =>
-                            handleOperatingHourChange(
-                              index,
-                              "closeTime",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        <TimePicker24h
+                          value={hour.closeTime.substring(0, 5)}
+                          minAfter={hour.openTime.substring(0, 5)}
+                          onChange={(v) => handleOperatingHourChange(index, "closeTime", v)}
                         />
                       </div>
                     </>

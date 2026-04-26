@@ -1,17 +1,21 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { favoriteApi } from "@/services/api";
+import Pagination from "@/components/Pagination";
+
+const PAGE_SIZE = 10;
 
 export default function FavoriteStations() {
   const navigate = useNavigate();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [imgErrors, setImgErrors] = useState({});
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     setLoading(true);
     favoriteApi.getMyFavorites()
-      .then(data => setFavorites(Array.isArray(data) ? data : []))
+      .then(data => setFavorites(Array.isArray(data) ? data : (data?.items || [])))
       .catch(() => setFavorites([]))
       .finally(() => setLoading(false));
   }, []);
@@ -25,14 +29,14 @@ export default function FavoriteStations() {
 
   function getImg(f) {
     if (imgErrors[f.stationId] || !f.imageUrl) return null;
-    return f.imageUrl.startsWith("http") ? f.imageUrl : `http://localhost:5162${f.imageUrl}`;
+    return f.imageUrl.startsWith("http") ? f.imageUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${f.imageUrl.startsWith("/") ? "" : "/"}${f.imageUrl}`;
   }
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f3f4f5] pt-24 px-4">
         <div className="max-w-3xl mx-auto text-center">
-          <div className="text-5xl mb-4">❤️</div>
+          <div className="text-5xl mb-4">️</div>
           <p className="text-gray-500">Đang tải danh sách yêu thích...</p>
         </div>
       </div>
@@ -58,19 +62,20 @@ export default function FavoriteStations() {
 
         {favorites.length === 0 ? (
           <div className="text-center py-16">
-            <div className="text-6xl mb-4 opacity-40">💔</div>
+            <div className="text-6xl mb-4 opacity-40"></div>
             <h2 className="text-lg font-bold text-gray-600 mb-2">Chưa có trạm yêu thích</h2>
             <p className="text-sm text-gray-400 mb-6">Thêm trạm yêu thích từ bản đồ hoặc trang chi tiết trạm</p>
             <button
               onClick={() => navigate("/driver/map")}
               className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors cursor-pointer"
             >
-              🗺️ Tìm trạm sạc
+              ️ Tìm trạm sạc
             </button>
           </div>
         ) : (
           <div className="space-y-4">
-            {favorites.map(f => {
+            {/* Phân trang */}
+            {favorites.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(f => {
               const img = getImg(f);
               return (
                 <div key={f.stationId} className="bg-white rounded-2xl shadow-sm overflow-hidden flex hover:shadow-md transition-shadow">
@@ -99,7 +104,7 @@ export default function FavoriteStations() {
                         <h3 className="font-bold text-gray-900 text-base">{f.name}</h3>
                         {f.averageRating > 0 && (
                           <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
-                            ⭐ {Number(f.averageRating).toFixed(1)}
+                             {Number(f.averageRating).toFixed(1)}
                             <span className="text-gray-400 font-normal">({f.totalReviews})</span>
                           </span>
                         )}
@@ -135,6 +140,14 @@ export default function FavoriteStations() {
                 </div>
               );
             })}
+            <div style={{ marginTop: 16 }}>
+              <Pagination
+                page={page}
+                totalCount={favorites.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={(p) => setPage(p)}
+              />
+            </div>
           </div>
         )}
       </div>

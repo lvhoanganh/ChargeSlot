@@ -3,11 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { disputeApi } from "@/services/api";
 
 const STATUS_MAP = {
-  Open: { label: "Mở", color: "#f59e0b", bg: "#fffbeb", icon: "📝" },
-  WaitingOwnerEvidence: { label: "Chờ Owner phản hồi", color: "#f97316", bg: "#fff7ed", icon: "⏳" },
-  PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "🔍" },
-  ResolvedRefund: { label: "Hoàn tiền cho Driver", color: "#16a34a", bg: "#f0fdf4", icon: "✅" },
-  ResolvedPayout: { label: "Thanh toán cho Owner", color: "#8b5cf6", bg: "#f5f3ff", icon: "💰" },
+  Open: { label: "Mở", color: "#f59e0b", bg: "#fffbeb", icon: "" },
+  WaitingOwnerEvidence: { label: "Chờ Owner phản hồi", color: "#f97316", bg: "#fff7ed", icon: "" },
+  PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "" },
+  ResolvedRefund: { label: "Hoàn tiền cho Driver", color: "#16a34a", bg: "#f0fdf4", icon: "" },
+  ResolvedPayout: { label: "Thanh toán cho Owner", color: "#8b5cf6", bg: "#f5f3ff", icon: "" },
 };
 
 const toLocal = (dt) => {
@@ -33,7 +33,7 @@ export default function DisputeDetail() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>⚡</div>
+        <div style={{ fontSize: 40 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải thông tin khiếu nại...</p>
       </div>
     );
@@ -42,7 +42,7 @@ export default function DisputeDetail() {
   if (!dispute) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 48 }}>📋</div>
+        <div style={{ fontSize: 48 }}></div>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Khiếu nại không tồn tại</h2>
         <button onClick={() => navigate("/driver/my-bookings")} style={btnStyle}>← Danh sách booking</button>
       </div>
@@ -52,15 +52,20 @@ export default function DisputeDetail() {
   const st = STATUS_MAP[dispute.status] || STATUS_MAP.Open;
   const isResolved = dispute.status === "ResolvedRefund" || dispute.status === "ResolvedPayout";
 
+  const allEvidences = dispute.evidences ?? [];
+  const driverEvidences = allEvidences.filter((ev) => ev.uploadedByUserId === dispute.createdByUserId);
+  const ownerEvidences = allEvidences.filter((ev) => ev.uploadedByUserId !== dispute.createdByUserId);
+  const hasOwnerResponded = !!dispute.ownerResponse || ownerEvidences.length > 0;
+
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90 }}>
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px 40px" }}>
         <button
-          onClick={() => navigate(`/driver/booking/${dispute.bookingId}`)}
+          onClick={() => navigate(`/driver/disputes`)}
           style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 14, marginBottom: 12, display: "flex", alignItems: "center", gap: 4 }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          Quay lại booking
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+          Quay lại danh sách khiếu nại
         </button>
 
         {/* Status Header */}
@@ -76,7 +81,7 @@ export default function DisputeDetail() {
         <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", overflow: "hidden", marginBottom: 16 }}>
           {/* Step 1: Submitted */}
           <TimelineStep
-            icon="📤" title="Đã gửi khiếu nại"
+            icon="" title="Đã gửi khiếu nại"
             time={toLocal(dispute.createdAt)}
             isActive={true} isLast={false}
           >
@@ -88,20 +93,33 @@ export default function DisputeDetail() {
           </TimelineStep>
 
           {/* Driver evidence */}
-          {dispute.evidences?.length > 0 && (
-            <TimelineStep icon="📎" title="Bằng chứng từ Driver" isActive={true} isLast={false}>
-              <EvidenceGallery evidences={dispute.evidences} />
+          {driverEvidences.length > 0 && (
+            <TimelineStep icon="" title="Bằng chứng từ Driver" isActive={true} isLast={false}>
+              <EvidenceGallery evidences={driverEvidences} />
             </TimelineStep>
           )}
 
           {/* Step 2: Owner response */}
           <TimelineStep
-            icon="🏢" title="Phản hồi từ Owner"
-            isActive={!!dispute.ownerResponse}
+            icon="" title="Phản hồi từ Owner"
+            isActive={hasOwnerResponded}
             isLast={!isResolved}
           >
-            {dispute.ownerResponse ? (
-              <p style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.6 }}>{dispute.ownerResponse}</p>
+            {hasOwnerResponded ? (
+              <div style={{ background: "#f8fafc", padding: 12, borderRadius: 10 }}>
+                {dispute.ownerResponse ? (
+                  <p style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.6 }}>{dispute.ownerResponse}</p>
+                ) : (
+                  <p style={{ fontSize: 13, color: "#9ca3af", fontStyle: "italic" }}>Owner chỉ cung cấp bằng chứng, không có nội dung chữ.</p>
+                )}
+                
+                {ownerEvidences.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <span style={{ fontSize: 13, color: "#64748b", marginBottom: 8, display: "block" }}>Bằng chứng Owner gửi ({ownerEvidences.length}):</span>
+                    <EvidenceGallery evidences={ownerEvidences} />
+                  </div>
+                )}
+              </div>
             ) : (
               <p style={{ fontSize: 13, color: "#9ca3af", fontStyle: "italic" }}>Đang chờ phản hồi...</p>
             )}
@@ -110,13 +128,13 @@ export default function DisputeDetail() {
           {/* Step 3: Admin resolution */}
           {isResolved && (
             <TimelineStep
-              icon="⚖️" title="Kết quả xử lý"
+              icon="️" title="Kết quả xử lý"
               time={dispute.resolvedAt ? toLocal(dispute.resolvedAt) : undefined}
               isActive={true} isLast={true}
             >
               <div style={{ padding: 12, borderRadius: 10, background: dispute.status === "ResolvedRefund" ? "#f0fdf4" : "#f5f3ff", marginBottom: 8 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: dispute.status === "ResolvedRefund" ? "#16a34a" : "#8b5cf6" }}>
-                  {dispute.status === "ResolvedRefund" ? "✅ Driver thắng — Hoàn tiền" : "💰 Owner thắng — Thanh toán"}
+                  {dispute.status === "ResolvedRefund" ? " Driver thắng — Hoàn tiền" : " Owner thắng — Thanh toán"}
                 </span>
               </div>
               {dispute.adminNote && (
@@ -131,7 +149,7 @@ export default function DisputeDetail() {
 
         {/* Booking Info */}
         <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12 }}>📋 Thông tin Booking</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12 }}> Thông tin Booking</h3>
           <InfoRow label="Mã Booking" value={`#${dispute.bookingId}`} />
           <InfoRow label="Người khiếu nại" value={dispute.createdByName} />
           <InfoRow label="Ngày tạo" value={toLocal(dispute.createdAt)} />
@@ -167,7 +185,7 @@ function TimelineStep({ icon, title, time, isActive, isLast, children }) {
 }
 
 function EvidenceGallery({ evidences }) {
-  const toUrl = (url) => url?.startsWith("http") ? url : `http://localhost:5162${url}`;
+  const toUrl = (url) => url?.startsWith("http") ? url : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${url}`;
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
       {evidences.map((ev) => (
@@ -185,7 +203,7 @@ function EvidenceGallery({ evidences }) {
             <img src={toUrl(ev.fileUrl)} alt="evidence" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 24 }}>
-              {ev.fileType === "video" ? "🎬" : "📄"}
+              {ev.fileType === "video" ? "" : ""}
             </div>
           )}
         </a>

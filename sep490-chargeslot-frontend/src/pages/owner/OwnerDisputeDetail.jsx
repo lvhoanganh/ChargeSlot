@@ -3,11 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { disputeApi } from "@/services/api";
 
 const STATUS_MAP = {
-  Open: { label: "Mở", color: "#f59e0b", bg: "#fffbeb", icon: "📝" },
-  WaitingOwnerEvidence: { label: "Chờ bạn phản hồi", color: "#f97316", bg: "#fff7ed", icon: "⏳" },
-  PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "🔍" },
-  ResolvedRefund: { label: "Hoàn tiền cho Driver", color: "#16a34a", bg: "#f0fdf4", icon: "✅" },
-  ResolvedPayout: { label: "Thanh toán cho Owner", color: "#8b5cf6", bg: "#f5f3ff", icon: "💰" },
+  Open: { label: "Mở", color: "#f59e0b", bg: "#fffbeb", icon: "" },
+  WaitingOwnerEvidence: { label: "Chờ bạn phản hồi", color: "#f97316", bg: "#fff7ed", icon: "" },
+  PendingReview: { label: "Chờ Admin xem xét", color: "#3b82f6", bg: "#eff6ff", icon: "" },
+  ResolvedRefund: { label: "Hoàn tiền cho Driver", color: "#16a34a", bg: "#f0fdf4", icon: "" },
+  ResolvedPayout: { label: "Thanh toán cho Owner", color: "#8b5cf6", bg: "#f5f3ff", icon: "" },
 };
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -92,7 +92,7 @@ export default function OwnerDisputeDetail() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>⚡</div>
+        <div style={{ fontSize: 40 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải thông tin khiếu nại...</p>
       </div>
     );
@@ -101,9 +101,9 @@ export default function OwnerDisputeDetail() {
   if (!dispute) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 48 }}>📋</div>
+        <div style={{ fontSize: 48 }}></div>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Khiếu nại không tồn tại</h2>
-        <button onClick={() => navigate("/owner/booking-requests")} style={btnStyle}>← Danh sách booking</button>
+        <button onClick={() => navigate("/owner/disputes")} style={btnStyle}>← Danh sách khiếu nại</button>
       </div>
     );
   }
@@ -112,11 +112,16 @@ export default function OwnerDisputeDetail() {
   const canRespond = dispute.status === "WaitingOwnerEvidence" && !success;
   const isResolved = dispute.status === "ResolvedRefund" || dispute.status === "ResolvedPayout";
 
+  const allEvidences = dispute.evidences ?? [];
+  const driverEvidences = allEvidences.filter((ev) => ev.uploadedByUserId === dispute.createdByUserId);
+  const ownerEvidences = allEvidences.filter((ev) => ev.uploadedByUserId !== dispute.createdByUserId);
+  const hasOwnerResponded = !!dispute.ownerResponse || ownerEvidences.length > 0;
+
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90 }}>
       <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px 40px" }}>
         <button
-          onClick={() => navigate("/owner/booking-requests")}
+          onClick={() => navigate("/owner/disputes")}
           style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 14, marginBottom: 12, display: "flex", alignItems: "center", gap: 4 }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
@@ -134,7 +139,7 @@ export default function OwnerDisputeDetail() {
 
         {/* Driver's complaint */}
         <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 20, marginBottom: 16 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12 }}>📤 Khiếu nại từ Driver</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12 }}> Khiếu nại từ Driver</h3>
           <InfoRow label="Người khiếu nại" value={dispute.createdByName} />
           <InfoRow label="Mã Booking" value={`#${dispute.bookingId}`} />
           <InfoRow label="Lý do" value={dispute.reason} />
@@ -143,10 +148,10 @@ export default function OwnerDisputeDetail() {
             <span style={{ fontSize: 13, color: "#64748b" }}>Mô tả:</span>
             <p style={{ fontSize: 14, color: "#1e293b", marginTop: 4, lineHeight: 1.6, background: "#f8fafc", padding: 12, borderRadius: 10 }}>{dispute.description}</p>
           </div>
-          {dispute.evidences?.length > 0 && (
+          {driverEvidences.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <span style={{ fontSize: 13, color: "#64748b", marginBottom: 8, display: "block" }}>Bằng chứng:</span>
-              <EvidenceGallery evidences={dispute.evidences} />
+              <EvidenceGallery evidences={driverEvidences} />
             </div>
           )}
         </div>
@@ -155,7 +160,7 @@ export default function OwnerDisputeDetail() {
         {canRespond && (
           <form onSubmit={handleSubmitEvidence}>
             <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 20, marginBottom: 16, border: "2px solid #f97316" }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: "#f97316", marginBottom: 16 }}>🏢 Phản hồi của bạn</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: "#f97316", marginBottom: 16 }}> Phản hồi của bạn</h3>
 
               <div style={{ marginBottom: 16 }}>
                 <label style={labelStyle}>Nội dung phản hồi</label>
@@ -187,7 +192,7 @@ export default function OwnerDisputeDetail() {
                     textAlign: "center", cursor: "pointer", background: "#fafafa",
                   }}
                 >
-                  <div style={{ fontSize: 28, marginBottom: 4 }}>📁</div>
+                  <div style={{ fontSize: 28, marginBottom: 4 }}></div>
                   <p style={{ fontSize: 13, fontWeight: 600, color: "#374151", margin: 0 }}>Nhấn để chọn file</p>
                   <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Ảnh, video — tối đa 5MB/file</p>
                 </div>
@@ -200,7 +205,7 @@ export default function OwnerDisputeDetail() {
                           <img src={ev.preview} alt={ev.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         ) : (
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 10, color: "#6b7280", padding: 4, textAlign: "center" }}>
-                            <span style={{ fontSize: 20 }}>{ev.fileType === "video" ? "🎬" : "📄"}</span>
+                            <span style={{ fontSize: 20 }}>{ev.fileType === "video" ? "" : ""}</span>
                             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{ev.name}</span>
                           </div>
                         )}
@@ -213,7 +218,7 @@ export default function OwnerDisputeDetail() {
                             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                           }}
                         >
-                          ✕
+                          
                         </button>
                       </div>
                     ))}
@@ -223,7 +228,7 @@ export default function OwnerDisputeDetail() {
 
               {error && (
                 <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
-                  <p style={{ fontSize: 13, color: "#dc2626", margin: 0 }}>❌ {error}</p>
+                  <p style={{ fontSize: 13, color: "#dc2626", margin: 0 }}> {error}</p>
                 </div>
               )}
 
@@ -237,7 +242,7 @@ export default function OwnerDisputeDetail() {
                   boxShadow: "0 4px 14px rgba(249,115,22,0.3)",
                 }}
               >
-                {submitting ? "Đang gửi..." : "📤 Gửi phản hồi"}
+                {submitting ? "Đang gửi..." : " Gửi phản hồi"}
               </button>
             </div>
           </form>
@@ -246,25 +251,36 @@ export default function OwnerDisputeDetail() {
         {/* Success */}
         {success && (
           <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "14px 18px", marginBottom: 16, textAlign: "center" }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: "#16a34a", margin: 0 }}>✅ Đã gửi phản hồi thành công! Admin sẽ xem xét sớm nhất.</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: "#16a34a", margin: 0 }}> Đã gửi phản hồi thành công! Admin sẽ xem xét sớm nhất.</p>
           </div>
         )}
 
         {/* Owner response (read-only if already responded) */}
-        {dispute.ownerResponse && !canRespond && (
+        {hasOwnerResponded && !canRespond && (
           <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 20, marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12 }}>🏢 Phản hồi của bạn</h3>
-            <p style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.6, background: "#f8fafc", padding: 12, borderRadius: 10 }}>{dispute.ownerResponse}</p>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12 }}> Phản hồi của bạn</h3>
+            {dispute.ownerResponse ? (
+              <p style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.6, background: "#f8fafc", padding: 12, borderRadius: 10 }}>{dispute.ownerResponse}</p>
+            ) : (
+              <p style={{ fontSize: 14, color: "#64748b", fontStyle: "italic", background: "#f8fafc", padding: 12, borderRadius: 10 }}>Chỉ gửi bằng chứng, không có nội dung chữ.</p>
+            )}
+            
+            {ownerEvidences.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <span style={{ fontSize: 13, color: "#64748b", marginBottom: 8, display: "block" }}>Bằng chứng đã cung cấp ({ownerEvidences.length}):</span>
+                <EvidenceGallery evidences={ownerEvidences} />
+              </div>
+            )}
           </div>
         )}
 
         {/* Resolution */}
         {isResolved && (
           <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: 20 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12 }}>⚖️ Kết quả xử lý</h3>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12 }}>️ Kết quả xử lý</h3>
             <div style={{ padding: 12, borderRadius: 10, background: dispute.status === "ResolvedRefund" ? "#fef2f2" : "#f0fdf4", marginBottom: 8 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: dispute.status === "ResolvedRefund" ? "#dc2626" : "#16a34a" }}>
-                {dispute.status === "ResolvedRefund" ? "❌ Driver thắng — Hoàn tiền" : "✅ Owner thắng — Thanh toán cho bạn"}
+                {dispute.status === "ResolvedRefund" ? " Driver thắng — Hoàn tiền" : " Owner thắng — Thanh toán cho bạn"}
               </span>
             </div>
             {dispute.adminNote && (
@@ -282,7 +298,7 @@ export default function OwnerDisputeDetail() {
 }
 
 function EvidenceGallery({ evidences }) {
-  const API_BASE = "http://localhost:5162";
+  const API_BASE = "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net";
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
       {evidences.map((ev) => {
@@ -294,7 +310,7 @@ function EvidenceGallery({ evidences }) {
               <img src={url} alt="evidence" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 24 }}>
-                {ev.fileType === "video" ? "🎬" : "📄"}
+                {ev.fileType === "video" ? "" : ""}
               </div>
             )}
           </a>

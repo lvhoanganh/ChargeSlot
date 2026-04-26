@@ -1,35 +1,61 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { bookingApi, reviewApi } from "@/services/api";
+import Pagination from "@/components/Pagination";
 
 const STARS = [1, 2, 3, 4, 5];
 
 export default function DriverReviews() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const highlightBookingId = location.state?.highlightBookingId;
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [reviewForm, setReviewForm] = useState(null); // { bookingId, rating, comment }
+  const [reviewForm, setReviewForm] = useState(null); // { bookingId, rating, comment, isAnonymous }
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   useEffect(() => {
-    bookingApi.getDriverBookings()
+    // Dùng history endpoint: trả về booking Completed/Cancelled/Rejected/Expired
+    // pageSize=200 để tránh bị mất booking cũ
+    bookingApi.getDriverHistory(1, 100)
       .then((data) => {
         const list = Array.isArray(data) ? data : data?.items || [];
         setBookings(list);
+        // Auto-mở form cho booking vừa hoàn thành nếu có highlightBookingId
+        if (highlightBookingId) {
+          const found = list.find(b => b.id === highlightBookingId && !b.hasReview);
+          if (found) {
+            setReviewForm({ bookingId: found.id, rating: 5, comment: "", isAnonymous: false });
+          }
+        }
       })
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
   }, []);
 
-  // Lọc booking đã hoàn thành (có thể đánh giá)
+  // Chỉ lọc Completed (bỏ Cancelled/Rejected)
   const completedBookings = bookings.filter(
     (b) => b.status === "Completed" || b.status === "completed"
   );
 
+  // Với cùng 1 trạm → chỉ hiển thị booking mới nhất (endTime lớn nhất)
+  const latestPerStation = Object.values(
+    completedBookings.reduce((acc, b) => {
+      const key = b.stationId || b.stationName || b.id;
+      if (!acc[key] || new Date(b.endTime) > new Date(acc[key].endTime)) {
+        acc[key] = b;
+      }
+      return acc;
+    }, {})
+  ).sort((a, b) => new Date(b.endTime) - new Date(a.endTime));
+
   const handleOpenReview = (bookingId) => {
-    setReviewForm({ bookingId, rating: 5, comment: "" });
+    setReviewForm({ bookingId, rating: 5, comment: "", isAnonymous: false });
     setErrorMsg("");
     setSuccessMsg("");
   };
@@ -43,12 +69,13 @@ export default function DriverReviews() {
         bookingId: reviewForm.bookingId,
         rating: reviewForm.rating,
         comment: reviewForm.comment || undefined,
+        isAnonymous: reviewForm.isAnonymous || false,
       });
-      setSuccessMsg("Đánh giá thành công! Cảm ơn bạn ⭐");
+      setSuccessMsg("Đánh giá thành công! Cảm ơn bạn ");
       setReviewForm(null);
-      // Reload bookings
-      const data = await bookingApi.getDriverBookings();
-      setBookings(Array.isArray(data) ? data : data?.items || []);
+      // Reload bookings sau khi đánh giá — dùng getDriverHistory (pageSize lớn để lấy đủ)
+      const refreshData = await bookingApi.getDriverHistory(1, 200);
+      setBookings(refreshData?.items ?? (Array.isArray(refreshData) ? refreshData : []));
     } catch (err) {
       const msg = err?.message || "Gửi đánh giá thất bại. Có thể bạn đã đánh giá booking này.";
       setErrorMsg(msg);
@@ -73,20 +100,21 @@ export default function DriverReviews() {
 
   return (
     <div style={{ maxWidth: 700, margin: "100px auto 40px", padding: "0 16px" }}>
-      <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1e293b", marginBottom: 6 }}>⭐ Đánh giá trạm sạc</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1e293b", marginBottom: 6 }}> Đánh giá trạm sạc</h1>
       <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>
         Đánh giá các lần sạc đã hoàn thành để giúp cải thiện dịch vụ.
       </p>
+      <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 16 }}>Tổng: {latestPerStation.length} lịch sạc</p>
 
       {successMsg && (
         <div style={{ background: "#f0fdf4", color: "#16a34a", padding: "12px 16px", borderRadius: 12, marginBottom: 16, fontSize: 14, border: "1px solid #bbf7d0" }}>
-          ✅ {successMsg}
+           {successMsg}
         </div>
       )}
 
-      {completedBookings.length === 0 ? (
+      {latestPerStation.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 20px", background: "#f8fafc", borderRadius: 16 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}></div>
           <p style={{ fontSize: 16, color: "#64748b", fontWeight: 600 }}>Chưa có booking nào hoàn thành</p>
           <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>Hoàn thành phiên sạc để có thể đánh giá.</p>
           <button
@@ -98,7 +126,7 @@ export default function DriverReviews() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {completedBookings.map((b) => (
+          {latestPerStation.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((b) => (
             <div
               key={b.id}
               style={{
@@ -115,7 +143,7 @@ export default function DriverReviews() {
                     {b.stationName || "Trạm sạc"}
                   </div>
                   <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-                    Slot: {b.slotName} · {toVN(b.startTime)} → {toVN(b.endTime)}
+                    Cổng sạc: {b.slotName} · {toVN(b.startTime)} → {toVN(b.endTime)}
                   </div>
                 </div>
                 <span style={{
@@ -128,7 +156,7 @@ export default function DriverReviews() {
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, color: "#64748b", marginBottom: 10 }}>
                 <span>Tổng: <strong style={{ color: "#f97316" }}>{b.totalAmount?.toLocaleString("vi-VN")}đ</strong></span>
-                <span>Thời lượng: {b.durationHours}h</span>
+                <span>Thời lượng: {Math.round(b.durationHours * 60)} phút</span>
               </div>
 
               {/* Review form or button */}
@@ -166,8 +194,19 @@ export default function DriverReviews() {
                     style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: 13, resize: "vertical", outline: "none", boxSizing: "border-box" }}
                   />
 
+                  {/* Anonymous checkbox */}
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer", fontSize: 13, color: "#374151" }}>
+                    <input
+                      type="checkbox"
+                      checked={reviewForm.isAnonymous || false}
+                      onChange={(e) => setReviewForm({ ...reviewForm, isAnonymous: e.target.checked })}
+                      style={{ width: 16, height: 16, accentColor: "#f97316", cursor: "pointer" }}
+                    />
+                    <span>Đánh giá <strong>ẩn danh</strong> (giấu tên của bạn)</span>
+                  </label>
+
                   {errorMsg && (
-                    <div style={{ color: "#dc2626", fontSize: 12, marginTop: 8 }}>⚠️ {errorMsg}</div>
+                    <div style={{ color: "#dc2626", fontSize: 12, marginTop: 8 }}>️ {errorMsg}</div>
                   )}
 
                   <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
@@ -180,7 +219,7 @@ export default function DriverReviews() {
                         color: "#fff", fontWeight: 700, fontSize: 13, cursor: submitting ? "not-allowed" : "pointer",
                       }}
                     >
-                      {submitting ? "Đang gửi..." : "Gửi đánh giá ⭐"}
+                      {submitting ? "Đang gửi..." : "Gửi đánh giá "}
                     </button>
                     <button
                       onClick={() => { setReviewForm(null); setErrorMsg(""); }}
@@ -193,22 +232,41 @@ export default function DriverReviews() {
                     </button>
                   </div>
                 </div>
+              ) : b.hasReview ? (
+                <div style={{
+                  width: "100%", padding: "10px 0", borderRadius: 10,
+                  background: "#f0fdf4", border: "2px solid #86efac",
+                  color: "#16a34a", fontWeight: 700, fontSize: 13, textAlign: "center",
+                }}>
+                  ✅ Đã đánh giá
+                </div>
               ) : (
                 <button
                   onClick={() => handleOpenReview(b.id)}
                   style={{
                     width: "100%", padding: "10px 0", borderRadius: 10, border: "2px solid #f97316",
-                    background: "#fff7ed", color: "#ea580c", fontWeight: 700, fontSize: 13,
+                    background: b.id === highlightBookingId ? "#f97316" : "#fff7ed",
+                    color: b.id === highlightBookingId ? "#fff" : "#ea580c",
+                    fontWeight: 700, fontSize: 13,
                     cursor: "pointer", transition: "all 0.2s",
                   }}
                   onMouseEnter={(e) => { e.target.style.background = "#f97316"; e.target.style.color = "#fff"; }}
-                  onMouseLeave={(e) => { e.target.style.background = "#fff7ed"; e.target.style.color = "#ea580c"; }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = b.id === highlightBookingId ? "#f97316" : "#fff7ed";
+                    e.target.style.color = b.id === highlightBookingId ? "#fff" : "#ea580c";
+                  }}
                 >
                   ⭐ Viết đánh giá
                 </button>
               )}
             </div>
           ))}
+          <Pagination
+            page={page}
+            totalCount={latestPerStation.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={(p) => setPage(p)}
+          />
         </div>
       )}
     </div>

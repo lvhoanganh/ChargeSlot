@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { stationApi } from "@/services/api";
+import { stationApi, chargingApi } from "@/services/api";
+import { formatVN } from "@/utils/dateVN";
+import { showToast } from "@/components/Toast";
+import { showConfirm } from "@/components/ConfirmDialog";
 
 export default function StationDetail() {
   const { id } = useParams();
@@ -9,6 +12,7 @@ export default function StationDetail() {
   const [station, setStation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeSlotIds, setActiveSlotIds] = useState(new Set()); // Track slots with active sessions
 
   const dayNames = [
     "Chủ nhật",
@@ -24,6 +28,30 @@ export default function StationDetail() {
     loadStation();
   }, [id]);
 
+  // Fetch active charging sessions for this station
+  useEffect(() => {
+    if (!id || !station?.chargingSlots) return;
+    const fetchActiveSessions = async () => {
+      try {
+        const response = await chargingApi.getByStationId(Number(id));
+        const activeSessions = Array.isArray(response)
+          ? response.filter(s => !s.actualEndTime && s.bookingStatus !== "Completed")
+          : (response?.items || []).filter(s => !s.actualEndTime && s.bookingStatus !== "Completed");
+        
+        const slotIds = new Set(activeSessions.map(s => s.slotId));
+        setActiveSlotIds(slotIds);
+      } catch { 
+        // Reset on error
+        setActiveSlotIds(new Set());
+      }
+    };
+    
+    fetchActiveSessions();
+    // Poll every 5 seconds to update active slots
+    const interval = setInterval(fetchActiveSessions, 5000);
+    return () => clearInterval(interval);
+  }, [id, station?.chargingSlots]);
+
   const loadStation = async () => {
     try {
       setLoading(true);
@@ -37,7 +65,7 @@ export default function StationDetail() {
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Bạn có chắc muốn xóa trạm "${station.name}"?`)) return;
+    if (!(await showConfirm(`Bạn có chắc muốn xóa trạm "${station.name}"?`, "Xóa trạm sạc"))) return;
 
     try {
       await stationApi.delete(id);
@@ -49,7 +77,7 @@ export default function StationDetail() {
   };
 
   const handleSubmitForApproval = async () => {
-    if (!confirm(`Gửi trạm "${station.name}" đi phê duyệt?`)) return;
+    if (!(await showConfirm(`Gửi trạm "${station.name}" đi phê duyệt?`, "Gửi phê duyệt"))) return;
 
     try {
       await stationApi.submitForApproval(id);
@@ -159,7 +187,7 @@ export default function StationDetail() {
                 {station.name}
               </h1>
               <p className="text-gray-600 mt-2 flex items-center gap-3">
-                <span>📍 {station.address}</span>
+                <span> {station.address}</span>
               </p>
             </div>
 
@@ -175,20 +203,20 @@ export default function StationDetail() {
           <div className="mb-6 flex gap-3">
             <Link to={`/stations/${id}/edit`}>
               <Button className="bg-indigo-500 hover:bg-indigo-600">
-                ✏️ Chỉnh sửa
+                ️ Chỉnh sửa
               </Button>
             </Link>
             <Button
               onClick={handleSubmitForApproval}
               className="bg-green-500 hover:bg-green-600"
             >
-              ✓ Gửi phê duyệt
+               Gửi phê duyệt
             </Button>
             <Button
               onClick={handleDelete}
               className="bg-red-500 hover:bg-red-600"
             >
-              🗑️ Xóa
+              ️ Xóa
             </Button>
           </div>
         )}
@@ -250,7 +278,7 @@ export default function StationDetail() {
                 <div className="grid grid-cols-3 gap-4">
                   <span className="text-gray-600 font-medium">Tạo lúc:</span>
                   <span className="col-span-2 text-gray-900">
-                    {new Date(station.createdAt).toLocaleString("vi-VN")}
+                    {formatVN(station.createdAt)}
                   </span>
                 </div>
 
@@ -258,7 +286,7 @@ export default function StationDetail() {
                   <div className="grid grid-cols-3 gap-4">
                     <span className="text-gray-600 font-medium">Cập nhật:</span>
                     <span className="col-span-2 text-gray-900">
-                      {new Date(station.updatedAt).toLocaleString("vi-VN")}
+                      {formatVN(station.updatedAt)}
                     </span>
                   </div>
                 )}
@@ -331,29 +359,35 @@ export default function StationDetail() {
                 </h2>
 
                 <div className="space-y-3">
-                  {station.chargingSlots.map((slot) => (
-                    <div
-                      key={slot.id}
-                      className="flex justify-between items-center p-3 bg-gray-50 rounded border"
-                    >
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {slot.slotName}
+                  {[...station.chargingSlots].sort((a, b) => (a.slotName || "").localeCompare(b.slotName || "", undefined, { numeric: true, sensitivity: "base" })).map((slot) => {
+                    // Check if this slot has an active charging session
+                    const hasActiveSession = activeSlotIds.has(slot.id);
+                    const displayStatus = hasActiveSession ? "Occupied" : slot.status;
+                    
+                    return (
+                      <div
+                        key={slot.id}
+                        className="flex justify-between items-center p-3 bg-gray-50 rounded border"
+                      >
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {slot.slotName}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {slot.connectorType} • {slot.powerOutput}kW
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-600">
-                          {slot.connectorType} • {slot.powerOutput}kW
+                        <div className="text-right">
+                          <div className="font-semibold text-orange-600">
+                            {slot.pricePerHour?.toLocaleString("vi-VN")}đ/giờ
+                          </div>
+                          <div className={`text-xs ${hasActiveSession ? "text-red-600 font-medium" : "text-gray-500"}`}>
+                            {displayStatus === "Occupied" ? "Đang dùng" : displayStatus}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-orange-600">
-                          {slot.pricePerHour?.toLocaleString("vi-VN")}đ/giờ
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {slot.status}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

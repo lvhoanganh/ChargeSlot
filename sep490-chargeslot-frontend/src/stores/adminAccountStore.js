@@ -4,7 +4,7 @@ import { create } from "zustand";
 export const useAdminAccountStore = create((set, get) => ({
   users: [],
   totalItems: 0,
-  summary: { total: 0, active: 0, banned: 0 },
+  summary: { total: 0, active: 0, banned: 0, totalOwners: 0, totalDrivers: 0, totalAdmins: 0 },
   loading: false,
   error: "",
 
@@ -21,8 +21,7 @@ export const useAdminAccountStore = create((set, get) => ({
       const res = await instance.get("/AdminAccounts", { params });
       const data = res.data;
 
-      const sorted = (data.items || []).sort((a, b) => a.id - b.id);
-      set({ users: sorted, totalItems: data.totalItems || 0 });
+      set({ users: data.items || [], totalItems: data.totalItems || 0 });
     } catch (error) {
       const msg =
         error?.response?.data?.message ||
@@ -43,6 +42,9 @@ export const useAdminAccountStore = create((set, get) => ({
           total: data.totalAccounts,
           active: data.activeAccounts,
           banned: data.bannedAccounts,
+          totalOwners: data.totalOwners || 0,
+          totalDrivers: data.totalDrivers || 0,
+          totalAdmins: data.totalAdmins || 0,
         },
       });
     } catch {
@@ -50,8 +52,22 @@ export const useAdminAccountStore = create((set, get) => ({
     }
   },
 
-  toggleBan: async (id) => {
-    const res = await instance.patch(`/AdminAccounts/${id}/toggle-ban`);
+  toggleBan: async (id, reason = "") => {
+    const res = await instance.post(`/AdminAccounts/${id}/toggle-ban`, { reason });
     return res.data;
   },
+
+  /** Reset toàn bộ state về mặc định (gọi khi logout) */
+  reset: () => set({
+    users: [],
+    totalItems: 0,
+    summary: { total: 0, active: 0, banned: 0, totalOwners: 0, totalDrivers: 0, totalAdmins: 0 },
+    loading: false,
+    error: "",
+  }),
 }));
+
+// Tự động reset khi logout (lắng nghe event từ authStore.logout())
+window.addEventListener("cs:logout", () => {
+  useAdminAccountStore.getState().reset();
+});

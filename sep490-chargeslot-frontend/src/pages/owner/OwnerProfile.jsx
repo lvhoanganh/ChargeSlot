@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { instance } from "@/lib/httpRequest";
+import { authApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { showToast } from "@/components/Toast";
+import { ShieldCheck, Phone, Mail, Building2, Receipt } from "lucide-react";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
@@ -17,15 +20,39 @@ export default function OwnerProfile() {
   const { phoneNumber: storedPhoneNumber } = useAuthStore();
   const phoneNumber =
     storedPhoneNumber || localStorage.getItem("phoneNumber") || "";
-  const avatarSrc = getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR;
 
   const [profile, setProfile] = useState(null);
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState(() => {
+    const direct = localStorage.getItem("fullName") || "";
+    if (direct) return direct;
+    try {
+      const map = JSON.parse(localStorage.getItem("userInfoByPhone") || "{}");
+      return map?.[phoneNumber]?.fullName || "";
+    } catch {
+      return "";
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [avatarSrc, setAvatarSrc] = useState(
+    () => getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR
+  );
+
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
   const businessName = normalizeOptionalText(profile?.businessName);
   const taxCode = normalizeOptionalText(profile?.taxCode);
   const hasBusinessInfo = !!businessName && !!taxCode;
+
+  useEffect(() => {
+    let timer;
+    if (showOtpModal && cooldown > 0) {
+      timer = setInterval(() => setCooldown(c => c - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showOtpModal, cooldown]);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,8 +61,29 @@ export default function OwnerProfile() {
       setLoading(true);
       setError("");
       try {
-        const data = await getOwnerProfile();
-        if (!cancelled) setProfile(data);
+        const [data, meData] = await Promise.all([
+          getOwnerProfile(),
+          authApi.getMe().catch(() => null),
+        ]);
+        if (!cancelled) {
+          setProfile(data);
+          if (data?.fullName) setFullName(data.fullName);
+          else if (meData?.name || meData?.fullName) setFullName(meData.name || meData.fullName);
+          if (meData?.email) setEmail(meData.email);
+          if (meData?.pendingEmail) setProfile(prev => ({ ...prev, pendingEmail: meData.pendingEmail }));
+          // Ưu tiên avatar từ server (đồng bộ qua mọi thiết bị)
+          const remoteAvatar = data?.avatarUrl || meData?.avatarUrl;
+          if (remoteAvatar) {
+            const url = remoteAvatar.startsWith("http")
+              ? remoteAvatar
+              : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${remoteAvatar.startsWith("/") ? "" : "/"}${remoteAvatar}`;
+            setAvatarSrc(url);
+          } else {
+            // Fallback: localStorage (chỉ có trên thiết bị đã upload)
+            const local = getStoredAvatarDataUrl(phoneNumber);
+            if (local) setAvatarSrc(local);
+          }
+        }
       } catch (e) {
         if (!cancelled) setError(getApiErrorMessage(e, "Không thể tải thông tin hồ sơ"));
       } finally {
@@ -47,7 +95,7 @@ export default function OwnerProfile() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [phoneNumber]);
 
   return (
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
@@ -81,10 +129,10 @@ export default function OwnerProfile() {
                 Hồ sơ chủ trạm
               </h1>
               <p className="text-white/80 text-sm">
-                {maskPhone(phoneNumber) || "Chưa cập nhật số điện thoại"}
+                {fullName || "Chưa cập nhật họ tên"}
               </p>
               <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
-                ⚡ Chủ trạm
+                 Chủ trạm
               </span>
             </div>
           </div>
@@ -137,10 +185,45 @@ export default function OwnerProfile() {
 
             {!loading && !error && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <InfoCard icon="🏷️" label="Vai trò" value="Chủ trạm" />
-                <InfoCard icon="📱" label="Số điện thoại" value={maskPhone(phoneNumber) || "—"} />
-                <InfoCard icon="🏢" label="Tên doanh nghiệp" value={hasBusinessInfo ? businessName : "—"} />
-                <InfoCard icon="📋" label="Mã số thuế" value={hasBusinessInfo ? maskTaxCode(taxCode) : "—"} />
+                <InfoCard icon={<ShieldCheck className="text-gray-500" size={20} />} label="Vai trò" value="Chủ trạm" />
+                <InfoCard icon={<Phone className="text-gray-500" size={20} />} label="Số điện thoại" value={maskPhone(phoneNumber) || "—"} />
+                <InfoCard icon={<Mail className="text-gray-500" size={20} />} label="Email" value={email || "—"} />
+                <InfoCard icon={<Building2 className="text-gray-500" size={20} />} label="Tên doanh nghiệp" value={hasBusinessInfo ? businessName : "—"} />
+                <InfoCard icon={<Receipt className="text-gray-500" size={20} />} label="Mã số thuế" value={hasBusinessInfo ? maskTaxCode(taxCode) : "—"} />
+              </div>
+            )}
+
+            {!loading && !error && profile?.pendingEmail && (
+              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-3 shadow-sm">
+                <svg className="w-5 h-5 text-yellow-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-[1]">
+                  <p className="text-sm text-yellow-700 font-medium tracking-tight">Email đang chờ xác minh</p>
+                  <p className="text-[13px] text-yellow-600 font-semibold">{profile.pendingEmail}</p>
+                </div>
+                <button
+                  onClick={() => setShowOtpModal(true)}
+                  className="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold rounded-lg shadow-sm transition-colors whitespace-nowrap"
+                >
+                  Gửi lại Link
+                </button>
+              </div>
+            )}
+
+            {!loading && !error && (profile?.strikeCount > 0 || profile?.disputeStrikes > 0 || profile?.user?.strikeCount > 0) && (
+              <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+                <svg className="w-6 h-6 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div className="flex-[1]">
+                  <p className="text-sm text-red-700 font-bold tracking-tight">Cảnh cáo vi phạm (Strike Warning)</p>
+                  <p className="text-[13px] text-red-600 mt-0.5 leading-snug">
+                    Tài khoản của bạn hiện có <strong>{profile.strikeCount || profile.disputeStrikes || profile.user?.strikeCount}</strong> vi phạm từ các khiếu nại.
+                    Nếu đạt mốc 3 vi phạm, tài khoản có thể bị khóa. Vui lòng tuân thủ quy định!
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -159,7 +242,7 @@ export default function OwnerProfile() {
             <Button
               variant="outline"
               className="flex-1 h-11 border-red-300 text-red-500 hover:bg-red-50 rounded-xl font-medium transition-all"
-              onClick={() => navigate("/change-password")}
+              onClick={() => navigate("/owner/change-password")}
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -169,6 +252,40 @@ export default function OwnerProfile() {
           </div>
         </div>
       </div>
+
+      {/* OTP Modal */}
+      {showOtpModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 400, overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                 Xác thực email mới
+              </h3>
+            </div>
+            <div style={{ padding: 24 }}>
+              <p style={{ color: "#475569", fontSize: 14, marginBottom: 16, lineHeight: 1.5 }}>
+                Một link xác thực đã được gửi đến:<br />
+                <strong style={{ color: "#1e293b" }}>{profile?.pendingEmail}</strong>
+              </p>
+              <p style={{ color: "#64748b", fontSize: 13, marginBottom: 16 }}>
+                Vui lòng kiểm tra hộp thư đến (và thư mục rác) để xác thực email. Link sẽ hết hạn sau 24 giờ.
+              </p>
+              <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "#64748b" }}>
+                {cooldown > 0 ? (
+                  <span>Gửi lại sau: {String(Math.floor(cooldown / 60)).padStart(2, '0')}:{String(cooldown % 60).padStart(2, '0')} ️</span>
+                ) : (
+                  <button onClick={() => { authApi.addEmail(profile.pendingEmail); setCooldown(45); }} style={{ background: "none", border: "none", color: "#f97316", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Gửi lại Link xác nhận</button>
+                )}
+              </div>
+            </div>
+            <div style={{ padding: "16px 24px", background: "#f8fafc", display: "flex", gap: 10 }}>
+              <button onClick={() => setShowOtpModal(false)} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                 Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

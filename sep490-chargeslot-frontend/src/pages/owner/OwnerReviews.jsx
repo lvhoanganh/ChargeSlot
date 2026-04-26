@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { stationApi, reviewApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+import Pagination from "@/components/Pagination";
 
 const STARS = [1, 2, 3, 4, 5];
 
@@ -18,6 +19,8 @@ export default function OwnerReviews() {
   const [reviews, setReviews] = useState([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 10;
   const [replyingId, setReplyingId] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
@@ -27,8 +30,9 @@ export default function OwnerReviews() {
     stationApi.getAll()
       .then((data) => {
         const list = Array.isArray(data) ? data : data?.items || [];
-        setStations(list);
-        if (list.length > 0) loadStation(list[0]);
+        const approvedList = list.filter(st => st.approvalStatus === "Approved");
+        setStations(approvedList);
+        if (approvedList.length > 0) loadStation(approvedList[0]);
       })
       .catch(() => setStations([]))
       .finally(() => setLoading(false));
@@ -40,10 +44,12 @@ export default function OwnerReviews() {
     setReviewLoading(true);
     Promise.all([
       reviewApi.getSummary(station.id).catch(() => null),
-      reviewApi.getByStation(station.id, 1, 20).catch(() => []),
+      reviewApi.getByStation(station.id, 1, PAGE_SIZE).catch(() => []),
     ]).then(([sum, revs]) => {
       setSummary(sum);
-      setReviews(Array.isArray(revs) ? revs : revs?.items || []);
+      const list = Array.isArray(revs) ? revs : revs?.items || [];
+      setReviews(list);
+      setTotalCount(revs?.totalCount ?? revs?.total ?? list.length);
     }).finally(() => setReviewLoading(false));
   }
 
@@ -56,8 +62,10 @@ export default function OwnerReviews() {
       setReplyingId(null);
       setReplyText("");
       // Reload reviews
-      const revs = await reviewApi.getByStation(selectedStation.id, 1, 20).catch(() => []);
-      setReviews(Array.isArray(revs) ? revs : revs?.items || []);
+      const revs = await reviewApi.getByStation(selectedStation.id, page, PAGE_SIZE).catch(() => []);
+      const list = Array.isArray(revs) ? revs : revs?.items || [];
+      setReviews(list);
+      setTotalCount(revs?.totalCount ?? revs?.total ?? list.length);
     } catch (err) {
       showToast.error(err?.message || "Lỗi gửi phản hồi");
     } finally {
@@ -68,7 +76,7 @@ export default function OwnerReviews() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>⭐</div>
+        <div style={{ fontSize: 40 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải...</p>
       </div>
     );
@@ -77,7 +85,7 @@ export default function OwnerReviews() {
   if (stations.length === 0) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+        <div style={{ fontSize: 48, marginBottom: 12 }}></div>
         <p style={{ fontSize: 16, color: "#64748b", fontWeight: 600 }}>Bạn chưa có trạm sạc nào</p>
       </div>
     );
@@ -90,7 +98,7 @@ export default function OwnerReviews() {
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 90 }}>
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 16px 40px" }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1e293b", marginBottom: 6 }}>
-          ⭐ Đánh giá trạm sạc
+           Đánh giá trạm sạc
         </h1>
         <p style={{ fontSize: 14, color: "#64748b", marginBottom: 20 }}>
           Xem đánh giá từ driver và phản hồi.
@@ -133,7 +141,7 @@ export default function OwnerReviews() {
               </div>
               <div style={{ display: "flex", justifyContent: "center", gap: 2, marginBottom: 4 }}>
                 {STARS.map((s) => (
-                  <span key={s} style={{ fontSize: 16, color: s <= Math.round(avgRating) ? "#f59e0b" : "#d1d5db" }}>★</span>
+                  <span key={s} style={{ fontSize: 16, color: s <= Math.round(avgRating) ? "#f59e0b" : "#d1d5db" }}></span>
                 ))}
               </div>
               <div style={{ fontSize: 12, color: "#6b7280" }}>{totalReviews} đánh giá</div>
@@ -144,7 +152,7 @@ export default function OwnerReviews() {
                 const pct = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
                 return (
                   <div key={star} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", width: 40 }}>{star} ★</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", width: 40 }}>{star} </span>
                     <div style={{ flex: 1, height: 8, background: "#f1f5f9", borderRadius: 4, overflow: "hidden" }}>
                       <div style={{ height: "100%", width: `${pct}%`, background: "#f59e0b", borderRadius: 4, transition: "width 0.5s" }} />
                     </div>
@@ -166,7 +174,7 @@ export default function OwnerReviews() {
             textAlign: "center", padding: 40, background: "#fff", borderRadius: 16,
             boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
           }}>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>📝</div>
+            <div style={{ fontSize: 48, marginBottom: 8 }}></div>
             <p style={{ color: "#6b7280" }}>Chưa có đánh giá nào cho trạm này</p>
           </div>
         ) : (
@@ -183,7 +191,7 @@ export default function OwnerReviews() {
                     background: "#f1f5f9", display: "flex", alignItems: "center",
                     justifyContent: "center", fontSize: 16, flexShrink: 0,
                   }}>
-                    👤
+                    
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>
@@ -195,7 +203,7 @@ export default function OwnerReviews() {
                   </div>
                   <div style={{ display: "flex", gap: 1 }}>
                     {STARS.map((s) => (
-                      <span key={s} style={{ fontSize: 14, color: s <= r.rating ? "#f59e0b" : "#d1d5db" }}>★</span>
+                      <span key={s} style={{ fontSize: 14, color: s <= r.rating ? "#f59e0b" : "#d1d5db" }}></span>
                     ))}
                   </div>
                 </div>
@@ -275,13 +283,31 @@ export default function OwnerReviews() {
                           cursor: "pointer",
                         }}
                       >
-                        💬 Phản hồi
+                         Phản hồi
                       </button>
                     )}
                   </>
                 )}
               </div>
             ))}
+            <Pagination
+              page={page}
+              totalCount={totalCount}
+              pageSize={PAGE_SIZE}
+              onPageChange={async (p) => {
+                setPage(p);
+                if (!selectedStation) return;
+                setReviewLoading(true);
+                try {
+                  const revs = await reviewApi.getByStation(selectedStation.id, p, PAGE_SIZE);
+                  const list = Array.isArray(revs) ? revs : revs?.items || [];
+                  setReviews(list);
+                  setTotalCount(revs?.totalCount ?? revs?.total ?? list.length);
+                } finally {
+                  setReviewLoading(false);
+                }
+              }}
+            />
           </div>
         )}
       </div>

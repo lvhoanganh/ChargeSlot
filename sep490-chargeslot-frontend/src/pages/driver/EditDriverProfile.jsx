@@ -6,7 +6,9 @@ import { driverEditProfileSchema } from "@/schemas/driverEditProfileSchema";
 import { useAuthStore } from "@/stores/authStore";
 import { instance } from "@/lib/httpRequest";
 import { useEffect, useState } from "react";
-import { driverProfileApi } from "@/services/api";
+import { driverProfileApi, authApi } from "@/services/api";
+import { showToast } from "@/components/Toast";
+import { ShieldCheck, Phone, Mail, CarFront, Hash, FileText } from "lucide-react";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
@@ -37,12 +39,26 @@ export default function EditDriverProfile() {
       vehicleType: "",
       licensePlate: "",
       licenseNumber: "",
+      email: "",
     },
   });
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [originalEmail, setOriginalEmail] = useState("");
+  const [fullName, setFullName] = useState(() => {
+    const direct = localStorage.getItem("fullName") || "";
+    if (direct) return direct;
+    try {
+      const map = JSON.parse(localStorage.getItem("userInfoByPhone") || "{}");
+      return map?.[phoneNumber]?.fullName || "";
+    } catch { return ""; }
+  });
+
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [cooldown, setCooldown] = useState(45);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,17 +67,32 @@ export default function EditDriverProfile() {
       setLoading(true);
       setError("");
       try {
-        const p = await getDriverProfile();
+        const [p, meData] = await Promise.all([
+          getDriverProfile(),
+          authApi.getMe().catch(() => null),
+        ]);
         if (cancelled) return;
+
+        const currentEmail = meData?.email || "";
+        setOriginalEmail(currentEmail);
+
+        const resolvedFullName =
+          p?.fullName ||
+          meData?.name ||
+          meData?.fullName ||
+          localStorage.getItem("fullName") ||
+          "";
+        if (resolvedFullName) setFullName(resolvedFullName);
         reset({
-          fullName: p?.fullName || "",
+          fullName: resolvedFullName,
+          email: currentEmail,
           vehicleType: p?.vehicleType || "",
           licensePlate: p?.licensePlate || "",
           licenseNumber: p?.licenseNumber || "",
         });
         // Load server avatar if available
         if (p?.avatarUrl) {
-          const url = p.avatarUrl.startsWith("/") ? `http://localhost:5162${p.avatarUrl}` : p.avatarUrl;
+          const url = p.avatarUrl.startsWith("http") ? p.avatarUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${p.avatarUrl.startsWith("/") ? "" : "/"}${p.avatarUrl}`;
           setAvatar(url);
         }
       } catch (e) {
@@ -89,7 +120,7 @@ export default function EditDriverProfile() {
       // Upload to server
       const result = await driverProfileApi.uploadAvatar(file);
       if (result?.avatarUrl) {
-        const fullUrl = result.avatarUrl.startsWith("/") ? `http://localhost:5162${result.avatarUrl}` : result.avatarUrl;
+        const fullUrl = result.avatarUrl.startsWith("http") ? result.avatarUrl : `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${result.avatarUrl.startsWith("/") ? "" : "/"}${result.avatarUrl}`;
         setAvatar(fullUrl);
       }
     } catch {
@@ -113,13 +144,29 @@ export default function EditDriverProfile() {
         licenseNumber: ln || null,
       });
 
-      navigate("/driver/driver-profile");
+      if (values.email && values.email !== originalEmail) {
+        await authApi.addEmail(values.email);
+        setPendingEmail(values.email);
+        setShowOtpModal(true);
+        setCooldown(45);
+      } else {
+        showToast.success("Cập nhật thông tin thành công");
+        navigate("/driver/driver-profile");
+      }
     } catch (e) {
       setError(getApiErrorMessage(e, "Lưu thất bại"));
     } finally {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    let timer;
+    if (showOtpModal && cooldown > 0) {
+      timer = setInterval(() => setCooldown(c => c - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showOtpModal, cooldown]);
 
   return (
     <div className="min-h-[calc(100vh-64px)] px-4 py-10 pt-24" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e8ecf1 100%)" }}>
@@ -160,10 +207,10 @@ export default function EditDriverProfile() {
                 Chỉnh sửa hồ sơ
               </h1>
               <p className="text-white/80 text-sm">
-                {maskPhone(phoneNumber) || "Chưa cập nhật số điện thoại"}
+                {fullName || "Chưa cập nhật họ tên"}
               </p>
               <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
-                🚗 Tài xế
+                 Tài xế
               </span>
             </div>
           </div>
@@ -205,25 +252,32 @@ export default function EditDriverProfile() {
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <ReadOnlyField icon="🏷️" label="Vai trò" value="Tài xế" />
-                <ReadOnlyField icon="📱" label="Số điện thoại" value={phoneNumber || "—"} />
+                <ReadOnlyField icon={<ShieldCheck className="text-gray-500" size={20} />} label="Vai trò" value="Tài xế" />
+                <ReadOnlyField icon={<Phone className="text-gray-500" size={20} />} label="Số điện thoại" value={phoneNumber || "—"} />
 
                 <InputField
-                  icon="🚙"
+                  icon={<Mail className="text-gray-500" size={20} />}
+                  label="Email"
+                  placeholder="Nhập email"
+                  error={errors.email?.message}
+                  {...register("email")}
+                />
+                <InputField
+                  icon={<CarFront className="text-gray-500" size={20} />}
                   label="Loại xe"
                   placeholder="Ví dụ: Xe máy, Ô tô..."
                   error={errors.vehicleType?.message}
                   {...register("vehicleType")}
                 />
                 <InputField
-                  icon="🔢"
+                  icon={<Hash className="text-gray-500" size={20} />}
                   label="Biển số"
                   placeholder="Nhập biển số"
                   error={errors.licensePlate?.message}
                   {...register("licensePlate")}
                 />
                 <InputField
-                  icon="📄"
+                  icon={<FileText className="text-gray-500" size={20} />}
                   label="Số giấy phép (12 số)"
                   placeholder="Nhập số giấy phép"
                   inputMode="numeric"
@@ -269,6 +323,39 @@ export default function EditDriverProfile() {
           </form>
         </div>
       </div>
+
+      {showOtpModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 400, overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                 Xác thực email mới
+              </h3>
+            </div>
+            <div style={{ padding: 24 }}>
+              <p style={{ color: "#475569", fontSize: 14, marginBottom: 16, lineHeight: 1.5 }}>
+                Một link xác thực đã được gửi đến:<br />
+                <strong style={{ color: "#1e293b" }}>{pendingEmail}</strong>
+              </p>
+              <p style={{ color: "#64748b", fontSize: 13, marginBottom: 16 }}>
+                Vui lòng kiểm tra hộp thư đến (và thư mục rác) để xác thực email. Link sẽ hết hạn sau 24 giờ.
+              </p>
+              <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "#64748b" }}>
+                {cooldown > 0 ? (
+                  <span>Gửi lại sau: {String(Math.floor(cooldown / 60)).padStart(2, '0')}:{String(cooldown % 60).padStart(2, '0')} ️</span>
+                ) : (
+                  <button onClick={() => { authApi.addEmail(pendingEmail); setCooldown(45); }} style={{ background: "none", border: "none", color: "#f97316", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}>Gửi lại Link xác nhận</button>
+                )}
+              </div>
+            </div>
+            <div style={{ padding: "16px 24px", background: "#f8fafc", display: "flex", gap: 10 }}>
+              <button onClick={() => { setShowOtpModal(false); navigate("/driver/driver-profile"); }} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                 Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -375,7 +462,7 @@ function normalizePhoneForKey(rawPhone) {
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("read-failed"));
+    reader.onerror = () => reject(new Error("Đọc file ảnh thất bại"));
     reader.onload = () => resolve(String(reader.result || ""));
     reader.readAsDataURL(file);
   });

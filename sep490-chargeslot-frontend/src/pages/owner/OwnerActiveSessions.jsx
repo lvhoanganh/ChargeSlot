@@ -1,19 +1,20 @@
 import { useState, useEffect } from "react";
 import { chargingApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
+import { PowerOff, AlertTriangle } from "lucide-react";
 
 const toLocal = (dt) => {
   if (!dt) return "—";
+  if (typeof dt === "number") return new Date(dt).toLocaleString("vi-VN");
   const s = String(dt);
   return new Date(String(s).replace("Z", "")).toLocaleString("vi-VN");
 };
 
 function formatElapsed(startTime) {
   if (!startTime) return "—";
-  const s = String(startTime);
-  const start = new Date(String(s).replace("Z", ""));
-  const now = new Date();
-  const diff = Math.floor((now - start) / 1000);
+  const startMs = typeof startTime === "number" ? startTime : new Date(String(startTime).replace("Z", "")).getTime();
+  const diff = Math.floor((Date.now() - startMs) / 1000);
+  if (diff < 0) return "Chờ đến giờ sạc...";
   const h = Math.floor(diff / 3600);
   const m = Math.floor((diff % 3600) / 60);
   return h > 0 ? `${h} giờ ${m} phút` : `${m} phút`;
@@ -27,7 +28,7 @@ export default function OwnerActiveSessions() {
 
   function fetchSessions() {
     chargingApi.getActiveSessions()
-      .then((data) => setSessions(Array.isArray(data) ? data : []))
+      .then((data) => setSessions(Array.isArray(data) ? data : (data?.items || [])))
       .catch(() => setSessions([]))
       .finally(() => setLoading(false));
   }
@@ -54,7 +55,7 @@ export default function OwnerActiveSessions() {
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc", paddingTop: 100, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>⚡</div>
+        <div style={{ fontSize: 40 }}></div>
         <p style={{ color: "#6b7280" }}>Đang tải phiên sạc...</p>
       </div>
     );
@@ -76,18 +77,23 @@ export default function OwnerActiveSessions() {
             onClick={() => { setLoading(true); fetchSessions(); }}
             style={{ padding: "8px 16px", borderRadius: 10, border: "1.5px solid #e5e7eb", background: "#fff", color: "#374151", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
           >
-            🔄 Làm mới
+             Làm mới
           </button>
         </div>
 
         {sessions.length === 0 ? (
           <div style={{ textAlign: "center", padding: 60, background: "#fff", borderRadius: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-            <div style={{ fontSize: 56, marginBottom: 12 }}>🔌</div>
+            <div style={{ fontSize: 56, marginBottom: 12 }}></div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>Không có phiên sạc nào</h2>
             <p style={{ color: "#6b7280", fontSize: 14 }}>Các phiên sạc đang diễn ra sẽ hiển thị tại đây</p>
           </div>
         ) : (
-          sessions.map((s) => (
+          sessions.map((s) => {
+            const actMs = s.actualStartTime ? new Date(String(s.actualStartTime).replace("Z", "")).getTime() : Date.now();
+            const schedMs = s.bookingStartTime ? new Date(String(s.bookingStartTime).replace("Z", "")).getTime() : actMs;
+            const effectiveStartMs = Math.max(isNaN(actMs) ? Date.now() : actMs, isNaN(schedMs) ? 0 : schedMs);
+
+            return (
             <div
               key={s.id}
               style={{
@@ -100,20 +106,20 @@ export default function OwnerActiveSessions() {
                 <div>
                   <span style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>Phiên #{s.id}</span>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "#06b6d4", background: "#ecfeff", padding: "3px 8px", borderRadius: 12, marginLeft: 8 }}>
-                    ⚡ Đang sạc
+                     Đang sạc
                   </span>
                 </div>
-                <span style={{ fontSize: 13, color: "#6b7280" }}>Booking #{s.bookingId}</span>
+                <span style={{ fontSize: 13, color: "#6b7280" }}>Mã đặt lịch #{s.bookingId}</span>
               </div>
 
               {/* Info */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-                <InfoItem label="Driver" value={s.driverName || "—"} />
+                <InfoItem label="Tài xế" value={s.driverName || "—"} />
                 <InfoItem label="Trạm" value={s.stationName || "—"} />
-                <InfoItem label="Cổng sạc" value={s.slotName || `Slot ${s.slotId}`} />
-                <InfoItem label="Đã sạc" value={formatElapsed(s.actualStartTime)} highlight />
-                <InfoItem label="Bắt đầu" value={toLocal(s.actualStartTime)} />
-                <InfoItem label="Booking kết thúc" value={toLocal(s.bookingEndTime)} />
+                <InfoItem label="Cổng sạc" value={s.slotName || `Cổng ${s.slotId}`} />
+                <InfoItem label="Đã sạc" value={formatElapsed(effectiveStartMs)} highlight />
+                <InfoItem label="Bắt đầu" value={toLocal(effectiveStartMs)} />
+                <InfoItem label="Giờ kết thúc" value={toLocal(s.bookingEndTime)} />
                 <InfoItem label="Tổng tiền" value={`${(s.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
               </div>
 
@@ -126,12 +132,14 @@ export default function OwnerActiveSessions() {
                   background: stoppingId === s.id ? "#d1d5db" : "linear-gradient(135deg, #ef4444, #dc2626)",
                   color: "#fff", fontWeight: 700, fontSize: 15, cursor: stoppingId === s.id ? "not-allowed" : "pointer",
                   boxShadow: "0 4px 14px rgba(239,68,68,0.25)",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8
                 }}
               >
-                {stoppingId === s.id ? "Đang xử lý..." : "⏹️ Dừng phiên sạc & Tạo hóa đơn"}
+                {stoppingId === s.id ? "Đang xử lý..." : <><PowerOff size={18} /> Dừng phiên sạc & Tạo hóa đơn</>}
               </button>
             </div>
-          ))
+          );
+        })
         )}
       </div>
 
@@ -139,13 +147,16 @@ export default function OwnerActiveSessions() {
       {confirmStop && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
           <div style={{ background: "#fff", borderRadius: 16, padding: 24, width: 420, maxWidth: "90vw" }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>⏹️ Xác nhận dừng phiên sạc</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+              <AlertTriangle size={20} color="#ef4444" /> Xác nhận dừng phiên sạc
+            </h2>
             <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 8 }}>
               Bạn có chắc muốn dừng phiên sạc <strong>#{confirmStop.id}</strong> của driver <strong>{confirmStop.driverName}</strong>?
             </p>
             <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: 12, marginBottom: 16 }}>
-              <p style={{ fontSize: 13, color: "#92400e", margin: 0 }}>
-                ⚠️ Sau khi dừng, hệ thống sẽ tạo hóa đơn và gửi cho driver xác nhận hoặc khiếu nại.
+              <p style={{ fontSize: 13, color: "#92400e", margin: 0, display: "flex", alignItems: "flex-start", gap: 6 }}>
+                <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> 
+                <span>Sau khi dừng, hệ thống sẽ tạo hóa đơn và gửi cho driver xác nhận hoặc khiếu nại.</span>
               </p>
             </div>
             <div style={{ display: "flex", gap: 8 }}>

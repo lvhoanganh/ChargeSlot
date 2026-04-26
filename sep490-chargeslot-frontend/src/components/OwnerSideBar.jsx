@@ -2,7 +2,7 @@ import { NavLink } from "react-router-dom";
 
 export default function OwnerSideBar() {
   return (
-    <div className="fixed left-0 top-20 h-[calc(100vh-5rem)] w-[20%] overflow-y-auto border-r-2 bg-white">
+    <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-[20%] overflow-y-auto border-r-2 bg-white">
       <div className="space-y-1 p-4">
         <NavLink
           to="/stations"
@@ -39,7 +39,7 @@ export default function OwnerSideBar() {
             }`
           }
         >
-          Yêu cầu Booking
+          Lịch đặt sạc
         </NavLink>
       </div>
     </div>

@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { adminProfileApi, authApi } from "@/services/api";
+import { ShieldCheck, Phone } from "lucide-react";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23f97316'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%23fff'/%3E%3Cellipse cx='50' cy='75' rx='28' ry='20' fill='%23fff'/%3E%3C/svg%3E";
@@ -20,14 +22,47 @@ export default function EditAdminProfile() {
     () => getStoredAvatarDataUrl(phoneNumber) || DEFAULT_AVATAR,
   );
   const [saving, setSaving] = useState(false);
+  const [fullName, setFullName] = useState(() => {
+    const direct = localStorage.getItem("fullName") || "";
+    if (direct) return direct;
+    try {
+      const map = JSON.parse(localStorage.getItem("userInfoByPhone") || "{}");
+      return map?.[phoneNumber]?.fullName || "";
+    } catch { return ""; }
+  });
+
+  useEffect(() => {
+    authApi.getMe()
+      .then(res => {
+        if (res?.name || res?.fullName) setFullName(res.name || res.fullName);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleAvatarChange = async (e) => {
     const file = e?.target?.files?.[0];
     if (!file) return;
 
     try {
+      // Preview ngay lập tức
       const dataUrl = await readFileAsDataUrl(file);
       setAvatar(dataUrl);
+
+      // Upload lên server (nếu BE có endpoint)
+      try {
+        const result = await adminProfileApi.uploadAvatar(file);
+        if (result?.avatarUrl) {
+          const fullUrl = result.avatarUrl.startsWith("/")
+            ? `https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net${result.avatarUrl}`
+            : result.avatarUrl;
+          setAvatar(fullUrl);
+          // Lưu server URL vào localStorage để đồng bộ
+          saveUserInfoByPhone(phoneNumber, { avatarDataUrl: fullUrl });
+          return;
+        }
+      } catch {
+        // BE chưa có endpoint avatar admin → dùng local preview
+      }
     } catch {
       // ignore
     }
@@ -85,10 +120,10 @@ export default function EditAdminProfile() {
                 Chỉnh sửa hồ sơ
               </h1>
               <p className="text-white/80 text-sm">
-                {maskPhone(phoneNumber) || "Chưa cập nhật số điện thoại"}
+                {fullName || "Chưa cập nhật họ tên"}
               </p>
               <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-white/20 text-white backdrop-blur-sm">
-                🛡️ Quản trị viên
+                ️ Quản trị viên
               </span>
             </div>
           </div>
@@ -110,8 +145,8 @@ export default function EditAdminProfile() {
           </div>
           <div className="px-8 py-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <ReadOnlyField icon="🏷️" label="Vai trò" value="Quản trị viên" />
-              <ReadOnlyField icon="📱" label="Số điện thoại" value={phoneNumber || "—"} />
+              <ReadOnlyField icon={<ShieldCheck className="text-gray-500" size={20} />} label="Vai trò" value="Quản trị viên" />
+              <ReadOnlyField icon={<Phone className="text-gray-500" size={20} />} label="Số điện thoại" value={phoneNumber || "—"} />
             </div>
           </div>
           <div className="px-8 py-5 bg-gray-50/50 border-t border-gray-100 flex flex-col sm:flex-row gap-3">
@@ -201,7 +236,7 @@ function normalizePhoneForKey(rawPhone) {
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("read-failed"));
+    reader.onerror = () => reject(new Error("Đọc file ảnh thất bại"));
     reader.onload = () => resolve(String(reader.result || ""));
     reader.readAsDataURL(file);
   });

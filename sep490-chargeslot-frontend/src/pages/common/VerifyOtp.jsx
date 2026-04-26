@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { instance } from "@/lib/httpRequest";
 import { verifyOtpSchema } from "@/schemas/verifyOtpSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,6 +5,10 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useLocation, useNavigate } from "react-router-dom";
+import ChargeSlotLogo from "@/components/ChargeSlotLogo";
+import { showToast } from "@/components/Toast";
+
+const OTP_DURATION = 60;
 
 const FORGOT_PHONE_KEY = "forgotPasswordPhoneNumber";
 
@@ -14,8 +17,8 @@ export default function VerifyOtp() {
   const location = useLocation();
 
   const purpose = location.state?.purpose || "forgot";
-  const [apiError, setApiError] = useState("");
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [countdown, setCountdown] = useState(OTP_DURATION);
 
   const phoneNumber = useMemo(() => {
     return (
@@ -43,6 +46,12 @@ export default function VerifyOtp() {
     return () => clearInterval(t);
   }, [cooldownSeconds]);
 
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const t = setInterval(() => setCountdown((s) => s - 1), 1000);
+    return () => clearInterval(t);
+  }, [countdown]);
+
   const verifyOtpMutation = useMutation({
     mutationFn: async ({ phoneNumber, otp }) => {
       const url =
@@ -54,7 +63,7 @@ export default function VerifyOtp() {
       return res.data;
     },
     onSuccess: () => {
-      setApiError("");
+      showToast.success("Xác thực OTP thành công!");
       if (purpose === "register") {
         navigate("/register/create-account", { replace: true });
         return;
@@ -62,7 +71,8 @@ export default function VerifyOtp() {
       navigate("/reset-password", { replace: true, state: { phoneNumber } });
     },
     onError: (error) => {
-      setApiError(getApiErrorMessage(error, "Xác thực OTP thất bại. Vui lòng thử lại."));
+      const msg = error?.response?.data?.message || "";
+      showToast.error(msg || "Xác thực OTP thất bại. Vui lòng thử lại.");
     },
   });
 
@@ -77,76 +87,132 @@ export default function VerifyOtp() {
       return res.data;
     },
     onSuccess: () => {
-      setApiError("");
+      showToast.success("Đã gửi lại mã OTP!");
       setCooldownSeconds(60);
+      setCountdown(OTP_DURATION);
     },
     onError: (error) => {
-      setApiError(getApiErrorMessage(error, "Gửi lại OTP thất bại. Vui lòng thử lại."));
+      const msg = error?.response?.data?.message || "";
+      showToast.error(msg || "Gửi lại OTP thất bại. Vui lòng thử lại.");
     },
   });
 
   const title =
     purpose === "register" ? "Xác thực OTP – Đăng ký" : "Xác thực OTP – Quên mật khẩu";
 
-  return (
-    <div className="min-h-screen bg-[#f3f4f5] flex justify-center items-center px-4">
-      <form
-        className="max-w-[500px] w-full bg-white rounded-xl shadow-md"
-        onSubmit={form.handleSubmit((values) => {
-          setApiError("");
-          verifyOtpMutation.mutate({ phoneNumber, otp: values.otp });
-        })}
-      >
-        <div className="p-8">
-          <h1 className="text-xl font-bold mb-4">{title}</h1>
+  const minutes = String(Math.floor(countdown / 60)).padStart(2, "0");
+  const seconds = String(countdown % 60).padStart(2, "0");
+  const progress = countdown / OTP_DURATION;
+  const isExpired = countdown <= 0;
 
-          <p className="mb-5 text-gray-600">
-            Mã OTP đã được gửi đến số điện thoại: <strong>{phoneNumber}</strong>
+  return (
+    <div className="cs-auth-wrapper">
+      <div className="cs-auth-left">
+        <div className="cs-auth-left__content">
+          <div className="cs-animate-fadeInUp" style={{ marginBottom: 24 }}>
+            <ChargeSlotLogo size={56} dark />
+          </div>
+          <h1 className="cs-auth-left__title cs-animate-fadeInUp-delay-1">
+            Xác thực mã OTP
+          </h1>
+          <p className="cs-auth-left__desc cs-animate-fadeInUp-delay-2">
+            Mã xác thực đã được gửi đến số điện thoại của bạn. Vui lòng kiểm tra tin nhắn.
+          </p>
+          <div className="cs-auth-left__features cs-animate-fadeInUp-delay-3">
+            <div className="cs-auth-left__feature">
+              <span className="cs-auth-left__feature-icon"></span>
+              <span>Kiểm tra tin nhắn SMS</span>
+            </div>
+            <div className="cs-auth-left__feature">
+              <span className="cs-auth-left__feature-icon"></span>
+              <span>Nhập mã OTP 6 số</span>
+            </div>
+            <div className="cs-auth-left__feature">
+              <span className="cs-auth-left__feature-icon"></span>
+              <span>Gửi lại mã nếu không nhận được</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="cs-auth-right">
+        <form
+          className="cs-auth-form"
+          onSubmit={form.handleSubmit((values) => {
+            verifyOtpMutation.mutate({ phoneNumber, otp: values.otp });
+          })}
+        >
+          <div className="cs-auth-form__logo">
+            <ChargeSlotLogo size={38} showText />
+          </div>
+          <h2 className="cs-auth-form__title">{title}</h2>
+          <p className="cs-auth-form__subtitle">
+            Mã OTP đã gửi đến: <strong style={{ color: "#f97316" }}>{phoneNumber}</strong>
           </p>
 
-          <div className="flex flex-col mb-3">
-            <label className="mb-1">Mã OTP</label>
+          {/* Countdown Timer */}
+          <div className="cs-otp-countdown">
+            <div className={`cs-otp-countdown__circle ${isExpired ? "cs-otp-countdown__circle--expired" : ""}`}>
+              <svg viewBox="0 0 80 80" className="cs-otp-countdown__svg">
+                <circle cx="40" cy="40" r="34" className="cs-otp-countdown__track" />
+                <circle
+                  cx="40" cy="40" r="34"
+                  className="cs-otp-countdown__progress"
+                  style={{
+                    strokeDasharray: `${2 * Math.PI * 34}`,
+                    strokeDashoffset: `${2 * Math.PI * 34 * (1 - progress)}`,
+                  }}
+                />
+              </svg>
+              <span className="cs-otp-countdown__time">{minutes}:{seconds}</span>
+            </div>
+            <p className="cs-otp-countdown__label">
+              {isExpired ? "Mã OTP đã hết hạn" : "Thời gian còn lại"}
+            </p>
+          </div>
+
+
+          <div className="cs-auth-input-group">
+            <label>Mã OTP</label>
             <input
-              className="h-11 px-4 border rounded-md"
+              className="cs-auth-input"
               placeholder="123456"
               maxLength={6}
               {...form.register("otp")}
+              style={{ letterSpacing: "6px", textAlign: "center", fontSize: 20, fontWeight: 700 }}
             />
             {!!form.formState.errors.otp?.message && (
-              <p className="mt-1 text-sm text-red-600">
+              <p className="text-red-500 text-sm mt-1.5">
                 {form.formState.errors.otp.message}
               </p>
             )}
           </div>
 
-          {!!apiError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
-              <p className="text-sm text-red-700">{apiError}</p>
-            </div>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full h-12 bg-orange-500 hover:bg-orange-600 mb-4"
-            disabled={verifyOtpMutation.isPending}
-          >
-            {verifyOtpMutation.isPending ? "Đang xác nhận..." : "Xác nhận OTP"}
-          </Button>
-
           <button
-            type="button"
-            className="text-blue-500 w-full text-sm disabled:opacity-50"
-            onClick={() => resendOtpMutation.mutate(phoneNumber)}
-            disabled={resendOtpMutation.isPending || cooldownSeconds > 0}
+            type="submit"
+            className="cs-auth-submit"
+            disabled={verifyOtpMutation.isPending || isExpired}
           >
-            {cooldownSeconds > 0
-              ? `Gửi lại OTP (${cooldownSeconds}s)`
-              : resendOtpMutation.isPending
-                ? "Đang gửi..."
-                : "Gửi lại OTP"}
+            {verifyOtpMutation.isPending ? "Đang xác nhận..." : isExpired ? "Mã đã hết hạn" : "Xác nhận OTP"}
           </button>
-        </div>
-      </form>
+
+          <div style={{ textAlign: "center", marginTop: 20 }}>
+            <button
+              type="button"
+              className="cs-auth-link"
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14 }}
+              onClick={() => resendOtpMutation.mutate(phoneNumber)}
+              disabled={resendOtpMutation.isPending || cooldownSeconds > 0}
+            >
+              {cooldownSeconds > 0
+                ? `Gửi lại OTP (${cooldownSeconds}s)`
+                : resendOtpMutation.isPending
+                  ? "Đang gửi..."
+                  : "Gửi lại OTP"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -159,4 +225,3 @@ function getApiErrorMessage(error, fallback) {
     fallback
   );
 }
-
