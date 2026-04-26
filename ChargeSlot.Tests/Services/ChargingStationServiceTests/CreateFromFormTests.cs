@@ -36,7 +36,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
 
             // KycStatus mặc định None → ném lỗi KYC sau khi tạo owner
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().CreateFromFormAsync(1, CreateValidFormDto()));
+                CreateService().CreateFromFormAsync(1, CreateValidFormDto(), null!));
 
             _ownerRepoMock.Verify(x => x.AddAsync(It.IsAny<Owner>()), Times.Once);
         }
@@ -51,7 +51,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _userManagerMock.Setup(x => x.FindByIdAsync("1")).ReturnsAsync((ApplicationUser?)null);
 
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().CreateFromFormAsync(1, CreateValidFormDto()));
+                CreateService().CreateFromFormAsync(1, CreateValidFormDto(), null!));
 
             Assert.Contains("not found", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
@@ -65,7 +65,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
                 .ReturnsAsync(CreateApprovedOwner(1, KycStatus.Pending));
 
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().CreateFromFormAsync(1, CreateValidFormDto()));
+                CreateService().CreateFromFormAsync(1, CreateValidFormDto(), null!));
 
             Assert.Contains("KYC", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
@@ -80,7 +80,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _contractRepoMock.Setup(x => x.GetByOwnerAsync(It.IsAny<int>())).ReturnsAsync((Contract?)null);
 
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().CreateFromFormAsync(1, CreateValidFormDto()));
+                CreateService().CreateFromFormAsync(1, CreateValidFormDto(), null!));
 
             Assert.Contains("hợp đồng", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
@@ -96,7 +96,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
                 .ReturnsAsync(new Contract { OwnerUserId = 1, Status = ContractStatus.Pending });
 
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CreateService().CreateFromFormAsync(1, CreateValidFormDto()));
+                CreateService().CreateFromFormAsync(1, CreateValidFormDto(), null!));
         }
 
         // TC06: Happy path tối giản — không ảnh, không slot, không pricing
@@ -105,7 +105,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
         {
             SetupApprovedOwnerWithContract();
 
-            var result = await CreateService().CreateFromFormAsync(1, CreateValidFormDto(withSlots: false));
+            var result = await CreateService().CreateFromFormAsync(1, CreateValidFormDto(withSlots: false), null!);
 
             _stationRepoMock.Verify(x => x.AddAsync(It.IsAny<ChargingStation>()), Times.Once);
             Assert.NotNull(result);
@@ -118,7 +118,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             SetupApprovedOwnerWithContract();
 
             var result = await CreateService().CreateFromFormAsync(1,
-                CreateValidFormDto(withSlots: true, withHours: true));
+                CreateValidFormDto(withSlots: true, withHours: true), null!);
 
             Assert.NotNull(result);
             _stationRepoMock.Verify(x => x.AddAsync(It.IsAny<ChargingStation>()), Times.Once);
@@ -136,7 +136,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
                 CreateMockFormFile("img2.jpg")   // Length = 1024 > 0
             };
 
-            await CreateService().CreateFromFormAsync(1, dto);
+            await CreateService().CreateFromFormAsync(1, dto, null!);
 
             _fileStorageMock.Verify(x => x.UploadAsync(It.IsAny<IFormFile>(), It.IsAny<string>()), Times.Exactly(2));
         }
@@ -147,7 +147,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
         {
             SetupApprovedOwnerWithContract();
 
-            await CreateService().CreateFromFormAsync(1, CreateValidFormDto(withPricing: true));
+            await CreateService().CreateFromFormAsync(1, CreateValidFormDto(withPricing: true), null!);
 
             _pricingRepoMock.Verify(x => x.Add(It.IsAny<StationPricing>()), Times.Once);
         }
@@ -163,7 +163,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
                 new StationPricingFormItem { StartTime = "invalid", EndTime = "also-bad", PricePerHour = 10000 }
             };
 
-            await CreateService().CreateFromFormAsync(1, dto);
+            await CreateService().CreateFromFormAsync(1, dto, null!);
 
             _pricingRepoMock.Verify(x => x.Add(It.IsAny<StationPricing>()), Times.Never);
         }
@@ -181,7 +181,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
                 .ReturnsAsync(CreateStation());
 
             var result = await CreateService().CreateFromFormAsync(1,
-                CreateValidFormDto(withSlots: false));
+                CreateValidFormDto(withSlots: false), null!);
 
             Assert.NotNull(result);
         }
@@ -195,7 +195,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             // File rỗng (Length = 0) → nhánh if (file.Length > 0) trả false → không upload
             dto.Images = new IFormFile[] { CreateMockFormFile("empty.jpg", length: 0) };
 
-            await CreateService().CreateFromFormAsync(1, dto);
+            await CreateService().CreateFromFormAsync(1, dto, null!);
 
             _fileStorageMock.Verify(x => x.UploadAsync(It.IsAny<IFormFile>(), It.IsAny<string>()), Times.Never);
         }
@@ -213,7 +213,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             };
 
             // Không throw exception
-            var result = await CreateService().CreateFromFormAsync(1, dto);
+            var result = await CreateService().CreateFromFormAsync(1, dto, null!);
 
             Assert.NotNull(result);
             _stationRepoMock.Verify(x => x.AddAsync(It.IsAny<ChargingStation>()), Times.Once);

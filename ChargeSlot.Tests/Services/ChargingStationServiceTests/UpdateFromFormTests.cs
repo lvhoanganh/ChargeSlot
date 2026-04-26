@@ -31,7 +31,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, true, true)).ReturnsAsync((ChargingStation?)null);
 
             await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-                CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto()));
+                CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto(), null!));
         }
 
         // TC02: Không phải owner (station.OwnerUserId=99, request userId=1) → throw UnauthorizedAccessException
@@ -42,7 +42,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, true, true)).ReturnsAsync(station);
 
             await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-                CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto()));
+                CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto(), null!));
         }
 
         // TC03: Update thành công — không ảnh mới, không đổi hours
@@ -53,7 +53,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, true, true)).ReturnsAsync(station);
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, false, true)).ReturnsAsync(station);
 
-            var result = await CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto());
+            var result = await CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto(), null!);
 
             Assert.NotNull(result);
             Assert.Equal("Updated Station", result.Name);
@@ -71,7 +71,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, true, true)).ReturnsAsync(station);
             _stationRepoMock.Setup(x => x.GetByIdAsync(1, false, true)).ReturnsAsync(station);
 
-            await CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto(withHours: true));
+            await CreateService().UpdateFromFormAsync(1, 1, CreateValidUpdateDto(withHours: true), null!);
 
             _stationRepoMock.Verify(x => x.RemoveOperatingHours(It.IsAny<IEnumerable<StationOperatingHours>>()), Times.Once);
         }
@@ -92,7 +92,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             var dto = CreateValidUpdateDto();
             dto.ExistingImageUrls = new List<string>(); // giữ lại 0 ảnh
 
-            await CreateService().UpdateFromFormAsync(1, 1, dto);
+            await CreateService().UpdateFromFormAsync(1, 1, dto, null!);
 
             _fileStorageMock.Verify(x => x.DeleteAsync(It.IsAny<string>()), Times.Exactly(2));
         }
@@ -116,7 +116,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             var dto = CreateValidUpdateDto();
             dto.ExistingImageUrls = new List<string> { keepUrl };
 
-            await CreateService().UpdateFromFormAsync(1, 1, dto);
+            await CreateService().UpdateFromFormAsync(1, 1, dto, null!);
 
             _fileStorageMock.Verify(x => x.DeleteAsync(removeUrl), Times.Once);
             _fileStorageMock.Verify(x => x.DeleteAsync(keepUrl), Times.Never);
@@ -133,7 +133,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
             var dto = CreateValidUpdateDto();
             dto.Images = new IFormFile[] { CreateMockFormFile("new.jpg") };
 
-            await CreateService().UpdateFromFormAsync(1, 1, dto);
+            await CreateService().UpdateFromFormAsync(1, 1, dto, null!);
 
             _fileStorageMock.Verify(x => x.UploadAsync(It.IsAny<IFormFile>(), It.IsAny<string>()), Times.Once);
         }
@@ -152,7 +152,7 @@ namespace ChargeSlot.Tests.Services.ChargingStationServiceTests
 
             var dto = CreateValidUpdateDto(withHours: false); // null hours
 
-            await CreateService().UpdateFromFormAsync(1, 1, dto);
+            await CreateService().UpdateFromFormAsync(1, 1, dto, null!);
 
             _stationRepoMock.Verify(x => x.RemoveOperatingHours(It.IsAny<IEnumerable<StationOperatingHours>>()), Times.Never);
         }
