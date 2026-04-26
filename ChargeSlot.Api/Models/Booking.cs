@@ -18,7 +18,7 @@ namespace ChargeSlot.Api.Models
         public decimal? DurationHours { get; set; }
         public string? Note { get; set; }
 
-        public BookingStatus Status { get; set; } = BookingStatus.Draft;
+        public BookingStatus Status { get; set; } = BookingStatus.WaitingOwner;
         public DateTime? PaymentExpiresAt { get; set; }
         public DateTime? CheckedInAt { get; set; }
         public DateTime? CancelledAt { get; set; }

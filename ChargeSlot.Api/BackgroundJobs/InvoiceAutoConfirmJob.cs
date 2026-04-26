@@ -70,8 +70,10 @@ namespace ChargeSlot.Api.BackgroundJobs
                             invoice.UpdatedAt = DateTimeHelper.VietnamNow();
                             invoiceRepo.Update(invoice);
 
-                            // Complete booking
-                            booking.Status = BookingStatus.Completed;
+                            // Complete booking: NoShow nếu chưa check-in, Completed nếu đã check-in
+                            booking.Status = booking.CheckedInAt == null 
+                                ? BookingStatus.NoShow 
+                                : BookingStatus.Completed;
                             booking.UpdatedAt = DateTimeHelper.VietnamNow();
                             bookingRepo.Update(booking);
 
@@ -174,11 +176,10 @@ namespace ChargeSlot.Api.BackgroundJobs
             var platformFee = invoice.PlatformFee;
             var vatAmount = invoice.VatAmount;
 
-            // 0. Bù tiền bảo trợ từ ví Nền tảng vào ESCROW để cân đối khoản chiết khấu bằng Điểm thưởng (Atomic)
+            // 0. Bù tiền bảo trợ từ ví Nền tảng vào ESCROW để cân đối khoản chiết khấu bằng Điểm thưởng (Atomic via Repository)
             if (booking.PointsDiscountAmount > 0)
             {
-                platformWallet.AvailableBalance -= booking.PointsDiscountAmount;
-                escrowWallet.AvailableBalance += booking.PointsDiscountAmount;
+                await walletRepo.TransferAtomicAsync(platformWallet.Id, escrowWallet.Id, booking.PointsDiscountAmount);
 
                 ledgerRepo.Add(new LedgerTransaction
                 {
@@ -192,11 +193,11 @@ namespace ChargeSlot.Api.BackgroundJobs
                         new LedgerEntry { WalletId = escrowWallet.Id, Direction = LedgerDirection.Credit, Amount = booking.PointsDiscountAmount, CreatedAt = now }
                     }
                 });
+                await unitOfWork.CompleteAsync();
             }
 
-            // ESCROW → Owner
-            escrowWallet.AvailableBalance -= ownerNet;
-            ownerWallet.AvailableBalance += ownerNet;
+            // 1. ESCROW → Owner (Atomic via Repository)
+            await walletRepo.TransferAtomicAsync(escrowWallet.Id, ownerWallet.Id, ownerNet);
 
             ledgerRepo.Add(new LedgerTransaction
             {
@@ -210,10 +211,10 @@ namespace ChargeSlot.Api.BackgroundJobs
                     new LedgerEntry { WalletId = ownerWallet.Id, Direction = LedgerDirection.Credit, Amount = ownerNet, CreatedAt = now }
                 }
             });
+            await unitOfWork.CompleteAsync();
 
-            // ESCROW → PLATFORM_REVENUE
-            escrowWallet.AvailableBalance -= platformFee;
-            platformWallet.AvailableBalance += platformFee;
+            // 2. ESCROW → PLATFORM_REVENUE (Atomic via Repository)
+            await walletRepo.TransferAtomicAsync(escrowWallet.Id, platformWallet.Id, platformFee);
 
             ledgerRepo.Add(new LedgerTransaction
             {
@@ -227,12 +228,12 @@ namespace ChargeSlot.Api.BackgroundJobs
                     new LedgerEntry { WalletId = platformWallet.Id, Direction = LedgerDirection.Credit, Amount = platformFee, CreatedAt = now }
                 }
             });
+            await unitOfWork.CompleteAsync();
 
-            // ESCROW → TAX_HOLD (VAT)
+            // 3. ESCROW → TAX_HOLD (Atomic via Repository)
             if (vatAmount > 0)
             {
-                escrowWallet.AvailableBalance -= vatAmount;
-                taxWallet.AvailableBalance += vatAmount;
+                await walletRepo.TransferAtomicAsync(escrowWallet.Id, taxWallet.Id, vatAmount);
 
                 ledgerRepo.Add(new LedgerTransaction
                 {
@@ -246,9 +247,8 @@ namespace ChargeSlot.Api.BackgroundJobs
                         new LedgerEntry { WalletId = taxWallet.Id, Direction = LedgerDirection.Credit, Amount = vatAmount, CreatedAt = now }
                     }
                 });
+                await unitOfWork.CompleteAsync();
             }
-
-            await unitOfWork.CompleteAsync();
         }
     }
 }

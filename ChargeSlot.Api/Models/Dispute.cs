@@ -19,7 +19,7 @@ namespace ChargeSlot.Api.Models
 
         public string Reason { get; set; } = null!;
         public string Description { get; set; } = null!;
-        public DisputeStatus Status { get; set; } = DisputeStatus.Open;
+        public DisputeStatus Status { get; set; } = DisputeStatus.WaitingOwnerEvidence;
         public string? OwnerResponse { get; set; }
         public string? AdminNote { get; set; }
         /// <summary>Admin Id (0) — không FK vì Admin config trong appsettings, không lưu DB.</summary>

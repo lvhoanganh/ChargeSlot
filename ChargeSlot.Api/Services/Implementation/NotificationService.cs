@@ -80,14 +80,15 @@ namespace ChargeSlot.Api.Services.Implementation
             }
         }
 
-        public async Task<List<NotificationDto>> GetByUserAsync(int userId, int page, int pageSize)
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<NotificationDto>> GetByUserAsync(int userId, int page, int pageSize)
         {
-            var all = await _notificationRepo.GetByUserAsync(userId);
-            return all
-                .OrderByDescending(n => n.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(n => new NotificationDto
+            var result = await _notificationRepo.GetByUserPagedAsync(userId, page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<NotificationDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(n => new NotificationDto
                 {
                     Id = n.Id,
                     Title = n.Title,
@@ -95,7 +96,8 @@ namespace ChargeSlot.Api.Services.Implementation
                     Type = n.Type.ToString(),
                     IsRead = n.IsRead,
                     CreatedAt = n.CreatedAt
-                }).ToList();
+                }).ToList()
+            };
         }
 
         public async Task<int> GetTotalCountAsync(int userId)

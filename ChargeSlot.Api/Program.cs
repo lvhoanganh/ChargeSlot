@@ -2,7 +2,7 @@ using ChargeSlot.Api.BackgroundJobs;
 using ChargeSlot.Api.Hubs;
 using ChargeSlot.Api.Data;
 using Microsoft.EntityFrameworkCore;
-using ChargeSlot.Api.Seeds;
+
 using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Implementation;
 using ChargeSlot.Api.Repositories.Interfaces;
@@ -22,6 +22,8 @@ var builder = WebApplication.CreateBuilder(args);
 // =======================
 // CONFIGURATION
 // =======================
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var configuration = builder.Configuration;
 var jwtSection = configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"] ?? throw new Exception("Jwt:Key is missing");
@@ -232,13 +234,13 @@ builder.Services.AddScoped<IAdminRevenueService, AdminRevenueService>();
 // Reviews
 builder.Services.AddScoped<IReviewService, ReviewService>();
 
-// Analytics & AI
+// Analytics
 builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
-builder.Services.AddScoped<IAiInsightsService, GeminiInsightsService>();
 
 // Miscellaneous Refactored Services
 builder.Services.AddScoped<IBankAccountRepository, BankAccountRepository>();
+builder.Services.AddScoped<IBankAccountService, BankAccountService>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IFavoriteStationRepository, FavoriteStationRepository>();
 builder.Services.AddScoped<IFavoriteService, FavoriteService>();
@@ -251,6 +253,8 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ILedgerTransactionRepository, LedgerTransactionRepository>();
 builder.Services.AddScoped<IStationUnavailableDateRepository, StationUnavailableDateRepository>();
 builder.Services.AddScoped<ILoyaltyTransactionRepository, LoyaltyTransactionRepository>();
+builder.Services.AddScoped<IContractRepository, ContractRepository>();
+builder.Services.AddScoped<IContractService, ContractService>();
 
 // Background Jobs
 builder.Services.AddHostedService<PaymentExpiryJob>();
@@ -309,15 +313,91 @@ builder.Services.AddSwaggerGen(c =>
 // =======================
 var app = builder.Build();
 
-// Auto-migrate database
+// Auto-migrate database + seed admin account
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ChargeSlot.Api.Data.ChargeSlotDbContext>();
     await db.Database.MigrateAsync();
+
+    // Seed admin account nếu chưa có
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<int>>>();
+
+    // Đảm bảo role Admin tồn tại
+    if (!await roleManager.RoleExistsAsync("Admin"))
+        await roleManager.CreateAsync(new IdentityRole<int> { Name = "Admin" });
+
+    // Tạo admin nếu chưa có ai
+    var admins = await userManager.GetUsersInRoleAsync("Admin");
+    if (admins.Count == 0)
+    {
+        var admin = new ApplicationUser
+        {
+            UserName = "0900000001",
+            FullName = "Admin Hệ Thống",
+            PhoneNumber = "0900000001",
+            Email = "laivuhoanganh.fj@gmail.com",
+            EmailConfirmed = true,
+            IsPhoneVerified = true,
+            Status = ChargeSlot.Api.Constants.UserStatusConstants.Active,
+            CreatedAt = ChargeSlot.Api.Helpers.DateTimeHelper.VietnamNow()
+        };
+        var result = await userManager.CreateAsync(admin, "Admin@123");
+        if (result.Succeeded)
+            await userManager.AddToRoleAsync(admin, "Admin");
+    }
+
+    // ── Đảm bảo ví hệ thống luôn tồn tại (chống mất sau ResetDatabase.sql) ──
+    var systemWallets = new[]
+    {
+        (Id: 1, Code: "ESCROW"),
+        (Id: 2, Code: "PLATFORM_REVENUE"),
+        (Id: 3, Code: "CLEARING"),
+        (Id: 99, Code: "TAX_HOLD")
+    };
+    foreach (var sw in systemWallets)
+    {
+        var exists = await db.Wallets.AnyAsync(w => w.SystemCode == sw.Code);
+        if (!exists)
+        {
+            // Dùng SET IDENTITY_INSERT để giữ đúng ID cố định
+            await db.Database.ExecuteSqlRawAsync("SET IDENTITY_INSERT [Wallet] ON");
+            db.Wallets.Add(new ChargeSlot.Api.Models.Wallet
+            {
+                Id = sw.Id,
+                WalletType = ChargeSlot.Api.Enums.WalletType.System,
+                SystemCode = sw.Code,
+                AvailableBalance = 0,
+                FrozenBalance = 0,
+                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            });
+            await db.SaveChangesAsync();
+            await db.Database.ExecuteSqlRawAsync("SET IDENTITY_INSERT [Wallet] OFF");
+        }
+    }
+
+    // ── Đảm bảo SystemConfigs tồn tại ──
+    var defaultConfigs = new Dictionary<string, (string Value, string Desc)>
+    {
+        ["LoyaltyEarnRate"] = ("0.05", "Tỷ lệ tích điểm (5% = 0.05)"),
+        ["LoyaltyMaxRedeemRate"] = ("0.5", "Tối đa dùng bao nhiêu % booking bằng điểm (50% = 0.5)")
+    };
+    foreach (var kv in defaultConfigs)
+    {
+        if (!await db.SystemConfigs.AnyAsync(c => c.Key == kv.Key))
+        {
+            db.SystemConfigs.Add(new ChargeSlot.Api.Models.SystemConfig
+            {
+                Key = kv.Key,
+                Value = kv.Value.Value,
+                Description = kv.Value.Desc,
+                UpdatedAt = ChargeSlot.Api.Helpers.DateTimeHelper.VietnamNow()
+            });
+        }
+    }
+    await db.SaveChangesAsync();
 }
 
-// Seed demo data
-await DataSeeder.SeedAsync(app.Services);
 
 // =======================
 // MIDDLEWARE PIPELINE
@@ -351,7 +431,7 @@ app.Use(async (context, next) =>
 
         var response = new 
         {
-            message = "Lỗi hệ thống ngoài ý muốn."
+            message = $"Lỗi hệ thống: {ex.Message} {(ex.InnerException != null ? ex.InnerException.Message : "")}"
         };
 
         await context.Response.WriteAsJsonAsync(response);

@@ -24,6 +24,19 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
+        public async Task<(List<BankAccount> Items, int TotalCount)> GetByUserIdPagedAsync(int userId, int page, int pageSize)
+        {
+            var query = _context.BankAccounts.Where(b => b.UserId == userId);
+            int totalCount = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(b => b.IsDefault)
+                .ThenByDescending(b => b.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            return (items, totalCount);
+        }
+
         public async Task<BankAccount?> GetByIdAsync(int id, int userId)
         {
             return await _context.BankAccounts

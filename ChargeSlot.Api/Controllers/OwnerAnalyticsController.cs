@@ -13,12 +13,10 @@ namespace ChargeSlot.Api.Controllers
     public class OwnerAnalyticsController : ControllerBase
     {
         private readonly IDashboardService _dashboardService;
-        private readonly IAiInsightsService _aiInsightsService;
 
-        public OwnerAnalyticsController(IDashboardService dashboardService, IAiInsightsService aiInsightsService)
+        public OwnerAnalyticsController(IDashboardService dashboardService)
         {
             _dashboardService = dashboardService;
-            _aiInsightsService = aiInsightsService;
         }
 
         private int GetUserId()
@@ -35,16 +33,6 @@ namespace ChargeSlot.Api.Controllers
             var ownerId = GetUserId();
             var metrics = await _dashboardService.GetOwnerMetricsAsync(ownerId, fromDate, toDate);
             return Ok(metrics);
-        }
-
-        /// <summary>Gọi AI cố vấn kinh doanh cho Chủ Trạm</summary>
-        [HttpGet("ai-insights")]
-        public async Task<ActionResult<AiInsightResponseDto>> GetAiInsights([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
-        {
-            var ownerId = GetUserId();
-            var metrics = await _dashboardService.GetOwnerMetricsAsync(ownerId, fromDate, toDate);
-            var insight = await _aiInsightsService.GenerateOwnerInsightAsync(metrics);
-            return Ok(insight);
         }
     }
 }

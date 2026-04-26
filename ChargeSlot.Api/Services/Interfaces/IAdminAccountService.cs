@@ -1,4 +1,5 @@
 using ChargeSlot.Api.DTOs.Admin;
+using ChargeSlot.Api.DTOs;
 
 namespace ChargeSlot.Api.Services.Interfaces
 {
@@ -14,7 +15,7 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<AdminOwnerDetailDto> GetOwnerDetailAsync(int ownerUserId);
         Task<AdminDriverDetailDto> GetDriverDetailAsync(int driverUserId);
 
-        Task<string> ToggleBanStatusAsync(int targetUserId, int actingAdminUserId);
+        Task<string> ToggleBanStatusAsync(int targetUserId, int actingAdminUserId, string? reason);
 
         Task<AccountStatisticsDto> GetAccountStatisticsAsync();
 

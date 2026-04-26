@@ -35,7 +35,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var phone = PhoneNumberHelper.NormalizeAndValidate(phoneNumber);
             var existing = await _userManager.FindByNameAsync(phone);
             if (existing == null)
-                throw new InvalidOperationException("Phone number not exist.");
+                throw new InvalidOperationException("Số điện thoại không tồn tại.");
             var cooldownSeconds = await _systemConfig.GetIntAsync(Constants.SystemConfigKeys.OTP_Cooldown_Seconds, 30);
             var remainingSeconds =
                 await _otpRepository.GetRemainingCooldownSecondsAsync(
@@ -79,7 +79,7 @@ namespace ChargeSlot.Api.Services.Implementation
             var phone = PhoneNumberHelper.NormalizeAndValidate(phoneNumber);
             var existing = await _userManager.FindByNameAsync(phone);
             if (existing != null)
-                throw new InvalidOperationException("Phone number already registered.");
+                throw new InvalidOperationException("Số điện thoại đã được đăng ký.");
             
 
             // ⏱️ CHẶN SPAM OTP
@@ -128,11 +128,11 @@ namespace ChargeSlot.Api.Services.Implementation
             var record = await _otpRepository.GetLatestValidOtpAsync(phone, purpose);
 
             if (record == null)
-                throw new InvalidOperationException("OTP is invalid or expired.");
+                throw new InvalidOperationException("Mã OTP không hợp lệ hoặc đã hết hạn.");
 
             // 2️⃣ So sánh OTP
             if (!VerifyOtp(otp, record.OtpHash))
-                throw new InvalidOperationException("OTP is incorrect.");
+                throw new InvalidOperationException("Mã OTP không chính xác.");
 
             // 3️⃣ Đánh dấu đã dùng
             record.VerifiedAt = DateTimeHelper.VietnamNow();   // 🔥 QUAN TRỌNG

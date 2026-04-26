@@ -33,6 +33,22 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
+        public async Task<(List<ChargingSlot> Items, int TotalCount)> GetAllByStationPagedAsync(int stationId, int page, int pageSize)
+        {
+            var query = _context.ChargingSlots
+                .AsNoTracking()
+                .Where(s => s.StationId == stationId);
+                
+            int totalCount = await query.CountAsync();
+            var items = await query
+                .OrderBy(s => s.SlotName)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+                
+            return (items, totalCount);
+        }
+
         public async Task AddAsync(ChargingSlot slot)
         {
             await _context.ChargingSlots.AddAsync(slot);

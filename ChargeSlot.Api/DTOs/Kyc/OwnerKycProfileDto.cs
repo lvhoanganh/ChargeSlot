@@ -8,9 +8,7 @@ namespace ChargeSlot.Api.DTOs.Kyc
         
         public string? IdCardNumber { get; set; }
         public string? IdCardDate { get; set; }
-        public string? FrontIdCardUrl { get; set; }
-        public string? BackIdCardUrl { get; set; }
-        
+
         public string? BusinessLicenseNumber { get; set; }
         public string? BusinessLicenseUrl { get; set; }
         public string? Address { get; set; }

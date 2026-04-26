@@ -38,6 +38,26 @@ namespace ChargeSlot.Api.Services.Implementation
                        }).ToList();
         }
 
+        public async Task<ChargeSlot.Api.DTOs.PagedResultDto<BankAccountDto>> GetMyBankAccountsPagedAsync(int userId, int page, int pageSize)
+        {
+            var result = await _bankAccountRepo.GetByUserIdPagedAsync(userId, page, pageSize);
+            return new ChargeSlot.Api.DTOs.PagedResultDto<BankAccountDto>
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = result.TotalCount,
+                Items = result.Items.Select(b => new BankAccountDto
+                {
+                    Id = b.Id,
+                    BankName = b.BankName,
+                    BankAccountNumber = b.BankAccountNumber,
+                    BankAccountHolder = b.BankAccountHolder,
+                    IsDefault = b.IsDefault,
+                    CreatedAt = b.CreatedAt
+                }).ToList()
+            };
+        }
+
         public async Task<BankAccountDto> CreateAsync(int userId, CreateBankAccountDto dto)
         {
             using var transaction = await _unitOfWork.BeginTransactionAsync();

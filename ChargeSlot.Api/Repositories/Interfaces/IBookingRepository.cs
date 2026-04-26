@@ -8,7 +8,10 @@ namespace ChargeSlot.Api.Repositories.Interfaces
         Task<Booking?> GetByIdAsync(int id);
         Task<Booking?> GetByIdWithDetailsAsync(int id);
         Task<List<Booking>> GetByDriverAsync(int driverUserId);
+        Task<(List<Booking> Items, int TotalCount)> GetByDriverPagedAsync(int driverUserId, string? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize);
+        Task<(List<Booking> Items, int TotalCount)> GetDriverHistoryPagedAsync(int driverUserId, DateTime? fromDate, DateTime? toDate, int page, int pageSize);
         Task<List<Booking>> GetByOwnerAsync(int ownerUserId);
+        Task<(List<Booking> Items, int TotalCount)> GetByOwnerPagedAsync(int ownerUserId, string? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize);
         Task<bool> HasOverlappingBookingAsync(int slotId, DateTime startTime, DateTime endTime, int bufferMinutes, int? excludeBookingId = null);
         Task<bool> HasDriverOverlappingBookingAsync(int driverUserId, DateTime startTime, DateTime endTime, int? excludeBookingId = null);
         Task<int> GetPendingCountByDriverAsync(int driverUserId);

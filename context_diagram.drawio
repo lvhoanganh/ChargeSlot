@@ -1,0 +1,184 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36">
+  <diagram name="Context Diagram" id="context-diagram">
+    <mxGraphModel dx="1414" dy="777" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="system" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fontSize=14;fontStyle=1;" value="&lt;b style=&quot;font-size: 14px;&quot;&gt;ChargeSlot&lt;br&gt;Platform&lt;/b&gt;" vertex="1">
+          <mxGeometry height="220" width="220" x="540" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="guest" parent="1" style="whiteSpace=wrap;html=1;fontStyle=1;fontSize=13;" value="Guest" vertex="1">
+          <mxGeometry height="50" width="120" x="590" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="driver" parent="1" style="whiteSpace=wrap;html=1;fontStyle=1;fontSize=13;" value="Driver" vertex="1">
+          <mxGeometry height="50" width="120" x="290" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="owner" parent="1" style="whiteSpace=wrap;html=1;fontStyle=1;fontSize=13;" value="Owner" vertex="1">
+          <mxGeometry height="50" width="130" x="290" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="admin" parent="1" style="whiteSpace=wrap;html=1;fontStyle=1;fontSize=13;" value="Admin" vertex="1">
+          <mxGeometry height="50" width="120" x="880" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="sepay" parent="1" style="whiteSpace=wrap;html=1;fontStyle=1;fontSize=13;" value="SePay Gateway" vertex="1">
+          <mxGeometry height="50" width="140" x="490" y="690" as="geometry" />
+        </mxCell>
+        <mxCell id="firebase" parent="1" style="whiteSpace=wrap;html=1;fontStyle=1;fontSize=13;" value="Firebase System" vertex="1">
+          <mxGeometry height="50" width="140" x="880" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="smtp" parent="1" style="whiteSpace=wrap;html=1;fontStyle=1;fontSize=13;" value="SMTP Server" vertex="1">
+          <mxGeometry height="50" width="140" x="650" y="690" as="geometry" />
+        </mxCell>
+        <mxCell id="f_guest_in" edge="1" parent="1" source="guest" style="exitX=0.167;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.409;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="system">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="610" y="360" />
+            </Array>
+            <mxPoint x="609" y="380" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_guest_in_label" connectable="0" parent="f_guest_in" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;rotation=0;" value="Station&lt;div&gt;Search&lt;/div&gt;&lt;div&gt;Request&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint x="-8" y="-5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_guest_out" edge="1" parent="1" source="system" style="exitX=0.624;exitY=0.01;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.833;entryY=1.028;entryDx=0;entryDy=0;entryPerimeter=0;" target="guest">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="690" y="360" />
+            </Array>
+            <mxPoint x="680" y="370" as="sourcePoint" />
+            <mxPoint x="700" y="270" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_guest_out_label" connectable="0" parent="f_guest_out" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Station Info,&lt;div&gt;Pricing, Reviews&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="0.1" y="1" as="geometry">
+            <mxPoint x="11" y="-9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_driver_in" edge="1" parent="1" source="driver" style="exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.05;entryY=0.25;entryDx=0;entryDy=0;entryPerimeter=0;" target="system">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="550" y="355" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_driver_in_label" connectable="0" parent="f_driver_in" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Booking Request,&lt;div&gt;Wallet Top-up Request,&lt;/div&gt;&lt;div&gt;Dispute Report, Rating&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.2" y="-1" as="geometry">
+            <mxPoint x="-14" y="-1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_driver_out" edge="1" parent="1" source="system" style="exitX=0.019;exitY=0.356;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.667;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" target="driver">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="370" y="450" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_driver_out_label" connectable="0" parent="f_driver_out" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Booking Confirmation,&lt;div&gt;Refund Details,&lt;/div&gt;&lt;div&gt;Notifications, Loyalty Points&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="0.2" y="1" as="geometry">
+            <mxPoint x="56" y="-1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_owner_in" edge="1" parent="1" source="owner" style="exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.092;entryY=0.771;entryDx=0;entryDy=0;entryPerimeter=0;" target="system">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="355" y="540" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_owner_in_label" connectable="0" parent="f_owner_in" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="KYC Documents, Contract,&lt;div&gt;Station/Slot Info,&lt;/div&gt;&lt;div&gt;Withdrawal Request&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.2" y="-1" as="geometry">
+            <mxPoint x="55" y="-1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_owner_out" edge="1" parent="1" source="system" style="exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="owner">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="572" y="615" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_owner_out_label" connectable="0" parent="f_owner_out" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Revenue Report,&lt;div&gt;Booking Updates,&lt;/div&gt;&lt;div&gt;Notifications&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="0.1" y="1" as="geometry">
+            <mxPoint x="-11" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_admin_in" edge="1" parent="1" source="admin" style="exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.95;entryY=0.25;entryDx=0;entryDy=0;entryPerimeter=0;" target="system">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="940" y="425" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_admin_in_label" connectable="0" parent="f_admin_in" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Approval Decision,&lt;div&gt;System Configuration,&lt;/div&gt;&lt;div&gt;Dispute Resolution&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.2" y="1" as="geometry">
+            <mxPoint x="-33" y="4" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_admin_out" edge="1" parent="1" style="entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="admin">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="734" y="355" />
+            </Array>
+            <mxPoint x="734" y="412" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_admin_out_label" connectable="0" parent="f_admin_out" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Analytics,&lt;div&gt;Revenue Report,&lt;div&gt;System Logs&lt;/div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="0.1" y="-1" as="geometry">
+            <mxPoint x="23" y="-1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_sepay_in" edge="1" parent="1" style="entryX=0.35;entryY=0.98;entryDx=0;entryDy=0;entryPerimeter=0;" target="system">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="590" y="586" />
+            </Array>
+            <mxPoint x="590" y="690" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_sepay_in_label" connectable="0" parent="f_sepay_in" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Payment&lt;div&gt;Confirmation&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint x="-2" y="7" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_firebase_out" edge="1" parent="1" source="system" style="entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.978;exitY=0.652;exitDx=0;exitDy=0;exitPerimeter=0;" target="firebase">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="950" y="513" />
+            </Array>
+            <mxPoint x="760" y="513" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_firebase_out_label" connectable="0" parent="f_firebase_out" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Image Files,&lt;div&gt;Auth Token&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1" y="-1" as="geometry">
+            <mxPoint x="-32" y="-4" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_firebase_in" edge="1" parent="1" source="firebase" style="exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.952;entryY=0.711;entryDx=0;entryDy=0;entryPerimeter=0;" target="system">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="749" y="625" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_firebase_in_label" connectable="0" parent="f_firebase_in" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Image URLs,&amp;nbsp;&lt;div&gt;Auth Result&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="0.1" y="1" as="geometry">
+            <mxPoint x="62" y="-4" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_smtp_out" edge="1" parent="1" source="system" style="exitX=0.744;exitY=0.952;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.434;entryY=0.028;entryDx=0;entryDy=0;entryPerimeter=0;" target="smtp">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="711" y="580" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f_smtp_out_label" connectable="0" parent="f_smtp_out" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="Email&lt;div&gt;Content&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="0.1" y="1" as="geometry">
+            <mxPoint x="2" y="2" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

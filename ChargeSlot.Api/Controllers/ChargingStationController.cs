@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 using ChargeSlot.Api.Helpers;
+using ChargeSlot.Api.DTOs;
 namespace ChargeSlot.Api.Controllers
 {
     // TODO: Refactor – move direct DB access (pricing, extra services, status) to ChargingStationService
@@ -31,11 +32,13 @@ namespace ChargeSlot.Api.Controllers
 
         /// <summary>List all stations owned by the current Owner.</summary>
         [HttpGet]
-        public async Task<ActionResult<List<ChargingStationDto>>> GetMyStations()
+        public async Task<ActionResult<PagedResultDto<ChargingStationDto>>> GetMyStations(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
             var userId = GetUserId();
-            var stations = await _stationService.GetAllByOwnerAsync(userId);
-            return Ok(stations);
+            var result = await _stationService.GetAllByOwnerPagedAsync(userId, page, pageSize);
+            return Ok(result);
         }
 
         /// <summary>Get a single station by ID (must be owned by current Owner).</summary>
@@ -104,7 +107,7 @@ namespace ChargeSlot.Api.Controllers
             try
             {
                 await _stationService.SubmitForApprovalAsync(id, userId);
-                return Ok(new { message = "Station submitted for approval." });
+                return Ok(new { message = "Trạm sạc đã được gửi để duyệt." });
             }
             catch (KeyNotFoundException) { return NotFound(); }
             catch (UnauthorizedAccessException) { return Forbid(); }

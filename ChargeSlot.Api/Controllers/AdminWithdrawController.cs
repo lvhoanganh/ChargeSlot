@@ -23,17 +23,21 @@ namespace ChargeSlot.Api.Controllers
 
         /// <summary>Xem danh sách yêu cầu rút tiền đang chờ duyệt</summary>
         [HttpGet("pending")]
-        public async Task<IActionResult> GetPendingWithdraws()
+        public async Task<IActionResult> GetPendingWithdraws(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var result = await _walletService.GetAllPendingWithdrawsAsync();
+            var result = await _walletService.GetAllPendingWithdrawsPagedAsync(page, pageSize);
             return Ok(result);
         }
 
         /// <summary>Xem tất cả yêu cầu rút tiền (mọi trạng thái)</summary>
         [HttpGet]
-        public async Task<IActionResult> GetAllWithdraws()
+        public async Task<IActionResult> GetAllWithdraws(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var result = await _walletService.GetAllWithdrawsAsync();
+            var result = await _walletService.GetAllWithdrawsPagedAsync(page, pageSize);
             return Ok(result);
         }
 
@@ -100,6 +104,39 @@ namespace ChargeSlot.Api.Controllers
                 return Ok(new
                 {
                     message = dto.Refund ? "Đã hoàn tiền về ví" : "Đã chuyển khoản lại, chờ user xác nhận",
+                    withdrawRequest = result
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Admin ép hoàn tất rút tiền khi User spam báo lỗi giả (IssueReported → Completed).
+        /// Upload ảnh bằng chứng chuyển khoản thành công.
+        /// </summary>
+        [HttpPut("{id}/force-complete")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> ForceComplete(int id, IFormFile evidenceImage, [FromForm] string? note)
+        {
+            try
+            {
+                if (evidenceImage == null || evidenceImage.Length == 0)
+                    return BadRequest(new { message = "Vui lòng upload ảnh bằng chứng chuyển khoản." });
+
+                var ext = Path.GetExtension(evidenceImage.FileName).ToLowerInvariant();
+                if (ext is not (".jpg" or ".jpeg" or ".png" or ".webp"))
+                    return BadRequest(new { message = "Chỉ chấp nhận file ảnh (jpg, png, webp)." });
+
+                if (evidenceImage.Length > 5 * 1024 * 1024)
+                    return BadRequest(new { message = "File quá lớn. Tối đa 5MB." });
+
+                var result = await _walletService.AdminForceCompleteAsync(GetUserId(), id, evidenceImage, note);
+                return Ok(new
+                {
+                    message = "Đã ép hoàn tất yêu cầu rút tiền. Bằng chứng đã được lưu.",
                     withdrawRequest = result
                 });
             }

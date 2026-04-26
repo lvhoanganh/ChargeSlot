@@ -21,15 +21,19 @@ namespace ChargeSlot.Api.Services.Interfaces
 
         /// <summary>Get all pending disputes for admin.</summary>
         Task<List<DisputeDto>> GetPendingAsync();
+        Task<ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>> GetPendingPagedAsync(int page, int pageSize);
 
         /// <summary>Get all disputes (admin) with optional status filter.</summary>
         Task<List<DisputeDto>> GetAllAsync(string? status = null);
+        Task<ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>> GetAllPagedAsync(string? status, int page, int pageSize);
 
         /// <summary>Get all disputes submitted by the current driver.</summary>
         Task<List<DisputeDto>> GetMyDisputesAsync(int driverUserId);
+        Task<ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>> GetMyDisputesPagedAsync(int driverUserId, int page, int pageSize);
 
         /// <summary>Get all disputes related to the current owner's stations.</summary>
         Task<List<DisputeDto>> GetOwnerDisputesAsync(int ownerUserId);
+        Task<ChargeSlot.Api.DTOs.PagedResultDto<DisputeDto>> GetOwnerDisputesPagedAsync(int ownerUserId, int page, int pageSize);
 
         /// <summary>Get driver's dispute strike status for current month.</summary>
         Task<DisputeStrikeStatusDto> GetDriverStrikeStatusAsync(int driverUserId);

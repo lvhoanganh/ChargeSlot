@@ -1,5 +1,6 @@
 using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.DTOs.Admin;
+using ChargeSlot.Api.DTOs;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using ChargeSlot.Api.Constants;
@@ -175,8 +176,6 @@ namespace ChargeSlot.Api.Services.Implementation
                     TaxCode = owner.TaxCode ?? string.Empty,
                     IdCardNumber = owner.IdCardNumber,
                     IdCardDate = owner.IdCardDate,
-                    FrontIdCardUrl = owner.FrontIdCardUrl,
-                    BackIdCardUrl = owner.BackIdCardUrl,
                     BusinessLicenseNumber = owner.BusinessLicenseNumber,
                     BusinessLicenseUrl = owner.BusinessLicenseUrl,
                     Address = owner.Address,
@@ -251,15 +250,15 @@ namespace ChargeSlot.Api.Services.Implementation
             };
         }
 
-        public async Task<string> ToggleBanStatusAsync(int targetUserId, int actingAdminUserId)
+        public async Task<string> ToggleBanStatusAsync(int targetUserId, int actingAdminUserId, string? reason)
         {
             // Không cho admin tự ban/unban chính mình
             if (targetUserId == actingAdminUserId)
-                throw new InvalidOperationException("You cannot ban/unban yourself.");
+                throw new InvalidOperationException("Bạn không thể cấm/bỏ cấm chính mình.");
 
             var user = await _adminAccountRepository.FindByIdAsync(targetUserId);
             if (user == null)
-                throw new InvalidOperationException("User not found.");
+                throw new InvalidOperationException("Không tìm thấy người dùng.");
 
             var roles = await _adminAccountRepository.GetRolesAsync(user);
 
@@ -267,17 +266,31 @@ namespace ChargeSlot.Api.Services.Implementation
             if (roles.Contains(RoleConstants.Admin))
                 throw new InvalidOperationException("Admin accounts cannot be banned.");
 
-            // Chỉ toggle ACTIVE <-> BANNED / SUSPENDED
             if (user.Status == UserStatusConstants.Active)
             {
+                if (string.IsNullOrWhiteSpace(reason))
+                    throw new InvalidOperationException("Vui lòng cung cấp lý do khi khóa tài khoản.");
+
                 user.Status = UserStatusConstants.Banned;
-                user.BannedUntil = null; // Vĩnh viễn — đồng nhất với DisputeService (UnbanAutoJob chỉ xử lý SUSPENDED)
+                user.BannedUntil = null; // Khóa đến khi admin mở lại
+                
+                await _notificationService.SendAsync(
+                    targetUserId, 
+                    "Tài khoản bị khóa", 
+                    $"Tài khoản của bạn đã bị Admin khóa. Lý do: {reason}", 
+                    ChargeSlot.Api.Enums.NotificationType.System);
             }
             else if (user.Status == UserStatusConstants.Banned || user.Status == UserStatusConstants.Suspended)
             {
                 user.Status = UserStatusConstants.Active;
                 user.BannedUntil = null;
                 user.BanCount = 0; // Khi được Admin ân xá, xóa quota vi phạm
+                
+                await _notificationService.SendAsync(
+                    targetUserId, 
+                    "Tài khoản được mở khóa", 
+                    "Tài khoản của bạn đã được Admin mở khóa và có thể hoạt động bình thường.", 
+                    ChargeSlot.Api.Enums.NotificationType.System);
             }
             else
             {
@@ -289,7 +302,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 throw new InvalidOperationException("Failed to update user status.");
 
             // Cascading Cancel
-            if (user.Status == UserStatusConstants.Banned)
+            if (user.Status == UserStatusConstants.Suspended || user.Status == UserStatusConstants.Banned)
             {
                 await ProcessCascadingCancelAsync(user.Id, roles.FirstOrDefault() ?? "");
             }
@@ -354,12 +367,18 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             var users = await _adminAccountRepository.GetAllUsersForStatisticsAsync();
 
+            var ownerCount = await _ownerRepo.CountAsync();
+            var driverCount = await _driverRepo.CountAsync();
+            var adminIds = await _adminAccountRepository.GetAdminUserIdsAsync();
+
             return new AccountStatisticsDto
             {
                 TotalAccounts = users.Count,
                 ActiveAccounts = users.Count(x => x.Status == UserStatusConstants.Active),
-                BannedAccounts = users.Count(x => x.Status == UserStatusConstants.Banned),
-                //SuspendedAccounts = users.Count(x => x.Status == UserStatusConstants.Suspended)
+                BannedAccounts = users.Count(x => x.Status == UserStatusConstants.Banned || x.Status == UserStatusConstants.Suspended),
+                TotalOwners = ownerCount,
+                TotalDrivers = driverCount,
+                TotalAdmins = adminIds.Count
             };
         }
 

@@ -1,4 +1,5 @@
 using ChargeSlot.Api.DTOs.Chat;
+using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
@@ -105,6 +106,19 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (userId != driverUserId && userId != ownerUserId)
                 throw new UnauthorizedAccessException();
+
+            // Chỉ cho phép chat khi booking đang trong giai đoạn hoạt động
+            var chattableStatuses = new[]
+            {
+                BookingStatus.Paid,
+                BookingStatus.CheckedIn,
+                BookingStatus.CompletedPendingInvoice,
+                BookingStatus.Disputed
+            };
+
+            if (!chattableStatuses.Contains(booking.Status))
+                throw new InvalidOperationException(
+                    "Không thể gửi tin nhắn. Chat chỉ khả dụng khi booking đã thanh toán và chưa hoàn tất.");
 
             var conv = await _chatRepo.GetConversationByBookingAsync(bookingId);
 

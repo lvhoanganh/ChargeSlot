@@ -36,6 +36,11 @@ namespace ChargeSlot.Api.Repositories.Implementation
         {
             _context.Driver.Remove(driver);
         }
+
+        public async Task<int> CountAsync()
+        {
+            return await _context.Driver.CountAsync();
+        }
     }
 }
 

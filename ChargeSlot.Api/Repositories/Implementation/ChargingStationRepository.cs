@@ -47,6 +47,22 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
+        public async Task<(List<ChargingStation> Items, int TotalCount)> GetAllByOwnerPagedAsync(int ownerUserId, int page, int pageSize)
+        {
+            var query = _context.ChargingStations
+                .AsNoTracking()
+                .Include(s => s.Images)
+                .Include(s => s.OperatingHours)
+                .Include(s => s.ChargingSlots)
+                .Include(s => s.StationPricings)
+                .Where(s => s.OwnerUserId == ownerUserId);
+
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(s => s.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+            return (items, totalCount);
+        }
+
         public async Task<List<ChargingStation>> GetByApprovalStatusAsync(ApprovalStatus status)
         {
             return await _context.ChargingStations
@@ -58,6 +74,22 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .Where(s => s.ApprovalStatus == status)
                 .OrderByDescending(s => s.CreatedAt)
                 .ToListAsync();
+        }
+
+        public async Task<(List<ChargingStation> Items, int TotalCount)> GetByApprovalStatusPagedAsync(ApprovalStatus status, int page, int pageSize)
+        {
+            var query = _context.ChargingStations
+                .AsNoTracking()
+                .Include(s => s.Images)
+                .Include(s => s.OperatingHours)
+                .Include(s => s.ChargingSlots)
+                .Include(s => s.StationPricings)
+                .Where(s => s.ApprovalStatus == status);
+
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(s => s.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+            return (items, totalCount);
         }
 
         public async Task<List<ChargingStation>> GetPublicStationsAsync(string? keyword, decimal? minRating)
@@ -85,6 +117,36 @@ namespace ChargeSlot.Api.Repositories.Implementation
             }
 
             return await query.ToListAsync();
+        }
+
+        public async Task<(List<ChargingStation> Items, int TotalCount)> GetPublicStationsPagedAsync(string? keyword, decimal? minRating, int page, int pageSize)
+        {
+            var query = _context.ChargingStations
+                .Include(s => s.Images)
+                .Include(s => s.OperatingHours)
+                .Include(s => s.ChargingSlots)
+                .Include(s => s.StationPricings)
+                .Include(s => s.ExtraServices)
+                .Include(s => s.UnavailableDates)
+                .Where(s => s.ApprovalStatus == ApprovalStatus.Approved
+                    && s.OperationalStatus == OperationalStatus.Active
+                    && s.Owner.User.Status == ChargeSlot.Api.Constants.UserStatusConstants.Active);
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                var kw = keyword.ToLower();
+                query = query.Where(s => s.Name.ToLower().Contains(kw) || s.Address.ToLower().Contains(kw));
+            }
+
+            if (minRating.HasValue)
+            {
+                query = query.Where(s => s.AverageRating >= minRating.Value);
+            }
+
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(s => s.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+            return (items, totalCount);
         }
 
         public async Task<List<ChargingStation>> GetPublicStationsWithCoordinatesAsync()

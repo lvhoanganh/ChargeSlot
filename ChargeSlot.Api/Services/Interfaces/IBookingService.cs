@@ -1,4 +1,5 @@
 using ChargeSlot.Api.DTOs.Booking;
+using ChargeSlot.Api.DTOs;
 
 namespace ChargeSlot.Api.Services.Interfaces
 {
@@ -11,8 +12,9 @@ namespace ChargeSlot.Api.Services.Interfaces
         Task<BookingDto> OwnerCancelBookingAsync(int ownerUserId, int bookingId, string? cancelReason);
         Task<BookingDetailDto?> GetByIdAsync(int bookingId);
         Task<CancelPreviewDto> GetCancelPreviewAsync(int driverUserId, int bookingId);
-        Task<List<BookingDto>> GetByDriverAsync(int driverUserId);
-        Task<List<BookingDto>> GetByOwnerAsync(int ownerUserId);
+        Task<PagedResultDto<BookingDto>> GetByDriverPagedAsync(int driverUserId, string? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize);
+        Task<PagedResultDto<BookingDto>> GetDriverHistoryPagedAsync(int driverUserId, DateTime? fromDate, DateTime? toDate, int page, int pageSize);
+        Task<PagedResultDto<BookingDto>> GetByOwnerPagedAsync(int ownerUserId, string? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize);
         
         /// <summary>
         /// Dùng cho hệ thống gỡ/huỷ Booking khi tài khoản bị khóa (Admin).
@@ -26,6 +28,6 @@ namespace ChargeSlot.Api.Services.Interfaces
         /// </summary>
         Task ExpireSystemBookingAsync(int bookingId, string reason);
 
-        Task<ChargeSlot.Api.DTOs.Admin.Overview.PagedResultDto<BookingDto>> GetAdminAllBookingsAsync(ChargeSlot.Api.DTOs.Admin.Overview.BookingFilterDto filter);
+        Task<ChargeSlot.Api.DTOs.PagedResultDto<BookingDto>> GetAdminAllBookingsAsync(ChargeSlot.Api.DTOs.Admin.Overview.BookingFilterDto filter);
     }
 }

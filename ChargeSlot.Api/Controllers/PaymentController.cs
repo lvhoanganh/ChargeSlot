@@ -57,7 +57,7 @@ namespace ChargeSlot.Api.Controllers
 
             if (string.IsNullOrEmpty(expectedToken) || providedToken != expectedToken)
             {
-                return Unauthorized(new { success = false, message = "Invalid SePay Integration Token" });
+                return Unauthorized(new { success = false, message = "Token tích hợp SePay không hợp lệ." });
             }
 
             await _paymentService.ProcessSePayWebhookAsync(request);
@@ -66,7 +66,7 @@ namespace ChargeSlot.Api.Controllers
             return Ok(new SePayWebhookResponse
             {
                 success = true,
-                message = "Webhook received"
+                message = "Đã nhận webhook thành công."
             });
         }
     }

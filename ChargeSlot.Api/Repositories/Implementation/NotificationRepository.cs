@@ -22,6 +22,14 @@ namespace ChargeSlot.Api.Repositories.Implementation
                 .ToListAsync();
         }
 
+        public async Task<(List<Notification> Items, int TotalCount)> GetByUserPagedAsync(int userId, int page, int pageSize)
+        {
+            var query = _db.Notifications.Where(n => n.UserId == userId);
+            int totalCount = await query.CountAsync();
+            var items = await query.OrderByDescending(n => n.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            return (items, totalCount);
+        }
+
         public async Task<Notification?> GetByIdAsync(int id)
         {
             return await _db.Notifications.FindAsync(id);

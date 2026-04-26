@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.DTOs.Station;
 using ChargeSlot.Api.DTOs.Admin;
+using ChargeSlot.Api.DTOs;
 using ChargeSlot.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -42,10 +43,12 @@ namespace ChargeSlot.Api.Controllers
 
         /// <summary>List all stations pending approval.</summary>
         [HttpGet("pending")]
-        public async Task<ActionResult<List<ChargingStationDto>>> GetPendingStations()
+        public async Task<ActionResult<PagedResultDto<ChargingStationDto>>> GetPendingStations(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var stations = await _stationService.GetPendingStationsAsync();
-            return Ok(stations);
+            var result = await _stationService.GetPendingStationsPagedAsync(page, pageSize);
+            return Ok(result);
         }
 
         /// <summary>Get station detail for review.</summary>
@@ -73,13 +76,13 @@ namespace ChargeSlot.Api.Controllers
         }
 
         /// <summary>Toggle ban status of a station (Manual Ban/Unban).</summary>
-        [HttpPatch("{id:int}/toggle-ban")]
-        public async Task<IActionResult> ToggleBan(int id)
+        [HttpPost("{id:int}/toggle-ban")]
+        public async Task<IActionResult> ToggleBan(int id, [FromBody] ToggleBanDto dto)
         {
             var adminUserId = GetUserId();
             try
             {
-                var newStatus = await _stationService.ToggleBanStationAsync(id, adminUserId);
+                var newStatus = await _stationService.ToggleBanStationAsync(id, adminUserId, dto.Reason);
                 return Ok(new { stationId = id, status = newStatus });
             }
             catch (KeyNotFoundException) { return NotFound(); }

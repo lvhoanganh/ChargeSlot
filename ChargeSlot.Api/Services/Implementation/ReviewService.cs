@@ -185,7 +185,7 @@ namespace ChargeSlot.Api.Services.Implementation
         private async Task<ReviewDto> GetRatingDtoAsync(int ratingId)
         {
             var rating = await _ratingRepo.GetByIdWithDetailsAsync(ratingId)
-                ?? throw new InvalidOperationException("Rating not found.");
+                ?? throw new InvalidOperationException("Không tìm thấy đánh giá.");
             return MapToDto(rating);
         }
 
