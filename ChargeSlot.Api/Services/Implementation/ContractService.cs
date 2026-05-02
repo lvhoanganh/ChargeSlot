@@ -500,8 +500,8 @@ namespace ChargeSlot.Api.Services.Implementation
         {
             var signedAtStr = contract.SignedAt.HasValue ? contract.SignedAt.Value.ToString("dd/MM/yyyy") : "___/___/______";
             var signatureHtml = contract.Status == ContractStatus.Signed && !string.IsNullOrEmpty(contract.SignatureImageUrl)
-                ? $"<img src=\"{contract.SignatureImageUrl}\" alt=\"Chữ ký\" style=\"max-width:150px;max-height:60px;\" />"
-                : "<em>(Chưa ký)</em>";
+                ? $"<img src=\"{contract.SignatureImageUrl}\" alt=\"Chữ ký\" style=\"max-width: 150px; max-height: 60px; display: block; margin: 0 auto;\" />"
+                : "<em style=\"display: block; text-align: center;\">(Chưa ký)</em>";
 
             return $@"
 <div style='font-family: ""Times New Roman"", serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6;'>
