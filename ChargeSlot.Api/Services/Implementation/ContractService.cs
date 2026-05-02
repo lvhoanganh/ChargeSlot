@@ -334,7 +334,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     page.MarginTop(1.5f, Unit.Centimetre);
                     page.MarginBottom(1.5f, Unit.Centimetre);
                     page.MarginHorizontal(2, Unit.Centimetre);
-                    page.DefaultTextStyle(x => x.FontSize(11));
+                    page.DefaultTextStyle(x => x.FontFamily("Times New Roman").FontSize(11));
 
                     page.Content().Column(col =>
                     {
@@ -470,7 +470,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
                                 if (signatureBytes != null && signatureBytes.Length > 0)
                                 {
-                                    c.Item().AlignCenter().Width(150).Height(60).Image(signatureBytes);
+                                    c.Item().AlignCenter().Height(60).Image(signatureBytes, ImageScaling.FitHeight);
                                 }
                                 else
                                 {
