@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_BASE_URL || "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
+const API_BASE_URL = "https://chargeslot-api-f8b5brexe2b0ekhp.japaneast-01.azurewebsites.net/api";
 
 /**
  * Lấy token từ localStorage
@@ -980,6 +980,16 @@ export const reviewApi = {
 // ============================
 
 export const driverProfileApi = {
+    /** GET /api/driver/profile — lấy thông tin xe của driver hiện tại */
+    getProfile: () => apiFetch("/driver/profile"),
+
+    /** PUT /api/driver/profile — cập nhật thông tin xe */
+    updateProfile: (data) =>
+        apiFetch("/driver/profile", {
+            method: "PUT",
+            body: JSON.stringify(data),
+        }),
+
     uploadAvatar: (file) => {
         const formData = new FormData();
         formData.append("file", file);

@@ -28,7 +28,7 @@ export default function BookingRequests() {
   const navigate = useNavigate();
   const [allBookings, setAllBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Main group tab
   const [tabType, setTabType] = useState("ongoing"); // "ongoing" | "history"
   // Specific status filter (for history)
@@ -106,7 +106,7 @@ export default function BookingRequests() {
               color: tabType === "ongoing" ? "#fff" : "#374151",
             }}
           >
-             Đang xử lý
+            Đang xử lý
           </button>
           <button
             onClick={() => { setTabType("history"); setStatusFilter("all"); setPage(1); }}
@@ -117,7 +117,7 @@ export default function BookingRequests() {
               color: tabType === "history" ? "#fff" : "#374151",
             }}
           >
-             Lịch sử
+            Lịch sử
           </button>
         </div>
 
@@ -146,7 +146,7 @@ export default function BookingRequests() {
         {/* Date range filter */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
           <svg width="15" height="15" fill="none" stroke="#64748b" strokeWidth={2} viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
           </svg>
           <span style={{ fontSize: 13, color: "#64748b", fontWeight: 600 }}>Ngày sạc:</span>
           <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
@@ -178,53 +178,54 @@ export default function BookingRequests() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {paginatedBookings.map((b) => {
               const st = statusStyles[b.status] || statusStyles.WaitingOwner;
-            return (
-              <div
-                key={b.id}
-                onClick={() => navigate(`/owner/booking/${b.id}`)}
-                style={{
-                  background: "#fff", borderRadius: 16, padding: 20, marginBottom: 12,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)", cursor: "pointer",
-                  border: b.status === "WaitingOwner" ? "2px solid #fbbf24" : "2px solid transparent",
-                  transition: "all .15s",
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"}
-                onMouseLeave={(e) => e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontWeight: 700, fontSize: 15, color: "#1e293b" }}>Booking #{b.id}</span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: st.color, background: st.bg, padding: "4px 10px", borderRadius: 20 }}>
-                    {st.icon} {st.label}
-                  </span>
-                </div>
-                <div style={{ fontSize: 13, color: "#64748b", marginBottom: 4 }}>
-                  Tài xế: {b.driverName} | Cổng: {b.slotName}
-                </div>
-                <div style={{ display: "flex", gap: 16, fontSize: 13, color: "#64748b" }}>
-                  <span> {toLocal(b.startTime)} — {Math.round(b.durationHours * 60)} phút</span>
-                  <span style={{ fontWeight: 700, color: "#f97316" }}>{(b.totalAmount || 0).toLocaleString("vi-VN")}đ</span>
-                </div>
-
-                {/* Extra Services summary */}
-                {b.extraServices && b.extraServices.length > 0 && (
-                  <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px dashed #e5e7eb" }}>
-                    <div style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600, marginBottom: 2 }}> Dịch vụ bổ sung:</div>
-                    {b.extraServices.map((es, idx) => (
-                      <div key={idx} style={{ fontSize: 11, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
-                        <span>{es.serviceName} ×{es.quantity}</span>
-                        <span style={{ fontWeight: 600, color: "#7c3aed" }}>{es.totalPrice?.toLocaleString("vi-VN")}đ</span>
-                      </div>
-                    ))}
+              return (
+                <div
+                  key={b.id}
+                  onClick={() => navigate(`/owner/booking/${b.id}`)}
+                  style={{
+                    background: "#fff", borderRadius: 16, padding: 20, marginBottom: 12,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.04)", cursor: "pointer",
+                    border: b.status === "WaitingOwner" ? "2px solid #fbbf24" : "2px solid transparent",
+                    transition: "all .15s",
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"}
+                  onMouseLeave={(e) => e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: "#1e293b" }}>Booking #{b.id}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: st.color, background: st.bg, padding: "4px 10px", borderRadius: 20 }}>
+                      {st.icon} {st.label}
+                    </span>
                   </div>
-                )}
-              </div>
-            );
-          })}
-            <Pagination 
-              page={page} 
-              totalCount={totalCount} 
-              pageSize={20} 
-              onPageChange={(p) => setPage(p)} 
+                  <div style={{ fontSize: 13, color: "#64748b", marginBottom: 4 }}>
+                    Tài xế: <span onClick={() => navigate(`/driver/profile/${b.driverId}`)}>{b.driverName}</span>
+                    | Cổng: {b.slotName}
+                  </div>
+                  <div style={{ display: "flex", gap: 16, fontSize: 13, color: "#64748b" }}>
+                    <span> {toLocal(b.startTime)} — {Math.round(b.durationHours * 60)} phút</span>
+                    <span style={{ fontWeight: 700, color: "#f97316" }}>{(b.totalAmount || 0).toLocaleString("vi-VN")}đ</span>
+                  </div>
+
+                  {/* Extra Services summary */}
+                  {b.extraServices && b.extraServices.length > 0 && (
+                    <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px dashed #e5e7eb" }}>
+                      <div style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600, marginBottom: 2 }}> Dịch vụ bổ sung:</div>
+                      {b.extraServices.map((es, idx) => (
+                        <div key={idx} style={{ fontSize: 11, color: "#64748b", display: "flex", justifyContent: "space-between" }}>
+                          <span>{es.serviceName} ×{es.quantity}</span>
+                          <span style={{ fontWeight: 600, color: "#7c3aed" }}>{es.totalPrice?.toLocaleString("vi-VN")}đ</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <Pagination
+              page={page}
+              totalCount={totalCount}
+              pageSize={20}
+              onPageChange={(p) => setPage(p)}
             />
           </div>
         )}

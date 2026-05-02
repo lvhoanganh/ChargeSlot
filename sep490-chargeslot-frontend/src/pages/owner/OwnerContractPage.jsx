@@ -101,10 +101,10 @@ function useSignatureCanvas(canvasRef) {
 // ──────────────────────────────────
 function ContractStatusBadge({ status }) {
   const map = {
-    Signed:     { label: "Đã ký",      bg: "#f0fdf4", color: "#16a34a", dot: "#16a34a" },
-    Pending:    { label: "Chờ ký",     bg: "#fff7ed", color: "#ea580c", dot: "#f97316" },
+    Signed: { label: "Đã ký", bg: "#f0fdf4", color: "#16a34a", dot: "#16a34a" },
+    Pending: { label: "Chờ ký", bg: "#fff7ed", color: "#ea580c", dot: "#f97316" },
     Terminated: { label: "Đã chấm dứt", bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
-    Expired:    { label: "Hết hạn",    bg: "#f3f4f6", color: "#64748b", dot: "#9ca3af" },
+    Expired: { label: "Hết hạn", bg: "#f3f4f6", color: "#64748b", dot: "#9ca3af" },
   };
   const cfg = map[status];
   if (!cfg) return null;
@@ -179,7 +179,7 @@ export default function OwnerContractPage() {
     sig.resizeCanvas();
     window.addEventListener("resize", sig.resizeCanvas);
     return () => window.removeEventListener("resize", sig.resizeCanvas);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [loading, setLoading] = useState(true);
@@ -282,14 +282,14 @@ export default function OwnerContractPage() {
           </div>
           <h1 className="text-2xl font-bold text-slate-800 mb-3">Chưa có hợp đồng</h1>
           <p className="text-slate-500 leading-relaxed max-w-md mx-auto">
-            Hợp đồng hợp tác sẽ được tạo tự động sau khi Admin xét duyệt và phê duyệt hồ sơ KYC của bạn.
+            Hợp đồng hợp tác sẽ được tạo tự động sau khi Admin xét duyệt và phê duyệt hồ sơ của bạn.
           </p>
           <button
             onClick={() => navigate("/owner/kyc")}
             className="mt-8 inline-flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition shadow-lg shadow-orange-500/20"
           >
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-            Kiểm tra hồ sơ KYC
+            Kiểm tra hồ sơ
           </button>
         </div>
       </div>
@@ -323,10 +323,10 @@ export default function OwnerContractPage() {
               {contract.signedAt && !isExpired && !isTerminated
                 ? `Ký ngày: ${formatDateVN(contract.signedAt)}`
                 : isTerminated
-                ? "Hợp đồng đã bị chấm dứt"
-                : isExpired
-                ? "Hợp đồng đã hết hạn"
-                : "Vui lòng đọc kỹ và ký xác nhận hợp đồng bên dưới."}
+                  ? "Hợp đồng đã bị chấm dứt"
+                  : isExpired
+                    ? "Hợp đồng đã hết hạn"
+                    : "Vui lòng đọc kỹ và ký xác nhận hợp đồng bên dưới."}
             </p>
           </div>
 
@@ -362,20 +362,32 @@ export default function OwnerContractPage() {
 
         {/* Terminated / Expired banner */}
         {(isTerminated || isExpired) && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex gap-3 items-start text-red-800">
-            <div className="text-red-500 flex-shrink-0 mt-0.5">
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3 items-start">
+            <div className="text-amber-500 flex-shrink-0 mt-0.5">
               {isExpired ? (
                 <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               ) : (
-                <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               )}
             </div>
-            <div>
-              <strong className="block text-base mb-0.5">{isExpired ? "Hợp đồng đã hết hạn" : "Hợp đồng đã chấm dứt"}</strong>
-              <p className="text-sm text-red-700">
+            <div className="flex-1 min-w-0">
+              <strong className="block text-base mb-0.5 text-amber-800">
+                {isExpired ? "Hợp đồng đã hết hạn" : "Hợp đồng đã bị chấm dứt"}
+              </strong>
+              <p className="text-sm text-amber-700 mb-3">
                 Toàn bộ trạm sạc đã bị đình chỉ hoạt động. Bạn vẫn có thể rút số dư ví trên hệ thống.
-                Để tiếp tục kinh doanh, vui lòng liên hệ Admin để yêu cầu tái ký hợp đồng mới.
+                {isExpired
+                  ? " Hợp đồng hết hạn mà không được gia hạn tự động. Vui lòng cập nhật hồ sơ và tái ký hợp đồng mới."
+                  : " Nếu bạn tự chủ động chấm dứt, bạn có thể nộp lại hồ sơ để tái ký hợp đồng mới."
+                }
               </p>
+              <button
+                onClick={() => navigate("/owner/kyc")}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition shadow-md shadow-orange-500/20"
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                Tái ký hợp đồng (nộp hồ sơ)
+              </button>
             </div>
           </div>
         )}
@@ -558,20 +570,34 @@ export default function OwnerContractPage() {
                 </div>
               )}
 
-              {/* Trạng thái Terminated / Expired */}
+              {/* Trạng thái Terminated / Expired — nút tái ký */}
               {(isTerminated || isExpired) && (
-                <div className="bg-red-50 rounded-2xl ring-1 ring-red-200 p-5 text-center">
-                  <div className="text-red-500 flex justify-center mb-2">
-                    {isExpired ? (
-                      <svg width="44" height="44" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    ) : (
-                      <svg width="44" height="44" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                    )}
+                <div className="bg-white rounded-2xl ring-1 ring-orange-200 p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="text-orange-400">
+                      <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-700">Tái ký hợp đồng</h3>
                   </div>
-                  <p className="text-sm font-bold text-red-700">{isExpired ? "Hợp đồng đã hết hạn" : "Hợp đồng đã chấm dứt"}</p>
-                  <p className="text-xs text-red-600 mt-1">
-                    Liên hệ Admin để tiếp tục sử dụng dịch vụ.
+                  <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                    {isExpired
+                      ? "Hợp đồng đã hết hạn. Vui lòng cập nhật và nộp lại hồ sơ — hệ thống sẽ tự động tạo hợp đồng Pending mới để bạn ký."
+                      : "Bạn có thể nộp lại hồ sơ để bắt đầu ký hợp đồng hợp tác mới với ChargeSlot."
+                    }
                   </p>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      <strong>Lưu ý:</strong> Nếu hợp đồng bị chấm dứt bởi Admin do vi phạm (Điều 6.7),
+                      bạn sẽ <strong>không được phép</strong> tái ký.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => navigate("/owner/kyc")}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white text-sm font-bold transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                    Đi đến trang hồ sơ
+                  </button>
                 </div>
               )}
 

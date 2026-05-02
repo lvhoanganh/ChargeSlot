@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { bookingApi, disputeApi, chargingApi } from "@/services/api";
+import { bookingApi, disputeApi, chargingApi, driverProfileApi } from "@/services/api";
 import { showToast } from "@/components/Toast";
 
 const statusStyles = {
@@ -33,6 +33,8 @@ export default function BookingRequestDetail() {
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [driverProfile, setDriverProfile] = useState(null);
+  const [showDriverProfile, setShowDriverProfile] = useState(false);
   // const [manualCheckinLoading, setManualCheckinLoading] = useState(false); // TẠM ẨN
 
   useEffect(() => {
@@ -133,7 +135,7 @@ export default function BookingRequestDetail() {
             onMouseEnter={e => { e.currentTarget.style.background = "#dbeafe"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#eff6ff"; }}
           >
-             Nhắn tin với tài xế
+            Nhắn tin với tài xế
           </button>
         </div>
       )}
@@ -157,7 +159,7 @@ export default function BookingRequestDetail() {
                 {actionLoading ? "Đang xử lý..." : " Chấp nhận"}
               </button>
               <button onClick={() => setShowRejectForm(true)} style={{ flex: 1, padding: 14, borderRadius: 12, border: "none", background: "linear-gradient(135deg, #ef4444, #dc2626)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 12px rgba(239,68,68,0.3)" }}>
-                 Từ chối
+                Từ chối
               </button>
             </div>
           )}
@@ -222,7 +224,24 @@ export default function BookingRequestDetail() {
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 4, borderBottom: "1px solid #e2e8f0", paddingBottom: 8 }}>Thông tin đặt lịch</div>
               <InfoRow label="Mã đặt lịch" value={booking.id} />
-              <InfoRow label="Tài xế" value={booking.driverName} />
+              <InfoRow
+                label="Tài xế"
+                value={booking.driverName}
+                
+              />
+              <InfoRow
+                label="Loại xe"
+                value={booking.vehicleType}
+                
+              />
+              <InfoRow
+                label="Biển số xe"
+                value={booking.LicensePlate}
+              />
+              <InfoRow
+                label="Bằng lái xe"
+                value={booking.LicenseNumber}
+              />
               <InfoRow label="Trạm" value={booking.stationName} />
               <InfoRow label="Cổng sạc" value={booking.slotName} />
               <InfoRow label="Bắt đầu" value={toLocal(booking.startTime)} />
@@ -247,7 +266,7 @@ export default function BookingRequestDetail() {
               {booking.extraServices && booking.extraServices.length > 0 && (
                 <div style={{ marginTop: 8, paddingTop: 12, borderTop: "1px dashed #e2e8f0" }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#7c3aed", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                     Dịch vụ bổ sung
+                    Dịch vụ bổ sung
                   </div>
                   {booking.extraServices.map((es, idx) => (
                     <div key={idx} style={{
@@ -274,83 +293,111 @@ export default function BookingRequestDetail() {
 
             {/* ========== CỘT PHẢI: Chi tiết nâng cao (chỉ hiện khi có dữ liệu) ========== */}
             {hasAdvancedDetail && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: -4, borderBottom: "1px solid #e2e8f0", paddingBottom: 8 }}>Chi tiết nâng cao</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: -4, borderBottom: "1px solid #e2e8f0", paddingBottom: 8 }}>Chi tiết nâng cao</div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {/* DEEP DETAILS cho Owner */}
-                {booking.paymentDetail && (
-                  <div>
-                    <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}> Thanh toán</div>
-                    <InfoRow label="Phương thức" value={booking.paymentDetail.method === "Wallet" ? "Ví hệ thống" : booking.paymentDetail.method === "BankTransfer" ? "Chuyển khoản" : booking.paymentDetail.method} />
-                    {booking.paymentDetail.paidAt && <InfoRow label="Ngày thanh toán" value={toLocal(booking.paymentDetail.paidAt)} />}
-                    {booking.paymentDetail.refundedAt && <InfoRow label="Ngày hoàn tiền" value={toLocal(booking.paymentDetail.refundedAt)} error />}
-                  </div>
-                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {/* DEEP DETAILS cho Owner */}
+                  {booking.paymentDetail && (
+                    <div>
+                      <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}> Thanh toán</div>
+                      <InfoRow label="Phương thức" value={booking.paymentDetail.method === "Wallet" ? "Ví hệ thống" : booking.paymentDetail.method === "BankTransfer" ? "Chuyển khoản" : booking.paymentDetail.method} />
+                      {booking.paymentDetail.paidAt && <InfoRow label="Ngày thanh toán" value={toLocal(booking.paymentDetail.paidAt)} />}
+                      {booking.paymentDetail.refundedAt && <InfoRow label="Ngày hoàn tiền" value={toLocal(booking.paymentDetail.refundedAt)} error />}
+                    </div>
+                  )}
 
-                {booking.invoiceDetail && (
-                  <div style={{ marginTop: 4, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
-                    <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}> Chi tiết hóa đơn</div>
-                    <InfoRow label="Tiền sạc" value={`${(booking.invoiceDetail.chargingAmount || 0).toLocaleString("vi-VN")}đ`} />
-                    {booking.invoiceDetail.vatAmount > 0 && <InfoRow label="Thuế VAT" value={`${booking.invoiceDetail.vatAmount.toLocaleString("vi-VN")}đ`} />}
-                    <InfoRow label="Tổng thanh toán" value={`${(booking.invoiceDetail.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
-                  </div>
-                )}
+                  {booking.invoiceDetail && (
+                    <div style={{ marginTop: 4, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
+                      <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}> Chi tiết hóa đơn</div>
+                      <InfoRow label="Tiền sạc" value={`${(booking.invoiceDetail.chargingAmount || 0).toLocaleString("vi-VN")}đ`} />
+                      {booking.invoiceDetail.vatAmount > 0 && <InfoRow label="Thuế VAT" value={`${booking.invoiceDetail.vatAmount.toLocaleString("vi-VN")}đ`} />}
+                      <InfoRow label="Tổng thanh toán" value={`${(booking.invoiceDetail.totalAmount || 0).toLocaleString("vi-VN")}đ`} highlight />
+                    </div>
+                  )}
 
-                {sessionDetail && (
-                  <div style={{ marginTop: 4, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
-                    <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}> Chi tiết phiên sạc thực tế</div>
-                    {(() => {
-                      const actualStart = sessionDetail.actualStartTime ? new Date(String(sessionDetail.actualStartTime).replace("Z", "")).getTime() : 0;
-                      const bookingStart = booking.startTime ? new Date(String(booking.startTime).replace("Z", "")).getTime() : (sessionDetail.bookingStartTime ? new Date(String(sessionDetail.bookingStartTime).replace("Z", "")).getTime() : 0);
-                      const effectiveStartMs = Math.max(actualStart > 0 ? actualStart : 0, bookingStart > 0 ? bookingStart : 0);
-                      const end = sessionDetail.actualEndTime ? new Date(String(sessionDetail.actualEndTime).replace("Z", "")).getTime() : 0;
-                      
-                      const durationMs = effectiveStartMs > 0 && end > 0 && end > effectiveStartMs ? end - effectiveStartMs : (sessionDetail.actualDurationHours ? sessionDetail.actualDurationHours * 3600000 : 0);
+                  {sessionDetail && (
+                    <div style={{ marginTop: 4, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
+                      <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}> Chi tiết phiên sạc thực tế</div>
+                      {(() => {
+                        const actualStart = sessionDetail.actualStartTime ? new Date(String(sessionDetail.actualStartTime).replace("Z", "")).getTime() : 0;
+                        const bookingStart = booking.startTime ? new Date(String(booking.startTime).replace("Z", "")).getTime() : (sessionDetail.bookingStartTime ? new Date(String(sessionDetail.bookingStartTime).replace("Z", "")).getTime() : 0);
+                        const effectiveStartMs = Math.max(actualStart > 0 ? actualStart : 0, bookingStart > 0 ? bookingStart : 0);
+                        const end = sessionDetail.actualEndTime ? new Date(String(sessionDetail.actualEndTime).replace("Z", "")).getTime() : 0;
 
-                      const renderDate = (ms) => new Date(ms).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric", hour12: false });
-                      
-                      return (
-                        <>
-                          {effectiveStartMs > 0 && <InfoRow label="Bắt đầu sạc" value={renderDate(effectiveStartMs)} />}
-                          {end > 0 && <InfoRow label="Kết thúc sạc" value={renderDate(end)} />}
-                          {durationMs > 0 && (() => {
-                            const hours = Math.floor(durationMs / 3600000);
-                            const minutes = Math.floor((durationMs % 3600000) / 60000);
-                            const formattedDuration = hours > 0 ? `${hours} giờ ${minutes} phút` : `${minutes} phút`;
-                            return <InfoRow label="Thời lượng sạc" value={formattedDuration} />;
-                          })()}
-                        </>
-                      );
-                    })()}
-                  </div>
-                )}
+                        const durationMs = effectiveStartMs > 0 && end > 0 && end > effectiveStartMs ? end - effectiveStartMs : (sessionDetail.actualDurationHours ? sessionDetail.actualDurationHours * 3600000 : 0);
 
-                {booking.disputeDetail && (
-                  <div style={{ marginTop: 4, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
-                    <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}>️ Tranh chấp ({booking.disputeDetail.status})</div>
-                    <InfoRow label="Lý do" value={booking.disputeDetail.reason} error />
-                    {booking.disputeDetail.resultNote && <InfoRow label="Kết quả" value={booking.disputeDetail.resultNote} highlight />}
-                  </div>
-                )}
+                        const renderDate = (ms) => new Date(ms).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric", hour12: false });
+
+                        return (
+                          <>
+                            {effectiveStartMs > 0 && <InfoRow label="Bắt đầu sạc" value={renderDate(effectiveStartMs)} />}
+                            {end > 0 && <InfoRow label="Kết thúc sạc" value={renderDate(end)} />}
+                            {durationMs > 0 && (() => {
+                              const hours = Math.floor(durationMs / 3600000);
+                              const minutes = Math.floor((durationMs % 3600000) / 60000);
+                              const formattedDuration = hours > 0 ? `${hours} giờ ${minutes} phút` : `${minutes} phút`;
+                              return <InfoRow label="Thời lượng sạc" value={formattedDuration} />;
+                            })()}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {booking.disputeDetail && (
+                    <div style={{ marginTop: 4, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
+                      <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 700 }}>️ Tranh chấp ({booking.disputeDetail.status})</div>
+                      <InfoRow label="Lý do" value={booking.disputeDetail.reason} error />
+                      {booking.disputeDetail.resultNote && <InfoRow label="Kết quả" value={booking.disputeDetail.resultNote} highlight />}
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions Section */}
+                {renderActions()}
               </div>
-
-              {/* Actions Section */}
-              {renderActions()}
-            </div>
             )}
           </div>
         </div>
       </div>
+
+      {showDriverProfile && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+          <div className="animate-in fade-in zoom-in duration-200" style={{ background: "#fff", padding: 24, borderRadius: 16, width: "100%", maxWidth: 400, margin: "0 16px" }}>
+            <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: 18, color: "#1e293b", borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>Thông tin tài xế</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <InfoRow label="Họ tên tài xế" value={booking.driverName} />
+                <InfoRow label="Loại xe" value={driverProfile?.vehicleType || "Chưa cập nhật"} />
+                <InfoRow label="Biển số xe" value={driverProfile?.licensePlate || "Chưa cập nhật"} />
+            </div>
+            <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
+              <button onClick={() => setShowDriverProfile(false)} style={{ padding: "10px 20px", borderRadius: 10, background: "#f1f5f9", color: "#334155", border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14 }}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function InfoRow({ label, value, highlight, error, purple }) {
+function InfoRow({ label, value, highlight, error, purple, onClick }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
       <span style={{ color: "#64748b" }}>{label}</span>
-      <span style={{ fontWeight: 600, color: error ? "#ef4444" : purple ? "#7c3aed" : highlight ? "#f97316" : "#1e293b" }}>{value}</span>
+      <span
+        onClick={onClick}
+        style={{
+          fontWeight: 600,
+          color: error ? "#ef4444" : purple ? "#7c3aed" : highlight ? "#f97316" : onClick ? "#3b82f6" : "#1e293b",
+          cursor: onClick ? "pointer" : "default",
+          textDecoration: onClick ? "underline" : "none"
+        }}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -382,7 +429,7 @@ function OwnerCancelSection({ bookingId, onDone }) {
             color: "#ef4444", fontWeight: 700, fontSize: 15, cursor: "pointer",
           }}
         >
-           Hủy booking (hoàn tiền 100%)
+          Hủy booking (hoàn tiền 100%)
         </button>
       </div>
     );

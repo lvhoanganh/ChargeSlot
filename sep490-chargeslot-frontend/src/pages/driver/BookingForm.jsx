@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { publicStationApi, bookingApi, loyaltyApi, stationApi, adminConfigApi } from "@/services/api";
+import { publicStationApi, bookingApi, loyaltyApi, stationApi, adminConfigApi, driverProfileApi } from "@/services/api";
 import TimePicker24h from "@/components/TimePicker24h";
 
 export default function BookingForm() {
@@ -14,6 +14,7 @@ export default function BookingForm() {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [vehicleIncomplete, setVehicleIncomplete] = useState(false); // Guard: thiếu thông tin xe
   const [bookedRanges, setBookedRanges] = useState([]);
   const [selectedExtras, setSelectedExtras] = useState({});
   const [loyaltyInfo, setLoyaltyInfo] = useState(null);
@@ -66,6 +67,19 @@ export default function BookingForm() {
 
     return () => { cancelled = true; };
   }, [stationId]);
+
+  // Guard: kiểm tra thông tin xe của Driver ngay khi vào trang
+  useEffect(() => {
+    driverProfileApi.getProfile()
+      .then((profile) => {
+        const missing =
+          !profile?.vehicleType?.trim() ||
+          !profile?.licensePlate?.trim() ||
+          !profile?.licenseNumber?.trim();
+        setVehicleIncomplete(missing);
+      })
+      .catch(() => setVehicleIncomplete(false)); // Không block nếu fetch lỗi
+  }, []);
 
   useEffect(() => {
     loyaltyApi.getInfo()
@@ -345,6 +359,10 @@ export default function BookingForm() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    // Guard: chặn booking nếu chưa cập nhật thông tin xe
+    if (vehicleIncomplete) {
+      return setApiError("Vui lòng cập nhật thông tin xe (loại xe, biển số, GPLX) trước khi đặt lịch.");
+    }
     if (!selectedSlot) return setApiError("Vui lòng chọn slot sạc");
     if (!startTime) return setApiError("Vui lòng chọn thời gian bắt đầu");
 
@@ -591,6 +609,36 @@ export default function BookingForm() {
           <h1 style={{ fontSize: 26, fontWeight: 800, color: "#1e293b", margin: 0 }}>Đặt lịch sạc</h1>
           <p style={{ fontSize: 14, color: "#64748b", marginTop: 4 }}> {station.name} — {station.address}</p>
         </div>
+
+        {/* Banner cảnh báo thiếu thông tin xe */}
+        {vehicleIncomplete && (
+          <div style={{
+            background: "#fef2f2", border: "1.5px solid #fca5a5", borderRadius: 14,
+            padding: "14px 20px", marginBottom: 20,
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 700, color: "#dc2626", fontSize: 14 }}>Chưa cập nhật thông tin xe</div>
+                <div style={{ color: "#7f1d1d", fontSize: 13, marginTop: 2 }}>
+                  Bạn cần điền đầy đủ <strong>loại xe, biển số xe và số GPLX</strong> trước khi đặt lịch sạc.
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/driver/driver-profile")}
+              style={{
+                flexShrink: 0, background: "#dc2626", color: "#fff",
+                border: "none", borderRadius: 10, padding: "8px 18px",
+                fontWeight: 700, fontSize: 13, cursor: "pointer"
+              }}
+            >
+              Cập nhật ngay →
+            </button>
+          </div>
+        )}
+
 
         <form onSubmit={handleSubmit}>
           {/* ===== RESPONSIVE LAYOUT ===== */}

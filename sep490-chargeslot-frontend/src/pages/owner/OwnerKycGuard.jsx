@@ -153,7 +153,7 @@ export default function OwnerKycGuard({ children }) {
       );
     }
 
-    if ((contractStatus === "Terminated" || contractStatus === "Expired") && !location.pathname.startsWith("/owner/contract") && !location.pathname.startsWith("/owner/wallet")) {
+    if ((contractStatus === "Terminated" || contractStatus === "Expired") && !location.pathname.startsWith("/owner/contract") && !location.pathname.startsWith("/owner/wallet") && !location.pathname.startsWith("/owner/kyc")) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-red-50 via-rose-50 to-red-50 flex items-center justify-center pt-20 pb-12 px-4">
           <div className="max-w-lg w-full bg-white rounded-3xl shadow-xl ring-1 ring-red-100 p-8 text-center">
