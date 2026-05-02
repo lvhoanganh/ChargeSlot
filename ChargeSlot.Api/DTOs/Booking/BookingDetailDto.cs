@@ -5,6 +5,9 @@ namespace ChargeSlot.Api.DTOs.Booking
 {
     public class BookingDetailDto : BookingDto
     {
+        public string? VehicleType { get; set; }
+        public string? LicensePlate { get; set; }
+        public string? LicenseNumber { get; set; }
         public BookingPaymentDetailDto? PaymentDetail { get; set; }
         public BookingSessionDetailDto? SessionDetail { get; set; }
         public BookingDisputeDetailDto? DisputeDetail { get; set; }

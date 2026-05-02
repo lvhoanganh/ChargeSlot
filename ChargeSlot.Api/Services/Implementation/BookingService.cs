@@ -1035,6 +1035,9 @@ namespace ChargeSlot.Api.Services.Implementation
             var baseDto = MapToDto(b);
             var detailDto = new BookingDetailDto
             {
+                VehicleType = b.Driver?.VehicleType,
+                LicensePlate = b.Driver?.LicensePlate,
+                LicenseNumber = b.Driver?.LicenseNumber,
                 Id = baseDto.Id,
                 DriverUserId = baseDto.DriverUserId,
                 DriverName = baseDto.DriverName,
