@@ -1,9 +1,12 @@
+using ChargeSlot.Api.Constants;
 using ChargeSlot.Api.DTOs.Kyc;
 using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Helpers;
 using ChargeSlot.Api.Models;
+using ChargeSlot.Api.Models.Identity;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 
 namespace ChargeSlot.Api.Services.Implementation
@@ -15,15 +18,17 @@ namespace ChargeSlot.Api.Services.Implementation
         private readonly IFileStorageService _fileService;
         private readonly INotificationService _notificationService;
         private readonly IContractService _contractService;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<KycService> _logger;
 
-        public KycService(IOwnerRepository ownerRepo, IUnitOfWork unitOfWork, IFileStorageService fileService, INotificationService notificationService, IContractService contractService, ILogger<KycService> logger)
+        public KycService(IOwnerRepository ownerRepo, IUnitOfWork unitOfWork, IFileStorageService fileService, INotificationService notificationService, IContractService contractService, UserManager<ApplicationUser> userManager, ILogger<KycService> logger)
         {
             _ownerRepo = ownerRepo;
             _unitOfWork = unitOfWork;
             _fileService = fileService;
             _notificationService = notificationService;
             _contractService = contractService;
+            _userManager = userManager;
             _logger = logger;
         }
 
@@ -101,6 +106,19 @@ namespace ChargeSlot.Api.Services.Implementation
             await _unitOfWork.CompleteAsync();
 
             _logger.LogInformation("Owner {OwnerUserId} đã nộp hồ sơ KYC ({Type}).", ownerUserId, isUpdate ? "cập nhật" : "mới");
+
+            // Gửi thông báo cho tất cả Admin
+            var adminUsers = await _userManager.GetUsersInRoleAsync(RoleConstants.Admin);
+            var notifyTitle = isUpdate ? "Hồ sơ KYC cập nhật chờ duyệt" : "Hồ sơ KYC mới chờ duyệt";
+            var notifyContent = isUpdate
+                ? $"Chủ trạm (ID: {ownerUserId}) đã nộp yêu cầu cập nhật hồ sơ KYC. Vui lòng kiểm duyệt."
+                : $"Chủ trạm (ID: {ownerUserId}) đã nộp hồ sơ KYC mới. Vui lòng kiểm duyệt.";
+            foreach (var admin in adminUsers)
+                await _notificationService.SendAsync(
+                    admin.Id,
+                    notifyTitle,
+                    notifyContent,
+                    NotificationType.System);
 
             return MapToDto(owner);
         }

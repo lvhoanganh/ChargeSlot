@@ -5,6 +5,7 @@ using ChargeSlot.Api.Enums;
 using ChargeSlot.Api.Models;
 using ChargeSlot.Api.Repositories.Interfaces;
 using ChargeSlot.Api.Services.Interfaces;
+using Microsoft.IdentityModel.Tokens;
 
 namespace ChargeSlot.Api.Services.Implementation
 {
@@ -62,8 +63,16 @@ namespace ChargeSlot.Api.Services.Implementation
         public async Task<BookingDto> CreateBookingAsync(int driverUserId, CreateBookingDto dto)
         {
             using var transaction = await _unitOfWork.BeginTransactionAsync();
+            Driver driver = await _driverRepo.GetByUserIdAsync(driverUserId, tracking: true);
+            if (driver == null)
+                throw new InvalidOperationException("Không tìm thấy thông tin tài xế.");
+
             try
             {
+                if (driver.LicensePlate.IsNullOrEmpty()
+                || driver.VehicleType.IsNullOrEmpty()
+                || driver.LicenseNumber.IsNullOrEmpty())
+                    throw new InvalidOperationException("Chưa đăng kí xe.");
                 // Validate: DurationHours phải > 0 và <= 24
                 if (dto.DurationHours <= 0)
                     throw new InvalidOperationException("Thời lượng sạc phải lớn hơn 0.");
@@ -211,8 +220,6 @@ namespace ChargeSlot.Api.Services.Implementation
 
             if (dto.PointsToUse > 0)
             {
-                var driver = await _driverRepo.GetByUserIdAsync(driverUserId, tracking: true)
-                    ?? throw new InvalidOperationException("Driver profile không tồn tại.");
 
                 if (dto.PointsToUse > driver.LoyaltyPoints)
                     throw new InvalidOperationException(
@@ -1204,7 +1211,10 @@ namespace ChargeSlot.Api.Services.Implementation
                 if (segmentEnd <= current)
                     segmentEnd = endTime; // Tính phần còn lại với tier hiện tại
 
-                var hours = (decimal)(segmentEnd - current).TotalHours;
+                // Tính giờ từ phút (tránh lỗi floating-point precision khi dùng TotalHours)
+                // VD: 1 giờ = 60 phút → 60/60 = 1.0m chính xác, không bị 0.999999...
+                var totalMinutes = (decimal)Math.Round((segmentEnd - current).TotalMinutes);
+                var hours = totalMinutes / 60m;
 
                 if (hours > 0)
                 {
