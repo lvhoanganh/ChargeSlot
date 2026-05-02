@@ -26,7 +26,6 @@ namespace ChargeSlot.Api.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = RoleConstants.Driver)]
         public async Task<ActionResult<DriverProfileDto>> GetMyProfile()
         {
             var userId = GetUserId();
