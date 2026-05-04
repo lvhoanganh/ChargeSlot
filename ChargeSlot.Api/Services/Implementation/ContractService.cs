@@ -334,7 +334,7 @@ namespace ChargeSlot.Api.Services.Implementation
                     page.MarginTop(1.5f, Unit.Centimetre);
                     page.MarginBottom(1.5f, Unit.Centimetre);
                     page.MarginHorizontal(2, Unit.Centimetre);
-                    page.DefaultTextStyle(x => x.FontFamily("Times New Roman").FontSize(11));
+                    page.DefaultTextStyle(x => x.FontFamily("Times New Roman").FontSize(11).LineHeight(1.2f));
 
                     page.Content().Column(col =>
                     {
@@ -470,7 +470,7 @@ namespace ChargeSlot.Api.Services.Implementation
 
                                 if (signatureBytes != null && signatureBytes.Length > 0)
                                 {
-                                    c.Item().AlignCenter().Height(60).Image(signatureBytes, ImageScaling.FitHeight);
+                                    c.Item().AlignCenter().Height(60).Image(signatureBytes).FitHeight();
                                 }
                                 else
                                 {
@@ -504,7 +504,7 @@ namespace ChargeSlot.Api.Services.Implementation
                 : "<em style=\"display: block; text-align: center;\">(Chưa ký)</em>";
 
             return $@"
-<div style='font-family: ""Times New Roman"", serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6;'>
+<div style='font-family: ""Times New Roman"", Times, serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.5;'>
     <div>
         <p style='text-align: center; font-size: 14px; font-weight: bold; margin: 0;'>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
         <p style='text-align: center; font-size: 13px; margin: 0;'>Độc lập — Tự do — Hạnh phúc</p>

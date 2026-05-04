@@ -70,8 +70,8 @@ namespace ChargeSlot.Api.Services.Implementation
             try
             {
                 if (driver.LicensePlate.IsNullOrEmpty()
-                || driver.VehicleType.IsNullOrEmpty()
-                || driver.LicenseNumber.IsNullOrEmpty())
+                && driver.VehicleType.IsNullOrEmpty()
+                && driver.LicenseNumber.IsNullOrEmpty())
                     throw new InvalidOperationException("Chưa đăng kí xe.");
                 // Validate: DurationHours phải > 0 và <= 24
                 if (dto.DurationHours <= 0)
